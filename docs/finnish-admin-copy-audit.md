@@ -13,7 +13,8 @@ proposals have shipped. The historical public audit stays unchanged.
 
 - Batch 1: case-detail Finnish spelling and untranslated urgency label.
   38 exact proposals applied; 91 focused existing tests passed.
-  Before/after capture matrices each contain 68 images; independent SHIP pending.
+  Before/after capture matrices each contain 68 images; independent SHIP
+  received for both themes and both widths (136 images inspected).
 - Batch 2: remaining admin shell, editors, analytics and consent corrections.
   Proposals recorded below; not applied in batch 1.
 - Batch 3: displayed backend feedback and admin manuals.
@@ -45,7 +46,19 @@ Focused checks: `test_admin_case_bp.py`, `test_admin_case_component_contract.py`
 `test_city_scoped_admin.py`: 91 passed. Existing fixture JWT key warnings only.
 The existing render assertion now expects the corrected Finnish heading.
 Changelog rendered successfully. No frontend source/bundle change.
-Independent visual verdict and PR link will be recorded before handoff.
+Independent visual verdict: SHIP, separate fresh-context light/dark reviewers
+opened all 136 images at readable scale. Template SHA-256:
+`9a1fe6e0ba596a8a8be2a912422915eda013bdeda879c4251d0779e5ced6f7f7`. Captured before base `576709a1`; reviewed uncommitted
+source is content-identical to implementation commit `23569ab3`. Source and
+image hashes rechecked after verdict. Evidence: `/tmp/moso-admin-visual/`,
+`review-light.json`, `review-dark.json`, `verdict-light.md`, `verdict-dark.md`.
+Scope is only the changed case-detail text and listed fixture states; no claim
+about the whole admin. Existing dark-theme white dialogs/placeholder contrast
+and sidebar truncation are unchanged. Intentional demo-search abort exercises
+the actual error message; no resources missing or JavaScript errors observed.
+CodeRabbit CLI reviewed the two changed tracked source/test files: completed,
+zero findings. Changelog and audit documentation were inspected locally.
+PR link will be added after opening.
 No production access is needed.
 
 # Admin Finnish template audit (read only)
