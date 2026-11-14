@@ -41,7 +41,7 @@
     <div class="admin-health-detail"><span>Käyttöaika</span><strong>{{ server.uptime }}</strong></div>
     <div class="admin-health-detail"><span>Python</span><strong>{{ server.python }}</strong></div>
     <div class="admin-health-detail"><span>Muisti (RSS)</span><strong>{{ server.memory.used_mb }} MB</strong></div>
-    <div class="admin-health-detail"><span>Gunicorn työntekijät</span><strong>{{ server.workers or '—' }}</strong></div>
+    <div class="admin-health-detail"><span>Gunicorn-työntekijät</span><strong>{{ server.workers or '—' }}</strong></div>
     <div class="admin-health-disk">
       <div class="admin-health-detail"><span>Levytila</span><strong>{{ server.disk.free_gb }} GB / {{ server.disk.total_gb }} GB vapaa</strong></div>
       <div class="admin-health-progress" role="progressbar" aria-label="Levytilan käyttö" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ server.disk.used_pct }}">
@@ -150,7 +150,7 @@
       </tbody>
     </table></div>
     {% else %}
-    <div class="admin-empty-state">Ei virheitä viime aikana</div>
+    <div class="admin-empty-state">Ei virheitä viime aikoina</div>
     {% endif %}
   </section>
 
