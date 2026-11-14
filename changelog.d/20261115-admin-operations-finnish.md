@@ -1,0 +1,1 @@
+- Korjattu ylläpidon loki-, tila- ja analytiikkanäkymien suomenkielisiä tekstejä. Kaavioiden latauspainikkeet kertovat nyt selkeästi, mitä PNG-kuva sisältää.
