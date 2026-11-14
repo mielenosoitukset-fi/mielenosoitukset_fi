@@ -222,7 +222,7 @@
                     <label for="frequency_interval" class="block font-medium mb-1">Toistuvuusväli</label>
                     <input type="number" id="frequency_interval" name="frequency_interval" min="1"
                         class="form-control w-32" value="{{ demo.repeat_schedule.interval if demo and demo.repeat_schedule and demo.repeat_schedule.interval else 1 }}">
-                    <small class="text-muted">Kuinka monta kertaa toisto tapahtuu (esim. joka 2. viikko)</small>
+                    <small class="text-muted">Kuinka monen päivän, viikon, kuukauden tai vuoden välein tapahtuma toistuu (esim. joka 2. viikko)</small>
                 </div>
             </div>
 
@@ -243,7 +243,7 @@
                 <select id="monthly_option" name="monthly_option" class="form-control w-full">
                     {% set monthly_option = demo.repeat_schedule.monthly_option if demo and demo.repeat_schedule else 'day_of_month' %}
                     <option value="day_of_month" {% if monthly_option == 'day_of_month' %}selected{% endif %}>Päivä kuukaudessa</option>
-                    <option value="nth_weekday" {% if monthly_option == 'nth_weekday' %}selected{% endif %}>nth viikonpäivä</option>
+                    <option value="nth_weekday" {% if monthly_option == 'nth_weekday' %}selected{% endif %}>Kuukauden tietty viikonpäivä</option>
                 </select>
                 <div class="mt-2">
                     <input type="number" id="day_of_month" name="day_of_month" min="1" max="31"
@@ -478,7 +478,7 @@
         <section class="form-section mb-8">
             <h2 class="text-xl font-semibold mb-4">{{ _('Käännökset') }}</h2>
             <p class="text-muted mb-4">
-                {{ _('Voit täydentää toistuvalle mielenosoitukselle käännökset eri kielillä. Tyhjät kentät fallbackaavat oletuskielen sisältöön.') }}
+                {{ _('Voit täydentää toistuvalle mielenosoitukselle käännökset eri kielillä. Tyhjä kenttä tarkoittaa, että julkisessa näkymässä käytetään oletuskielen sisältöä.') }}
             </p>
 
             {% for locale in translation_locales %}
@@ -516,7 +516,7 @@
 
         <!-- Location Section -->
         <section id="location-info" class="form-section mb-8">
-            <h2 class="text-xl font-semibold mb-4">{{ _('Sijaintiedot') }}</h2>
+            <h2 class="text-xl font-semibold mb-4">{{ _('Sijaintitiedot') }}</h2>
 
             {% include "paikkakunta-dropdown.html" %}
 
