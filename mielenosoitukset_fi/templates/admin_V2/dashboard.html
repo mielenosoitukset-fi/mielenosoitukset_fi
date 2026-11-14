@@ -122,10 +122,10 @@
           <h5 class="mb-3">{{ _('Järjestelmän kunto') }}</h5>
           <div class="health-metric">
             <div class="health-label">
-              <span>{{ _('Kirjautumiset onnistui') }}</span>
+              <span>{{ _('Onnistuneet kirjautumiset') }}</span>
               <span id="metric-login-success">0%</span>
             </div>
-            <div class="admin-dashboard-progress" role="progressbar" aria-label="{{ _('Kirjautumiset onnistui') }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="bar-login-success"></span></div>
+            <div class="admin-dashboard-progress" role="progressbar" aria-label="{{ _('Onnistuneet kirjautumiset') }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="bar-login-success"></span></div>
           </div>
           <div class="health-metric">
             <div class="health-label">
@@ -162,7 +162,7 @@
         <a class="quick-card text-decoration-none" href="{{ url_for('admin.logs') }}">
           <div>
             <strong>{{ _('Audit-lokit') }}</strong>
-            <div class="text-muted small">{{ _('Syvennä tapahtumia') }}</div>
+            <div class="text-muted small">{{ _('Tarkastele tapahtumia') }}</div>
           </div>
           <i class="fa-solid fa-list-check"></i>
         </a>

@@ -1,0 +1,1 @@
+- Korjattu ylläpidon mielenosoituslomakkeiden ja hallintapaneelin suomenkielisiä tekstejä. Toistuvuusvälin ohje erottaa nyt toistojen välin niiden määrästä.
