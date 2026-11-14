@@ -145,13 +145,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 {% for group_name, permissions in PERMISSIONS_GROUPS.items() %}
                 <div class="permission-category">
-                    <h4>{{ group_name }}</h4>
+                    <h4>{{ (permission_category_labels|default({})).get(group_name, group_name) }}</h4>
                     <div class="permission-list" id="permissions_global">
                         {% for perm in permissions %}
                         <div class="permission-item">
                             <input type="checkbox" id="perm_global_{{ perm.name }}" name="permissions[global][]"
                                 value="{{ perm.name }}" {% if perm.name in global_permissions %}checked{% endif %}>
-                            <label for="perm_global_{{ perm.name }}">{{ perm.description }}</label>
+                            <label for="perm_global_{{ perm.name }}">{{ (permission_descriptions|default({})).get(perm.name, perm.description) }}</label>
                         </div>
                         {% endfor %}
                     </div>
