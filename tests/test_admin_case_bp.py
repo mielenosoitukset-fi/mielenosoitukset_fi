@@ -28,7 +28,7 @@ def test_case_pages_render_clean_support_case_views(admin_client, seeded_data):
 
     assert "Tapaukset & eskaloinnit" in list_page
     assert "Pending Demonstration" in detail_page
-    assert "Sisaiset muistiinpanot" in detail_page
+    assert "Sisäiset muistiinpanot" in detail_page
 
 
 def test_approve_demo_token_closes_linked_support_case(client, db, seeded_data):
