@@ -1,0 +1,1 @@
+- Käyttäjämuokkaimen käyttöoikeusryhmät ja oikeuksien kuvaukset näkyvät nyt suomeksi. Oikeustunnisteet, myönnetyt oikeudet ja sähköpostiyhteenvedot säilyvät ennallaan.
