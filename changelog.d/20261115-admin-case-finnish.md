@@ -1,0 +1,1 @@
+- Korjattu tapausnäkymän suomenkielisten otsikoiden, kenttien, toimintojen ja virheviestien kirjoitusvirheitä sekä suomennettu kiireellisyysmerkintä.
