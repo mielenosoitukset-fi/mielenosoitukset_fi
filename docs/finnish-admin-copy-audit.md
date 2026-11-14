@@ -58,7 +58,7 @@ and sidebar truncation are unchanged. Intentional demo-search abort exercises
 the actual error message; no resources missing or JavaScript errors observed.
 CodeRabbit CLI reviewed the two changed tracked source/test files: completed,
 zero findings. Changelog and audit documentation were inspected locally.
-PR link will be added after opening.
+Batch 1 PR: [#1165](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1165).
 No production access is needed.
 
 # Admin Finnish template audit (read only)
