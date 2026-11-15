@@ -42,7 +42,10 @@ def test_signup_cannot_bypass_unpublished_page_gate(client, user_client, db):
     assert user_client.post('/kampanja/api/volunteers', json=payload).status_code == 201
 
 
-def test_admin_can_publish_and_withdraw_without_opening_donations(admin_client, client, db, seeded_data):
+def test_admin_can_publish_and_withdraw_without_opening_donations(admin_client, client, db, seeded_data, monkeypatch):
+    from mielenosoitukset_fi.utils.fundraising import fundraising_details
+    route_globals = client.application.view_functions['fundraising'].__wrapped__.__globals__
+    monkeypatch.setitem(route_globals, 'fundraising_details', lambda: fundraising_details({'planned_start_date': '2026-11-16', 'planned_end_date': '2027-02-15'}))
     assert _publish(admin_client).status_code == 303
     state = db.campaign_settings.find_one({'_id': 'public_pages'})
     assert state['published'] is True
