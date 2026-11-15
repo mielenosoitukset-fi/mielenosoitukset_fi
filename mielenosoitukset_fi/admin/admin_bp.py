@@ -88,7 +88,7 @@ from .utils import AdminActParser, log_admin_action_V2
 def _get_job_manager_or_abort():
     job_manager = current_app.extensions.get("job_manager")
     if not job_manager:
-        abort(503, "Background jobs are not available in this deployment.")
+        abort(503, _("Taustatehtävät eivät ole käytettävissä tässä ympäristössä."))
     return job_manager
 
 

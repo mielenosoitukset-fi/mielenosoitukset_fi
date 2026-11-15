@@ -201,7 +201,7 @@ def _set_user_api_tokens(user_id, enabled: bool):
 def approve_request(req_id):
     req = mongo.developer_scope_requests.find_one({"_id": ObjectId(req_id)})
     if not req:
-        return jsonify({"status": "error", "message": "Request not found"}), 404
+        return jsonify({"status": "error", "message": _("Hakemusta ei löytynyt.")}), 404
     app_id = req.get("app_id")
     scopes = req.get("scopes", [])
     if app_id:
@@ -217,7 +217,7 @@ def approve_request(req_id):
 def deny_request(req_id):
     req = mongo.developer_scope_requests.find_one({"_id": ObjectId(req_id)})
     if not req:
-        return jsonify({"status": "error", "message": "Request not found"}), 404
+        return jsonify({"status": "error", "message": _("Hakemusta ei löytynyt.")}), 404
     _set_request_status(req["_id"], "denied")
     return jsonify({"status": "success"})
 
@@ -229,7 +229,7 @@ def deny_request(req_id):
 def approve_access(req_id):
     req_obj = mongo.api_token_requests.find_one({"_id": ObjectId(req_id)})
     if not req_obj:
-        return jsonify({"status": "error", "message": "Request not found"}), 404
+        return jsonify({"status": "error", "message": _("Hakemusta ei löytynyt.")}), 404
     user_id = req_obj.get("user_id")
     if user_id:
         _set_user_api_tokens(user_id, True)
@@ -262,7 +262,7 @@ def approve_access(req_id):
 def deny_access(req_id):
     req_obj = mongo.api_token_requests.find_one({"_id": ObjectId(req_id)})
     if not req_obj:
-        return jsonify({"status": "error", "message": "Request not found"}), 404
+        return jsonify({"status": "error", "message": _("Hakemusta ei löytynyt.")}), 404
     user_id = req_obj.get("user_id")
     if user_id:
         mongo.users.update_one({"_id": user_id}, {"$unset": {"api_token_request": ""}, "$set": {"api_tokens_enabled": False}})

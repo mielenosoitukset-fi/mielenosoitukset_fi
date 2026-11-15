@@ -3627,7 +3627,7 @@ def send_edit_link(demo_id):
 
     except Exception as e:
         logging.error("Error sending edit link email: %s", str(e))
-        return jsonify({"status": "ERROR", "message": "Internal server error."}), 500
+        return jsonify({"status": "ERROR", "message": _("Palvelimella tapahtui virhe.")}), 500
 
 @admin_demo_bp.route("/generate_edit_link/<demo_id>", methods=["POST"])
 @login_required
@@ -3669,7 +3669,7 @@ def generate_edit_link(demo_id):
     except Exception as e:
         logging.error("An error occurred while generating the edit link: %s", str(e))
         return (
-            jsonify({"status": "ERROR", "message": "An internal error has occurred."}),
+            jsonify({"status": "ERROR", "message": _("Palvelimella tapahtui virhe.")}),
             500,
         )
 
@@ -5565,7 +5565,7 @@ def geocode_address():
 def approve_demo(demo_id):
     demo = mongo.demonstrations.find_one({"_id": _require_valid_objectid(demo_id)})
     if not demo:
-        return jsonify({"success": False, "error": "Mielenosoitus ei löytynyt"}), 404
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
     _abort_if_demo_forbidden(demo["_id"], "ACCEPT_DEMO")
 
     result = _apply_demo_decision(demo_id, "approved", source="admin_api")
@@ -5588,7 +5588,7 @@ def approve_demo(demo_id):
 def reject_demo(demo_id):
     demo = mongo.demonstrations.find_one({"_id": _require_valid_objectid(demo_id)})
     if not demo:
-        return jsonify({"success": False, "error": "Mielenosoitus ei löytynyt"}), 404
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
     _abort_if_demo_forbidden(demo["_id"], "ACCEPT_DEMO")
 
     result = _apply_demo_decision(demo_id, "rejected", source="admin_api")
@@ -5666,7 +5666,7 @@ def admin_cancel_demo(demo_id):
 
     demo = mongo.demonstrations.find_one({"_id": demo_oid})
     if not demo:
-        return jsonify({"success": False, "error": "Mielenosoitus ei löytynyt"}), 404
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
     _abort_if_demo_forbidden(demo["_id"], "EDIT_DEMO")
 
     reason = None

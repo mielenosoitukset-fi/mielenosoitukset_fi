@@ -114,6 +114,18 @@ The context is guidance, not an approved replacement specification.
 - `mielenosoitukset_fi/static/frontend/manifest.json` and the hashed `assets/*` it names must be regenerated (`npm run build`) in the same commit as their source. A bot's conflict resolution can leave stale hashes behind.
 - A `codex://threads/<uuid>` reference maps to `~/.codex/sessions/<date>/rollout-*-<uuid>.jsonl`; read that file when a Codex conversation is needed but not available as a thread reference.
 
+## Finnish language skill
+
+Before writing, editing or reviewing Finnish text, load and follow the
+[`suomi-finnish` skill](https://github.com/akunikkola/suomi-finnish-skill),
+including the relevant reference files it calls for. This applies to public UI,
+admin UI, emails and Finnish documentation. Use the installed skill when
+available. If the harness does not expose it, install it through that harness’s
+skill installer or read the source repository’s `SKILL.md` and required
+references before continuing. Do not record a Finnish language check as passed
+without applying the skill. Existing scope, terminology, localization and
+human-translation rules still apply.
+
 ## Public UI ownership and copy
 
 - Before building or changing a public screen, read [the design system](docs/design-system/README.md): tokens, component guidelines, copy rules and the *Consistency* table that settles where existing pages differ. Reuse its components and tokens; if a rule changes, update that folder in the same PR.

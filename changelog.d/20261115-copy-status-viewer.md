@@ -1,0 +1,1 @@
+- Added a local browser viewer for the Finnish copy-review inventory, with filtering, recorded before/after comparisons and applied-example export.
