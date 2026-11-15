@@ -112,9 +112,9 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
           <p>Lahjoita vain keräysaikana {finnishDate(f.start_date!)}–{finnishDate(f.end_date!)}. Älä tee lahjoitusta keräysajan päätyttyä.</p>
           <div className="campaign-mobilepay-links">{f.mobilepay_links.filter(link => link.url).map(link =>
             <a key={link.url} className="public-content__link" href={link.url} rel="noopener noreferrer">{link.label} <Arrow /></a>)}</div>
-          {f.iban && f.recipient && <>
+          {f.iban && <>
             <dl className="public-content__facts">
-              <div><dt>Saaja</dt><dd>{f.recipient}</dd></div>
+              {f.recipient && <div><dt>Saaja</dt><dd>{f.recipient}</dd></div>}
               <div><dt>Tilinumero (IBAN)</dt><dd className="fundraising-iban">{f.iban}</dd></div>
               {extras.bic && <div><dt>BIC</dt><dd>{extras.bic}</dd></div>}
               {f.reference && <div><dt>Viite</dt><dd>{f.reference}</dd></div>}

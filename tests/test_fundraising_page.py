@@ -29,7 +29,15 @@ def _confirmed_plan():
     }
 
 
-def test_fundraising_preview_is_public_and_has_no_payment_instructions(client):
+def test_fundraising_preview_is_public_and_has_no_payment_instructions(client, monkeypatch):
+    import json
+    from pathlib import Path
+
+    shipped = json.loads((Path(__file__).parent.parent / "mielenosoitukset_fi/utils/data/fundraising.json").read_text(encoding="utf-8"))
+    preparation = shipped | {"publication_state": "preparation", "details_confirmed": False,
+                             "mobilepay_links": [{"label": "MobilePay 1", "url": ""}, {"label": "MobilePay 2", "url": ""}]}
+    route_globals = client.application.view_functions["fundraising"].__wrapped__.__globals__
+    monkeypatch.setitem(route_globals, "fundraising_details", lambda: fundraising_details(preparation, today=date(2026, 11, 20)))
     response = client.get("/keräys")
     assert response.status_code == 200
     page = response.get_data(as_text=True)

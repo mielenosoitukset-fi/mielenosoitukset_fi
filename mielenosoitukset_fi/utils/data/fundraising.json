@@ -1,6 +1,6 @@
 {
-  "publication_state": "preparation",
-  "details_confirmed": false,
+  "publication_state": "active",
+  "details_confirmed": true,
   "show_header_link": false,
   "show_bar": true,
   "start_date": "2026-11-16",
@@ -13,11 +13,15 @@
   "mobilepay_links": [
     {
       "label": "MobilePay 1",
-      "url": ""
+      "url": "https://qr.mobilepay.fi/box/f1106ca8-8e72-409b-9e05-db65e65df2ef/pay-in"
     },
     {
       "label": "MobilePay 2",
-      "url": ""
+      "url": "https://qr.mobilepay.fi/box/020be895-0757-4a22-9bcc-ef5a794730e7/pay-in"
+    },
+    {
+      "label": "MobilePay 3",
+      "url": "https://qr.mobilepay.fi/box/5a708674-b13d-41e4-bbb1-69a46ddc95fe/pay-in"
     }
   ],
   "planned_start_date": "2026-11-16",

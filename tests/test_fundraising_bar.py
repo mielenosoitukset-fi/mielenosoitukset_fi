@@ -37,13 +37,12 @@ def test_session_summary_carries_the_bar_settings_from_the_shipped_configuration
     assert set(payload["fundraising_bar"]) == {"enabled", "start", "end", "donations_open"}
 
 
-def test_shipped_configuration_announces_the_opening_but_hides_donation_details():
+def test_shipped_configuration_opens_donations_from_the_first_collection_day():
     from datetime import date
 
     from mielenosoitukset_fi.utils.fundraising import fundraising_details
 
-    for day in (date(2026, 11, 14), date(2026, 11, 15)):
+    for day, opened in ((date(2026, 11, 15), False), (date(2026, 11, 16), True), (date(2027, 2, 15), True), (date(2027, 2, 16), False)):
         bar = fundraising_bar(today=day)
         assert bar["enabled"] is True and bar["start"] == "2026-11-16" and bar["end"] == "2027-02-15"
-        assert bar["donations_open"] is False
-        assert fundraising_details(today=day)["can_donate"] is False
+        assert fundraising_details(today=day)["can_donate"] is opened

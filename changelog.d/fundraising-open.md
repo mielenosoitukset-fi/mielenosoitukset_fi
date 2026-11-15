@@ -1,0 +1,1 @@
+- The fundraising collection is now open: the page shows the bank account, BIC and three MobilePay links, and the opening banner is gone. The payee name is shown only if one is configured.
