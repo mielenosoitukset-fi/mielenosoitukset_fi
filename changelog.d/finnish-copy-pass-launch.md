@@ -1,0 +1,1 @@
+- Finnish wording on the campaign page, the campaign confirmation pages, the Pride banner carrier form and the pienkeräys reminder and Pride confirmation emails was checked against the Finnish language guidelines: calques, colloquial endings and an exclamation mark were fixed. No facts, dates or purposes changed.

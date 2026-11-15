@@ -47,14 +47,14 @@ def confirmation_message(token, unsubscribe_token, environ=None):
     # may belong to someone else, and the text would then arrive under our name.
     body = (
         "Hei,\n\n"
-        "tämä osoite annettiin Mielenosoitukset.fi:n Pride näkyväksi -sivulla, kun ilmoittauduttiin banderollin kantajaksi. "
+        "tämä sähköpostiosoite annettiin Mielenosoitukset.fi:n Pride näkyväksi -sivulla, kun joku ilmoittautui banderollin kantajaksi. "
         "Jos ilmoittautuminen oli sinun, vahvista se tästä linkistä:\n\n"
         f"{base}{PAGE}?kantaja=vahvista#t={token}\n\n"
         "Linkki on voimassa 7 päivää ja toimii vain kerran. Ilman vahvistusta emme käytä osoitettasi mihinkään "
         "ja poistamme sen.\n\n"
         "Tavoitteemme on, että jokaisessa Pridessa on Mielenosoitukset.fi-banderolli, ja siihen tarvitaan kantajia. "
         "Ilmoittautuminen ei sido sinua mihinkään, ja voit perua sen milloin tahansa. "
-        "Vahvistuksen jälkeen otamme yhteyttä myöhemmin ja sovimme tiedot yhdessä kanssasi. "
+        "Vahvistuksen jälkeen otamme yhteyttä myöhemmin ja sovimme yksityiskohdista yhdessä. "
         "Käytämme tietoja vain tähän ja poistamme ne Pride-kauden jälkeen, ellet anna uutta lupaa.\n\n"
         "Jos et ilmoittautunut itse, voit jättää viestin huomiotta tai poistaa osoitteen heti:\n"
         f"{page}\n\n"

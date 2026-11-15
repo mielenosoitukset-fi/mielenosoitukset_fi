@@ -102,7 +102,7 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
       </div>
       <aside className="kv-card--facts" aria-label="Kampanja lyhyesti">
         <h2>Kampanja lyhyesti</h2>
-        <div className="kv-fact"><b>noin 25 000</b><span>tarraa kampanjan tavoitteena</span></div>
+        <div className="kv-fact"><b>noin 25 000</b><span>tarraa on tavoitteena</span></div>
         <div className="kv-fact"><b>12</b><span>banderollia, joista 8 Pride-banderollia</span></div>
         <div className="kv-fact"><b>{fiRange(s.marketingStart, s.marketingEnd, false)}</b><span>markkinointiviikko {s.marketingStart.slice(0, 4)}</span></div>
       </aside>
@@ -164,8 +164,8 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
       </div>
       <div className="volunteer-signup campaign-signup kv-form" id="vapaaehtoiseksi">
         <h3>Ilmoittaudu vapaaehtoiseksi</h3>
-        <p className="kv-small">Nimi ja sähköposti ovat pakollisia.</p>
-        <p className="kv-small">Vahvistat ilmoittautumisen sähköpostilla. Käytämme tietoja vain yhteydenpitoon vapaaehtoistoiminnassa. <a className="kv-link" href={urls.privacy}>Tietosuojaseloste</a></p>
+        <p className="kv-small">Nimi ja sähköpostiosoite ovat pakollisia.</p>
+        <p className="kv-small">Vahvistat ilmoittautumisen sähköpostitse. Käytämme tietoja vain yhteydenpitoon vapaaehtoistoiminnassa. <a className="kv-link" href={urls.privacy}>Tietosuojaseloste</a></p>
         {serverFallback ? <>
           <p className="campaign-loading-note">Lomaketta ladataan. Jos se ei avaudu, voit ottaa yhteyttä: <a href="mailto:tuki@mielenosoitukset.fi">tuki@mielenosoitukset.fi</a>.</p>
           <noscript><p>Ilmoittautumislomake tarvitsee JavaScriptin. Tietojasi ei ole lähetetty.</p></noscript>
@@ -179,7 +179,7 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
         <h2 id="av" className="kv-h2 kv-h2--loose">Kampanjan avajaiset {s.openingCityIn}</h2>
         <dl className="kv-facts2">
           <div><dt>Päivä</dt><dd>{fiWeekday(s.openingDate)} {fiDate(s.openingDate)}</dd></div>
-          <div><dt>Aika</dt><dd>{s.openingTime} alkaen</dd></div>
+          <div><dt>Aika</dt><dd>klo {s.openingTime} alkaen</dd></div>
           <div><dt>Paikka</dt><dd>{s.openingCity}, paikka tarkentuu</dd></div>
         </dl>
         <p className="kv-lead kv-lead--small">Tervetuloa kampanjan avajaisiin. Tapaa vapaaehtoisia ja kuule, mitä kampanja tekee. Ilmoittautuminen ei sido mihinkään.</p>

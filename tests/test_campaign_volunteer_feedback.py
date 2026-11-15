@@ -83,7 +83,7 @@ def test_campaign_volunteer_api_rejects_blank_normalized_required_values(
             "fi",
             (
                 "Tarkista korostetut tiedot ja yritä uudelleen.",
-                "Kiitos ilmoittautumisestasi! Tarkista sähköpostisi vahvistaaksesi ilmoittautumisen.",
+                "Kiitos ilmoittautumisestasi. Tarkista sähköpostisi vahvistaaksesi ilmoittautumisen.",
                 "Ilmoittautuminen epäonnistui. Yritä uudelleen.",
                 "Yhteys palveluun epäonnistui. Yritä myöhemmin uudelleen.",
             ),
@@ -127,7 +127,7 @@ def test_campaign_page_embeds_localized_volunteer_feedback(
 @pytest.mark.parametrize(
     ("status", "body", "content_type", "abort", "expected"),
     [
-        (201, '{"success": true}', "application/json", False, "Kiitos ilmoittautumisestasi!"),
+        (201, '{"success": true}', "application/json", False, "Kiitos ilmoittautumisestasi."),
         (400, '{"success": false, "error": "Tarkista tiedot."}', "application/json", False, "Tarkista tiedot."),
         (401, '{"success": false, "error": "Kirjaudu sisään."}', "application/json", False, "Kirjaudu sisään."),
         (429, '{"success": false, "error": "Yritä hetken kuluttua."}', "application/json", False, "Yritä hetken kuluttua."),

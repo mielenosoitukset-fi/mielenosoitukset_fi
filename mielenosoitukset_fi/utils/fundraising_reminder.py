@@ -73,7 +73,7 @@ def confirmation_message(token, unsubscribe_token, environ=None):
     subject = "Vahvista muistutuksen tilaus: Mielenosoitukset.fi:n pienkeräys"
     body = (
         "Hei,\n\n"
-        "tämä osoite annettiin Mielenosoitukset.fi:n sivulla, kun pyydettiin muistutusta pienkeräyksen alkamisesta. "
+        "tämä sähköpostiosoite annettiin Mielenosoitukset.fi:n sivustolla, kun joku pyysi muistutusta pienkeräyksen alkamisesta. "
         "Jos pyyntö oli sinun, vahvista tilaus tästä linkistä:\n\n"
         f"{base}/ker%C3%A4ys?muistutus=vahvista#t={token}\n\n"
         "Linkki on voimassa 7 päivää ja toimii vain kerran. Ilman vahvistusta emme lähetä sinulle mitään "

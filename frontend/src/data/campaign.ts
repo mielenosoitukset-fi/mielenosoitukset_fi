@@ -11,7 +11,7 @@ export const confirmationCopy = {
   success: {
     title: 'Ilmoittautumisesi on vahvistettu',
     description: 'Sähköpostiosoitteesi on vahvistettu ja ilmoittautumisesi on tallennettu.',
-    detail: 'Kiitos kiinnostuksestasi kampanjaa kohtaan. Voit palata tutustumaan kampanjaan tai jatkaa etusivulle.',
+    detail: 'Kiitos, että kiinnostuit kampanjasta. Voit palata tutustumaan kampanjaan tai jatkaa etusivulle.',
   },
   invalid: {
     title: 'Vahvistuslinkki ei ole voimassa',
@@ -21,6 +21,6 @@ export const confirmationCopy = {
   expired: {
     title: 'Vahvistuslinkki on vanhentunut',
     description: 'Ilmoittautumista ei voitu vahvistaa tällä linkillä.',
-    detail: 'Voit palata kampanjasivulle. Jos tarvitset apua ilmoittautumisen kanssa, ota yhteyttä sähköpostitse.',
+    detail: 'Voit palata kampanjasivulle. Jos tarvitset apua ilmoittautumisessa, ota yhteyttä sähköpostitse.',
   },
 } as const;

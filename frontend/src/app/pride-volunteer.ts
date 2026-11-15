@@ -14,7 +14,7 @@ export const prideVolunteerCopy = {
   call: 'Jos haluat kantaa sitä omalla paikkakunnallasi tai muualla, jätä yhteystietosi.',
   terms: [
     { title: 'Ilmoittautuminen ei sido', text: 'Ilmoittautuminen ei lupaa mitään kummallekaan puolelle. Voit perua sen milloin tahansa.' },
-    { title: 'Sovimme tiedot yhdessä', text: 'Otamme yhteyttä myöhemmin ja sovimme kanssasi, miten banderolli kulkee ja mihin tapahtumaan.' },
+    { title: 'Sovimme yksityiskohdat yhdessä', text: 'Otamme yhteyttä myöhemmin ja sovimme yhdessä, miten banderolli kulkee ja mihin tapahtumaan.' },
   ],
   formTitle: 'Ilmoittaudu banderollin kantajaksi',
   legend: 'Banderollin kantajan ilmoittautuminen',
@@ -43,7 +43,7 @@ export const prideVolunteerCopy = {
   doneSent: 'Viesti on matkalla osoitteeseen',
   doneConfirm: 'Avaa viestin linkki vahvistaaksesi ilmoittautumisen.',
   doneWait: 'Ilmoittautuminen tulee voimaan vasta vahvistuksen jälkeen. Jos viestiä ei kuulu muutamassa minuutissa, katso roskapostikansio.',
-  donePromise: 'Ilmoittautuminen ei sido sinua mihinkään, ja voit perua sen milloin tahansa. Otamme yhteyttä myöhemmin ja sovimme tiedot yhdessä kanssasi.',
+  donePromise: 'Ilmoittautuminen ei sido sinua mihinkään, ja voit perua sen milloin tahansa. Otamme yhteyttä myöhemmin ja sovimme yksityiskohdista yhdessä.',
 } as const;
 
 export interface VolunteerInput { name: string; email: string; city: string; pride: string; unsure: boolean; note: string; consent: boolean; website: string }
@@ -110,7 +110,7 @@ export const removeCarrier = (token: string) => post(`${carrierPath}/unsubscribe
 
 export const carrierLinkCopy = {
   confirmTitle: 'Vahvista ilmoittautumisesi',
-  confirmIntro: 'Vahvista ilmoittautuminen banderollin kantajaksi painamalla painiketta. Sen jälkeen otamme sinuun yhteyttä myöhemmin ja sovimme tiedot yhdessä kanssasi.',
+  confirmIntro: 'Vahvista ilmoittautuminen banderollin kantajaksi painamalla painiketta. Sen jälkeen otamme sinuun yhteyttä myöhemmin ja sovimme yksityiskohdista yhdessä.',
   confirmButton: 'Vahvista ilmoittautuminen',
   confirmed: 'Ilmoittautuminen on vahvistettu. Kiitos. Otamme yhteyttä myöhemmin. Voit perua ilmoittautumisen milloin tahansa viestin linkistä.',
   removeTitle: 'Poista tietosi',
