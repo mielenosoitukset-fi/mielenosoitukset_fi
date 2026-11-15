@@ -4,24 +4,54 @@ Base: `576709a11ee18c2b67538285e89a627ccc1f5bee` (public PR #1164 merged).
 Model: `gpt-6.1-sol`. Source review: 15 November 2026.
 Branch: `codex/finnish-admin-copy-audit`; isolated worktree `/tmp/moso-admin-finnish`.
 
-## Delivery status
+## Delivery status (15 November 2026)
 
-The initial usage-limit interruption is resolved. Both reviewers completed
-source inventories; their reports below distinguish reviewed, unused and
-pending sources. Source review is not rendered acceptance or a claim that all
-proposals have shipped. The historical public audit stays unchanged.
+The source audit is complete for the inventoried admin sources, with the
+explicit exclusions/context limits in the reports below. Five bounded
+correction batches have merged through the required-check merge queue:
 
-- Batch 1: case-detail Finnish spelling and untranslated urgency label.
-  38 exact proposals applied; 91 focused existing tests passed.
-  Before/after capture matrices each contain 68 images; independent SHIP
-  received for both themes and both widths (136 images inspected).
-- Batch 2: remaining admin shell, editors, analytics and consent corrections.
-  Proposals recorded below; not applied in batch 1.
-- Batch 3: displayed backend feedback and admin manuals.
-  Proposals recorded below; not applied in batch 1.
-- Persisted audit/history strings: excluded from routine text patches; no data edits.
-- Optional style, established technical terms and uncertain behavior: unchanged.
-- No email review, changes or real messages; emails remain a later phase.
+| Batch | PR / durable notes | Delivered copy | Local proof / independent acceptance |
+| --- | --- | --- | --- |
+| Case detail | [#1165](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1165) | 38 exact proposals | 91 tests; 136 before/after images; SHIP both themes |
+| Editors/dashboard | [#1166](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1166), `docs/finnish-admin-editor-copy.md` | 8 exact proposals | 121 tests; 68 images; SHIP |
+| Operations/analytics | [#1167](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1167), `docs/finnish-admin-operations-copy.md` | 11 exact proposals | 105 tests; 56 images; SHIP |
+| Manuals | [#1168](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1168), `docs/finnish-admin-manual-copy.md` | 14 exact proposals; two optional rewrites rejected | 18 tests; 100 images including mobile pans; SHIP |
+| Permission display | [#1169](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1169), `docs/finnish-admin-permission-copy.md` | 8 headings +45 descriptions, Finnish editor only | 47 tests; 72 images; SHIP; catalog/checkbox/DB invariants preserved |
+| Feedback/shared names | [#1170](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1170), `docs/finnish-admin-feedback-copy.md` | 26 backend pairs plus close/theme/title copy prepared | 235 tests; 136 final images; SHIP both themes; CodeRabbit zero findings |
+
+These are source/capture-specific acceptances, not certification of the whole
+admin. Captures and review digests remain outside the repository under
+`/tmp/moso-admin-visual/`. Each batch has its own changelog note and exact
+original/replacement/reason records. Human en/sv catalogs, auth/permission logic,
+production data and email content were not changed. No real messages were sent.
+No frontend module changed, so no hashed-asset rebuild was needed.
+
+### Remaining / review adjudication
+
+- Final feedback #1170: independent light/dark SHIP completed after replacing
+  two toast states captured during Bootstrap's opacity0 animation. Final images
+  wait for actual opacity1 without changing app code/styles/timers. All hashes
+  verified; source is implementation `bae26844`. Required GitHub checks and
+  merge queue still control merging this final batch.
+- Native campaign alert/prompt strings and the native case action-type option
+  `Oltu yhteydessa`: deferred without required menu/dialog evidence. No pass implied.
+- Guest edit-link explanations and token confirmation prose: public recipient
+  surfaces excluded from this admin-only correction scope.
+- `(ei viestia)`, recurring token notice, unused tag form and dead validation
+  branches: inactive/unreachable findings recorded, not falsely called delivered.
+- Geocode/legacy console-only errors, email-only organization fallback, shared
+  public account validator and persisted history/audit labels: excluded after
+  consumer review. Never apply their initial proposals blindly.
+- GodScreen security terms, Git/OAuth identifiers, optional wording and uncertain
+  campaign queue semantics stay unchanged. Manual total-object and `aina kun`
+  proposals were rejected as optional style; see manual notes.
+- `admin/permission_copy.py` is a new reviewed admin display-copy owner. The
+  original catalog remains byte-identical because it also feeds email summaries.
+- User emails remain a later phase; no email proofreading was started.
+
+The historical public audit stays unchanged. The broad reports below describe
+the original source snapshot and proposals; the batch table and individual
+notes above supersede their initial pending/apply/consumer assumptions.
 
 ### Batch 1 decisions and capture scope
 

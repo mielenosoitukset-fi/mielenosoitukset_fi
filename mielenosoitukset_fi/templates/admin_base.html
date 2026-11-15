@@ -45,7 +45,7 @@
   toastEl.innerHTML = `
     <div class="d-flex">
       <div class="toast-body">${message}</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="{{ _('Sulje') }}"></button>
     </div>
   `;
 
@@ -327,7 +327,7 @@ function confirmAction(action, taskId) {
 
   <!-- Theme toggle -->
   <div class="admin-theme-control">
-    <button id="theme-toggle" class="btn admin-theme-toggle w-100" title="{{ _('Vaihtele teema') }}">
+    <button id="theme-toggle" class="btn admin-theme-toggle w-100" title="{{ _('Vaihda teemaa') }}">
       <i class="fas fa-moon me-2"></i><span id="theme-label">{{ _('Tumma tila') }}</span>
     </button>
   </div>
@@ -369,7 +369,7 @@ function confirmAction(action, taskId) {
             <div class="alert alert-{{ 'warning' if category in ('error','danger') else category }} alert-dismissible fade show"
                 role="alert">
                 {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ _('Sulje') }}"></button>
             </div>
             {% endfor %}
             {% endif %}
