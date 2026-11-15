@@ -21,6 +21,6 @@ export const confirmationCopy = {
   expired: {
     title: 'Vahvistuslinkki on vanhentunut',
     description: 'Ilmoittautumista ei voitu vahvistaa tällä linkillä.',
-    detail: 'Voit palata kampanjasivulle. Jos tarvitset apua ilmoittautumisen kanssa, ota yhteyttä sähköpostitse.',
+    detail: 'Voit palata kampanjasivulle. Jos tarvitset apua ilmoittautumisessa, ota yhteyttä sähköpostitse.',
   },
 } as const;
