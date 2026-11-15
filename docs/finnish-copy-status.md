@@ -27,6 +27,19 @@ The public fixes merged in #1164; admin correction batches merged in #1165–#11
 
 Full machine-readable list: [CSV](finnish-copy-status.csv). Verify exact file coverage with `python3 scripts/check_copy_inventory.py`. The check fails for missing, extra or duplicate source paths; it does not perform linguistic review or automatically mark new files reviewed.
 
+## Browser viewer
+
+Run `python3 scripts/view_copy_status.py` from the repository, then open
+[http://127.0.0.1:8765](http://127.0.0.1:8765).
+The local, read-only viewer has filename search, status filters and review notes.
+The Changes view shows recorded originals, replacements, reasons and applied,
+deferred, rejected or unconfirmed status from the existing audit reports.
+Export applied examples as JSON for future human curation of writing guidance;
+these records are not automatically approved training examples.
+The viewer reads the CSV and audit records every 30 seconds. It does not scan
+code or infer that fixes shipped. No dependencies or site deployment
+are needed. Stop it with Ctrl+C.
+
 ## Every source and its status
 
 | Source | Kind | Check status | Evidence / scope |
