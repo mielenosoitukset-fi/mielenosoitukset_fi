@@ -116,12 +116,14 @@ export function fundraisingDetails(input: unknown, today: string = helsinkiToday
  * 00:00 Europe/Helsinki without a deploy. The opening day is the existing
  * `start_date` (or `planned_start_date`) value, not a second copy.
  */
-export type FundraisingExtras = { bic: string; area: string; pre_launch: boolean; opens_date: string | null; reminder_signup: boolean };
+export type FundraisingExtras = { bic: string; area: string; pre_launch: boolean; opens_date: string | null; reminder_signup: boolean; mobilepay_active: number };
 
 export function fundraisingExtras(input: unknown, today: string = helsinkiToday()): FundraisingExtras {
   const data: Record<string, unknown> = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : {};
   const opens = isoDate(data.start_date) ?? isoDate(data.planned_start_date);
-  return { bic: text(data.bic), area: text(data.area), opens_date: opens, pre_launch: Boolean(opens && today < opens), reminder_signup: data.reminder_signup === true };
+  const active = Number(data.mobilepay_active);
+  return { bic: text(data.bic), area: text(data.area), opens_date: opens, pre_launch: Boolean(opens && today < opens), reminder_signup: data.reminder_signup === true,
+    mobilepay_active: Number.isInteger(active) && active >= 1 ? active : 1 };
 }
 
 const icsText = (value: string) => value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
@@ -150,4 +152,12 @@ export function withoutAccount(data: Record<string, unknown>): Record<string, un
   const copy = { ...data };
   for (const key of ['iban', 'bic', 'recipient', 'reference', 'payment_url', 'mobilepay_links']) delete copy[key];
   return copy;
+}
+
+/**
+ * The one MobilePay link to show. The boxes are filled in order: `active` is
+ * 1-based; if that entry has no usable link, the first usable one is used.
+ */
+export function activeMobilepayUrl(links: { url: string }[], active: number): string {
+  return links[active - 1]?.url || links.find(link => link.url)?.url || '';
 }

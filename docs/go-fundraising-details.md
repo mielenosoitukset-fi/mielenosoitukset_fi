@@ -63,3 +63,13 @@ unsetting the variable; the host then uses the bundled copy.
 
 A MongoDB collection with an admin editing form would be the lasting source of truth, but
 needs a schema and an admin UI, which need maintainer approval.
+
+## Switching the MobilePay box
+
+The MobilePay boxes are filled in order and the page shows one link, "Lahjoita MobilePaylla".
+To switch to the next box, set `"mobilepay_active": 2` (then 3) in
+`/etc/mielenosoitukset-fundraising/fundraising.json` on the production host. Back the file up first
+(`cp -p fundraising.json fundraising.json.bak-<date>`), edit that one field, keep mode 0644. The API
+re-reads the file within five seconds and the page follows; no restart. Check with
+`curl -s https://mielenosoitukset.fi/keräys | grep -o 'qr.mobilepay.fi/box/[a-f0-9]\{8\}'`.
+Revert by restoring the backup. Keep the bundled `mielenosoitukset_fi/utils/data/fundraising.json` in sync.

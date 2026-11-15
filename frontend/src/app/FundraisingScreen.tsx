@@ -2,7 +2,7 @@ import data from '../../../mielenosoitukset_fi/utils/data/fundraising.json';
 import type { AppConfig } from './config';
 import { fundraisingCopy } from './fundraising-copy';
 import { useState } from 'react';
-import { fundraisingDetails, fundraisingExtras, fundraisingIcs } from './fundraising';
+import { activeMobilepayUrl, fundraisingDetails, fundraisingExtras, fundraisingIcs } from './fundraising';
 import { ReminderLinkPanel, ReminderSignup } from './FundraisingReminder';
 import type { FundraisingDetails, FundraisingExtras } from './fundraising';
 
@@ -37,6 +37,7 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
   const opensShort = opens ? finnishDate(opens).replace(/\.\d{4}$/, '.') : '';
   const calendarHref = opens
     ? `data:text/calendar;charset=utf-8,${encodeURIComponent(fundraisingIcs(opens, `${config.origin}/ker%C3%A4ys`))}` : '';
+  const mobilepayUrl = activeMobilepayUrl(f.mobilepay_links, extras.mobilepay_active);
   const status = pre ? `Aukeaa ${opens ? finnishDate(opens) : ''}` : f.is_preparation ? 'Valmistelussa' : f.can_donate ? 'Keräys avoinna' : 'Lahjoittaminen suljettu';
   return <article className="public-content campaign-page" lang="fi">
     <section className="campaign-fundraising-intro" aria-labelledby="fundraising-title">
@@ -110,8 +111,8 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
         </div> : f.can_donate ? <section className="public-content__notice" aria-labelledby="donate-title">
           <h3 id="donate-title">Näin lahjoitat</h3>
           <p>Lahjoita vain keräysaikana {finnishDate(f.start_date!)}–{finnishDate(f.end_date!)}. Älä tee lahjoitusta keräysajan päätyttyä.</p>
-          <div className="campaign-mobilepay-links">{f.mobilepay_links.filter(link => link.url).map(link =>
-            <a key={link.url} className="public-content__link" href={link.url} rel="noopener noreferrer">{link.label} <Arrow /></a>)}</div>
+          {mobilepayUrl && <div className="campaign-mobilepay-links">
+            <a className="public-content__link" href={mobilepayUrl} rel="noopener noreferrer">Lahjoita MobilePaylla <Arrow /></a></div>}
           {f.iban && <>
             <dl className="public-content__facts">
               {f.recipient && <div><dt>Saaja</dt><dd>{f.recipient}</dd></div>}

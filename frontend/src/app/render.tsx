@@ -42,7 +42,7 @@ import { loadStatus, statusTitle, type ServiceStatus } from './status';
 import { loadSuggestion, suggestionTitle, suggestionLead, type SuggestionDemo } from './suggest-change';
 import { helsinkiToday, loadFundraisingData, fundraisingExtras, withoutAccount } from './fundraising';
 import { fundraisingData as fundraisingBundled } from './FundraisingScreen';
-export { fundraisingDetails, fundraisingExtras, fundraisingIcs } from './fundraising';
+export { fundraisingDetails, fundraisingExtras, fundraisingIcs, activeMobilepayUrl } from './fundraising';
 import { BAR_STYLESHEET, barMilestone, dismissScript } from './fundraising-bar';
 export { barPhase, barMilestone, isDismissed, normalizeBar, dismissScript, shortDate } from './fundraising-bar';
 import { campaignPath, loadCampaignPublication } from './campaign-route';
