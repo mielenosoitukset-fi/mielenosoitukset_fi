@@ -12,6 +12,14 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
 
 ## Process and approvals
 
+- **Demo geocoding must not write stale moderation state (2026-11-15).** Detail-page
+  geocoding persists only coordinates and `last_modified`, atomically, and only
+  when the stored coordinate snapshot still matches what the request loaded.
+  Model construction/loading does not persist normalization by default; any
+  normalization write must be explicit. This prevents a delayed geocode or
+  normalization save from undoing a concurrent email moderation decision. See
+  issue #1172.
+
 - **Finnish language skill (2026-11-15).** The maintainer requires agents to use
   `suomi-finnish` for Finnish writing, editing and review across public/admin UI,
   emails and documentation. Load its relevant references; install it or read

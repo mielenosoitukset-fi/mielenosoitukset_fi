@@ -170,7 +170,7 @@ class Demonstration(BaseModel):
         description: str = None,
         default_language: str = "fi",
         translations: dict = None,
-        _dont_override: bool = False,
+        _dont_override: bool = True,
         _rejected: bool = False,
         cover_source: str = None,
         cancellation_reason: str = None,
@@ -912,7 +912,7 @@ class Demonstration(BaseModel):
         raise ValueError(f"Demonstration with id/slug/number '{demo_id}' not found.")
 
     @classmethod
-    def from_dict(cls, data, *, save_on_normalize=True):
+    def from_dict(cls, data, *, save_on_normalize=False):
         """
         Create a Demonstration instance from a dictionary.
 
@@ -921,8 +921,8 @@ class Demonstration(BaseModel):
         data : dict
             Dictionary containing demonstration data.
         save_on_normalize : bool, optional
-            Preserve the normal automatic normalization writes by default.
-            Set to False when a caller must validate the whole object before saving.
+            Persist normalized fields during construction only when explicitly
+            requested. Model loading is read-only by default.
 
         Returns
         -------
