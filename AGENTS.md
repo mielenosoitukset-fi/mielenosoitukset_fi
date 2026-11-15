@@ -124,7 +124,8 @@ available. If the harness does not expose it, install it through that harness’
 skill installer or read the source repository’s `SKILL.md` and required
 references before continuing. Do not record a Finnish language check as passed
 without applying the skill. Existing scope, terminology, localization and
-human-translation rules still apply.
+human-translation rules still apply. Follow the site's tone, terms and
+do-not-change rules in [docs/finnish-style.md](docs/finnish-style.md).
 
 ## Public UI ownership and copy
 
