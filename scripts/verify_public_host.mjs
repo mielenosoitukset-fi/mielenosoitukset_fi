@@ -304,6 +304,13 @@ try {
     assert.match(open.html, /<meta name="robots" content="index, follow" \/>/);
     const openBody = bodyOf(open);
     for (const text of ['Näin lahjoitat', 'FI00 0000 0000 0000 00', 'TESTFIHH', 'Kopioi tilinumero', 'RA/2026/0000']) assert(openBody.includes(text), text);
+    assert(!openBody.includes('mobilepay'), 'No MobilePay link when none is configured');
+    fundState = { status: 200, body: { ...closedFund, start_date: dayHelsinki(0), mobilepay_active: 2,
+      mobilepay_links: [{ label: 'a', url: 'https://qr.mobilepay.fi/box/one/pay-in' }, { label: 'b', url: 'https://qr.mobilepay.fi/box/two/pay-in' }] } };
+    const boxed = bodyOf(await fundraising());
+    assert(boxed.includes('box/two/pay-in') && !boxed.includes('box/one/pay-in') && boxed.includes('Lahjoita MobilePaylla'), 'Only the active MobilePay box is shown');
+    assert.equal((boxed.match(/qr\.mobilepay\.fi/g) ?? []).length, 1);
+    fundState = { status: 200, body: { ...closedFund, start_date: dayHelsinki(0) } };
     for (const text of ['Pienkeräys aukeaa', 'Lisää kalenteriin', 'data:text/calendar']) assert(!openBody.includes(text), `open page keeps ${text}`);
     // The page makes no fundraising link on its own routes: nothing here links it from other pages.
     fundState = { status: 503, body: {} };
@@ -317,7 +324,7 @@ try {
     for (const path of ['/ker%C3%A4ys', '/keräys']) assert.equal((await fundraising({ path })).status, 200, path);
   } finally { campaignApi.close(); }
   console.log('PASS: campaign keeps the publication gate; fundraising is public with a pre-launch state that hides the account and is noindex until the first collection day');
-  const { fundraisingDetails, fundraisingExtras, fundraisingIcs } = await import(pathToFileURL(`${root}/frontend/dist/server/render.js`));
+  const { fundraisingDetails, fundraisingExtras, fundraisingIcs, activeMobilepayUrl } = await import(pathToFileURL(`${root}/frontend/dist/server/render.js`));
   const parity = JSON.parse(readFileSync(`${root}/tests/fixtures/fundraising_parity.json`, "utf8"));
   for (const item of parity) {
     const got = fundraisingDetails(item.input, item.today);
@@ -330,6 +337,15 @@ try {
   assert.equal(fundraisingExtras({ planned_start_date: '2026-11-16' }, '2026-11-15').pre_launch, true, 'Planned date counts while unconfirmed');
   assert.equal(fundraisingExtras({}, '2026-11-15').pre_launch, false, 'No date: never pre-launch');
   assert.equal(fundraisingExtras({ start_date: 'bad' }, '2026-11-15').opens_date, null);
+  const boxes = [{ url: 'https://a.test/1' }, { url: 'https://a.test/2' }, { url: '' }];
+  assert.equal(activeMobilepayUrl(boxes, 1), 'https://a.test/1');
+  assert.equal(activeMobilepayUrl(boxes, 2), 'https://a.test/2');
+  assert.equal(activeMobilepayUrl(boxes, 3), 'https://a.test/1', 'Empty active box falls back to the first usable one');
+  assert.equal(activeMobilepayUrl(boxes, 9), 'https://a.test/1');
+  assert.equal(activeMobilepayUrl([{ url: '' }], 1), '');
+  assert.equal(fundraisingExtras({ mobilepay_active: 2 }).mobilepay_active, 2);
+  assert.equal(fundraisingExtras({ mobilepay_active: 'x' }).mobilepay_active, 1);
+  assert.equal(fundraisingExtras({ mobilepay_active: 0 }).mobilepay_active, 1);
   const ics = fundraisingIcs('2026-11-16', 'https://example.test/ker%C3%A4ys');
   for (const line of ['DTSTART;VALUE=DATE:20261116', 'DTEND;VALUE=DATE:20261117', 'SUMMARY:Pienkeräys aukeaa', 'URL:https://example.test/ker%C3%A4ys', 'BEGIN:VEVENT', 'END:VCALENDAR'])
     assert(ics.split('\r\n').includes(line), line);
