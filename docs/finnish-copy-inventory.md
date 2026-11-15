@@ -1,5 +1,7 @@
 # Finnish copy coverage and checklist
 
+Current combined public/admin status: [complete source index](finnish-copy-status.md). The audit record below retains its original scope and historical statuses.
+
 Snapshot: `050b3ed1c7ed9337a88cbfb5c5a55a857019d681`, 14 November 2026. Model: `gpt-6.1-sol`.
 
 Inventory: **210 tracked HTML templates/pages** across the repository,

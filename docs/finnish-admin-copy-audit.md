@@ -1,5 +1,7 @@
 # Finnish admin copy audit
 
+Current combined public/admin status: [complete source index](finnish-copy-status.md). The audit record below retains its original scope and historical statuses.
+
 Base: `576709a11ee18c2b67538285e89a627ccc1f5bee` (public PR #1164 merged).
 Model: `gpt-6.1-sol`. Source review: 15 November 2026.
 Branch: `codex/finnish-admin-copy-audit`; isolated worktree `/tmp/moso-admin-finnish`.

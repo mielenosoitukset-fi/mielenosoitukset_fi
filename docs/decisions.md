@@ -12,6 +12,12 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
 
 ## Process and approvals
 
+- **Finnish language skill (2026-11-15).** The maintainer requires agents to use
+  `suomi-finnish` for Finnish writing, editing and review across public/admin UI,
+  emails and documentation. Load its relevant references; install it or read
+  its source when the harness does not expose it. Repository entry point:
+  `AGENTS.md`; skill source: https://github.com/akunikkola/suomi-finnish-skill.
+
 - **Verified production revisions, native coalescing (2026-11-13).** The maintainer
   approved retaining queue 8/8, ALLGREEN, minimum 1 and wait 0 while hardening
   deployments. One active production run finishes; native single-pending
