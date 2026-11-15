@@ -13,8 +13,8 @@ export const prideVolunteerCopy = {
   intro: 'Tavoitteemme on, että jokaisessa Pridessa Suomessa on Mielenosoitukset.fi-banderolli. Banderolli tarvitsee kantajan.',
   call: 'Jos haluat kantaa sitä omalla paikkakunnallasi tai muualla, jätä yhteystietosi.',
   terms: [
-    { title: 'Ilmoittautuminen ei sido', text: 'Ilmoittautuminen ei lupaa mitään kummallekaan puolelle. Voit perua sen milloin tahansa.' },
-    { title: 'Sovimme tiedot yhdessä', text: 'Otamme yhteyttä myöhemmin ja sovimme kanssasi, miten banderolli kulkee ja mihin tapahtumaan.' },
+    { title: 'Ilmoittautuminen ei sido', text: 'Ilmoittautuminen ei sido sinua eikä meitä mihinkään. Voit perua sen milloin tahansa.' },
+    { title: 'Sovimme yksityiskohdista yhdessä', text: 'Otamme yhteyttä myöhemmin ja sovimme kanssasi, miten banderolli kulkee ja mihin tapahtumaan.' },
   ],
   formTitle: 'Ilmoittaudu banderollin kantajaksi',
   legend: 'Banderollin kantajan ilmoittautuminen',
@@ -31,7 +31,7 @@ export const prideVolunteerCopy = {
   privacyBefore: 'Käytämme tietoja vain tähän. Emme kysy puhelinnumeroa emmekä kotiosoitetta. Lisää tietoa on ',
   privacyLink: 'tietosuojaselosteessa', privacyAfter: '.',
   submit: 'Ilmoittaudu', sending: 'Lähetetään…',
-  errorTitle: (count: number) => count === 1 ? 'Lomakkeessa on yksi korjattava' : `Lomakkeessa on ${count} korjattavaa`,
+  errorTitle: (count: number) => count === 1 ? 'Lomakkeessa on yksi korjattava kohta' : `Lomakkeessa on ${count} korjattavaa`,
   errorHelp: 'Korjaa merkityt kentät ja lähetä lomake uudelleen.',
   nameMissing: 'Kirjoita etunimi tai nimimerkki.',
   emailInvalid: 'Tarkista sähköpostiosoite. Kirjoita se muodossa nimi@esimerkki.fi.',
@@ -43,7 +43,7 @@ export const prideVolunteerCopy = {
   doneSent: 'Viesti on matkalla osoitteeseen',
   doneConfirm: 'Avaa viestin linkki vahvistaaksesi ilmoittautumisen.',
   doneWait: 'Ilmoittautuminen tulee voimaan vasta vahvistuksen jälkeen. Jos viestiä ei kuulu muutamassa minuutissa, katso roskapostikansio.',
-  donePromise: 'Ilmoittautuminen ei sido sinua mihinkään, ja voit perua sen milloin tahansa. Otamme yhteyttä myöhemmin ja sovimme tiedot yhdessä kanssasi.',
+  donePromise: 'Ilmoittautuminen ei sido sinua mihinkään, ja voit perua sen milloin tahansa. Otamme yhteyttä myöhemmin ja sovimme yksityiskohdista kanssasi.',
 } as const;
 
 export interface VolunteerInput { name: string; email: string; city: string; pride: string; unsure: boolean; note: string; consent: boolean; website: string }
@@ -110,7 +110,7 @@ export const removeCarrier = (token: string) => post(`${carrierPath}/unsubscribe
 
 export const carrierLinkCopy = {
   confirmTitle: 'Vahvista ilmoittautumisesi',
-  confirmIntro: 'Vahvista ilmoittautuminen banderollin kantajaksi painamalla painiketta. Sen jälkeen otamme sinuun yhteyttä myöhemmin ja sovimme tiedot yhdessä kanssasi.',
+  confirmIntro: 'Vahvista ilmoittautuminen banderollin kantajaksi painamalla painiketta. Otamme sinuun myöhemmin yhteyttä ja sovimme yksityiskohdista kanssasi.',
   confirmButton: 'Vahvista ilmoittautuminen',
   confirmed: 'Ilmoittautuminen on vahvistettu. Kiitos. Otamme yhteyttä myöhemmin. Voit perua ilmoittautumisen milloin tahansa viestin linkistä.',
   removeTitle: 'Poista tietosi',

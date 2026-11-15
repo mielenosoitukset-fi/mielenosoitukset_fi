@@ -33,7 +33,7 @@ function CopyShare({ text }: { text: string }) {
   };
   return <>
     <button className="kv-btn" type="button" onClick={copy}><Icon name="copy" /> Kopioi teksti</button>
-    <span className="kv-copy-status" role="status">{state === 'copied' ? 'Teksti kopioitu' : state === 'failed' ? 'Kopiointi ei onnistunut, valitse teksti ja kopioi se itse' : ''}</span>
+    <span className="kv-copy-status" role="status">{state === 'copied' ? 'Teksti kopioitu' : state === 'failed' ? 'Kopiointi ei onnistunut. Valitse teksti ja kopioi se itse.' : ''}</span>
   </>;
 }
 
@@ -160,7 +160,7 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
     <section className="kv-sec" aria-labelledby="lahde"><div className="kv-vol">
       <div>
         <h2 id="lahde" className="kv-h2 kv-h2--tight">Tule mukaan</h2>
-        <p className="kv-lead">Yksi ihminen riittää aloittamaan. Kerro, missä haluaisit auttaa, niin otamme yhteyttä. Jos haluat auttaa markkinointiviikolla {marketing}, kerro siitä ilmoittautuessasi.</p>
+        <p className="kv-lead">Yksikin ihminen riittää alkuun. Kerro, missä haluaisit auttaa, niin otamme yhteyttä. Jos haluat auttaa markkinointiviikolla {marketing}, kerro siitä ilmoittautuessasi.</p>
       </div>
       <div className="volunteer-signup campaign-signup kv-form" id="vapaaehtoiseksi">
         <h3>Ilmoittaudu vapaaehtoiseksi</h3>
@@ -198,13 +198,13 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
     <section className="kv-sec" aria-labelledby="ukk">
       <h2 id="ukk">Usein kysyttyä</h2>
       <div className="kv-faq">
-        <details><summary>Milloin kampanja alkaa?</summary><p>Kampanja alkaa {fiDate(s.campaignStart)}. Sitä ennen, {collectionRange}, pienkeräys kerää varat tarroihin, banderolleihin ja palvelun ylläpitoon.</p></details>
+        <details><summary>Milloin kampanja alkaa?</summary><p>Kampanja alkaa {fiDate(s.campaignStart)}. Sitä ennen keräämme pienkeräyksellä {collectionRange} varoja tarroihin, banderolleihin ja palvelun ylläpitoon.</p></details>
         <details><summary>Mihin keräysvarat käytetään?</summary><p>Kampanjan markkinointiin eli tarroihin, julisteisiin ja banderolleihin sekä palvelun ylläpitoon. Tarkemmat tiedot ovat keräyssivulla.</p></details>
         <details><summary>Onko keräys luvallinen?</summary><p>Keräys on pienkeräys, jonka numero on {s.collectionNumber}. Keräysaika on {collectionRange}, ja keräys on voimassa koko Suomessa Ahvenanmaata lukuun ottamatta.</p></details>
         <details><summary>Miten voin auttaa ilman rahaa?</summary><p>Voit ilmoittautua vapaaehtoiseksi, jakaa tietoa palvelusta tai tulla avajaisiin. Jakamiseen ei tarvita ilmoittautumista.</p></details>
         <details><summary>Missä ja milloin avajaiset ovat?</summary><p>Kampanjan avajaiset ovat {openingLine} {s.openingCityIn} kello {s.openingTime} alkaen. Paikka tarkentuu. Kerromme sen kaikille, jotka ovat ilmoittautuneet kiinnostuneiksi.</p></details>
-        <details><summary>Mitä tietoja avajaisiin ilmoittautuminen tallentaa?</summary><p>Tallennamme sähköpostiosoitteesi ja halutessasi paikkakunnan sekä vastauksesi pääsylippukysymykseen. Käytämme tietoja avajaisten viesteihin ja kampanjan päivityksiin. Voit perua milloin tahansa. Poistamme tiedot avajaisten jälkeen, ellet anna uutta suostumusta.</p></details>
-        <details><summary>Mikä on markkinointiviikko?</summary><p>Markkinointiviikko on {marketing}, maanantaista sunnuntaihin. Tavoitteena on tehdä siitä kampanjan näkyvin viikko. Ohjelma ei ole vielä selvillä ja tarkentuu myöhemmin.</p></details>
+        <details><summary>Mitä tietoja tallennamme, kun ilmoittaudut avajaisiin?</summary><p>Tallennamme sähköpostiosoitteesi ja halutessasi paikkakunnan sekä vastauksesi pääsylippukysymykseen. Käytämme tietoja avajaisten viesteihin ja kampanjan päivityksiin. Voit perua milloin tahansa. Poistamme tiedot avajaisten jälkeen, ellet anna uutta suostumusta.</p></details>
+        <details><summary>Mikä on markkinointiviikko?</summary><p>Markkinointiviikko on {marketing}, maanantaista sunnuntaihin. Tavoitteena on tehdä siitä kampanjan näkyvin viikko. Ohjelma tarkentuu myöhemmin.</p></details>
         <details><summary>Miten tarrat jaetaan?</summary><p>Voit ilmoittautua vapaaehtoiseksi ja kertoa, että voisit ottaa vastaan oman alueesi tarroja ja auttaa jakamaan niitä. Otamme sinuun yhteyttä myöhemmin. Toimituksesta tai aikataulusta emme lupaa vielä mitään.</p></details>
       </div>
     </section>
