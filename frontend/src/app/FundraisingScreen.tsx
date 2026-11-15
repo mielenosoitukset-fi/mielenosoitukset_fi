@@ -54,7 +54,7 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
       <p>Keräys alkaa {finnishDate(opens)} kello 0.00. Tilinumero ja lahjoitusohjeet julkaistaan tällä sivulla keräyksen alkaessa. Lahjoita vasta, kun keräysaika on alkanut.</p>
       <a className="fundraising-calendar" href={calendarHref} download="pienkerays-aukeaa.ics">Lisää kalenteriin</a>
       <p className="fundraising-prelaunch__note">{extras.reminder_signup
-        ? 'Kalenteritiedosto ladataan laitteellesi eikä se sisällä yhteystietojasi.'
+        ? 'Kalenteritiedosto ladataan laitteellesi, eikä se sisällä yhteystietojasi.'
         : 'Kalenteritiedosto ladataan laitteellesi. Emme kerää yhteystietojasi.'}</p>
       {extras.reminder_signup && <ReminderSignup privacyUrl={config.urls.privacy} />}
     </section>}
@@ -89,7 +89,7 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
         <section className="public-content__card" aria-labelledby="service-title">
           <h2 id="service-title">Mikä on Mielenosoitukset.fi?</h2>
           <p>Mielenosoitukset.fi kokoaa Suomessa järjestettäviä mielenosoituksia yhteen paikkaan. Palvelusta voit etsiä tulevia tapahtumia ja ilmoittaa mielenosoituksesta muiden löydettäväksi.</p>
-          <p>Palvelua ylläpidetään riippumattomana, voittoa tavoittelemattomana vapaaehtoisprojektina. Tavoitteena on helpottaa tapahtumien löytämistä ja osallistumista.</p>
+          <p>Palvelu on riippumaton, voittoa tavoittelematon vapaaehtoisprojekti. Tavoitteena on helpottaa tapahtumien löytämistä ja osallistumista.</p>
           <a className="public-content__link" href={config.urls.info}>Lue lisää palvelusta <Arrow /></a>
         </section>
       </div>
@@ -109,7 +109,7 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
           <p>Tilinumero ja lahjoitusohjeet julkaistaan, kun keräys alkaa.</p>
         </div> : f.can_donate ? <section className="public-content__notice" aria-labelledby="donate-title">
           <h3 id="donate-title">Näin lahjoitat</h3>
-          <p>Lahjoita vain keräysaikana {finnishDate(f.start_date!)}–{finnishDate(f.end_date!)}. Älä tee lahjoitusta keräysajan päätyttyä.</p>
+          <p>Lahjoita vain keräysaikana {finnishDate(f.start_date!)}–{finnishDate(f.end_date!)}. Älä lahjoita keräysajan päätyttyä.</p>
           <div className="campaign-mobilepay-links">{f.mobilepay_links.filter(link => link.url).map(link =>
             <a key={link.url} className="public-content__link" href={link.url} rel="noopener noreferrer">{link.label} <Arrow /></a>)}</div>
           {f.iban && <>
@@ -125,7 +125,7 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
         </section> : <div className="public-content__notice">
           <h3>{f.is_preparation ? 'Lahjoittaminen ei ole vielä avoinna' : 'Lahjoittaminen on suljettu'}</h3>
           <p>{f.confirmed
-            ? 'Lahjoituksia voi tehdä vain vahvistettuna keräysaikana ja keräyksen ollessa avoinna.'
+            ? 'Lahjoittaa voi vain vahvistettuna keräysaikana, kun keräys on avoinna.'
             : 'Lahjoitusohjeet julkaistaan, kun tiedot on vahvistettu.'}</p>
         </div>}
         {!pre && f.is_preparation && f.mobilepay_links.length > 0 && <section className="public-content__notice" aria-labelledby="mobilepay-title">
