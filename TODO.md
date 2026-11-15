@@ -13,6 +13,7 @@ a dated snapshot: check their live state before acting.
 
 ## Now
 
+- [ ] **Email approval reports success without approval/publication (#1172):** investigate the affected event and approval time before implementing a fix. Current main writes approval before showing success; hidden records, stale public caches and later decisions remain possible explanations. Compare authoritative state, token metadata and audit history with public output. Two existing token approval tests pass; the reported incident is not reproduced. Related historical issue: #515. **Investigation only; fixes deferred by the maintainer.**
 - [x] **Production virtual environment and security dependencies:** production runs `/opt/mielenosoitukset-fi/venv`; Pillow 13.0.0, PyJWT 2.15.1 and PyMongo 4.19.0 are verified (#1118). The earlier system-Python blocker is resolved; see `docs/production-deployment.md`.
 - [x] **#778 city admins and cases (P0):** fixed and live; issue closed 11 November 2026. All eight active city grants received the case capabilities, tagged `case_access_granted_for: issue-778` for rollback. Broader role/audit acceptance remains SEC-03.
 - [x] **#1029 far-future events:** generation capped (#1064); on 10 November 2026 the cleanup removed 68,642 generated occurrences after 2028-11-10 from three series, backed up on the production host first. Helsinki showed 238 upcoming events after that cleanup.
