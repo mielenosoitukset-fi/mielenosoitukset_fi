@@ -1,0 +1,61 @@
+{
+  "issue": "https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/issues/1172",
+  "event_id": "6af9880760b589b979d9c437",
+  "collection": "demo_edit_history",
+  "provenance": "Selected fields from two production history records, retrieved read-only on 2026-11-15. Bearer tokens, contact details and actor details are omitted. Timestamps are UTC.",
+  "interpretation": {
+    "observed": "Token approval history records approved changing from false to true. The later manual approval pre-image has approved=false and retains the same approved token decision identity.",
+    "inferred": "An intervening write reset the approval flag while retaining approval metadata.",
+    "unknown": [
+      "The writer responsible for the intervening write",
+      "The exact execution time of that write",
+      "Whether a stale Demonstration model was used"
+    ],
+    "timestamp_limit": "The manual approval pre-image's last_modified is a stored field, not a dedicated audit record of the reset.",
+    "regression_use": "Use the inconsistent pre-image as a regression scenario once the responsible write path is established. These observations do not prove a particular reproduction mechanism."
+  },
+  "records": [
+    {
+      "_id": "6af99a93631182069e458441",
+      "edited_at": "2026-11-15 11:42:11.638000",
+      "old_demo": {
+        "approved": false,
+        "last_modified": "2026-11-15 11:41:50.362000"
+      },
+      "new_demo": {
+        "approved": true,
+        "last_modified": "2026-11-15 11:42:11.585000",
+        "moderation_decision": {
+          "id": "bcab3ed3956943d689914201b54911b1",
+          "status": "approved",
+          "at": "2026-11-15 11:42:11.585000",
+          "source": "token"
+        }
+      }
+    },
+    {
+      "_id": "6af99cf3b672afee8ea38ddf",
+      "edited_at": "2026-11-15 11:52:19.845000",
+      "old_demo": {
+        "approved": false,
+        "last_modified": "2026-11-15 11:42:20.628000",
+        "moderation_decision": {
+          "id": "bcab3ed3956943d689914201b54911b1",
+          "status": "approved",
+          "at": "2026-11-15 11:42:11.585000",
+          "source": "token"
+        }
+      },
+      "new_demo": {
+        "approved": true,
+        "last_modified": "2026-11-15 11:52:19.798000",
+        "moderation_decision": {
+          "id": "ce3854d4aa6f424b9d5c41eb20ef8270",
+          "status": "approved",
+          "at": "2026-11-15 11:52:19.798000",
+          "source": "legacy_api"
+        }
+      }
+    }
+  ]
+}
