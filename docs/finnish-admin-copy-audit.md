@@ -17,7 +17,7 @@ correction batches have merged through the required-check merge queue:
 | Operations/analytics | [#1167](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1167), `docs/finnish-admin-operations-copy.md` | 11 exact proposals | 105 tests; 56 images; SHIP |
 | Manuals | [#1168](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1168), `docs/finnish-admin-manual-copy.md` | 14 exact proposals; two optional rewrites rejected | 18 tests; 100 images including mobile pans; SHIP |
 | Permission display | [#1169](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1169), `docs/finnish-admin-permission-copy.md` | 8 headings +45 descriptions, Finnish editor only | 47 tests; 72 images; SHIP; catalog/checkbox/DB invariants preserved |
-| Feedback/shared names | Current draft, `docs/finnish-admin-feedback-copy.md` | 26 backend pairs plus close/theme/title copy prepared | 235 tests and CodeRabbit pass; final independent visual acceptance BLOCKED by reviewer model usage limit |
+| Feedback/shared names | [#1170](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1170), `docs/finnish-admin-feedback-copy.md` | 26 backend pairs plus close/theme/title copy prepared | 235 tests; 136 final images; SHIP both themes; CodeRabbit zero findings |
 
 These are source/capture-specific acceptances, not certification of the whole
 admin. Captures and review digests remain outside the repository under
@@ -28,11 +28,11 @@ No frontend module changed, so no hashed-asset rebuild was needed.
 
 ### Remaining / review adjudication
 
-- Final feedback draft: both independent reviewers hit their model usage limit
-  after identifying initially invisible toast captures. Replacement images now
-  wait for Bootstrap's real settled opacity1 state. Source unchanged and all
-  hashes verified. No final SHIP exists: do not enqueue/merge this draft until
-  fresh/resumed independent reviewers open the replacement evidence and finish.
+- Final feedback #1170: independent light/dark SHIP completed after replacing
+  two toast states captured during Bootstrap's opacity0 animation. Final images
+  wait for actual opacity1 without changing app code/styles/timers. All hashes
+  verified; source is implementation `bae26844`. Required GitHub checks and
+  merge queue still control merging this final batch.
 - Native campaign alert/prompt strings and the native case action-type option
   `Oltu yhteydessa`: deferred without required menu/dialog evidence. No pass implied.
 - Guest edit-link explanations and token confirmation prose: public recipient

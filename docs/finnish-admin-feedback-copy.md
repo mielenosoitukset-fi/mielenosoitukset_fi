@@ -113,17 +113,35 @@ match original evidence. Final packets replace those two states at each width/
 theme and exclude the superseded images. No missing resources or JavaScript
 errors in replacements. CodeRabbit completed on all eight changed production
 files: zero findings. Changelog rendered and diff whitespace checks passed.
-Independent final visual acceptance: **BLOCKED**. Both fresh-context reviewers
-hit the requested model usage limit before completing the replacement-toast
-review. No final light/dark SHIP was issued. Do not mark ready, enqueue, merge
-or deploy this batch based on the technical checks or earlier partial comments.
+Independent final visual acceptance: **SHIP** for light and dark, two separate
+reviewers opened all 136 final images at readable scale, including the settled
+toast replacements at both widths. No introduced visual defects. Packet lookup
+uses `(state, viewport width)` so each image is unique and correctly identified;
+all final paths, source and image digests verified after review.
 
-Resume from `/tmp/moso-admin-visual/review-feedback-light.json` and
-`review-feedback-dark.json`. Each final list has 34 before/34 after images;
-source and unchanged evidence can be reused after digest checks. Reviewers had
-opened the original images and identified the two missing toasts. Their model
-error reported availability again at 3:42 AM without a timezone; do not assume
-that elapsed time is approval or that a final verdict exists. Exact existing
-reviewer verdict files may be absent because the turn stopped on quota.
+Implementation snapshot: `bae268447d5cf88b355ba0884d6cf9b47e571415`.
+Packets `/tmp/moso-admin-visual/review-feedback-light.json` and
+`review-feedback-dark.json`; detailed verdicts `verdict-feedback-light.md` and
+`verdict-feedback-dark.md`. Each verdict is limited to its theme and captured
+feedback states; POST error data is intercepted, ARIA/document titles have
+separate DOM assertions, existing fixed-light framework/consent pages remain.
+This is not authorization, production error-cause or whole-admin certification.
 
+PR: [#1170](https://github.com/mielenosoitukset-fi/mielenosoitukset_fi/pull/1170).
+Review source hashes:
 
+- `mielenosoitukset_fi/admin/admin_bp.py`: `0953adc78f1c5db48a56831acce52b2793f5520a5945f383eb39056b44a797f2`
+
+- `mielenosoitukset_fi/admin/admin_case_bp.py`: `7eb96a9944aa0afd27a0f9b66db12f309e424dc027bc6fd7ac44919965a2340a`
+
+- `mielenosoitukset_fi/admin/admin_demo_bp.py`: `4fadbb294b00e6b3ec9298aa2b55e6fa56a2d4072df2b7da9daae557026fae7f`
+
+- `mielenosoitukset_fi/admin/admin_dev_bp.py`: `9f06d12e40d104f4eff6e568d689711b2219816fff998b4a894b68ff8a69fee9`
+
+- `mielenosoitukset_fi/admin/admin_org_bp.py`: `6b45a1495da07d0cd7c8469ddb4f913e049c0605e3a5faf682568b15eeb601fb`
+
+- `mielenosoitukset_fi/admin/admin_user_bp.py`: `f1248c4f975da51124b1a8614c2fe356a340e6b63299008dcd6f6322c40d5c5d`
+
+- `mielenosoitukset_fi/templates/admin_base.html`: `b2e9e1432ee5a3938ba7d1c8c3db43007cd1e668d3266055f8581981ec973a82`
+
+- `mielenosoitukset_fi/templates/oauth/mcp_consent.html`: `fb1e3a5a82bbf7ccea18eb901d03f8e9a07219de962c2267e92eb84434cf6a66`
