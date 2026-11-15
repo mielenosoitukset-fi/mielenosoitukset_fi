@@ -1202,7 +1202,7 @@ def api_force_password_change():
     user_id = data.get("user_id")
 
     if not user_id:
-        return jsonify({"status": "ERROR", "message": "Käyttäjä ID puuttuu."}), 400
+        return jsonify({"status": "ERROR", "message": _("Käyttäjän tunniste puuttuu.")}), 400
 
     if not isinstance(user_id, str) or not ObjectId.is_valid(user_id):
         return jsonify({"status": "ERROR", "message": _("Virheellinen käyttäjän tunniste.")}), 400

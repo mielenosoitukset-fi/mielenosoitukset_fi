@@ -1,0 +1,1 @@
+- Korjattu ylläpidon palvelinpalautteiden suomenkielisiä kirjoitusvirheitä ja suomennettu englanninkielisiä virheviestejä. Sulkemis- ja teemapainikkeiden nimet sekä ylläpidon MCP-valtuutussivun otsikko ovat nyt suomeksi.

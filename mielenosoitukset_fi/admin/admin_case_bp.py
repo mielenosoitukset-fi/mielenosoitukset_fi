@@ -194,11 +194,11 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
 
     if case_obj.case_type == "new_demo":
         title = (demo_doc or {}).get("title") or _("Uusi mielenosoitus")
-        description = (demo_doc or {}).get("address") or _("Ei lisatietoja")
+        description = (demo_doc or {}).get("address") or _("Ei lisätietoja")
         meta_line = " · ".join(part for part in [(demo_doc or {}).get("city"), (demo_doc or {}).get("date")] if part)
     elif case_obj.case_type in {"demo_cancellation_request", "demo_cancelled"}:
-        title = _("Peruutuspyynto")
-        description = (demo_doc or {}).get("title") or _("Liittyvaa mielenosoitusta ei loytynyt")
+        title = _("Peruutuspyyntö")
+        description = (demo_doc or {}).get("title") or _("Liittyvää mielenosoitusta ei löytynyt")
         meta_line = " · ".join(
             part
             for part in [
@@ -210,10 +210,10 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         )
     elif case_obj.case_type == "demo_error_report":
         title = _("Virheilmoitus")
-        description = (case_obj.error_report or {}).get("error") or _("Ei lisatietoja")
-        meta_line = (demo_doc or {}).get("title") or _("Demoa ei loytynyt")
+        description = (case_obj.error_report or {}).get("error") or _("Ei lisätietoja")
+        meta_line = (demo_doc or {}).get("title") or _("Demoa ei löytynyt")
     elif case_obj.case_type == "organization_edit_suggestion":
-        title = (org_doc or {}).get("name") or _("Organisaation muutospyynto")
+        title = (org_doc or {}).get("name") or _("Organisaation muutospyyntö")
         description = _("Organisaation tiedoista ehdotetaan muutoksia.")
         meta_line = (submitter.get("submitter_name") or submitter.get("email") or _("Ei ilmoittajaa"))
     elif case_obj.case_type == "support_ticket":
@@ -227,7 +227,7 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         meta_line = submitter.get("submitter_name") or ""
     else:
         title = _case_type_label(case_obj.case_type)
-        description = _("Ei lisatietoja")
+        description = _("Ei lisätietoja")
         meta_line = ""
 
     return {
@@ -935,11 +935,11 @@ def demo_action(case_id):
 
     data = request.get_json()
     if not data or "action" not in data:
-        return jsonify({"error": "Invalid request"}), 400
+        return jsonify({"error": _("Virheellinen pyyntö.")}), 400
 
     demo = mongo.demonstrations.find_one({"_id": ObjectId(case.demo_id)})
     if not demo:
-        return jsonify({"error": "Demo not found"}), 404
+        return jsonify({"error": _("Mielenosoitusta ei löytynyt.")}), 404
 
     response_status = ""
 
@@ -950,7 +950,7 @@ def demo_action(case_id):
     elif data["action"] == "reject":
         reason = data.get("reason", "").strip()
         if not reason:
-            return jsonify({"error": "Rejection reason required"}), 400
+            return jsonify({"error": _("Anna hylkäyksen perustelu.")}), 400
 
         reject_demo(case.demo_id)
         response_status = "rejected"
@@ -971,8 +971,8 @@ def demo_action(case_id):
             )
 
     else:
-        return jsonify({"error": "Unknown action"}), 400
-    flash_message(_("Mielenosoituksen tila paivitettiin."), "success")
+        return jsonify({"error": _("Tuntematon toiminto.")}), 400
+    flash_message(_("Mielenosoituksen tila päivitettiin."), "success")
     return jsonify({"success": True, "status": response_status})
 
 
@@ -1052,7 +1052,7 @@ def demo_escalate(case_id):
 
     demo = mongo.demonstrations.find_one({"_id": ObjectId(case.demo_id)})
     if not demo:
-        return jsonify({"error": "Demo not found"}), 404
+        return jsonify({"error": _("Mielenosoitusta ei löytynyt.")}), 404
 
     # Reset demo status
     mongo.demonstrations.update_one(
@@ -1083,7 +1083,7 @@ def demo_escalate(case_id):
         },
     )
 
-    flash_message(_("Demo status reset – requires superior review."), "warning")
+    flash_message(_("Mielenosoituksen tila palautettiin. Ylemmän tason käsittelijän on tarkistettava mielenosoitus."), "warning")
     return jsonify({"success": True})
 
 @admin_case_bp.route("/<case_id>/deescalate", methods=["POST"])
@@ -1095,7 +1095,7 @@ def deescalate_case(case_id):
 
     case = mongo.cases.find_one({"_id": ObjectId(case_id)})
     if not case:
-        return jsonify({"success": False, "error": "Case not found."}), 404
+        return jsonify({"success": False, "error": _("Tapausta ei löytynyt.")}), 404
 
     try:
         timestamp = utcnow()
@@ -1130,4 +1130,4 @@ def deescalate_case(case_id):
 
     except Exception as e:
         logger.error(f"De-escalation failed for case {case_id}: {e}")
-        return jsonify({"success": False, "error": "Internal server error."}), 500
+        return jsonify({"success": False, "error": _("Palvelimella tapahtui virhe.")}), 500
