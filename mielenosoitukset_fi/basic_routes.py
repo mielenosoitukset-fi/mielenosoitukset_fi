@@ -3782,8 +3782,31 @@ def init_routes(app):
     def fetch_geocode_data(demo):
         coordinates = geocode_address_lookup(demo.address, demo.city)
         if coordinates:
-            demo.latitude, demo.longitude = coordinates
-            demo.save()
+            modified_at = utcnow()
+            result = demonstrations_collection.update_one(
+                {
+                    "_id": demo._id,
+                    "latitude": demo.latitude,
+                    "longitude": demo.longitude,
+                },
+                {
+                    "$set": {
+                        "latitude": coordinates[0],
+                        "longitude": coordinates[1],
+                        "last_modified": modified_at,
+                    }
+                },
+            )
+            if result.matched_count:
+                demo.latitude, demo.longitude = coordinates
+                demo.last_modified = modified_at
+            else:
+                current = demonstrations_collection.find_one(
+                    {"_id": demo._id}, {"latitude": 1, "longitude": 1}
+                )
+                if current:
+                    demo.latitude = current.get("latitude")
+                    demo.longitude = current.get("longitude")
 
     @app.route("/demonstration/<demo_id>/some", methods=["GET"])
     @permission_required("VIEW_DEMO")
