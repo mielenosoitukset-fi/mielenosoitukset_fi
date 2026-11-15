@@ -179,13 +179,15 @@ def export_volunteers_csv():
     volunteers = list(mongo.volunteers.find({}))
     si = io.StringIO()
     cw = csv.writer(si)
-    cw.writerow(["Name","Email","Phone","City","Notes","Confirmed"])
+    cw.writerow(["Name","Email","Phone","City","Roles","Area","Notes","Confirmed"])
     for v in volunteers:
         cw.writerow([
             v.get("name",""),
             v.get("email",""),
             v.get("phone",""),
             v.get("city",""),
+            ", ".join(v.get("roles") or []),
+            v.get("area",""),
             v.get("notes",""),
             "Vahvistettu" if v.get("confirmed") else "Odottaa"
         ])

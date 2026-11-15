@@ -273,8 +273,10 @@ def test_react_volunteer_signup_preserves_payload_and_confirmation_flow(
     browser_page.goto(f"{live_server}/kampanja/", wait_until="domcontentloaded")
     values = {
         "name": "  Test Volunteer  ", "email": "react-volunteer@example.test",
-        "phone": " 040 123 4567 ", "city": " Turku ", "notes": " Tarrojen jakaminen ",
+        "city": " Turku ", "notes": " Tarrojen jakaminen ",
     }
+    browser_page.locator(".kv-more summary").click()
+    browser_page.get_by_label("Tarrojen jakaminen").check()
     for name, value in values.items():
         browser_page.locator(f"#vol-{name}").fill(value)
     browser_page.locator("#vol-submit").click()
@@ -284,6 +286,7 @@ def test_react_volunteer_signup_preserves_payload_and_confirmation_flow(
     assert volunteer is not None
     for name, value in values.items():
         assert volunteer[name] == value.strip()
+    assert volunteer["roles"] == ["stickers"] and "phone" not in volunteer
     assert volunteer["confirmed"] is False
     assert len(queued) == 1
     assert queued[0]["recipients"] == [values["email"]]

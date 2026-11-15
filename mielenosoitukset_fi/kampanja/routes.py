@@ -1,4 +1,5 @@
 # Standard library
+import re
 import secrets
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from datetime import datetime, timedelta
@@ -26,35 +27,56 @@ def index():
     return render_template("kampanja/index.html")
 
 
+# Role keys a volunteer can pick. The page sends these keys; labels live in the page.
+VOLUNTEER_ROLES = ("stickers", "pride_banner", "events", "communications")
+_FIELD_LIMITS = {"name": 120, "city": 100, "area": 200, "notes": 2000}
+_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _text(data, key):
+    value = data.get(key) if isinstance(data, dict) else None
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _volunteer_fields(data):
+    """Validate a signup and return (fields, error). Unknown keys, including the
+    removed phone number, are ignored and never stored."""
+    name, email = _text(data, "name"), _text(data, "email")
+    if not name or not email:
+        return None, _("Nimi ja sähköpostiosoite ovat pakollisia.")
+    roles = data.get("roles", [])
+    if (
+        not _EMAIL_PATTERN.match(email) or len(email) > 254
+        or any(len(_text(data, key)) > limit for key, limit in _FIELD_LIMITS.items())
+        or not isinstance(roles, list)
+        or any(role not in VOLUNTEER_ROLES for role in roles)
+    ):
+        return None, _("Tarkista korostetut tiedot ja yritä uudelleen.")
+    roles = [role for role in VOLUNTEER_ROLES if role in roles]
+    fields = {
+        "name": name, "email": email, "city": _text(data, "city"), "roles": roles,
+        # The area only means something when the volunteer would hand out stickers.
+        "area": _text(data, "area") if "stickers" in roles else "",
+        "notes": _text(data, "notes"),
+    }
+    return fields, None
+
+
 @campaign_bp.route("/api/volunteers", methods=["POST"])
 @campaign_preview_required(api=True)
 def add_volunteer():
     """Handle volunteer signups."""
-    data = request.get_json()
-    name = (
-        data.get("name", "").strip()
-        if isinstance(data, dict) and isinstance(data.get("name"), str)
-        else ""
-    )
-    email = (
-        data.get("email", "").strip()
-        if isinstance(data, dict) and isinstance(data.get("email"), str)
-        else ""
-    )
-    if not name or not email:
-        return jsonify(
-            {"success": False, "error": _("Nimi ja sähköpostiosoite ovat pakollisia.")}
-        ), 400
+    fields, error = _volunteer_fields(request.get_json(silent=True))
+    if error:
+        return jsonify({"success": False, "error": error}), 400
 
     token = secrets.token_urlsafe(16)
     expires_at = utcnow() + timedelta(days=1)
 
+    # Older documents have a phone number and no roles or area; readers treat
+    # every new field as optional.
     volunteer = {
-        "name": name,
-        "email": email,
-        "phone": data.get("phone", ""),
-        "city": data.get("city", ""),
-        "notes": data.get("notes", ""),
+        **fields,
         "confirmed": False,
         "confirmation_token": token,
         "confirmation_expires": expires_at,
