@@ -35,5 +35,6 @@
   "marketing_week_start": "2027-05-03",
   "marketing_week_end": "2027-05-09",
   "opening_city_in": "Tampereella",
-  "mobilepay_active": 1
+  "mobilepay_active": 1,
+  "opening_interest_form": false
 }

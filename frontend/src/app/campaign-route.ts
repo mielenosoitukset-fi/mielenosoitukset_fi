@@ -18,6 +18,7 @@ export const campaignCopy = {
 export function campaignProps(config: AppConfig, today: string, data?: unknown): CampaignPageProps {
   return {
     today,
+    openingForm: Boolean(data && typeof data === 'object' && (data as { opening_interest_form?: unknown }).opening_interest_form === true),
     schedule: campaignSchedule(data),
     shareAddress: `${config.origin.replace(/^https?:\/\//, '')}${campaignPath.replace(/\/$/, '')}`,
     urls: { home: config.urls.home, fundraising: config.urls.fundraising, privacy: config.urls.privacy, pride: config.urls.pride },

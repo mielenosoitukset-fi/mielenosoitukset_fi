@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { OpeningInterestForm } from '../components/OpeningInterestForm';
 import { VolunteerForm } from '../components/VolunteerForm';
 import type { VolunteerFormProps } from '../components/VolunteerForm';
 import { campaignPhase, defaultSchedule, fiDate, fiDayMonth, fiRange, fiWeekdayEssive, fiWeekdayShort, fiWeekday } from '../app/campaign-schedule';
@@ -15,6 +16,8 @@ export interface CampaignPageProps {
   shareAddress?: string;
   /** The opening interest form is off until its backend ships. */
   openingForm?: boolean;
+  /** Where the opening form posts; without one it sends nothing. */
+  openingEndpoint?: string;
   serverFallback?: boolean;
 }
 
@@ -67,7 +70,7 @@ function Timeline({ schedule, milestones, urls, openingForm }: { schedule: Campa
   </ol>;
 }
 
-export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, today, shareAddress = 'mielenosoitukset.fi/kampanja', openingForm = false, serverFallback = false }: CampaignPageProps) {
+export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, today, shareAddress = 'mielenosoitukset.fi/kampanja', openingForm = false, openingEndpoint, serverFallback = false }: CampaignPageProps) {
   const phase = campaignPhase(schedule, today);
   const s = schedule;
   const collectionRange = `${fiDate(s.collectionStart)}–${fiDate(s.collectionEnd)}`;
@@ -174,7 +177,7 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
       </div>
     </div></section>
 
-    <section id="avajaiset" className="kv-sec" aria-labelledby="av"><div className="kv-party kv-party--solo">
+    <section id="avajaiset" className="kv-sec" aria-labelledby="av"><div className={`kv-party${openingForm ? '' : ' kv-party--solo'}`}>
       <div>
         <h2 id="av" className="kv-h2 kv-h2--loose">Kampanjan avajaiset {s.openingCityIn}</h2>
         <dl className="kv-facts2">
@@ -184,6 +187,9 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
         </dl>
         <p className="kv-lead kv-lead--small">Tervetuloa kampanjan avajaisiin. Tapaa vapaaehtoisia ja kuule, mitä kampanjassa tehdään. Ilmoittautuminen ei sido mihinkään.</p>
       </div>
+      {openingForm && (serverFallback
+        ? <p className="campaign-loading-note">Lomaketta ladataan.</p>
+        : <OpeningInterestForm endpoint={openingEndpoint} privacyUrl={urls.privacy} />)}
     </div></section>
 
     <section id="pride" className="kv-sec" aria-labelledby="pr"><div className="kv-pride">
