@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { emailLooksValid, openingCopy, submitOpeningInterest } from '../app/opening-interest';
 import type { OpeningInterest } from '../app/opening-interest';
@@ -25,6 +25,9 @@ export function OpeningInterestForm({ endpoint, privacyUrl }: { endpoint?: strin
   const [banner, setBanner] = useState('');
   const [pending, setPending] = useState(false);
   const [sentTo, setSentTo] = useState('');
+  const bannerRef = useRef<HTMLParagraphElement>(null);
+  // A failed send moves focus to the message, so keyboard and screen reader users hear it.
+  useEffect(() => { if (banner) bannerRef.current?.focus(); }, [banner]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,7 +59,7 @@ export function OpeningInterestForm({ endpoint, privacyUrl }: { endpoint?: strin
   return <form className="kv-form" onSubmit={submit} noValidate aria-busy={pending || undefined}>
     <h3>Ilmoittaudu kiinnostuneeksi</h3>
     <p className="kv-small">Ei sitoumusta. Kerromme paikan, kun se varmistuu.</p>
-    {banner && <p className="kv-banner kv-banner--err" role="alert"><i className="fa-solid fa-circle-exclamation" aria-hidden="true" /><span>{banner}</span></p>}
+    {banner && <p ref={bannerRef} tabIndex={-1} className="kv-banner kv-banner--err" role="alert"><i className="fa-solid fa-circle-exclamation" aria-hidden="true" /><span>{banner}</span></p>}
     <fieldset className="kv-bare" disabled={pending}>
       <div className="form-group">
         <label className="form-label" htmlFor="ie">Sähköposti <span className="kv-req">*</span></label>
