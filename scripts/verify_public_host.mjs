@@ -271,7 +271,7 @@ try {
     assert(!before.includes('id="ie"') && !opened.includes('id="ie"'), 'Opening form is off by default');
     fundState = { status: 200, body: { start_date: dayOf(0), end_date: dayOf(60), opening_interest_form: true } };
     const withForm = bodyOfCampaign(await campaign());
-    assert(withForm.includes('id="ie"') && withForm.includes('Kerro halutessasi lisää') && withForm.includes('Sallin sähköpostiosoitteeni käytön'));
+    assert(withForm.includes('id="ie"') && withForm.includes('Kerro halutessasi lisää') && withForm.includes('Sallin sähköpostiosoitteeni ja vapaaehtoiset vastaukseni käytön'));
     assert(withForm.includes('Ilmoittaudu kiinnostuneeksi'));
     fundState = { status: 200, body: { start_date: dayOf(-90), end_date: dayOf(-1) } };
     const closed = bodyOfCampaign(await campaign());
