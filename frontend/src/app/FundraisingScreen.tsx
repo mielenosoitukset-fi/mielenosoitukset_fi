@@ -102,7 +102,7 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
   const pageUrl = `${config.origin}/ker%C3%A4ys`;
   return <article className="public-content campaign-page fundraising-page" lang="fi">
     <section className="campaign-fundraising-intro" aria-labelledby="fundraising-title">
-      <h1 id="fundraising-title">Auta mielenosoituksia löytymään</h1>
+      <h1 id="fundraising-title">Auta {'mielen\u00adosoituksia'} löytymään</h1>
       <p className="fundraising-lead">{fundraisingCopy.pageLead}</p>
     </section>
 
