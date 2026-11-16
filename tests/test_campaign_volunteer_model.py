@@ -134,3 +134,25 @@ def test_export_escapes_formula_cells(admin_client, db):
     db.volunteers.insert_one({"name": "=HYPERLINK(\"x\")", "email": "csv@example.test", "notes": "+1", "confirmed": True})
     text = admin_client.get("/admin/kampanja/api/volunteers/export/csv").get_data(as_text=True)
     assert "'=HYPERLINK" in text and "'+1" in text and ",=HYPERLINK" not in text
+
+
+def test_season_purge_waits_for_the_end_date_and_supports_dry_run(db):
+    from datetime import datetime, timezone
+    from mielenosoitukset_fi.scripts import purge_campaign_volunteers as purge
+
+    db.volunteers.delete_many({})
+    db.volunteers.insert_many([{"email": "a@example.test", "confirmed": True}, {"email": "b@example.test", "confirmed": False}])
+    before = datetime(2027, 5, 31, 20, 59, tzinfo=timezone.utc)  # 23.59 Helsinki
+    assert purge.purge(db, now=before) == {"due": False, "deleted": 0}
+    assert db.volunteers.count_documents({}) == 2
+    after = datetime(2027, 5, 31, 21, 0, tzinfo=timezone.utc)  # 1.6. 00.00 Helsinki
+    assert purge.purge(db, now=after, dry_run=True) == {"due": True, "would_delete": 2}
+    assert db.volunteers.count_documents({}) == 2
+    assert purge.purge(db, now=after) == {"due": True, "deleted": 2}
+    assert db.volunteers.count_documents({}) == 0
+
+
+def test_purge_job_is_registered():
+    from mielenosoitukset_fi.background_jobs.definitions import JOB_DEFINITION_MAP
+
+    assert "purge_campaign_volunteers" in JOB_DEFINITION_MAP

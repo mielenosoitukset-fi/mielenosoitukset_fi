@@ -30,6 +30,7 @@ from mielenosoitukset_fi.scripts.purge_city_admin_applications import main as pu
 from mielenosoitukset_fi.scripts.deliver_fundraising_reminder_confirmations import main as deliver_fundraising_reminder_confirmations
 from mielenosoitukset_fi.scripts.send_fundraising_reminders import main as send_fundraising_reminders
 from mielenosoitukset_fi.scripts.purge_fundraising_reminders import main as purge_fundraising_reminders
+from mielenosoitukset_fi.scripts.purge_campaign_volunteers import main as purge_campaign_volunteers
 from mielenosoitukset_fi.scripts.deliver_pride_banner_confirmations import main as deliver_pride_banner_confirmations
 from mielenosoitukset_fi.scripts.purge_pride_banner_volunteers import main as purge_pride_banner_volunteers
 from mielenosoitukset_fi.scripts.process_urgent_review_alerts import run as process_urgent_review_alerts
@@ -208,6 +209,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         name="Fundraising reminder retention",
         description="Deletes unconfirmed signups after two weeks and all reminder data 30 days after the collection ends (17.3.2027).",
         func=purge_fundraising_reminders,
+        default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="purge_campaign_volunteers",
+        name="Campaign volunteer retention",
+        description="Deletes all campaign volunteer signups once 31.5.2027 has passed (from 1.6.2027 00:00 Helsinki). Does nothing before that.",
+        func=purge_campaign_volunteers,
         default_trigger=_interval(days=1),
     ),
     JobDefinition(
