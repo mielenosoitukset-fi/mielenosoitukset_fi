@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { OpeningLink } from '../components/OpeningLink';
+import { OpeningInterestForm } from '../components/OpeningInterestForm';
 import { VolunteerForm } from '../components/VolunteerForm';
 import type { VolunteerFormProps } from '../components/VolunteerForm';
 import { campaignPhase, defaultSchedule, fiDate, fiDayMonth, fiRange, fiWeekdayEssive, fiWeekdayShort, fiWeekday } from '../app/campaign-schedule';
@@ -88,6 +90,7 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
   const helpCards = phase.collectionClosed ? 3 : 4;
 
   return <div className="campaign-page kv" lang="fi">
+    {!serverFallback && <OpeningLink />}
     <section className="kv-hero" aria-labelledby="t">
       <div>
         <h1 id="t">Mielenosoitukset.fi näkyviin kymmeniin kaupunkeihin</h1>
@@ -174,7 +177,7 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
       </div>
     </div></section>
 
-    <section id="avajaiset" className="kv-sec" aria-labelledby="av"><div className="kv-party kv-party--solo">
+    <section id="avajaiset" className="kv-sec" aria-labelledby="av"><div className={`kv-party${openingForm ? '' : ' kv-party--solo'}`}>
       <div>
         <h2 id="av" className="kv-h2 kv-h2--loose">Kampanjan avajaiset {s.openingCityIn}</h2>
         <dl className="kv-facts2">
@@ -184,6 +187,9 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
         </dl>
         <p className="kv-lead kv-lead--small">Tervetuloa kampanjan avajaisiin. Tapaa vapaaehtoisia ja kuule, mitä kampanjassa tehdään. Ilmoittautuminen ei sido mihinkään.</p>
       </div>
+      {openingForm && (serverFallback
+        ? <p className="campaign-loading-note">Lomaketta ladataan.</p>
+        : <OpeningInterestForm privacyUrl={urls.privacy} />)}
     </div></section>
 
     <section id="pride" className="kv-sec" aria-labelledby="pr"><div className="kv-pride">
@@ -203,7 +209,7 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
         <details><summary>Onko keräys luvallinen?</summary><p>Keräys on pienkeräys, jonka numero on {s.collectionNumber}. Keräysaika on {collectionRange}, ja keräys on voimassa koko Suomessa Ahvenanmaata lukuun ottamatta.</p></details>
         <details><summary>Miten voin auttaa ilman rahaa?</summary><p>Voit ilmoittautua vapaaehtoiseksi, jakaa tietoa palvelusta tai tulla avajaisiin. Jakamiseen ei tarvita ilmoittautumista.</p></details>
         <details><summary>Missä ja milloin avajaiset ovat?</summary><p>Kampanjan avajaiset ovat {openingLine} {s.openingCityIn} kello {s.openingTime} alkaen. Paikka tarkentuu. Kerromme sen kaikille, jotka ovat ilmoittautuneet kiinnostuneiksi.</p></details>
-        <details><summary>Mitä tietoja tallennamme, kun ilmoittaudut avajaisiin?</summary><p>Tallennamme sähköpostiosoitteesi ja halutessasi paikkakunnan sekä vastauksesi pääsylippukysymykseen. Käytämme tietoja avajaisten viesteihin ja kampanjan päivityksiin. Voit perua milloin tahansa. Poistamme tiedot avajaisten jälkeen, ellet anna uutta suostumusta.</p></details>
+        <details><summary>Mitä tietoja tallennamme, kun ilmoittaudut avajaisiin?</summary><p>Tallennamme sähköpostiosoitteesi ja halutessasi paikkakunnan sekä vastauksesi pääsylippukysymykseen. Käytämme tietoja vain avajaisia koskeviin viesteihin. Voit perua milloin tahansa. Poistamme tiedot avajaisten jälkeen, ellet anna uutta suostumusta.</p></details>
         <details><summary>Mikä on markkinointiviikko?</summary><p>Markkinointiviikko on {marketing}, maanantaista sunnuntaihin. Tavoitteena on tehdä siitä kampanjan näkyvin viikko. Ohjelma tarkentuu myöhemmin.</p></details>
         <details><summary>Miten tarrat jaetaan?</summary><p>Voit ilmoittautua vapaaehtoiseksi ja kertoa, että voisit ottaa vastaan oman alueesi tarroja ja auttaa jakamaan niitä. Otamme sinuun yhteyttä myöhemmin. Toimituksesta tai aikataulusta emme lupaa vielä mitään.</p></details>
       </div>

@@ -264,6 +264,15 @@ try {
     assert(!opened.includes('account') && !opened.includes('FI46'), 'No payment details on the campaign page');
     const bootstrapped = (await campaign()).html;
     assert(!bootstrapped.includes('FI46 5723'), 'The bootstrap carries no account number');
+    const link = await campaign({ search: '?avajaiset=vahvista' });
+    assert.equal(link.headers['X-Robots-Tag'], 'noindex, nofollow');
+    assert.match(link.html, /<meta name="robots" content="noindex, nofollow" \/>/);
+    // The opening interest form is off by default and appears only when the shared configuration turns it on.
+    assert(!before.includes('id="ie"') && !opened.includes('id="ie"'), 'Opening form is off by default');
+    fundState = { status: 200, body: { start_date: dayOf(0), end_date: dayOf(60), opening_interest_form: true } };
+    const withForm = bodyOfCampaign(await campaign());
+    assert(withForm.includes('id="ie"') && withForm.includes('Kerro halutessasi lisää') && withForm.includes('Sallin sähköpostiosoitteeni, paikkakuntani ja vapaaehtoiset vastaukseni käytön'));
+    assert(withForm.includes('Ilmoittaudu kiinnostuneeksi'));
     fundState = { status: 200, body: { start_date: dayOf(-90), end_date: dayOf(-1) } };
     const closed = bodyOfCampaign(await campaign());
     assert(!closed.includes('Lahjoita keräykseen') && !closed.includes('Tilaa muistutus'));
@@ -290,9 +299,9 @@ try {
     assert.equal(pre.headers['X-Robots-Tag'], 'noindex, follow');
     assert.match(pre.html, /<meta name="robots" content="noindex, follow" \/>/);
     const preBody = bodyOf(pre);
-    for (const text of ['Pienkeräys aukeaa', 'Lisää kalenteriin', 'data:text/calendar', 'Keräyksen tiedot', 'RA/2026/0000',
-      'Koko Suomi Ahvenanmaata lukuun ottamatta', 'Lahjoittaminen ei ole vielä avoinna',
-      'Mitä keräyksellä tehdään?', 'Tarroja kymmeniin kaupunkeihin', '12 banderollia', 'Ensisijaisesti', 'Jos varoja jää yli', 'Virallinen käyttötarkoitus', 'Tampereen Tapahtuma- ja mediarenessanssi ry', 'äänentoistolaitteita',
+    for (const text of ['Pienkeräys aukeaa', 'Keräyksen tiedot', 'RA/2026/0000',
+      'Koko Suomi Ahvenanmaata lukuun ottamatta',
+      'Miksi tämä keräys', 'vasta, kun ne ovat jo ohi', 'Mihin raha menee', 'Tarroja kymmeniin kaupunkeihin', '12 banderollia', 'Jos varoja jää yli', 'Virallinen käyttötarkoitus', 'Tampereen Tapahtuma- ja mediarenessanssi ry', 'äänentoistolaitteita',
       'palvelin ja ylläpito', '<details class="fundraising-official">']) assert(preBody.includes(text), text);
     assert(!/€|euro/i.test(preBody), 'No euro amounts on the page');
     assert(!/Turku|Kirkkonummi|Noin 1 000|Noin 500|tarraa:/.test(preBody), 'No per-city sticker quantities');
@@ -303,15 +312,18 @@ try {
     assert.equal(open.headers['X-Robots-Tag'], undefined);
     assert.match(open.html, /<meta name="robots" content="index, follow" \/>/);
     const openBody = bodyOf(open);
-    for (const text of ['Näin lahjoitat', 'FI00 0000 0000 0000 00', 'TESTFIHH', 'Kopioi tilinumero', 'RA/2026/0000']) assert(openBody.includes(text), text);
+    for (const text of ['Näin lahjoitat', 'FI00 0000 0000 0000\u00a000', 'TESTFIHH', 'Kopioi tilinumero', 'RA/2026/0000']) assert(openBody.includes(text), text);
     assert(!openBody.includes('mobilepay'), 'No MobilePay link when none is configured');
+    for (const text of ['Saaja', 'Testiyhdistys', 'Kopioi saajan nimi', 'Kopioi tilinumero', 'Kopioi BIC', 'Kopioi viesti', 'Kysy lisää', 'Jaa sivu', 'href="#lahjoita"']) assert(openBody.includes(text), text);
+    assert(!/<svg[^>]*QR-koodi/.test(openBody), 'No QR code without a MobilePay link');
     fundState = { status: 200, body: { ...closedFund, start_date: dayHelsinki(0), mobilepay_active: 2,
       mobilepay_links: [{ label: 'a', url: 'https://qr.mobilepay.fi/box/one/pay-in' }, { label: 'b', url: 'https://qr.mobilepay.fi/box/two/pay-in' }] } };
     const boxed = bodyOf(await fundraising());
     assert(boxed.includes('box/two/pay-in') && !boxed.includes('box/one/pay-in') && boxed.includes('Lahjoita MobilePaylla'), 'Only the active MobilePay box is shown');
-    assert.equal((boxed.match(/qr\.mobilepay\.fi/g) ?? []).length, 1);
+    assert.equal((boxed.match(/qr\.mobilepay\.fi/g) ?? []).length, 2, 'Active box link: donate button and sticky bar');
+    assert(/<svg[^>]*aria-label="QR-koodi/.test(boxed) && boxed.includes('fundraising-sticky'), 'QR code and sticky bar for the active box');
     fundState = { status: 200, body: { ...closedFund, start_date: dayHelsinki(0) } };
-    for (const text of ['Pienkeräys aukeaa', 'Lisää kalenteriin', 'data:text/calendar']) assert(!openBody.includes(text), `open page keeps ${text}`);
+    for (const text of ['Pienkeräys aukeaa', 'Lisää kalenteriin', 'data:text/calendar', 'Muistutus']) assert(!openBody.includes(text), `open page keeps ${text}`);
     // The page makes no fundraising link on its own routes: nothing here links it from other pages.
     fundState = { status: 503, body: {} };
     const bundled = await fundraising();

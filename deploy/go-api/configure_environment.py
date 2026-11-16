@@ -40,6 +40,9 @@ def configure(source, target):
         # Pride banner carrier signup (docs/pride-banner-volunteers.md): same rules.
         if config.get("PRIDE_BANNER_SIGNUP") is True:
             values["PRIDE_BANNER_SIGNUP_ENABLED"] = "true"
+        # Campaign opening interest signup (docs/campaign-opening-interest.md): same rules.
+        if config.get("OPENING_INTEREST_SIGNUP") is True:
+            values["OPENING_INTEREST_SIGNUP_ENABLED"] = "true"
     # Event analytics follow the Flask switch, which defaults to enabled when
     # the key is missing (app.py: config.get("SITE_ANALYTICS_ENABLED", True)),
     # so a redeploy keeps Go writes in step with Flask.

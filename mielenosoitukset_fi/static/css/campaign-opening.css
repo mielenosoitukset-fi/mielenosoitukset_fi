@@ -1,0 +1,18 @@
+/* Opening interest form (campaign page). Scoped to the approved mockup. */
+.kx-q{border:0;padding:0;margin:1.1rem 0 0}
+.kx-q legend{font-weight:600;font-size:1rem;margin-bottom:.5rem;float:none;width:auto}
+.kx-q--sub{margin-top:.9rem}
+.kx-radios{display:flex;flex-wrap:wrap;gap:.5rem}
+.kx-radio{position:relative;margin:0}
+.kx-radio input{position:absolute;opacity:0}
+.kx-radio span{display:inline-flex;align-items:center;min-height:44px;padding:0 1rem;border:2px solid var(--product-border);border-radius:8px;font-weight:600;background:var(--product-surface);cursor:pointer}
+.kx-radio input:checked+span{border-color:var(--product-primary);background:var(--product-primary-soft);color:var(--product-primary)}
+.kx-radio input:focus-visible+span{outline:3px solid var(--product-primary);outline-offset:2px}
+.kx-qnote{margin-top:.75rem!important}
+.kx-q--sub{margin-top:1.4rem!important}
+.kv-form .kv-consent{margin-bottom:1rem}
+.kv-err-inline{margin-top:.4rem}
+.kv-bare{border:0;padding:0;margin:0;min-width:0}
+.kv-done-text{margin-top:.6rem}
+.kv-trap{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+.kv-linkpanel{border-top:0;padding-block:1.5rem 0}

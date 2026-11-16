@@ -50,20 +50,27 @@ partial=""
 trap 'rm -rf "$work"; [[ -n "$partial" && -e "$partial" ]] && rm -f "$partial"' EXIT
 
 # Read MONGO_URI and MONGO_DBNAME without echoing them.
-"$python" - "$app_config" "$work/tools.yaml" "$work/dbname" "$work/authdb" <<'PY'
+"$python" - "$app_config" "$work/tools.yaml" "$work/dbname" "$work/authdb" "$work/compressors" "$mode" <<'PY'
 import sys, yaml
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, parse_qsl, urlsplit
 config = yaml.safe_load(open(sys.argv[1], encoding="utf-8")) or {}
 uri, db = config.get("MONGO_URI"), config.get("MONGO_DBNAME")
 if not uri or not db:
     sys.exit("mongodb-backup: MONGO_URI and MONGO_DBNAME are required in the app config")
+parts = urlsplit(uri)
+if sys.argv[6] == "full":
+    options = parse_qsl(parts.query, keep_blank_values=True)
+    compressors = next((value for key, value in reversed(options) if key.lower() == "compressors"), "zstd") or "none"
+    if any(name not in {"none", "snappy", "zstd", "zlib"} for name in compressors.split(",")):
+        sys.exit("mongodb-backup: unsupported compressor")
+    with open(sys.argv[5], "w", encoding="utf-8") as handle:
+        handle.write(compressors)
 with open(sys.argv[2], "w", encoding="utf-8") as handle:
     handle.write("uri: " + yaml.safe_dump(uri, default_style='"').strip() + "\n")
 with open(sys.argv[3], "w", encoding="utf-8") as handle:
     handle.write(db)
 # Authenticate where the app does. PyMongo uses authSource, else the database
 # in the URI path, else "admin"; the Mongo tools would otherwise use --db.
-parts = urlsplit(uri)
 auth = (parse_qs(parts.query).get("authSource") or [parts.path.lstrip("/") or "admin"])[0]
 with open(sys.argv[4], "w", encoding="utf-8") as handle:
     handle.write(auth)
@@ -72,6 +79,11 @@ dbname="$(cat "$work/dbname")"
 [[ "$dbname" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "mongodb-backup: unexpected database name" >&2; exit 2; }
 authdb="$(cat "$work/authdb")"
 [[ "$authdb" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "mongodb-backup: unexpected authentication database" >&2; exit 2; }
+compression=()
+if [[ "$mode" == full ]]; then
+  # Tools 100.17 parses URI compressors but only enables its native option.
+  compression+=("--compressors=$(cat "$work/compressors")")
+fi
 
 install -d -m 0700 "$backup_dir"
 # Core and full runs share one directory; serialize them so one run never
@@ -87,7 +99,7 @@ target="$backup_dir/${dbname}-${mode}-${stamp}.archive.gz"
 partial="$target.partial"
 
 # No --quiet: on failure mongodump's reason must reach the journal.
-"$mongodump" --config="$work/tools.yaml" --authenticationDatabase="$authdb" --db="$dbname" ${excluded[@]+"${excluded[@]}"} --archive="$partial" --gzip
+"$mongodump" --config="$work/tools.yaml" --authenticationDatabase="$authdb" --db="$dbname" ${excluded[@]+"${excluded[@]}"} ${compression[@]+"${compression[@]}"} --archive="$partial" --gzip
 [[ -s "$partial" ]] || { echo "mongodb-backup: dump is empty" >&2; exit 1; }
 # --dryRun alone stops before reading collection data, so first prove the whole
 # gzip stream decompresses and its checksum matches.

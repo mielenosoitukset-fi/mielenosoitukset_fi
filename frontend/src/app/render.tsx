@@ -359,7 +359,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
       meta = { ...meta, robots: 'noindex, follow' };
     }
     extraHead = (assets.fundraising ?? '')
-      + '<link rel="stylesheet" href="/static/css/public-content.css?v=20261113-fundraising-reminder-2">'
+      + '<link rel="stylesheet" href="/static/css/public-content.css?v=20261116-fundraising-ux-3">'
       + '<link rel="stylesheet" href="/static/css/campaign.css?v=20261110-volunteer-message-1">';
     // The whole page is in the server-rendered document; no fallback is needed.
     noscript = '';
@@ -379,6 +379,12 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     today = helsinkiToday();
     fundraisingData = (await loadFundraisingData(readBase)) ?? { ...(fundraisingBundled as Record<string, unknown>) };
     headers['Cache-Control'] = 'private, no-store';
+    // Confirmation and removal links carry a one-time token: never indexed.
+    const privateLink = new URLSearchParams(input.search ?? '').has('avajaiset');
+    if (privateLink) {
+      headers['X-Robots-Tag'] = 'noindex, nofollow';
+      meta = { ...meta, robots: 'noindex, nofollow' };
+    }
     if (!published) {
       headers['X-Robots-Tag'] = 'noindex, nofollow';
       meta = { ...meta, robots: 'noindex, nofollow' };
@@ -386,7 +392,8 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     {
       extraHead = (assets.campaign ?? '')
         + '<link rel="stylesheet" href="/static/css/campaign.css?v=20261110-volunteer-message-1">'
-        + '<link rel="stylesheet" href="/static/css/campaign-v2.css?v=20261113-campaign-v2-7">';
+        + '<link rel="stylesheet" href="/static/css/campaign-v2.css?v=20261113-campaign-v2-7">'
+        + '<link rel="stylesheet" href="/static/css/campaign-opening.css?v=20261116-opening-1">';
       noscript = '<noscript><p class="container-main-content">Sivu toimii parhaiten, kun JavaScript on käytössä. '
         + 'Ilmoittautuminen tarvitsee sen.</p></noscript>';
       appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}

@@ -1,0 +1,1 @@
+- The campaign page has the opening interest form (email, optional city, optional ticket questions under "Kerro halutessasi lisää", consent). It is off by default (`opening_interest_form` in the fundraising configuration) and sends nothing until its backend ships.
