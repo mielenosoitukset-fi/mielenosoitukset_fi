@@ -137,11 +137,17 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
     </section>}
 
     <nav aria-label="Sivun osiot"><ul className="fundraising-chips">
+      <li><a href="#miksi">{fundraisingCopy.whyTitle}</a></li>
       <li><a href="#kaytto">Mihin raha menee</a></li>
       <li><a href="#keraus">Keräyksen tiedot</a></li>
       <li><a href="#kysy">Kysy lisää</a></li>
       <li><a href="#jaa">Jaa sivu</a></li>
     </ul></nav>
+
+    <section className="public-content__card" id="miksi" aria-labelledby="why-title">
+      <h2 id="why-title">{fundraisingCopy.whyTitle}</h2>
+      <ul className="fundraising-why">{fundraisingCopy.why.map(line => <li key={line}>{line}</li>)}</ul>
+    </section>
 
     <section className="public-content__card" id="kaytto" aria-labelledby="purpose-title">
       <h2 id="purpose-title">Mihin raha menee</h2>

@@ -292,7 +292,7 @@ try {
     const preBody = bodyOf(pre);
     for (const text of ['Pienkeräys aukeaa', 'Keräyksen tiedot', 'RA/2026/0000',
       'Koko Suomi Ahvenanmaata lukuun ottamatta',
-      'Mihin raha menee', 'Tarroja kymmeniin kaupunkeihin', '12 banderollia', 'Jos varoja jää yli', 'Virallinen käyttötarkoitus', 'Tampereen Tapahtuma- ja mediarenessanssi ry', 'äänentoistolaitteita',
+      'Miksi tämä keräys', 'vasta, kun ne ovat jo ohi', 'Mihin raha menee', 'Tarroja kymmeniin kaupunkeihin', '12 banderollia', 'Jos varoja jää yli', 'Virallinen käyttötarkoitus', 'Tampereen Tapahtuma- ja mediarenessanssi ry', 'äänentoistolaitteita',
       'palvelin ja ylläpito', '<details class="fundraising-official">']) assert(preBody.includes(text), text);
     assert(!/€|euro/i.test(preBody), 'No euro amounts on the page');
     assert(!/Turku|Kirkkonummi|Noin 1 000|Noin 500|tarraa:/.test(preBody), 'No per-city sticker quantities');

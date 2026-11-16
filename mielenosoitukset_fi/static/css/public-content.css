@@ -203,3 +203,5 @@
 @media (prefers-reduced-motion: reduce) { .fundraising-sticky { transition: none; } }
 .fundraising-page .campaign-fundraising-intro h1 { font-size: clamp(1.5rem, 7vw, 2.6rem); overflow-wrap: anywhere; hyphens: auto; }
 @media (max-width: 480px) { .fundraising-page .public-content__card { padding: 1rem; } }
+.fundraising-why { margin: 0; padding-left: 1.25rem; }
+.fundraising-why li { margin-bottom: .5rem; }

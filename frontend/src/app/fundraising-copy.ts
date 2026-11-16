@@ -11,6 +11,13 @@ export const fundraisingCopy = {
   pageLead: 'Mielenosoitukset.fi kerää rahaa tarroihin, banderolleihin ja palvelun ylläpitoon. Lahjoitus onnistuu MobilePaylla tai tilisiirrolla.',
   /** Short line for other surfaces such as the front-page bar. */
   barLine: 'Noin 25 000 tarraa ja 12 banderollia ympäri Suomen',
+  whyTitle: 'Miksi tämä keräys',
+  why: [
+    'Liian moni kuulee mielenosoituksista vasta, kun ne ovat jo ohi.',
+    'Mielenosoitusvapaus toimii vain, kun mielenosoituksista tiedetään.',
+    'Mielenosoitukset.fi kokoaa Suomen mielenosoitukset yhteen paikkaan: kaikki aiheet, koko Suomi.',
+    'Tarroihin tulee QR-koodi, josta pääsee suoraan palveluun.',
+  ],
   planTitle: 'Mitä keräyksellä tehdään?',
   planIntro: 'Suunnitelma on suuntaa antava: määrät ovat arvioita, eivät lupauksia.',
   stickersTitle: 'Tarroja kymmeniin kaupunkeihin',
