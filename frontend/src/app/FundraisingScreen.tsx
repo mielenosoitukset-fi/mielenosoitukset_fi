@@ -21,8 +21,8 @@ function MobilepayQr({ url }: { url: string }) {
   let path = '';
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (qr.isDark(y, x)) path += `M${x} ${y}h1v1h-1z`;
   return <figure className="fundraising-qr">
-    <svg viewBox={`-2 -2 ${size + 4} ${size + 4}`} role="img" aria-label="QR-koodi MobilePay-lahjoitukseen" shapeRendering="crispEdges">
-      <rect x="-2" y="-2" width={size + 4} height={size + 4} fill="#fff" />
+    <svg viewBox={`-4 -4 ${size + 8} ${size + 8}`} role="img" aria-label="QR-koodi MobilePay-lahjoitukseen" shapeRendering="crispEdges">
+      <rect x="-4" y="-4" width={size + 8} height={size + 8} fill="#fff" />
       <path d={path} fill="#000" />
     </svg>
     <figcaption>Skannaa puhelimella</figcaption>
@@ -39,14 +39,15 @@ function CopyField({ label, value, copyLabel, doneText, mono }: { label: string;
     } catch {
       setState('failed');
     }
+    window.setTimeout(() => setState('idle'), 2500);
   };
   return <div className="fundraising-field">
     <div className="fundraising-field__text">
       <dt>{label}</dt>
-      <dd className={mono ? 'fundraising-iban' : undefined}>{value}</dd>
+      <dd className={mono ? 'fundraising-iban' : undefined}>{mono ? value.replace(/ (\S+)$/, '\u00a0$1') : value}</dd>
       <span className="fundraising-copy__status" role="status">{state === 'copied' ? doneText : state === 'failed' ? 'Kopiointi ei onnistunut. Valitse teksti ja kopioi se itse.' : ''}</span>
     </div>
-    <button type="button" className="fundraising-copy" onClick={copy} aria-label={copyLabel}>Kopioi</button>
+    <button type="button" className="fundraising-copy" onClick={copy} aria-label={copyLabel}>{state === 'copied' ? 'Kopioitu' : 'Kopioi'}</button>
   </div>;
 }
 
@@ -151,7 +152,7 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
         <div><h3>{fundraisingCopy.upkeepTitle}</h3><p>{fundraisingCopy.upkeep}</p></div>
       </div>
       <h3>{fundraisingCopy.secondaryTitle}</h3>
-      <p>{fundraisingCopy.secondary}</p>
+      <p>{fundraisingCopy.secondaryFriendly}</p>
       <details className="fundraising-official">
         <summary>{fundraisingCopy.officialTitle}</summary>
         <p>{fundraisingCopy.officialPrimary}</p>
@@ -178,7 +179,7 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
       <details className="fundraising-official"><summary>Voinko lahjoittaa keräysajan jälkeen?</summary>
         <p>Et voi. Lahjoita vain keräysaikana. Keräysajan päätyttyä lahjoitusohjeet poistuvat tältä sivulta.</p></details>
       <details className="fundraising-official"><summary>Mitä jos varoja jää yli?</summary>
-        <p>{fundraisingCopy.secondary}</p></details>
+        <p>{fundraisingCopy.secondaryFriendly}</p></details>
       <p className="fundraising-contact">Onko sinulla kysyttävää keräyksestä? Kirjoita osoitteeseen <a href="mailto:tuki@mielenosoitukset.fi">tuki@mielenosoitukset.fi</a> tai käytä <a href={config.urls.contact}>yhteydenottolomaketta</a>.</p>
     </section>
 

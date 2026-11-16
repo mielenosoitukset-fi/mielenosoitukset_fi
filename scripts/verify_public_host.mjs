@@ -303,7 +303,7 @@ try {
     assert.equal(open.headers['X-Robots-Tag'], undefined);
     assert.match(open.html, /<meta name="robots" content="index, follow" \/>/);
     const openBody = bodyOf(open);
-    for (const text of ['Näin lahjoitat', 'FI00 0000 0000 0000 00', 'TESTFIHH', 'Kopioi tilinumero', 'RA/2026/0000']) assert(openBody.includes(text), text);
+    for (const text of ['Näin lahjoitat', 'FI00 0000 0000 0000\u00a000', 'TESTFIHH', 'Kopioi tilinumero', 'RA/2026/0000']) assert(openBody.includes(text), text);
     assert(!openBody.includes('mobilepay'), 'No MobilePay link when none is configured');
     for (const text of ['Saaja', 'Testiyhdistys', 'Kopioi saajan nimi', 'Kopioi tilinumero', 'Kopioi BIC', 'Kopioi viesti', 'Kysy lisää', 'Jaa sivu', 'href="#lahjoita"']) assert(openBody.includes(text), text);
     assert(!/<svg[^>]*QR-koodi/.test(openBody), 'No QR code without a MobilePay link');
