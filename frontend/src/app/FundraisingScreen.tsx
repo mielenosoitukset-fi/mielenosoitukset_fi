@@ -133,7 +133,7 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
     </section> : <section className="public-content__card fundraising-donate" id="lahjoita" aria-labelledby="donate-title">
       <h2 id="donate-title">{pre && opens ? `Pienkeräys aukeaa ${finnishDate(opens)}` : f.is_preparation || pre ? 'Lahjoittaminen ei ole vielä avoinna' : 'Lahjoittaminen on suljettu'}</h2>
       <p>{pre ? 'Tilinumero ja lahjoitusohjeet julkaistaan tällä sivulla, kun keräys alkaa. Lahjoita vasta, kun keräysaika on alkanut.'
-        : f.confirmed ? 'Lahjoituksia voi tehdä vain vahvistettuna keräysaikana ja keräyksen ollessa avoinna.' : 'Lahjoitusohjeet julkaistaan, kun tiedot on vahvistettu.'}</p>
+        : f.confirmed ? 'Lahjoittaa voi vain vahvistettuna keräysaikana, kun keräys on avoinna.' : 'Lahjoitusohjeet julkaistaan, kun tiedot on vahvistettu.'}</p>
     </section>}
 
     <nav aria-label="Sivun osiot"><ul className="fundraising-chips">
@@ -176,7 +176,7 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
       </dl>
       <h3>Mikä on Mielenosoitukset.fi?</h3>
       <p>Mielenosoitukset.fi kokoaa Suomessa järjestettäviä mielenosoituksia yhteen paikkaan. Palvelusta voit etsiä tulevia tapahtumia ja ilmoittaa mielenosoituksesta muiden löydettäväksi.</p>
-      <p>Palvelua ylläpidetään riippumattomana, voittoa tavoittelemattomana vapaaehtoisprojektina. Tavoitteena on helpottaa tapahtumien löytämistä ja osallistumista.</p>
+      <p>Palvelu on riippumaton, voittoa tavoittelematon vapaaehtoisprojekti. Tavoitteena on helpottaa tapahtumien löytämistä ja osallistumista.</p>
       <a className="public-content__link" href={config.urls.info}>Lue lisää palvelusta <Arrow /></a>
     </section>
 
