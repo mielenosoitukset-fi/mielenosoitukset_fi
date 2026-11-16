@@ -82,7 +82,7 @@ export function OpeningInterestForm({ privacyUrl }: { privacyUrl: string }) {
       </details>
       <label className="kv-consent">
         <input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} aria-invalid={errors.consent ? true : undefined} />
-        <span>Sallin sähköpostiosoitteeni käytön avajaisten viesteihin ja kampanjan päivityksiin. Vahvistan ilmoittautumisen sähköpostitse ja voin perua sen milloin tahansa yhdellä klikkauksella. Tiedot poistetaan avajaisten jälkeen, ellen anna uutta suostumusta. <a href={privacyUrl}>Tietosuojaseloste</a></span>
+        <span>Sallin sähköpostiosoitteeni ja vapaaehtoiset vastaukseni käytön avajaisten viesteihin ja kampanjan päivityksiin. Vahvistan ilmoittautumisen sähköpostitse ja voin perua sen milloin tahansa yhdellä klikkauksella. Tiedot poistetaan avajaisten jälkeen, ellen anna uutta suostumusta. <a href={privacyUrl}>Tietosuojaseloste</a></span>
       </label>
       {errors.consent && <p className="kv-err" role="alert"><i className="fa-solid fa-circle-exclamation" aria-hidden="true" /> {errors.consent}</p>}
       <button className="btn-primary" type="submit">{pending ? 'Lähetetään…' : 'Ilmoittaudu kiinnostuneeksi'}</button>

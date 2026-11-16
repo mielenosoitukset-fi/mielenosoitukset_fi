@@ -69,6 +69,9 @@ export const openingLinkCopy = {
   removeButton: 'Poista tietoni',
   removed: 'Tietosi on poistettu. Et saa enää viestejä avajaisista.',
   badLink: 'Linkki ei kelpaa. Avaa se uudelleen sähköpostiviestistä.',
+  removeExpired: 'Linkki on jo käytetty tai vanhentunut. Tietosi on todennäköisesti jo poistettu.',
+  doneConfirmTitle: 'Ilmoittautuminen on vahvistettu',
+  doneRemoveTitle: 'Tietosi on poistettu',
   expired: 'Linkki on vanhentunut tai jo käytetty. Jos olet jo vahvistanut ilmoittautumisen, sinun ei tarvitse tehdä mitään. Muuten voit ilmoittautua uudelleen lomakkeella.',
   error: 'Toiminto ei onnistunut. Yritä uudelleen hetken kuluttua.',
 } as const;

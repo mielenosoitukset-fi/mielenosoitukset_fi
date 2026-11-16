@@ -30,7 +30,7 @@ const (
 	openingMaxBody         = 4 << 10
 	// openingConsentVersion names the consent text on the form; change it together
 	// with the consent line in frontend/src/components/OpeningInterestForm.tsx.
-	openingConsentVersion = "2026-11-16"
+	openingConsentVersion = "2026-11-17"
 )
 
 var openingAcceptedMessage = "Jos osoite on kelvollinen, lähetämme siihen vahvistusviestin. Ilmoittautuminen tulee voimaan vasta, kun olet vahvistanut sen viestin linkistä."

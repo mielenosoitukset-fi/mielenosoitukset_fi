@@ -23,7 +23,7 @@ guards, token rules and limits; this file lists only what differs.
 ## Data and retention
 
 `email` (lower case), `city`, `willing` (`yes`, `maybe`, `no` or empty), `band` (`under10`, `10to20`, `over20` or empty, kept only
-after `yes` or `maybe`), `status`, `locale`, `consent_at`, `consent_version` (`2026-11-16`), timestamps and token hashes.
+after `yes` or `maybe`), `status`, `locale`, `consent_at`, `consent_version` (`2026-11-17`), timestamps and token hashes.
 No name, IP address, user agent or phone number; the mail repeats no form text. Unconfirmed rows are deleted after 14 days;
 everything is deleted from **13.3.2027** unless a row carries a later `retain_until` (set only after a new explicit consent).
 The date is `PURGE_AFTER` in `utils/campaign_opening_interest.py`; the consent text and the privacy notice name it.

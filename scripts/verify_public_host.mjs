@@ -264,6 +264,9 @@ try {
     assert(!opened.includes('account') && !opened.includes('FI46'), 'No payment details on the campaign page');
     const bootstrapped = (await campaign()).html;
     assert(!bootstrapped.includes('FI46 5723'), 'The bootstrap carries no account number');
+    const link = await campaign({ search: '?avajaiset=vahvista' });
+    assert.equal(link.headers['X-Robots-Tag'], 'noindex, nofollow');
+    assert.match(link.html, /<meta name="robots" content="noindex, nofollow" \/>/);
     // The opening interest form is off by default and appears only when the shared configuration turns it on.
     assert(!before.includes('id="ie"') && !opened.includes('id="ie"'), 'Opening form is off by default');
     fundState = { status: 200, body: { start_date: dayOf(0), end_date: dayOf(60), opening_interest_form: true } };

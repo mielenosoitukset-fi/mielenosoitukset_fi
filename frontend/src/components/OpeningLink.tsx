@@ -9,7 +9,7 @@ import type { OpeningLinkMode } from '../app/opening-interest';
  */
 export function OpeningLink() {
   const [link, setLink] = useState<{ mode: OpeningLinkMode; token: string } | null>(null);
-  const [state, setState] = useState<'idle' | 'working' | 'done'>('idle');
+  const [state, setState] = useState<'idle' | 'working' | 'done' | 'expired'>('idle');
   const [message, setMessage] = useState('');
   useEffect(() => { setLink(readOpeningLink(window.location.search, window.location.hash)); }, []);
   if (!link) return null;
@@ -21,15 +21,16 @@ export function OpeningLink() {
       setState('done');
       setMessage(confirming ? c.confirmed : c.removed);
     } else {
-      setState('idle');
-      setMessage(result.status === 400 || result.status === 404 || result.status === 410 ? c.expired : c.error);
+      const gone = result.status === 400 || result.status === 404 || result.status === 410;
+      setState(gone ? 'expired' : 'idle');
+      setMessage(gone ? (confirming ? c.expired : c.removeExpired) : c.error);
     }
   };
   return <section className="kv-sec kv-linkpanel" aria-labelledby="opening-link-title">
     <div className="kv-form">
-      <h2 id="opening-link-title" className="kv-h2 kv-h2--tight">{confirming ? c.confirmTitle : c.removeTitle}</h2>
+      <h2 id="opening-link-title" className="kv-h2 kv-h2--tight">{state === 'done' ? (confirming ? c.doneConfirmTitle : c.doneRemoveTitle) : confirming ? c.confirmTitle : c.removeTitle}</h2>
       {state === 'done' ? <p role="status">{message}</p> : <>
-        {!link.token ? <p role="alert">{c.badLink}</p> : <>
+        {!link.token ? <p role="alert">{c.badLink}</p> : state === 'expired' ? null : <>
           <p>{confirming ? c.confirmIntro : c.removeIntro}</p>
           <button type="button" className="btn-primary" onClick={act} disabled={state === 'working'}>{confirming ? c.confirmButton : c.removeButton}</button>
         </>}

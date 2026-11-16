@@ -24,7 +24,7 @@ def clean(db):
 
 def signup(db, email, status="pending", **extra):
     row = {"email": email, "city": "Tampere", "willing": "maybe", "band": "10to20", "status": status, "locale": "fi",
-           "consent_at": NOW, "consent_version": "2026-11-16", "created_at": NOW,
+           "consent_at": NOW, "consent_version": "2026-11-17", "created_at": NOW,
            "confirmation_requested_at": NOW, "confirmation_sent_at": None, "confirmation_count": 0}
     row.update(extra)
     return db[oi.COLLECTION].insert_one(row).inserted_id
