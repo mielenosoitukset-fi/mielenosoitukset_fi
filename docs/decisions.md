@@ -243,6 +243,15 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
 
 ## Operations
 
+- **Recover page identity from available Apache logs (2026-11-16).** The maintainer
+  requested a historical recount after generic pages had been combined into
+  "Muu sivu". Known fixed routes now get distinct page IDs. Because origin
+  requests cannot recreate browser pageviews exactly, recovered counts are
+  displayed separately and never replace/add to existing analytics totals.
+  Import is manual, backed up and reversible; production execution remains
+  unverified after SSH stopped responding and further connections were prohibited.
+  Procedure: [analytics-page-recovery.md](analytics-page-recovery.md).
+
 - **Backups (2026-11-11).** A nightly core dump skips `super_audit_logs` and
   `admin_logs`, which are most of the database. A weekly full dump includes them.
   The Mongo tools authenticate the same way PyMongo does. Restoring from a backup
