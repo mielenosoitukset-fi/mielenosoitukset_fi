@@ -42,7 +42,7 @@ func reminderCall(t *testing.T, handler http.Handler, path, body string) *httpte
 	t.Helper()
 	request := httptest.NewRequest("POST", path, strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
-	if path != reminderUnsubscribePath && path != bannerUnsubscribePath {
+	if path != reminderUnsubscribePath && path != bannerUnsubscribePath && path != openingUnsubscribePath {
 		request.Header.Set("Origin", "https://mielenosoitukset.fi")
 	}
 	recorder := httptest.NewRecorder()

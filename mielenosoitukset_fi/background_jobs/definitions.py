@@ -32,6 +32,8 @@ from mielenosoitukset_fi.scripts.send_fundraising_reminders import main as send_
 from mielenosoitukset_fi.scripts.purge_fundraising_reminders import main as purge_fundraising_reminders
 from mielenosoitukset_fi.scripts.deliver_pride_banner_confirmations import main as deliver_pride_banner_confirmations
 from mielenosoitukset_fi.scripts.purge_pride_banner_volunteers import main as purge_pride_banner_volunteers
+from mielenosoitukset_fi.scripts.deliver_opening_interest_confirmations import main as deliver_opening_interest_confirmations
+from mielenosoitukset_fi.scripts.purge_opening_interest import main as purge_opening_interest
 from mielenosoitukset_fi.scripts.process_urgent_review_alerts import run as process_urgent_review_alerts
 
 
@@ -222,6 +224,20 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         name="Pride banner carrier retention",
         description="Deletes unconfirmed signups after two weeks and all carrier data from 31.10.2027 unless a later retention date is set.",
         func=purge_pride_banner_volunteers,
+        default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="deliver_opening_interest_confirmations",
+        name="Campaign opening interest confirmations",
+        description="Queues the confirmation mail for each campaign opening interest signup. Does nothing unless OPENING_INTEREST_MAILS_ENABLED is set.",
+        func=deliver_opening_interest_confirmations,
+        default_trigger=_interval(minutes=2),
+    ),
+    JobDefinition(
+        key="purge_opening_interest",
+        name="Campaign opening interest retention",
+        description="Deletes unconfirmed signups after two weeks and all opening interest data from 13.3.2027 unless a later retention date is set.",
+        func=purge_opening_interest,
         default_trigger=_interval(days=1),
     ),
 ]

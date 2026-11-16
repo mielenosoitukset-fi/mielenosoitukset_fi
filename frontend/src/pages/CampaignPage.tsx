@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { OpeningLink } from '../components/OpeningLink';
 import { OpeningInterestForm } from '../components/OpeningInterestForm';
 import { VolunteerForm } from '../components/VolunteerForm';
 import type { VolunteerFormProps } from '../components/VolunteerForm';
@@ -16,8 +17,6 @@ export interface CampaignPageProps {
   shareAddress?: string;
   /** The opening interest form is off until its backend ships. */
   openingForm?: boolean;
-  /** Where the opening form posts; without one it sends nothing. */
-  openingEndpoint?: string;
   serverFallback?: boolean;
 }
 
@@ -70,7 +69,7 @@ function Timeline({ schedule, milestones, urls, openingForm }: { schedule: Campa
   </ol>;
 }
 
-export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, today, shareAddress = 'mielenosoitukset.fi/kampanja', openingForm = false, openingEndpoint, serverFallback = false }: CampaignPageProps) {
+export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, today, shareAddress = 'mielenosoitukset.fi/kampanja', openingForm = false, serverFallback = false }: CampaignPageProps) {
   const phase = campaignPhase(schedule, today);
   const s = schedule;
   const collectionRange = `${fiDate(s.collectionStart)}–${fiDate(s.collectionEnd)}`;
@@ -91,6 +90,7 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
   const helpCards = phase.collectionClosed ? 3 : 4;
 
   return <div className="campaign-page kv" lang="fi">
+    {!serverFallback && <OpeningLink />}
     <section className="kv-hero" aria-labelledby="t">
       <div>
         <h1 id="t">Mielenosoitukset.fi näkyviin kymmeniin kaupunkeihin</h1>
@@ -189,7 +189,7 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
       </div>
       {openingForm && (serverFallback
         ? <p className="campaign-loading-note">Lomaketta ladataan.</p>
-        : <OpeningInterestForm endpoint={openingEndpoint} privacyUrl={urls.privacy} />)}
+        : <OpeningInterestForm privacyUrl={urls.privacy} />)}
     </div></section>
 
     <section id="pride" className="kv-sec" aria-labelledby="pr"><div className="kv-pride">

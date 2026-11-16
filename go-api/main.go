@@ -252,6 +252,7 @@ func main() {
 	reminder := startFundraisingReminder(client.Database(database), submissionConfig)
 	handler = fundraisingReminderHandler(handler, client.Database(database), submissionConfig, reminder)
 	handler = prideBannerHandler(handler, client.Database(database), submissionConfig, startPrideBannerSignup(client.Database(database), submissionConfig))
+	handler = openingInterestHandler(handler, client.Database(database), submissionConfig, startOpeningInterestSignup(client.Database(database), submissionConfig))
 	authConfig, err := authBridgeConfigFromEnv()
 	if err != nil {
 		// A bad bridge setting must not take the public API down: stay disabled.
