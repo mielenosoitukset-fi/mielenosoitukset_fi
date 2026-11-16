@@ -1,6 +1,8 @@
 # Standard library
+import hashlib
 import re
 import secrets
+import unicodedata
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from datetime import datetime, timedelta
 
@@ -13,6 +15,7 @@ from . import campaign_bp
 from mielenosoitukset_fi.utils.campaign_publication import campaign_preview_required
 from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.emailer.EmailSender import EmailSender
+from mielenosoitukset_fi.utils.request_ip import get_client_ip
 
 # Initialize email sender and database
 email_sender = EmailSender()
@@ -35,7 +38,33 @@ _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def _text(data, key):
     value = data.get(key) if isinstance(data, dict) else None
-    return value.strip() if isinstance(value, str) else ""
+    if not isinstance(value, str):
+        return ""
+    # Format characters (right-to-left overrides, zero-width spaces) can disguise text.
+    return "".join(ch for ch in value if unicodedata.category(ch) != "Cf").strip()
+
+
+# Limits per hour. The mail goes to an address the visitor typed, so unlimited
+# signups would let anyone send unlimited confirmation mails to a stranger.
+_LIMIT_WINDOW = timedelta(hours=1)
+_LIMIT_PER_IP = 5
+_LIMIT_PER_EMAIL = 2
+_UNCONFIRMED_KEEP = timedelta(days=7)
+
+
+def _digest(value):
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _over_limit(kind, value, limit, now):
+    """Count this attempt under a hashed key and report whether it exceeds the limit.
+    Only a hash and a time are kept, and entries older than the window are dropped."""
+    attempts = mongo.volunteer_signup_attempts
+    attempts.delete_many({"at": {"$lt": now - _LIMIT_WINDOW}})
+    key = f"{kind}:{_digest(value.lower())}"
+    recent = attempts.count_documents({"key": key, "at": {"$gte": now - _LIMIT_WINDOW}})
+    attempts.insert_one({"key": key, "at": now})
+    return recent >= limit
 
 
 def _volunteer_fields(data):
@@ -70,15 +99,27 @@ def add_volunteer():
     if error:
         return jsonify({"success": False, "error": error}), 400
 
+    now = utcnow()
+    if _over_limit("ip", get_client_ip() or "unknown", _LIMIT_PER_IP, now):
+        return jsonify({"success": False, "error": _("Yhteys palveluun epäonnistui. Yritä myöhemmin uudelleen.")}), 429
+    # Do not reveal or act on repeats: the same address gets one pending mail, silently.
+    if _over_limit("email", fields["email"], _LIMIT_PER_EMAIL, now):
+        return jsonify({"success": True}), 201
+    # Unconfirmed signups are removed a week after their link expired.
+    mongo.volunteers.delete_many({
+        "confirmed": {"$ne": True}, "confirmation_expires": {"$lt": now - _UNCONFIRMED_KEEP},
+    })
+
     token = secrets.token_urlsafe(16)
-    expires_at = utcnow() + timedelta(days=1)
+    expires_at = now + timedelta(days=1)
 
     # Older documents have a phone number and no roles or area; readers treat
     # every new field as optional.
     volunteer = {
         **fields,
         "confirmed": False,
-        "confirmation_token": token,
+        # Only a hash of the link token is stored; older documents keep a plain token.
+        "confirmation_token_hash": _digest(token),
         "confirmation_expires": expires_at,
     }
 
@@ -112,7 +153,9 @@ def _confirmation_response(status, code=200):
 @campaign_bp.route("/confirm/<token>", methods=["GET"])
 def confirm_volunteer(token):
     """Confirm volunteer email using token."""
-    volunteer = mongo.volunteers.find_one({"confirmation_token": token})
+    volunteer = mongo.volunteers.find_one({"$or": [
+        {"confirmation_token_hash": _digest(token)}, {"confirmation_token": token},
+    ]})
     if not volunteer:
         return _confirmation_response("invalid", 400)
 
@@ -121,7 +164,7 @@ def confirm_volunteer(token):
 
     mongo.volunteers.update_one(
         {"_id": volunteer["_id"]},
-        {"$set": {"confirmed": True}, "$unset": {"confirmation_token": "", "confirmation_expires": ""}}
+        {"$set": {"confirmed": True}, "$unset": {"confirmation_token": "", "confirmation_token_hash": "", "confirmation_expires": ""}}
     )
 
     return _confirmation_response("success")

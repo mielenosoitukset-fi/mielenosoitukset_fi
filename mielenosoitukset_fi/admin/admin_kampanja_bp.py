@@ -170,6 +170,12 @@ def confirm_all_volunteers():
 import io, csv
 from flask import Response
 
+
+def _csv_cell(value):
+    """Stop spreadsheet programs from running a cell that starts like a formula."""
+    value = "" if value is None else str(value)
+    return "'" + value if value[:1] in ("=", "+", "-", "@", "\t", "\r") else value
+
 @admin_kampanja_bp.route("/api/volunteers/export/csv")
 @login_required
 @admin_required
@@ -181,7 +187,7 @@ def export_volunteers_csv():
     cw = csv.writer(si)
     cw.writerow(["Name","Email","Phone","City","Roles","Area","Notes","Confirmed"])
     for v in volunteers:
-        cw.writerow([
+        cw.writerow([_csv_cell(cell) for cell in [
             v.get("name",""),
             v.get("email",""),
             v.get("phone",""),
@@ -190,7 +196,7 @@ def export_volunteers_csv():
             v.get("area",""),
             v.get("notes",""),
             "Vahvistettu" if v.get("confirmed") else "Odottaa"
-        ])
+        ]])
     output = si.getvalue().encode("utf-8")
     return Response(output, mimetype="text/csv",
                     headers={"Content-Disposition":"attachment;filename=vapaaehtoiset.csv"})

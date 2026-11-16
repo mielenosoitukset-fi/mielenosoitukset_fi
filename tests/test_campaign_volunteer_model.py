@@ -35,7 +35,7 @@ def test_new_signup_stores_roles_and_area_but_never_a_phone_number(client, db, q
     assert stored["roles"] == ["stickers", "communications"]
     assert stored["area"] == "Tampereen keskusta"
     assert "phone" not in stored and "unexpected" not in stored
-    assert stored["confirmed"] is False and stored["confirmation_token"]
+    assert stored["confirmed"] is False and stored["confirmation_token_hash"] and "confirmation_token" not in stored
     assert len(queued) == 1 and queued[0]["recipients"] == ["aino-roles@example.test"]
 
 
@@ -86,3 +86,51 @@ def test_old_documents_still_confirm_and_export(client, db, admin_client):
     assert export.status_code == 200
     text = export.get_data(as_text=True)
     assert "Roles" in text.splitlines()[0] and "old-doc@example.test" in text
+
+
+def test_link_token_is_stored_only_as_a_hash_and_confirms(client, db, queued):
+    _post(client, name="Aino", email="aino-hash@example.test")
+    token = queued[0]["context"]["confirm_link"].rsplit("/", 1)[1]
+    stored = db.volunteers.find_one({"email": "aino-hash@example.test"})
+    assert token not in str(stored)
+    assert client.get("/kampanja/confirm/" + token).status_code == 200
+    confirmed = db.volunteers.find_one({"_id": stored["_id"]})
+    assert confirmed["confirmed"] is True and "confirmation_token_hash" not in confirmed
+
+
+def test_same_address_gets_one_mail_per_hour_without_revealing_it(client, db, queued):
+    statuses = [_post(client, name="Aino", email="repeat@example.test").status_code for _ in range(4)]
+    assert statuses == [201, 201, 201, 201]
+    assert len(queued) == 2 and db.volunteers.count_documents({"email": "repeat@example.test"}) == 2
+
+
+def test_one_client_is_limited_across_addresses(client, db, queued):
+    statuses = [_post(client, name="Aino", email=f"many{i}@example.test").status_code for i in range(7)]
+    assert statuses[:5] == [201] * 5 and statuses[5:] == [429, 429]
+    assert len(queued) == 5
+
+
+def test_old_unconfirmed_signups_are_purged_on_the_next_signup(client, db, queued):
+    from datetime import timedelta
+    from mielenosoitukset_fi.utils.time_utils import utcnow
+
+    db.volunteers.insert_many([
+        {"name": "Old", "email": "stale@example.test", "confirmed": False, "confirmation_expires": utcnow() - timedelta(days=8)},
+        {"name": "Fresh", "email": "fresh@example.test", "confirmed": False, "confirmation_expires": utcnow() - timedelta(days=2)},
+        {"name": "Done", "email": "done@example.test", "confirmed": True, "confirmation_expires": utcnow() - timedelta(days=30)},
+    ])
+    _post(client, name="Aino", email="purge-trigger@example.test")
+    left = {v["email"] for v in db.volunteers.find({})}
+    assert "stale@example.test" not in left and {"fresh@example.test", "done@example.test"} <= left
+
+
+def test_format_characters_are_stripped_from_free_text(client, db, queued):
+    _post(client, name="Ai\u202eno\u200b", email="aino-cf@example.test", notes="a\u200bb")
+    stored = db.volunteers.find_one({"email": "aino-cf@example.test"})
+    assert stored["name"] == "Aino" and stored["notes"] == "ab"
+
+
+def test_export_escapes_formula_cells(admin_client, db):
+    db.volunteers.insert_one({"name": "=HYPERLINK(\"x\")", "email": "csv@example.test", "notes": "+1", "confirmed": True})
+    text = admin_client.get("/admin/kampanja/api/volunteers/export/csv").get_data(as_text=True)
+    assert "'=HYPERLINK" in text and "'+1" in text and ",=HYPERLINK" not in text

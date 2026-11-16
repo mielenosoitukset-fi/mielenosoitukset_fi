@@ -290,8 +290,8 @@ def test_react_volunteer_signup_preserves_payload_and_confirmation_flow(
     assert volunteer["confirmed"] is False
     assert len(queued) == 1
     assert queued[0]["recipients"] == [values["email"]]
-    token = volunteer["confirmation_token"]
-    assert queued[0]["context"]["confirm_link"].endswith(f"/kampanja/confirm/{token}")
+    token = queued[0]["context"]["confirm_link"].rsplit("/", 1)[1]
+    assert "confirmation_token" not in volunteer and volunteer["confirmation_token_hash"]
     assert browser_page.locator("#vol-name").input_value() == ""
     browser_page.goto(f"{live_server}/kampanja/confirm/{token}")
     confirmed = db.volunteers.find_one({"_id": volunteer["_id"]})
