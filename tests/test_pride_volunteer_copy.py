@@ -27,7 +27,7 @@ def test_form_asks_only_for_the_approved_fields():
 
 def test_copy_keeps_the_agreed_framing():
     copy = (APP / "pride-volunteer.ts").read_text()
-    assert "Tarvitsemme kantajia jokaiseen Prideen" in copy
+    assert "Tarvitsemme banderollin kantajia jokaiseen Prideen" in copy
     assert "Ilmoittaudu banderollin kantajaksi" in copy
     assert "!" not in re.sub(r"=>|!==|!!", "", copy.split("export interface")[0].replace("'!", ""))
     for forbidden in ("rajallis", "emme voi luvata", "tulossa", "puhelinnumero:"):
