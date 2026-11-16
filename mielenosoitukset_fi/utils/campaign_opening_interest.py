@@ -56,7 +56,7 @@ def confirmation_message(token, unsubscribe_token, environ=None):
         "Avajaiset ovat lauantaina 6.3.2027 Tampereella, ja paikka tarkentuu myöhemmin. "
         "Ilmoittautuminen ei sido sinua mihinkään, ja voit perua sen milloin tahansa. "
         "Vahvistuksen jälkeen kerromme paikan, kun se varmistuu. "
-        "Käytämme tietoja vain avajaisten viesteihin ja kampanjan päivityksiin ja poistamme ne avajaisten jälkeen, ellet anna uutta lupaa.\n\n"
+        "Käytämme tietoja vain avajaisia koskeviin viesteihin ja poistamme ne avajaisten jälkeen, ellet anna uutta lupaa.\n\n"
         "Jos et ilmoittautunut itse, voit jättää viestin huomiotta tai poistaa osoitteen heti:\n"
         f"{page}\n\n"
         f"Tietosuoja: {base}/privacy\n\n"
