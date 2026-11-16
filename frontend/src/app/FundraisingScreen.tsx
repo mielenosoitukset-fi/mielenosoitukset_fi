@@ -117,7 +117,7 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
         {f.iban && <div className="fundraising-donate__bank">
           <h3>Tilisiirto</h3>
           <dl className="fundraising-fields">
-            {f.recipient && <div className="fundraising-field"><div className="fundraising-field__text"><dt>Saaja</dt><dd>{f.recipient}</dd></div></div>}
+            {f.recipient && <CopyField label="Saaja" value={f.recipient} copyLabel="Kopioi saajan nimi" doneText="Saajan nimi kopioitu" />}
             <CopyField label="Tilinumero (IBAN)" value={f.iban} copyLabel="Kopioi tilinumero" doneText="Tilinumero kopioitu" mono />
             {extras.bic && <CopyField label="BIC" value={extras.bic} copyLabel="Kopioi BIC" doneText="BIC kopioitu" />}
             {f.reference

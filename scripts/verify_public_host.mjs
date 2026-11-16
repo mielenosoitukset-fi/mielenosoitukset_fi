@@ -305,7 +305,7 @@ try {
     const openBody = bodyOf(open);
     for (const text of ['Näin lahjoitat', 'FI00 0000 0000 0000 00', 'TESTFIHH', 'Kopioi tilinumero', 'RA/2026/0000']) assert(openBody.includes(text), text);
     assert(!openBody.includes('mobilepay'), 'No MobilePay link when none is configured');
-    for (const text of ['Kopioi tilinumero', 'Kopioi BIC', 'Kopioi viesti', 'Kysy lisää', 'Jaa sivu', 'href="#lahjoita"']) assert(openBody.includes(text), text);
+    for (const text of ['Saaja', 'Testiyhdistys', 'Kopioi saajan nimi', 'Kopioi tilinumero', 'Kopioi BIC', 'Kopioi viesti', 'Kysy lisää', 'Jaa sivu', 'href="#lahjoita"']) assert(openBody.includes(text), text);
     assert(!/<svg[^>]*QR-koodi/.test(openBody), 'No QR code without a MobilePay link');
     fundState = { status: 200, body: { ...closedFund, start_date: dayHelsinki(0), mobilepay_active: 2,
       mobilepay_links: [{ label: 'a', url: 'https://qr.mobilepay.fi/box/one/pay-in' }, { label: 'b', url: 'https://qr.mobilepay.fi/box/two/pay-in' }] } };
