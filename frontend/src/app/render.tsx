@@ -379,6 +379,12 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     today = helsinkiToday();
     fundraisingData = (await loadFundraisingData(readBase)) ?? { ...(fundraisingBundled as Record<string, unknown>) };
     headers['Cache-Control'] = 'private, no-store';
+    // Confirmation and removal links carry a one-time token: never indexed.
+    const privateLink = new URLSearchParams(input.search ?? '').has('avajaiset');
+    if (privateLink) {
+      headers['X-Robots-Tag'] = 'noindex, nofollow';
+      meta = { ...meta, robots: 'noindex, nofollow' };
+    }
     if (!published) {
       headers['X-Robots-Tag'] = 'noindex, nofollow';
       meta = { ...meta, robots: 'noindex, nofollow' };

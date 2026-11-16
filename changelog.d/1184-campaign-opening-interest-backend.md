@@ -1,0 +1,1 @@
+- The campaign opening interest form has a backend: double opt-in confirmation mail, one-click removal, rate limits, and deletion of all data on 13.3.2027. It is off until the maintainer activates it, so the form still shows only when its switch is on. The privacy notice describes the signup.

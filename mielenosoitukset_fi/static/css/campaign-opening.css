@@ -14,3 +14,5 @@
 .kv-err-inline{margin-top:.4rem}
 .kv-bare{border:0;padding:0;margin:0;min-width:0}
 .kv-done-text{margin-top:.6rem}
+.kv-trap{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+.kv-linkpanel{border-top:0;padding-block:1.5rem 0}

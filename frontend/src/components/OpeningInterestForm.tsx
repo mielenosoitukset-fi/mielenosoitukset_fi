@@ -15,7 +15,7 @@ function Radios<T extends string>({ name, choices, value, onChange }: { name: st
   </label>)}</div>;
 }
 
-export function OpeningInterestForm({ endpoint, privacyUrl }: { endpoint?: string; privacyUrl: string }) {
+export function OpeningInterestForm({ privacyUrl }: { privacyUrl: string }) {
   const [email, setEmail] = useState('');
   const [city, setCity] = useState('');
   const [consent, setConsent] = useState(false);
@@ -25,6 +25,7 @@ export function OpeningInterestForm({ endpoint, privacyUrl }: { endpoint?: strin
   const [banner, setBanner] = useState('');
   const [pending, setPending] = useState(false);
   const [sentTo, setSentTo] = useState('');
+  const [trap, setTrap] = useState('');
   const bannerRef = useRef<HTMLParagraphElement>(null);
   // A failed send moves focus to the message, so keyboard and screen reader users hear it.
   useEffect(() => { if (banner) bannerRef.current?.focus(); }, [banner]);
@@ -42,11 +43,11 @@ export function OpeningInterestForm({ endpoint, privacyUrl }: { endpoint?: strin
     setPending(true);
     // The ticket questions are optional and only sent when answered; the band needs a "yes" or "maybe".
     const answered = pay === 'yes' || pay === 'maybe';
-    const result = await submitOpeningInterest(endpoint, {
-      email: email.trim(), city: city.trim(), consent, willingToPay: pay, priceBand: answered ? band : '', note: '' });
+    const result = await submitOpeningInterest({
+      email: email.trim(), city: city.trim(), consent, willingToPay: pay, priceBand: answered ? band : '', website: trap });
     setPending(false);
     if (result.ok) setSentTo(email.trim());
-    else setBanner(result.reason === 'not-open' ? openingCopy.notOpen : openingCopy.failed);
+    else setBanner(result.message);
   }
 
   if (sentTo) return <div className="kv-form" role="status">
@@ -61,6 +62,7 @@ export function OpeningInterestForm({ endpoint, privacyUrl }: { endpoint?: strin
     <p className="kv-small">Ei sitoumusta. Kerromme paikan, kun se varmistuu.</p>
     {banner && <p ref={bannerRef} tabIndex={-1} className="kv-banner kv-banner--err" role="alert"><i className="fa-solid fa-circle-exclamation" aria-hidden="true" /><span>{banner}</span></p>}
     <fieldset className="kv-bare" disabled={pending}>
+      <div className="kv-trap" aria-hidden="true"><label>Älä täytä tätä kenttää<input name="website" tabIndex={-1} autoComplete="off" value={trap} onChange={event => setTrap(event.target.value)} /></label></div>
       <div className="form-group">
         <label className="form-label" htmlFor="ie">Sähköposti <span className="kv-req">*</span></label>
         <input id="ie" name="email" className="form-control" type="email" autoComplete="email" placeholder="nimi@esimerkki.fi"
@@ -83,7 +85,7 @@ export function OpeningInterestForm({ endpoint, privacyUrl }: { endpoint?: strin
       </details>
       <label className="kv-consent">
         <input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} aria-invalid={errors.consent ? true : undefined} />
-        <span>Sallin sähköpostiosoitteeni käytön avajaisten viesteihin ja kampanjan päivityksiin. Vahvistan ilmoittautumisen sähköpostitse ja voin perua sen milloin tahansa yhdellä klikkauksella. Tiedot poistetaan avajaisten jälkeen, ellen anna uutta suostumusta. <a href={privacyUrl}>Tietosuojaseloste</a></span>
+        <span>Sallin sähköpostiosoitteeni, paikkakuntani ja vapaaehtoiset vastaukseni käytön avajaisia koskeviin viesteihin. Vahvistan ilmoittautumisen sähköpostitse ja voin perua sen milloin tahansa yhdellä klikkauksella. Tiedot poistetaan avajaisten jälkeen, ellen anna uutta suostumusta. <a href={privacyUrl}>Tietosuojaseloste</a></span>
       </label>
       {errors.consent && <p className="kv-err" role="alert"><i className="fa-solid fa-circle-exclamation" aria-hidden="true" /> {errors.consent}</p>}
       <button className="btn-primary" type="submit">{pending ? 'Lähetetään…' : 'Ilmoittaudu kiinnostuneeksi'}</button>

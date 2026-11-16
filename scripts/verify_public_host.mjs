@@ -264,11 +264,14 @@ try {
     assert(!opened.includes('account') && !opened.includes('FI46'), 'No payment details on the campaign page');
     const bootstrapped = (await campaign()).html;
     assert(!bootstrapped.includes('FI46 5723'), 'The bootstrap carries no account number');
+    const link = await campaign({ search: '?avajaiset=vahvista' });
+    assert.equal(link.headers['X-Robots-Tag'], 'noindex, nofollow');
+    assert.match(link.html, /<meta name="robots" content="noindex, nofollow" \/>/);
     // The opening interest form is off by default and appears only when the shared configuration turns it on.
     assert(!before.includes('id="ie"') && !opened.includes('id="ie"'), 'Opening form is off by default');
     fundState = { status: 200, body: { start_date: dayOf(0), end_date: dayOf(60), opening_interest_form: true } };
     const withForm = bodyOfCampaign(await campaign());
-    assert(withForm.includes('id="ie"') && withForm.includes('Kerro halutessasi lisää') && withForm.includes('Sallin sähköpostiosoitteeni käytön'));
+    assert(withForm.includes('id="ie"') && withForm.includes('Kerro halutessasi lisää') && withForm.includes('Sallin sähköpostiosoitteeni, paikkakuntani ja vapaaehtoiset vastaukseni käytön'));
     assert(withForm.includes('Ilmoittaudu kiinnostuneeksi'));
     fundState = { status: 200, body: { start_date: dayOf(-90), end_date: dayOf(-1) } };
     const closed = bodyOfCampaign(await campaign());
