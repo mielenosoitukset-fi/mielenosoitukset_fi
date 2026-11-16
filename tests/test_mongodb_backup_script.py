@@ -7,6 +7,8 @@ import sys
 import time
 from pathlib import Path
 
+import yaml
+
 SCRIPT = Path("deploy/backup/mongodb-backup.sh").resolve()
 SECRET = "s3cr3t-pass"
 
@@ -148,11 +150,55 @@ def test_core_mode_skips_audit_logs_and_full_mode_keeps_everything(tmp_path):
     assert result.returncode == 0, result.stderr
     assert "--excludeCollection" not in (other / "argv.log").read_text()
     assert len(list(backups.glob("mielenosoitukset-full-*.archive.gz"))) == 1
+    # A source without a database path remains valid and authenticates on admin.
+    generated = yaml.safe_load((other / "config.log").read_text())["uri"]
+    assert generated == f"mongodb://app:{SECRET}@db.example:27017"
+    assert "--compressors=zstd" in (other / "argv.log").read_text()
+    assert "--authenticationDatabase=admin" in (other / "argv.log").read_text()
 
 
 def test_rejects_unknown_mode_and_unsafe_collection_names(tmp_path):
     assert _run(tmp_path, BACKUP_MODE="partial")[0].returncode == 2
     assert _run(tmp_path, EXCLUDE_COLLECTIONS="logs;rm")[0].returncode == 2
+
+
+def test_full_backup_selects_native_compression_without_changing_uri(tmp_path):
+    uri = f"mongodb://app:{SECRET}@db.example:27017/appdb?authSource=users&retryReads=false"
+    result, _ = _run(tmp_path, uri=uri, BACKUP_MODE="full")
+
+    assert result.returncode == 0, result.stderr
+    generated = yaml.safe_load((tmp_path / "config.log").read_text())["uri"]
+    assert generated == uri
+    assert "--compressors=zstd" in (tmp_path / "argv.log").read_text()
+    assert (tmp_path / "config.yaml").read_text().splitlines()[0] == f'MONGO_URI: "{uri}"'
+    assert "--authenticationDatabase=users" in (tmp_path / "argv.log").read_text()
+    assert SECRET not in result.stdout + result.stderr + (tmp_path / "argv.log").read_text()
+
+
+def test_backup_preserves_core_uri_and_explicit_compression(tmp_path):
+    uri = f"mongodb://app:{SECRET}@db.example:27017/appdb?authSource=users"
+    result, _ = _run(tmp_path, uri=uri)
+    assert result.returncode == 0, result.stderr
+    assert yaml.safe_load((tmp_path / "config.log").read_text())["uri"] == uri
+    assert "--compressors" not in (tmp_path / "argv.log").read_text()
+
+    other = tmp_path / "explicit"
+    other.mkdir()
+    explicit = uri + "&COMPRESSORS=snappy,zlib"
+    result, _ = _run(other, uri=explicit, BACKUP_MODE="full")
+    assert result.returncode == 0, result.stderr
+    assert yaml.safe_load((other / "config.log").read_text())["uri"] == explicit
+    assert "--compressors=snappy,zlib" in (other / "argv.log").read_text()
+
+
+def test_full_backup_rejects_unknown_compressors_before_exposing_options(tmp_path):
+    uri = f"mongodb://app:{SECRET}@db.example:27017/appdb?compressors=unknown"
+    result, backups = _run(tmp_path, uri=uri, BACKUP_MODE="full")
+    assert result.returncode != 0
+    assert "unsupported compressor" in result.stderr
+    assert SECRET not in result.stdout + result.stderr
+    assert not (tmp_path / "argv.log").exists()
+    assert not list(backups.glob("*.archive.gz"))
 
 
 def test_core_run_expires_archives_named_before_modes_existed(tmp_path):

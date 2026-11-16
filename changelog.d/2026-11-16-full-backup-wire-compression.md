@@ -1,0 +1,1 @@
+- Weekly full database backups compress their network reads while preserving credentials, archive integrity checks and explicit connection settings.

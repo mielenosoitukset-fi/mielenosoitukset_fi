@@ -31,6 +31,10 @@ The archives therefore live on a different machine from the database.
     loaded lc-db enough that a Go API restart during it failed its startup
     database check (11 November 2026), so full dumps run only once a week, at
     night;
+  - requests `zstd` wire compression for weekly full reads when the app URI
+    does not already select compressors. This reduces network traffic for the
+    audit logs without changing the app config, credentials or archive format.
+    Core reads and explicitly configured compression keep their existing behavior;
   - checks every archive's full gzip stream (CRC over every byte) and that
     `mongorestore --dryRun` can parse it. The dry run alone does not read
     collection data, so the restore drill below remains the real proof;
