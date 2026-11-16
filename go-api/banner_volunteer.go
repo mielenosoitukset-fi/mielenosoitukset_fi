@@ -33,7 +33,7 @@ const (
 	bannerConsentVersion = "2026-11-13"
 )
 
-var bannerAcceptedMessage = "Jos osoite on kelvollinen, lähetämme siihen vahvistusviestin. Ilmoittautuminen tulee voimaan vasta, kun olet vahvistanut sen viestin linkistä."
+var bannerAcceptedMessage = "Jos osoite on kelvollinen, lähetämme siihen vahvistusviestin. Ilmoittautumisesi on voimassa vasta, kun olet vahvistanut sen viestin linkistä."
 
 func bannerEnabledFromEnv() bool {
 	return strings.EqualFold(strings.TrimSpace(os.Getenv("PRIDE_BANNER_SIGNUP_ENABLED")), "true")
