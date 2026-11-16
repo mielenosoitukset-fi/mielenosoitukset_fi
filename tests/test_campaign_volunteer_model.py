@@ -156,3 +156,16 @@ def test_purge_job_is_registered():
     from mielenosoitukset_fi.background_jobs.definitions import JOB_DEFINITION_MAP
 
     assert "purge_campaign_volunteers" in JOB_DEFINITION_MAP
+
+
+def test_one_address_gets_at_most_three_mails_a_day(client, db, queued):
+    from datetime import timedelta
+    from mielenosoitukset_fi.utils.time_utils import utcnow
+
+    for _ in range(2):
+        _post(client, name="Aino", email="daily@example.test")
+    # Two hours later the hourly limit has passed, but the daily cap still applies.
+    db.volunteer_signup_attempts.update_many({}, {"$set": {"at": utcnow() - timedelta(hours=2)}})
+    for _ in range(3):
+        assert _post(client, name="Aino", email="daily@example.test").status_code == 201
+    assert len(queued) == 3

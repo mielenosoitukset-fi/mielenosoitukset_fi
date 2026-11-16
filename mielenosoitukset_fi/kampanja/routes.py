@@ -49,6 +49,7 @@ def _text(data, key):
 _LIMIT_WINDOW = timedelta(hours=1)
 _LIMIT_PER_IP = 5
 _LIMIT_PER_EMAIL = 2
+_LIMIT_PER_EMAIL_DAY = 3
 _UNCONFIRMED_KEEP = timedelta(days=7)
 
 
@@ -56,13 +57,13 @@ def _digest(value):
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def _over_limit(kind, value, limit, now):
-    """Count this attempt under a hashed key and report whether it exceeds the limit.
-    Only a hash and a time are kept, and entries older than the window are dropped."""
+def _over_limit(kind, value, limit, now, window=_LIMIT_WINDOW):
+    """Count this attempt under a hashed key and report whether it exceeds the limit
+    within the window. Only a hash and a time are kept; entries older than a day are dropped."""
     attempts = mongo.volunteer_signup_attempts
-    attempts.delete_many({"at": {"$lt": now - _LIMIT_WINDOW}})
+    attempts.delete_many({"at": {"$lt": now - timedelta(days=1)}})
     key = f"{kind}:{_digest(value.lower())}"
-    recent = attempts.count_documents({"key": key, "at": {"$gte": now - _LIMIT_WINDOW}})
+    recent = attempts.count_documents({"key": key, "at": {"$gte": now - window}})
     attempts.insert_one({"key": key, "at": now})
     return recent >= limit
 
@@ -103,7 +104,8 @@ def add_volunteer():
     if _over_limit("ip", get_client_ip() or "unknown", _LIMIT_PER_IP, now):
         return jsonify({"success": False, "error": _("Yhteys palveluun epäonnistui. Yritä myöhemmin uudelleen.")}), 429
     # Do not reveal or act on repeats: the same address gets one pending mail, silently.
-    if _over_limit("email", fields["email"], _LIMIT_PER_EMAIL, now):
+    if (_over_limit("email", fields["email"], _LIMIT_PER_EMAIL, now)
+            or _over_limit("email-day", fields["email"], _LIMIT_PER_EMAIL_DAY, now, timedelta(days=1))):
         return jsonify({"success": True}), 201
     # Unconfirmed signups are removed a week after their link expired.
     mongo.volunteers.delete_many({
