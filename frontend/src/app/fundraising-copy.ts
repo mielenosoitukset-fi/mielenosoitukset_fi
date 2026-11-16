@@ -7,14 +7,23 @@
 export const fundraisingCopy = {
   /** Lead line under the page title. */
   lead: 'Pienkeräys Mielenosoitukset.fi:n tunnettuuden ja ylläpidon tueksi',
+  /** Plain-language line under the page title. */
+  pageLead: 'Mielenosoitukset.fi kerää rahaa tarroihin, banderolleihin ja palvelun ylläpitoon. Lahjoitus onnistuu MobilePaylla tai tilisiirrolla.',
   /** Short line for other surfaces such as the front-page bar. */
   barLine: 'Noin 25 000 tarraa ja 12 banderollia ympäri Suomen',
+  whyTitle: 'Miksi tämä keräys',
+  why: [
+    'Liian moni kuulee mielenosoituksista vasta, kun ne ovat jo ohi.',
+    'Mielenosoitusvapaus toimii vain, kun mielenosoituksista tiedetään.',
+    'Mielenosoitukset.fi kokoaa Suomen mielenosoitukset yhteen paikkaan: kaikki aiheet, koko Suomi.',
+    'Tarroihin tulee QR-koodi, josta pääsee suoraan palveluun.',
+  ],
   planTitle: 'Mitä keräyksellä tehdään?',
   planIntro: 'Suunnitelma on suuntaa antava: määrät ovat arvioita, eivät lupauksia.',
   stickersTitle: 'Tarroja kymmeniin kaupunkeihin',
-  stickersLead: 'Tarroja on suunnitteilla yhteensä noin 25 000, ja ne jaetaan kymmenissä kaupungeissa ympäri Suomen.',
-  bannersTitle: 'Banderolleja',
-  banners: '12 banderollia: 8 Pride-banderollia ja 4 tavallista banderollia mielenosoituksiin ja tapahtumiin.',
+  stickersLead: 'Tarroja on suunnitteilla yhteensä noin 25\u00a0000, ja ne jaetaan kymmenissä kaupungeissa ympäri Suomen.',
+  bannersTitle: 'Banderollit',
+  banners: 'Kampanjaan kuuluu 12 banderollia: 8 Pride-banderollia ja 4 tavallista banderollia mielenosoituksiin ja tapahtumiin.',
   upkeepTitle: 'Palvelun pyörittäminen',
   upkeep: 'Palvelin ja sen huolto, tarvittavat asiantuntijapalvelut ja pienhankinnat pitävät Mielenosoitukset.fi:n toiminnassa.',
   purposeTitle: 'Mihin varat käytetään?',
@@ -27,6 +36,8 @@ export const fundraisingCopy = {
   ],
   secondaryTitle: 'Jos varoja jää yli',
   secondary: 'Jos varoja jää ensisijaisen käytön jälkeen, ne käytetään kansalaistoiminnan tukemiseen: mielenosoituksissa käytettävää välineistöä, kuten äänentoistolaitteita, hankitaan, kunnostetaan ja huolletaan järjestäjien yhteiseen käyttöön. Välineitä voidaan lainata Tampereen Tapahtuma- ja mediarenessanssi ry:n kautta.',
+  /** Same purpose as `secondary`; the lending partner is named only in the official text. */
+  secondaryFriendly: 'Jos varoja jää ensisijaisen käytön jälkeen, ne käytetään kansalaistoiminnan tukemiseen: mielenosoituksissa käytettävää välineistöä, kuten äänentoistolaitteita, hankitaan, kunnostetaan ja huolletaan järjestäjien yhteiseen käyttöön.',
   officialTitle: 'Virallinen käyttötarkoitus',
   /** The permit's purposes, in Finnish. Check against the permit's exact wording. */
   officialPrimary: 'Kerätyt varat käytetään Mielenosoitukset.fi-palvelun tunnettuuden lisäämiseen tähtäävän markkinointikampanjan toteuttamiseen ja palvelun ylläpitoon. Varoilla katetaan markkinointimateriaalien, kuten tarrojen, julisteiden ja banderollien, suunnittelu-, valmistus- ja hankintakustannukset, kampanjan muut kulut, kuten matkakulut, sekä palvelun välttämättömät ylläpitokulut: palvelin ja ylläpito, tarvittavat asiantuntijapalvelut ja pienhankinnat.',

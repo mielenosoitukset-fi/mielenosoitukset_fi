@@ -1,0 +1,1 @@
+- Pienkeräyssivu: lahjoitusohjeet ovat nyt sivun ensimmäinen asia. MobilePay-painike on iso, tilinumeron, BIC:n ja viestin voi kopioida omilla painikkeilla, työpöydällä näkyy MobilePay-QR-koodi ja mobiilissa on lahjoituspalkki. Sivulla on ankkurilinkit, tiivistetty käyttötarkoitus, usein kysyttyä ja jakopainike. Muistutus- ja kalenteriosio on poistettu.
