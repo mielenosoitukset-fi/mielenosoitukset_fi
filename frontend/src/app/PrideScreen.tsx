@@ -13,8 +13,8 @@ export const prideRoute = { name: 'listing', scope: 'tag', value: 'pride' } as c
 
 export const prideCopy = {
   title: 'Pride näkyväksi',
-  lead: 'Löydä tulevat Pride-aiheiset mielenosoitukset eri puolilta Suomea ja ilmoita oma tapahtumasi mukaan.',
-  empty: 'Meille ei vielä ole ilmoitettu tulevia Pride-mielenosoituksia.',
+  lead: 'Löydä tulevat Pride-aiheiset mielenosoitukset eri puolilta Suomea ja ilmoita myös oma tapahtumasi.',
+  empty: 'Meille ei ole vielä ilmoitettu tulevia Pride-mielenosoituksia.',
 };
 
 const mapMessages = {
@@ -22,7 +22,7 @@ const mapMessages = {
   loading: 'Ladataan Pride-karttaa…',
   error: 'Pride-kartan lataaminen epäonnistui. Yritä uudelleen.',
   retry: 'Yritä uudelleen',
-  empty: 'Kartalla ei vielä ole tulevia Pride-mielenosoituksia.',
+  empty: 'Kartalla ei ole vielä tulevia Pride-mielenosoituksia.',
   noCoordinates: 'Tapahtumille ei ole karttasijaintia. Löydät ne mielenosoituslistasta.',
   tileError: 'Karttapohjan lataaminen epäonnistui. Tapahtumat löytyvät myös listasta.',
   popupDetails: 'Avaa mielenosoitus',
@@ -45,7 +45,7 @@ export function PrideDetails({ submitUrl }: { submitUrl: string }) {
       <ol>
         <li><a href={submitUrl}>Avaa ilmoituslomake</a>. Kerro tapahtuman nimi, ajankohta, paikka ja kuvaus.</li>
         <li>Lisää tageihin pride, jotta tapahtuma löytyy tältä sivulta.</li>
-        <li>Tarkista tiedot ja lähetä ilmoitus. Ilmoitukset tarkistetaan ennen julkaisua.</li>
+        <li>Tarkista tiedot ja lähetä ilmoitus. Ylläpito käy ilmoitukset läpi ennen julkaisua.</li>
       </ol>
       <p>Ilmoitus ei saa sisältää syrjintää tai vihapuhetta. <a href="/terms">Lue käyttöehdot</a>.</p>
     </section>

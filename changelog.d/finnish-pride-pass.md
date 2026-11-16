@@ -1,0 +1,1 @@
+- Rewrite awkward Finnish on the Pride page and the banner carrier form, confirmation pages and email.

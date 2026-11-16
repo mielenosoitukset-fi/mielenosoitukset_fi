@@ -185,7 +185,7 @@ export function CampaignPage({ urls, volunteer, schedule = defaultSchedule, toda
           <div><dt>Aika</dt><dd>{s.openingTime} alkaen</dd></div>
           <div><dt>Paikka</dt><dd>{s.openingCity}, paikka tarkentuu</dd></div>
         </dl>
-        <p className="kv-lead kv-lead--small">Tervetuloa kampanjan avajaisiin. Tapaa vapaaehtoisia ja kuule, mitä kampanja tekee. Ilmoittautuminen ei sido mihinkään.</p>
+        <p className="kv-lead kv-lead--small">Tervetuloa kampanjan avajaisiin. Tapaa vapaaehtoisia ja kuule, mitä kampanjassa tehdään. Ilmoittautuminen ei sido mihinkään.</p>
       </div>
       {openingForm && (serverFallback
         ? <p className="campaign-loading-note">Lomaketta ladataan.</p>
