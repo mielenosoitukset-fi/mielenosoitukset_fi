@@ -1,1 +1,1 @@
-- Fix awkward Finnish on the fundraising page (/keräys): banner heading and count, service description, donation instructions and the calendar-file note.
+- Fix awkward Finnish in the fundraising plan section: the banner heading and the banner count sentence.

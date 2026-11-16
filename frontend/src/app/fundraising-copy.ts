@@ -14,7 +14,7 @@ export const fundraisingCopy = {
   stickersTitle: 'Tarroja kymmeniin kaupunkeihin',
   stickersLead: 'Tarroja on suunnitteilla yhteensä noin 25 000, ja ne jaetaan kymmenissä kaupungeissa ympäri Suomen.',
   bannersTitle: 'Banderollit',
-  banners: 'Banderolleja on 12: 8 Pride-banderollia ja 4 tavallista banderollia mielenosoituksiin ja tapahtumiin.',
+  banners: 'Kampanjaan kuuluu 12 banderollia: 8 Pride-banderollia ja 4 tavallista banderollia mielenosoituksiin ja tapahtumiin.',
   upkeepTitle: 'Palvelun pyörittäminen',
   upkeep: 'Palvelin ja sen huolto, tarvittavat asiantuntijapalvelut ja pienhankinnat pitävät Mielenosoitukset.fi:n toiminnassa.',
   purposeTitle: 'Mihin varat käytetään?',
