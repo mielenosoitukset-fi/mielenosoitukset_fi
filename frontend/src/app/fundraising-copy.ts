@@ -7,6 +7,8 @@
 export const fundraisingCopy = {
   /** Lead line under the page title. */
   lead: 'Pienkeräys Mielenosoitukset.fi:n tunnettuuden ja ylläpidon tueksi',
+  /** Plain-language line under the page title. */
+  pageLead: 'Mielenosoitukset.fi kerää rahaa tarroihin, banderolleihin ja palvelun ylläpitoon. Lahjoitus onnistuu MobilePaylla tai tilisiirrolla.',
   /** Short line for other surfaces such as the front-page bar. */
   barLine: 'Noin 25 000 tarraa ja 12 banderollia ympäri Suomen',
   planTitle: 'Mitä keräyksellä tehdään?',
