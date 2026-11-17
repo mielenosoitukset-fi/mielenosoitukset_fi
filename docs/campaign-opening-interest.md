@@ -39,6 +39,6 @@ The date is `PURGE_AFTER` in `utils/campaign_opening_interest.py`; the consent t
 
 ## Activation (needs the maintainer's go; backend first, UI last)
 
-Follow the Pride banner runbook in [pride-banner-volunteers.md](pride-banner-volunteers.md) with these names: backup, create the index,
+Follow the Pride banner runbook in [pride-banner-volunteers.md](pride-banner-volunteers.md) with these names (backup is the newest nightly core archive, never a manual dump): backup, create the index,
 set the mail flag, set `OPENING_INTEREST_SIGNUP`, deploy the Go API, activate the Apache rule, then set `opening_interest_form`.
 Revert in reverse order; `dropIndex("email_unique")` removes the index.
