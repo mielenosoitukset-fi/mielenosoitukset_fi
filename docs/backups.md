@@ -116,11 +116,13 @@ A stale copy sends a mail every day until fixed.
 
 ### Server settings file
 
-`/etc/mielenosoitukset/backup.env` (root, mode 0600), read by the units:
+`/etc/mielenosoitukset/backup.env` (root, mode 0600), read by the units. systemd
+reads `KEY=value` lines only: no quotes, no comment after a value.
 
 ```sh
 ALERT_EMAIL=<maintainer address>
-OFFSITE_TARGET=<user>@<homelab host>:./     # relative to the rrsync directory, i.e. incoming/
+# The path is relative to the rrsync directory, which is incoming/.
+OFFSITE_TARGET=<user>@<homelab host>:./
 OFFSITE_PORT=22
 # Optional, defaults in parentheses:
 # OFFSITE_RECIPIENTS=/etc/mielenosoitukset/backup-recipients.txt
