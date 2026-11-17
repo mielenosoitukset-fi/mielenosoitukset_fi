@@ -1183,9 +1183,9 @@ try {
       if (reply === 'http-503') return new Response('{}', { status: 503 });
       return new Response(JSON.stringify({ available: reply === 'open' }), { status: 200 });
     };
-    const read = availabilityReader('http://api.test/api', fetcher, () => clock);
+    const read = availabilityReader('http://api.test/api', fetcher, () => clock, () => false, () => {});
     const step = async (next, ms = 2000) => { reply = next; clock += ms; return read(); };
-    assert.equal(await step('error'), false, 'A fresh host without an answer fails closed');
+    assert.equal(await step('error'), true, 'A fresh host without an answer stays open without the override');
     assert.equal(await step('open'), true);
     assert.equal(await step('error'), true, 'A failed read within the grace period keeps the last open answer');
     assert.equal(await step('http-503'), true, 'An HTTP error is a failed read, not a lockdown');
@@ -1196,7 +1196,7 @@ try {
     reply = 'open';
     assert.equal(await read(), false, 'Answers are reused for one second');
   }
-  console.log('PASS: availability reads ride out brief failures for 30 s but apply a lockdown at once and fail closed without an answer');
+  console.log('PASS: availability reads ride out failures for 15 minutes but apply a lockdown at once; a fresh host without an answer stays open');
   console.log('PASS: malformed URL, directory and traversal requests return 404 without crashing; real asset GET/HEAD and immutable caching');
   console.log('PASS: the HTTP server sends detail metadata, the robots header and the preview redirect');
 } finally {
