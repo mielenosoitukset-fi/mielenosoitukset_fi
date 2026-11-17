@@ -1,20 +1,24 @@
 # MongoDB backups (OPS-01)
 
-## Current state (checked 11 November 2026, read-only)
+## Current state (updated 17 November 2026)
 
 - The database runs on **lc-db** (`/var/lib/mongodb`, 4.1 GB including other
-  databases). It has no MongoDB dump timer, cron entry or backup directory.
-- **lc-main** (app host) has no database backup either. Its
-  `luovasec-snapshot-mielenosoitukset` timer is a *static HTML snapshot* of
-  public pages for a fallback site, not a data backup. It currently fails every
-  night in its own link check (missing `/app-assets/*` files and links to
-  `/submit` and `/users/auth/*`), and has no `OnFailure` alert. That tool is
+  databases). lc-db itself has no dump timer.
+- **lc-main** (app host) runs the nightly core and weekly full dump timers from
+  `deploy/backup/`. Both were installed and active by 13 November 2026, and
+  core archives exist (read-only production check). This is not proof of
+  restoration: no restore drill has been done.
+- `luovasec-snapshot-mielenosoitukset` on lc-main is a *static HTML snapshot* of
+  public pages for a fallback site, not a data backup. It failed every night in
+  its own link check on 11 November and has no `OnFailure` alert. That tool is
   maintained outside this repository.
 - Whether Proxmox takes scheduled VM backups of lc-db was **not checked**. If it
   does, those are crash-consistent disk images; a logical dump is still needed
   for clean, per-database restores.
 
-So today there is no restorable backup of the mielenosoitukset database.
+Open: off-site copy and who holds the key, a real failure alert channel,
+evidence from the first weekly full run, and the recovery drill (see the end of
+this page).
 
 ## What this repository provides
 
