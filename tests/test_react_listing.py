@@ -332,6 +332,105 @@ def test_delayed_react_append_does_not_replace_a_new_search(live_server, browser
 
 @pytest.mark.e2e
 @pytest.mark.integration
+def test_stale_react_search_response_is_ignored(live_server, browser_page):
+    browser_page.add_init_script("Object.defineProperty(navigator,'connection',{value:{saveData:true}})")
+    held = {}
+    def serve(route):
+        search = parse_qs(urlsplit(route.request.url).query).get('search', [''])[0]
+        if search == 'old':
+            held['old'] = route
+        else:
+            serve_list(route)
+    browser_page.route('**/api/demonstrations?*', serve)
+    browser_page.goto(live_server + '/demonstrations?per_page=1', wait_until='domcontentloaded')
+    expect(browser_page.locator('.demo-card')).to_have_count(1)
+    browser_page.locator('#demo-search').fill('old')
+    browser_page.locator('#search-form button[type=submit]').click()
+    browser_page.wait_for_function('() => document.querySelector("#demos-grid").getAttribute("aria-busy") === "true"')
+    browser_page.locator('#demo-search').fill('latest')
+    browser_page.locator('#search-form button[type=submit]').click()
+    expect(browser_page.locator('.demo-card-title a')).to_have_text('latest 1')
+    try:
+        held['old'].fulfill(content_type='application/json', body=json.dumps(result(1, search='old', total_pages=1)))
+    except Exception:
+        pass  # The browser already cancelled the superseded request.
+    browser_page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+    expect(browser_page.locator('.demo-card-title a')).to_have_text('latest 1')
+    expect(browser_page.locator('#listing-result-summary')).to_contain_text('1–1 / 20')
+    expect(browser_page.locator('#listing-load-error')).to_be_hidden()
+    assert browser_page.locator('.public-list-page').count() == 1
+
+
+@pytest.mark.e2e
+@pytest.mark.integration
+def test_react_http_failure_offers_retry_without_erasing_appended_results(live_server, browser_page):
+    browser_page.add_init_script("Object.defineProperty(navigator,'connection',{value:{saveData:true}})")
+    requested = []
+    def serve(route):
+        page = int(parse_qs(urlsplit(route.request.url).query)['page'][0])
+        requested.append(page)
+        if page == 3 and requested.count(3) == 1:
+            route.fulfill(status=503, content_type='application/json', body='{}')
+        else:
+            route.fulfill(content_type='application/json', body=json.dumps(result(page)))
+    browser_page.route('**/api/demonstrations?*', serve)
+    browser_page.goto(live_server + '/demonstrations?per_page=1', wait_until='domcontentloaded')
+    expect(browser_page.locator('.demo-card')).to_have_count(1)
+    browser_page.locator('#load-more-btn').click()
+    expect(browser_page.locator('.demo-card-title a')).to_have_text(['Event 1', 'Event 2'])
+    browser_page.locator('#load-more-btn').click()
+    expect(browser_page.locator('#listing-load-error')).to_be_visible()
+    expect(browser_page.locator('.demo-card-title a')).to_have_text(['Event 1', 'Event 2'])
+    expect(browser_page.locator('#listing-result-summary')).to_contain_text('1–2')
+    browser_page.locator('#listing-load-error button').click()
+    expect(browser_page.locator('.demo-card-title a')).to_have_text(['Event 1', 'Event 2', 'Event 3'])
+    expect(browser_page.locator('#listing-load-error')).to_be_hidden()
+    assert requested == [1, 2, 3, 3]  # Retry fetches the failed page once, never page 2 again.
+
+
+@pytest.mark.e2e
+@pytest.mark.integration
+def test_delayed_react_append_keeps_focus_and_cannot_restore_old_filter_pages(live_server, browser_page):
+    browser_page.set_viewport_size({'width': 1280, 'height': 900})
+    browser_page.add_init_script("Object.defineProperty(navigator,'connection',{value:{saveData:true}})")
+    held = []
+    def serve(route):
+        query = parse_qs(urlsplit(route.request.url).query)
+        if query['page'] == ['6'] and not query.get('search'):
+            held.append(route)
+        else:
+            serve_list(route)
+    browser_page.route('**/api/demonstrations?*', serve)
+    browser_page.goto(live_server + '/demonstrations?per_page=1', wait_until='domcontentloaded')
+    for page in range(2, 6):
+        browser_page.locator('#load-more-btn').click()
+        browser_page.wait_for_function('(n) => publicListWindow.last === n', arg=page)
+    browser_page.locator('#load-more-btn').dispatch_event('click')
+    expect(browser_page.locator('#load-more-btn')).to_be_disabled()
+    assert len(held) == 1
+    link = browser_page.locator('[data-list-page="1"] .demo-card-title a')
+    link.focus()
+    held[0].fulfill(content_type='application/json', body=json.dumps(result(6)))
+    browser_page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+    expect(link).to_be_focused()
+    assert browser_page.evaluate('publicListWindow.first') == 1 and browser_page.evaluate('publicListWindow.last') == 5
+    expect(browser_page.locator('.public-list-page')).to_have_count(5)
+    # A stale append from the old filter must not bring back its pages after a new search.
+    link.blur()
+    browser_page.locator('#load-more-btn').dispatch_event('click')
+    expect(browser_page.locator('#load-more-btn')).to_be_disabled()
+    assert len(held) == 2
+    browser_page.locator('#demo-search').fill('fresh')
+    browser_page.locator('#search-form button[type=submit]').click()
+    expect(browser_page.locator('.demo-card-title a')).to_have_text('fresh 1')
+    held[1].fulfill(content_type='application/json', body=json.dumps(result(6)))
+    browser_page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+    expect(browser_page.locator('.demo-card-title a')).to_have_text('fresh 1')
+    expect(browser_page.locator('.public-list-page')).to_have_count(1)
+
+
+@pytest.mark.e2e
+@pytest.mark.integration
 @pytest.mark.parametrize('locale,filtered,empty', [
     ('en', 'No demonstrations matched these filters.', 'There are no visible demonstrations with this tag.'),
     ('sv', 'Inga demonstrationer matchade dessa filter.', 'Det finns inga synliga demonstrationer med denna tagg.'),
