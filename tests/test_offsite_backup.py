@@ -88,7 +88,7 @@ def test_copy_encrypts_uploads_and_records_the_stamp(tmp_path):
     checksum = (tmp_path / "dest" / f"{NAME}.age.sha256").read_text().split()
     assert checksum == [hashlib.sha256(uploaded.read_bytes()).hexdigest(), f"{NAME}.age"]
     argv = (tmp_path / "argv.log").read_text()
-    assert "--recipients-file" in argv and "StrictHostKeyChecking=yes" in argv
+    assert "--bwlimit=2048" in argv and "--recipients-file" in argv and "StrictHostKeyChecking=yes" in argv
     assert "backup@homelab.example:incoming/" in argv
     assert (tmp_path / "state/sent").read_text() == NAME + "\n"
     assert (tmp_path / "state/last-core").read_text().split()[1] == NAME
@@ -376,3 +376,11 @@ def test_repository_holds_no_deployment_specific_values():
     text = "".join(path.read_text() for path in BACKUP.iterdir() if path.is_file())
     assert "AGE-SECRET-KEY-1" not in text
     assert "@gmail" not in text and "192.168." not in text and "10.0." not in text
+
+
+def test_units_have_run_time_limits_and_the_catch_up_stays_at_night():
+    assert "RuntimeMaxSec=3600" in _unit("mielenosoitukset-mongodb-backup.service")
+    assert "RuntimeMaxSec=5400" in _unit("mielenosoitukset-mongodb-backup-full.service")
+    assert "RuntimeMaxSec=3600" in _unit("mielenosoitukset-offsite-copy.service")
+    timer = _unit("mielenosoitukset-offsite-copy.timer")
+    assert "OnCalendar=*-*-* 01:50:00 UTC" in timer and "Persistent=" not in timer

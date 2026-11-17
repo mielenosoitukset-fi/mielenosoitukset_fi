@@ -20,6 +20,7 @@
 #   OFFSITE_SSH_KEY     private SSH key for the target      (default /etc/mielenosoitukset/offsite_ed25519)
 #   OFFSITE_KNOWN_HOSTS known_hosts file pinning the target (default /etc/mielenosoitukset/offsite_known_hosts)
 #   OFFSITE_PORT        SSH port                            (default 22)
+#   OFFSITE_BWLIMIT     upload cap in KiB/s, 0 = none         (default 2048, about 2 MiB/s)
 #   OFFSITE_SEND_DAYS   only send archives younger than this (default 3)
 #   BACKUP_DIR          local archives                      (default /var/backups/mielenosoitukset)
 #   STATE_DIR           ledger and stamps                   (default $STATE_DIRECTORY or /var/lib/mielenosoitukset-backup)
@@ -35,6 +36,7 @@ ssh_key="${OFFSITE_SSH_KEY:-/etc/mielenosoitukset/offsite_ed25519}"
 known_hosts="${OFFSITE_KNOWN_HOSTS:-/etc/mielenosoitukset/offsite_known_hosts}"
 port="${OFFSITE_PORT:-22}"
 send_days="${OFFSITE_SEND_DAYS:-3}"
+bwlimit="${OFFSITE_BWLIMIT:-2048}"
 age="${AGE:-age}"
 rsync="${RSYNC:-rsync}"
 
@@ -43,6 +45,7 @@ die() { echo "offsite-copy: $*" >&2; exit 2; }
 [[ -n "$target" ]] || die "OFFSITE_TARGET is not set (see docs/backups.md)"
 [[ "$target" =~ ^[A-Za-z0-9][A-Za-z0-9._@-]*:[A-Za-z0-9._/~-]*$ ]] || die "OFFSITE_TARGET must look like user@host:directory"
 [[ "$port" =~ ^[0-9]+$ ]] || die "OFFSITE_PORT must be a number"
+[[ "$bwlimit" =~ ^[0-9]+$ ]] || die "OFFSITE_BWLIMIT must be a number (KiB/s)"
 [[ "$send_days" =~ ^[0-9]+$ && "$send_days" -ge 1 ]] || die "OFFSITE_SEND_DAYS must be a positive integer"
 for path in "$ssh_key" "$known_hosts" "$recipients"; do
   [[ "$path" =~ ^/[A-Za-z0-9_./-]+$ ]] || die "unsafe path in settings: $path"
@@ -95,7 +98,7 @@ while IFS= read -r name; do
 
   # The checksum file goes last in the same call; the receiving side only
   # accepts an archive once its checksum file is there and matches.
-  "$rsync" --times --chmod=F0600 --timeout=900 -e "$ssh_cmd" -- "$enc" "$enc.sha256" "$target" \
+  "$rsync" --times --chmod=F0600 --timeout=900 --bwlimit="$bwlimit" -e "$ssh_cmd" -- "$enc" "$enc.sha256" "$target" \
     || { echo "offsite-copy: upload of $name failed" >&2; exit 1; }
 
   echo "$name" >> "$ledger"

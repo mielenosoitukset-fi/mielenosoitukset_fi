@@ -10,6 +10,9 @@ OnSuccess=mielenosoitukset-offsite-copy.service
 Type=oneshot
 Environment=BACKUP_MODE=core
 ExecStart=/var/www/mielenosoitukset_fi/deploy/backup/mongodb-backup.sh
+# Known archive: about 61 MB, about 1 minute at the 1 MiB/s cap. A run still going
+# after an hour is stuck or the database is slow: kill it and alert.
+RuntimeMaxSec=3600
 Nice=10
 IOSchedulingClass=idle
 PrivateTmp=true

@@ -86,6 +86,14 @@ slower rather than let the site go down.** The script now:
 - never queues behind a running dump (exit 3);
 - refuses to run unthrottled when `pv` is missing (installed on lc-main).
 
+**Run-time limits.** `RuntimeMaxSec` kills a core dump after 1 hour, a full dump
+after 90 minutes and a copy after 1 hour, and the failure mail follows. Sizes
+behind these: core about 61 MB, full about 420 MB compressed, so about 1 and 7
+minutes at 1 MiB/s.
+
+**Never set `BACKUP_ANYTIME` in `backup.env` or a unit.** It exists only for a
+supervised test run, and the night window is the protection.
+
 **No ad-hoc daytime dumps.** Start a manual backup only at night with
 `systemctl start mielenosoitukset-mongodb-backup.service`. Before a data change
 (an activation, a migration) use the latest nightly archive as the backup, plus a
@@ -110,11 +118,12 @@ How it works:
 
 1. When a core or full dump finishes and verifies, the backup service starts
    `mielenosoitukset-offsite-copy.service` (`OnSuccess=`). A daily timer at
-   05:15 UTC retries anything that failed or was missed.
+   01:50 UTC (03:50 Helsinki in winter; not persistent, so never by day) retries
+   anything that failed or was missed.
 2. `offsite-copy.sh` encrypts each unsent archive from the last 3 days with
    [age](https://age-encryption.org) to the **public** recipient keys in
    `/etc/mielenosoitukset/backup-recipients.txt`, writes a SHA-256 checksum
-   file, and uploads both with rsync over SSH to `OFFSITE_TARGET`. rsync
+   file, and uploads both with rsync over SSH, capped at `OFFSITE_BWLIMIT` (default 2048 KiB/s, about 2 MiB/s) to `OFFSITE_TARGET`. rsync
    verifies each transferred file. Only after a successful upload does it record
    the archive in a ledger (`/var/lib/mielenosoitukset-backup/sent`) and a
    per-mode stamp. The encrypted staging file is deleted after each upload.
@@ -169,6 +178,7 @@ OFFSITE_PORT=22
 # OFFSITE_RECIPIENTS=/etc/mielenosoitukset/backup-recipients.txt
 # OFFSITE_SSH_KEY=/etc/mielenosoitukset/offsite_ed25519
 # OFFSITE_KNOWN_HOSTS=/etc/mielenosoitukset/offsite_known_hosts
+# OFFSITE_BWLIMIT=2048
 # OFFSITE_SEND_DAYS=3
 # OFFSITE_STALE_HOURS=36
 # OFFSITE_STALE_HOURS_FULL=216
@@ -183,7 +193,7 @@ checked strictly) and `backup-recipients.txt` (public key lines only).
 The dump timers are already installed (13 November 2026). This section adds the
 off-site copy, the alert mail and the gentler dump settings and timer times (copy
 the changed `.service` and `.timer` files, then `systemctl daemon-reload`). Do it **outside the Sunday full-dump window**
-(01:30 UTC, runs for hours) and never restart public services while a full dump
+(01:30 UTC; it takes about 7 minutes at the 1 MiB/s cap) and never restart public services while a full dump
 runs. Installing units does not restart anything public.
 
 1. **Homelab, once** (the maintainer; the specifics are kept out of the
@@ -237,8 +247,8 @@ runs. Installing units does not restart anything public.
 
    Confirm the mail arrives. Then run the housekeeping script on the homelab and
    check that the first archive is accepted into the vault.
-6. **Prove the key** (the first real restore from off-site, see below) before
-   relying on the copy.
+6. **Prove the key** and the restore: do the OPS-02 restore drill (first real restore
+   from the off-site copy, see below) before relying on the off-site copy.
 
 ### Revert
 

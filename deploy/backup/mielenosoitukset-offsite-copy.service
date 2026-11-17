@@ -10,6 +10,8 @@ EnvironmentFile=/etc/mielenosoitukset/backup.env
 StateDirectory=mielenosoitukset-backup
 StateDirectoryMode=0700
 ExecStart=/var/www/mielenosoitukset_fi/deploy/backup/offsite-copy.sh
+# About 420 MB at the 2 MiB/s cap is about 4 minutes.
+RuntimeMaxSec=3600
 Nice=10
 IOSchedulingClass=idle
 PrivateTmp=true

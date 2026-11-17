@@ -11,6 +11,9 @@ Type=oneshot
 Environment=BACKUP_MODE=full
 Environment=KEEP_DAYS=35
 ExecStart=/var/www/mielenosoitukset_fi/deploy/backup/mongodb-backup.sh
+# Known archive: about 420 MB, about 7 minutes at 1 MiB/s. 90 minutes keeps the run
+# inside the night window; a longer run is killed and alerts.
+RuntimeMaxSec=5400
 Nice=10
 IOSchedulingClass=idle
 PrivateTmp=true

@@ -5,9 +5,10 @@ Description=Daily catch-up for the off-site MongoDB backup copy
 # services). This timer retries anything that failed or was missed; the ledger
 # makes a second run a no-op.
 [Timer]
-OnCalendar=*-*-* 05:15:00 UTC
-RandomizedDelaySec=10m
-Persistent=true
+# 01:50 UTC is 03:50 Helsinki in winter, 04:50 in summer: night window, after the
+# dumps (01:30 UTC plus up to 15 minutes). Not Persistent, so a boot by day never
+# starts a copy; the next night picks the archives up.
+OnCalendar=*-*-* 01:50:00 UTC
 
 [Install]
 WantedBy=timers.target
