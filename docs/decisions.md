@@ -293,6 +293,34 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
 - **Opening interest form UI behind a flag (2026-11-16).** The form is built from the approved mockup and stays off (`opening_interest_form: false` in `fundraising.json`). Until the backend (double opt-in, reminder system list type) exists, submitting validates and then says nothing was sent. The ticket-willingness bands are the only euro amounts on the page.
 - **Opening interest backend on the reminder system (2026-11-16).** The avajaiset interest form is a third list on the fundraising reminder system (after the reminder and the Pride banner carriers): Go routes `POST /api/campaign-opening/interest` (+ `/confirm`, `/unsubscribe`), collection `campaign_opening_interest`, double opt-in with hashed one-time tokens, one-click removal, Flask mails. Fields: e-mail, optional city, optional willingness to pay and price band, consent time and version; no name, IP or phone. Unconfirmed rows are deleted after two weeks, everything on 13.3.2027 (a week after the opening; the consent text promises deletion after the opening). Everything ships off: `OPENING_INTEREST_SIGNUP` (Go), `OPENING_INTEREST_MAILS_ENABLED` (Flask), `opening_interest_form` (UI), the Apache rule and the unique index each need the maintainer's go. Details: [campaign-opening-interest.md](campaign-opening-interest.md).
 
+- **Off-site backup copy and e-mail alerts (2026-11-17).** The maintainer decided
+  (1) the off-site copy is an encrypted copy to their homelab, (2) the maintainer
+  alone holds the encryption key, (3) backup failures alert by e-mail to the
+  maintainer. Built as: `age` encryption on lc-main with a public recipient key
+  only (the private key is never on the server or in the repository), rsync over
+  SSH with a restricted write-only key to a landing directory, a receiving-side
+  script that moves verified archives to a vault and applies the off-site
+  retention (30 days core, 90 days full), a freshness check that alerts when the
+  last off-site core copy is older than 36 hours (full: 9 days), and
+  `backup-notify.py` replacing the log-only `OnFailure` line (site SMTP account,
+  recipient from `/etc/mielenosoitukset/backup.env`). Hostnames, keys and the
+  address live only on the servers. Losing the private key makes the off-site
+  copies unreadable, so the maintainer keeps a second copy. Install and revert:
+  [backups.md](backups.md). Not installed until the maintainer says go.
+
+- **Dumps must never hurt the site; no ad-hoc daytime dumps (2026-11-17).** An
+  ad-hoc core dump made lc-db's network stack saturate (ksoftirqd 100 %, 50 %
+  packet loss) and the site answered 503. Maintainer: "ship a bit slower rather
+  than the site going down". Rules: (1) dumps run only 03:00-05:00 Helsinki, from
+  the timers (01:30 UTC), never by hand by day; (2) they are throttled (`pv`,
+  default 1 MiB/s compressed), read one collection at a time, never overlap, and
+  skip with an alert mail when lc-db ping is already high; (3) activations and
+  migrations back up with the latest nightly archive plus a `mongoexport` of only
+  the touched collections, not a new dump; (4) the weekly full dump becomes monthly
+  if a watched run shows it cannot be made gentle. The rate is unmeasured until a
+  watched run with the maintainer's go. Dumping on lc-db with `rsync --bwlimit` is
+  the documented next step, not built. See [backups.md](backups.md).
+
 ## Go write APIs
 
 - **Contact form `POST /contact` in Go, shipped dark (2026-11-17).** The maintainer approved exact Flask parity, shipped off, with activation per API only on their go. Go enqueues the support mail (Flask's worker sends it) and counts the same Flask-Limiter quotas (`limits.counters`); Flask stays the session owner and answers a read-only token check on `/api/session` (header `X-Contact-Form-Token`, behind `AUTH_BRIDGE_SCOPES`); Go consumes the token hash once. Flag `CONTACT_GO_ENABLED`, default off, no Apache change, no new schema. Known gap before activation: Go cannot write Flask flashes, so the React screen must show the `?contact=` outcome. Details, activation and revert: [go-contact.md](go-contact.md).

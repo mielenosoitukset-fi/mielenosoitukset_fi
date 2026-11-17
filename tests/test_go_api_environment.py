@@ -84,6 +84,26 @@ def test_developer_writes_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
         assert ("DEVELOPER_WRITES_ENABLED" in values) is expected
 
 
+def test_profile_reads_flag_is_independent_of_the_bridge_and_off_by_default(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    cases = (
+        ({}, False),
+        ({"PROFILE_READS": False}, False),
+        ({"PROFILE_READS": True}, True),
+        ({"AUTH_BRIDGE_SCOPES": True, "PROFILE_READS": True}, True),
+        ({"AUTH_BRIDGE_SCOPES": True}, False),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"p{index}.yaml", tmp_path / f"pe{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated", **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("PROFILE_READS_ENABLED" in values) is expected
+
+
 def test_fundraising_reminder_flag_needs_public_submissions_and_is_off_by_default(tmp_path):
     path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
     spec = importlib.util.spec_from_file_location("go_environment", path)

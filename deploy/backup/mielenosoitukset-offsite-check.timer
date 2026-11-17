@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily freshness check of the off-site MongoDB backup copy
+
+[Timer]
+OnCalendar=*-*-* 06:20:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

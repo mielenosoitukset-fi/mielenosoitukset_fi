@@ -68,6 +68,11 @@ def configure(source, target):
             for key in ("CONTACT_PER_IP_LIMIT", "CONTACT_GLOBAL_LIMIT", "CONTACT_MAX_REQUEST_BYTES"):
                 if config.get(key) is not None:
                     values[key] = str(config[key])
+    # Public profile reads (docs/account-pages-react.md): GET /api/profile/<username>.
+    # Its own switch, off by default and independent of the bridge; the own and
+    # viewer parts of the answer appear only when the bridge is on as well.
+    if config.get("PROFILE_READS") is True:
+        values["PROFILE_READS_ENABLED"] = "true"
     # The fundraising details file (docs/go-fundraising-details.md) used to be
     # added to the environment by hand and was lost at the next deploy. Keep it
     # whenever the file exists; `FUNDRAISING_DETAILS_FILE` in config.yaml
