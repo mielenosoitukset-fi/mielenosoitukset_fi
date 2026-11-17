@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"html"
 	"os"
 	"reflect"
+	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -115,6 +118,32 @@ func TestParityMarkdownFuzz(t *testing.T) {
 	for _, example := range cases {
 		if got := markdownToHTML(example.Input); got != example.HTML {
 			t.Errorf("markdown %q:\n got  %q\n want %q", example.Input, got, example.HTML)
+		}
+	}
+}
+
+var hrefValue = regexp.MustCompile(`href="([^"]*)"`)
+
+// Whatever the reporter types, stored HTML never holds a script tag or a link
+// outside http, https and mailto.
+func TestMarkdownOutputIsAlwaysSafe(t *testing.T) {
+	cases := []string{}
+	for _, example := range loadParityFixture(t).MarkdownFuzz {
+		cases = append(cases, example.Input)
+	}
+	for _, example := range loadParityFixture(t).Markdown {
+		cases = append(cases, example.Input)
+	}
+	for _, input := range cases {
+		output := markdownToHTML(input)
+		if strings.Contains(strings.ToLower(output), "<script") {
+			t.Fatalf("script tag for %q: %q", input, output)
+		}
+		for _, match := range hrefValue.FindAllStringSubmatch(output, -1) {
+			target := strings.ToLower(html.UnescapeString(match[1]))
+			if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") && !strings.HasPrefix(target, "mailto:") {
+				t.Fatalf("unsafe href %q for %q", match[1], input)
+			}
 		}
 	}
 }

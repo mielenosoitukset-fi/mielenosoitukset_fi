@@ -8,10 +8,10 @@ import { useEffect, useState } from 'react';
 export type SuggestionNotice = { category: 'success' | 'error'; message: string };
 
 const notices: Record<string, SuggestionNotice> = {
-  saved: { category: 'success', message: 'Kiitos! Ehdotuksesi on tallennettu ja se tarkistetaan pian 💖' },
-  sent: { category: 'success', message: 'Ehdotuksesi on vastaanotettu. Kiitos!' },
+  saved: { category: 'success', message: 'Ehdotuksesi on tallennettu. Tarkistamme sen pian. Kiitos.' },
+  sent: { category: 'success', message: 'Ehdotuksesi on vastaanotettu. Kiitos.' },
   empty: { category: 'error', message: 'Muuta vähintään yhden kentän tietoja tai kirjoita kommentti ennen lähettämistä.' },
-  failed: { category: 'error', message: 'Palvelinvirhe: ehdotuksen tallentaminen epäonnistui.' },
+  failed: { category: 'error', message: 'Ehdotuksen tallentaminen epäonnistui. Yritä uudelleen.' },
   too_long: { category: 'error', message: 'Kuvaus on liian pitkä. Lyhennä sitä ja yritä uudelleen.' },
 };
 
