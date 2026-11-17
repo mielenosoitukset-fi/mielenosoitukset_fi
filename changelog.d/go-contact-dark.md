@@ -1,0 +1,1 @@
+- The contact form's POST now exists in the Go API as well, switched off and not routed: nothing changes for visitors until the maintainer activates it. Flask's `/api/session` gains a read-only token check behind the existing auth bridge flag.

@@ -322,6 +322,10 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
   watched run with the maintainer's go. Dumping on lc-db with `rsync --bwlimit` is
   the documented next step, not built. See [backups.md](backups.md).
 
+## Go write APIs
+
+- **Contact form `POST /contact` in Go, shipped dark (2026-11-17).** The maintainer approved exact Flask parity, shipped off, with activation per API only on their go. Go enqueues the support mail (Flask's worker sends it) and counts the same Flask-Limiter quotas (`limits.counters`); Flask stays the session owner and answers a read-only token check on `/api/session` (header `X-Contact-Form-Token`, behind `AUTH_BRIDGE_SCOPES`); Go consumes the token hash once. Flag `CONTACT_GO_ENABLED`, default off, no Apache change, no new schema. Known gap before activation: Go cannot write Flask flashes, so the React screen must show the `?contact=` outcome. Details, activation and revert: [go-contact.md](go-contact.md).
+
 ## Suggestion forms in Go
 
 - **Suggestion writes move to Go, dark first (2026-11-17).** `POST /organization/<id>/save_suggestion` and `POST /suggest_change/<demo_id>` have Go handlers with exact Flask parity (stored fields, case record, queued moderator mail, validation, redirects), behind `SUGGESTIONS_GO_ENABLED` (default false, no Apache rule). Defaults chosen by the coordinator because the change is revertible: no new schema, index, session or auth change; the reporter's account id is read only through the existing read-only session call; Flask's worker keeps sending mail. Activation, the flash replacement and the case-number allocator are separate approvals. See [go-public-api.md](go-public-api.md).

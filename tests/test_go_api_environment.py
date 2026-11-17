@@ -206,3 +206,31 @@ def test_fundraising_details_file_is_kept_only_when_it_exists(tmp_path):
         module.configure(source, target)
         values = dict(line.split("=", 1) for line in target.read_text().splitlines())
         assert ("FUNDRAISING_DETAILS_FILE" in values) is expected
+
+
+def test_contact_go_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    cases = (
+        ({}, False),
+        ({"AUTH_BRIDGE_SCOPES": True}, False),
+        ({"CONTACT_GO_ENABLED": True}, False),  # no bridge, no contact route
+        ({"AUTH_BRIDGE_SCOPES": True, "CONTACT_GO_ENABLED": False}, False),
+        ({"AUTH_BRIDGE_SCOPES": True, "CONTACT_GO_ENABLED": True}, True),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"c{index}.yaml", tmp_path / f"e{index}"
+        config = {"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated", **extra}
+        if expected:
+            config.update({"CONTACT_PER_IP_LIMIT": "2 per 10 minutes", "CONTACT_MAX_REQUEST_BYTES": 8192})
+        source.write_text(yaml.safe_dump(config))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("CONTACT_GO_ENABLED" in values) is expected
+        if expected:
+            assert json.loads(values["CONTACT_GO_ENABLED"]) == "true"
+            assert json.loads(values["CONTACT_PER_IP_LIMIT"]) == "2 per 10 minutes"
+            assert json.loads(values["CONTACT_MAX_REQUEST_BYTES"]) == "8192"
+            assert "CONTACT_GLOBAL_LIMIT" not in values

@@ -1,7 +1,8 @@
 # Public write APIs: Flask to Go proposal
 
 Status: analytics-event step 1 implemented (shipped dark, not routed) on 11 November 2026 at the
-maintainer's request; remaining steps are proposals. No session change,
+maintainer's request; contact implemented dark on 17 November 2026 (see
+[go-contact.md](go-contact.md)); remaining steps are proposals. No session change,
 schema/index migration, email delivery or production activation was performed.
 
 ## Scope and evidence
