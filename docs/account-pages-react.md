@@ -44,6 +44,9 @@ which also covers national-team members, governance-managed accounts and, for or
 accounts, the roles `god`, `global_admin` and `superuser`. Go uses only the stored flag
 and never reads the role, so a privileged role is not revealed publicly. National-team
 admins whose access comes from memberships lose the badge until Go resolves team access.
+The reverse also differs: a governance-managed account with the flag set but outside the
+national team shows the badge in Go and not in Flask. Both differences must be closed by a
+read-only team-access lookup (like `utils/system_teams.user_team_access`) before activation.
 
 Existing defects found while reading, kept out of this work: the "Poista ystävä" button
 posts to `/users/profile/api/remove_friend/`, which does not exist; the follow and friend
