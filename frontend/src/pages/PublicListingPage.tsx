@@ -96,11 +96,19 @@ export function PublicListingPage(props: PublicListingProps) {
     const signal = request.current!.signal;
     loadingRef.current = true; setLoading(true); setFailure(null);
     try {
-      const query = new URLSearchParams(Object.entries({ ...options.params, page: options.page, lang: props.locale })
-        .map(([name, value]) => [name, String(value)]));
-      const response = await fetch(`${props.endpoint}?${query}`, { signal, credentials: 'omit', headers: { Accept: 'application/json' } });
-      if (!response.ok) throw new Error('List request failed');
-      const data = parsePage(await response.json());
+      const fetchPage = async (page: number) => {
+        const query = new URLSearchParams(Object.entries({ ...options.params, page, lang: props.locale })
+          .map(([name, value]) => [name, String(value)]));
+        const response = await fetch(`${props.endpoint}?${query}`, { signal, credentials: 'omit', headers: { Accept: 'application/json' } });
+        if (!response.ok) throw new Error('List request failed');
+        return parsePage(await response.json());
+      };
+      let data = await fetchPage(options.page);
+      // A stale link or an event that has since passed can point beyond the
+      // last page; show the last page instead of a false "no results".
+      if (!options.append && !data.results.length && data.total > 0 && data.page > data.total_pages) {
+        data = await fetchPage(data.total_pages);
+      }
       if (signal.aborted || current !== generation.current) return;
       if (options.append) {
         if (!canExtend(Boolean(options.previous), Boolean(options.manual))) return;
@@ -127,7 +135,9 @@ export function PublicListingPage(props: PublicListingProps) {
   useEffect(() => {
     request.current = new AbortController();
     const start = listingQuery(props.initialSearch ?? window.location.search, props.fixed);
-    if (props.initialData) writeHistory(start.params, props.initialData.page, 'replace');
+    const seed = props.initialData;
+    const pastEnd = Boolean(seed && !seed.results.length && seed.total > 0 && seed.page > seed.total_pages);
+    if (seed && !pastEnd) writeHistory(start.params, seed.page, 'replace');
     else void latestLoad.current({ ...start, history: 'replace' });
     if (start.page === 1 && String(start.params.search ?? '').trim().length >= 2) latestSearch.current?.(String(start.params.search));
     function restore() {

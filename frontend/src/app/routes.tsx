@@ -40,6 +40,7 @@ export type AppRoute =
   | { name: 'suggest-change'; id: string }
   | { name: 'cancel-link'; token: string }
   | { name: 'developer'; appId?: string }
+  | { name: 'profile'; username: string }
   | { name: 'detail'; identifier: string }
   | { name: 'series'; parent: string };
 
@@ -52,6 +53,8 @@ export type RouteMeta = {
   image?: string | null;
 };
 
+/** Public usernames the page claims; `edit` is the old settings redirect and stays in Flask. */
+const PROFILE_PATH = /^\/users\/profile\/([a-z0-9_-]{3,30})\/?$/;
 const DETAIL_PATH = /^\/demonstration\/([^/]+)$/;
 const SERIES_PATH = /^\/demonstration\/([^/]+)\/children$/;
 
@@ -107,6 +110,8 @@ export function routeForPath(path: string): AppRoute | null {
   if (path === developerPath || path === `${developerPath}/`) return { name: 'developer' };
   const developerApp = /^\/developer\/apps\/([a-f\d]{24})$/i.exec(path);
   if (developerApp) return { name: 'developer', appId: developerApp[1].toLowerCase() };
+  const profile = PROFILE_PATH.exec(path);
+  if (profile) return profile[1] === 'edit' ? null : { name: 'profile', username: profile[1] };
   const cancelLink = /^\/cancel_demonstration\/([A-Za-z0-9_-]{1,128})$/.exec(path);
   if (cancelLink) return { name: 'cancel-link', token: cancelLink[1] };
   const organization = /^\/organization\/([a-f\d]{24})$/i.exec(path);
@@ -146,6 +151,11 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   if (route.name === 'developer') {
     return { title: `${developerCopy.title} | Mielenosoitukset.fi`, description: developerCopy.description,
       robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'profile') {
+    // The server replaces the title with the account's name once the profile is read.
+    return { title: 'Profiili | Mielenosoitukset.fi', description: 'Mielenosoitukset.fi-käyttäjän profiili.',
+      robots: 'noindex, follow', canonical: null };
   }
   if (route.name === 'city-admin') {
     return { title: `${cityAdminCopy.title} | Mielenosoitukset.fi`, description: cityAdminCopy.description,

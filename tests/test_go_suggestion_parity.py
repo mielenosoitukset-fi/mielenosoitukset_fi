@@ -19,7 +19,6 @@ from bson import ObjectId
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from mielenosoitukset_fi import basic_routes
-from mielenosoitukset_fi.emailer.EmailSender import EmailSender
 from mielenosoitukset_fi.utils.content_formatting import html_to_markdown, markdown_to_html
 
 FIXTURE = Path(__file__).resolve().parent.parent / "go-api" / "testdata" / "suggestion_parity.json"
@@ -163,10 +162,12 @@ def _post_data(form):
 def captured_mail(monkeypatch):
     calls = []
 
-    def capture(self, template_name, subject, recipients, context, **kwargs):
+    def capture(template_name, subject, recipients, context, **kwargs):
         calls.append({"template": template_name, "subject": subject, "recipients": recipients, "context": context, "kwargs": kwargs})
 
-    monkeypatch.setattr(EmailSender, "queue_email", capture, raising=True)
+    # The handlers call the module-level instance, which other tests may have
+    # swapped or stubbed, so patch the instance they actually use.
+    monkeypatch.setattr(basic_routes.email_sender, "queue_email", capture, raising=False)
     return calls
 
 
