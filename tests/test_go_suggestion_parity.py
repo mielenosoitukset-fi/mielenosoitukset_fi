@@ -9,7 +9,6 @@ fails until the fixture is regenerated and the Go port is brought along:
     UPDATE_GO_FIXTURES=1 python -m pytest tests/test_go_suggestion_parity.py
 """
 
-import importlib
 import json
 import os
 from datetime import datetime
@@ -176,18 +175,17 @@ def _post_data(form):
 
 
 @pytest.fixture
-def captured_mail(monkeypatch):
+def captured_mail(monkeypatch, client):
     calls = []
 
     def capture(template_name, subject, recipients, context, **kwargs):
         calls.append({"template": template_name, "subject": subject, "recipients": recipients, "context": context, "kwargs": kwargs})
 
-    # The handlers call the module-level instance, which other tests may have
-    # swapped or stubbed, so patch the instance they actually use.
-    # Other tests reload the module, so resolve it at call time, not import time.
-    current = importlib.import_module("mielenosoitukset_fi.basic_routes")
-    monkeypatch.setattr(current.email_sender, "queue_email", capture, raising=False)
-    monkeypatch.setattr(type(current.email_sender), "queue_email", lambda self, *a, **k: capture(*a, **k), raising=False)
+    # Other tests reload basic_routes, so the module object that registered the
+    # routes may not be the one in sys.modules. Patch the sender the handlers
+    # themselves resolve, through the view function's own globals.
+    handler_globals = client.application.view_functions["suggest_change"].__globals__
+    monkeypatch.setattr(handler_globals["email_sender"], "queue_email", capture, raising=False)
     return calls
 
 
