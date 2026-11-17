@@ -17,7 +17,7 @@ consent flag. Nothing implemented sends anything for it; a results message would
 | Part | Where | Notes |
 | --- | --- | --- |
 | Signup, confirm, remove routes | Go, `go-api/fundraising_reminder.go` | `POST /api/fundraising/reminder`, `…/confirm`, `…/unsubscribe` |
-| Form and link page | React, `FundraisingReminder.tsx`, `fundraising-reminder.ts` | Form in the pre-launch card; `/keräys?muistutus=vahvista#t=…` and `…=peru#t=…` show a single button |
+| Link page | React, `FundraisingReminder.tsx` (`ReminderLinkPanel`), `fundraising-reminder.ts` | `/keräys?muistutus=vahvista#t=…` and `…=peru#t=…` show a single button. The pre-launch signup form was removed after the 16.11.2026 opening; `ReminderLinkPanel` is currently not rendered by the page |
 | Token minting and all mail | Flask, `utils/fundraising_reminder.py` and three jobs | Go has no mail sender; mail goes through `email_queue` |
 | Data | collection `fundraising_reminders`, markers in `fundraising_reminder_sent` | unique index on `email` |
 | Retention | job `purge_fundraising_reminders` and the same module's `purge` | also a command with `--dry-run` |
