@@ -63,8 +63,7 @@ what differs.
 Run as root on lc-main (`ssh lc-main-root`), after #1157 and the activation PR are merged and deployed. Note times in Helsinki time.
 Do not run it during a database backup dump (a Go API restart then fails its startup check; see backups.md).
 
-1. **Backup and revert copies.** Core dump: `/var/www/mielenosoitukset_fi/deploy/backup/mongodb-backup.sh core`
-   (the archive lands in `/var/backups/mielenosoitukset/`; note its name). Config copies:
+1. **Backup and revert copies.** Use the newest nightly core archive (the 02:32 UTC timer; check its timestamp and size in `/var/backups/mielenosoitukset/`, read-only) as the backup. Never run a dump by hand: it saturates the database network and the public API returns 503 (13 November and 17 November 2026). Note the archive's name. Copy only the config files:
    ```sh
    d=/root/pride-banner-activation-$(date +%Y%m%dT%H%M%S); install -d -m 0700 $d
    cp -a /var/www/mielenosoitukset_fi/config.yaml /etc/mielenosoitukset-api/environment /etc/apache2/mielenosoitukset-react-ssr.conf $d/

@@ -262,6 +262,7 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
   dump loaded the database enough that a Go API restart failed its startup database
   check, causing about 35 seconds of 503s. Do not restart the public services while
   a full dump or another heavy database job runs.
+- **Never run a dump by hand (2026-11-17).** A manual core dump during the day saturated the database network and the public API answered 503 (the lockdown gate fails closed when reads time out). Runbooks use the newest nightly core archive (02:32 UTC timer) as the backup and copy `config.yaml` and the environment file only; restart the public services only when no dump process is running (`pgrep -a mongodump`).
 - **Analytics beacons (2026-11-11).** `POST /api/analytics/event` is served by Go,
   with `SITE_ANALYTICS_ENABLED=true` matching Flask. Pageviews and vitals stay in
   Flask. Roll back by removing the routing rule.
