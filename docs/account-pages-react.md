@@ -148,3 +148,18 @@ Each PR gets an independent security reviewer SHIP; the UI PRs also a visual SHI
 
 Revert: re-comment the Apache lines and reload; remove the flag and restart the API.
 Flask still serves every page and endpoint, so no data needs restoring.
+
+## 8. Step 2 as built (settings reads)
+
+- Go: `GET /api/account/settings` (`go-api/account_settings.go`), only with the auth bridge on and
+  `ACCOUNT_SETTINGS_READS: true` → `ACCOUNT_SETTINGS_READS_ENABLED=true`. GET/HEAD, same-origin, `no-store`,
+  signed-in only (401/503). Own account only, never writes: a missing `user_settings` row returns defaults
+  (display name from the account) instead of Flask's insert-on-read. Returns `general`, `profile` (bio, picture
+  URL), `mfa` (status, devices without secrets), `passkeys` (no credential ids or keys), the last 30
+  `login_history` rows and the `cities` list. No email, hashes or account id.
+- React: `/users/auth/settings` with four tabs (hash links `#tab-general` and so on, arrow-key navigation).
+  Yleinen and Profiili post to the unchanged Flask `/users/auth/api/v2/settings` and `…/user_profile`
+  and show Flask's own error message. API-avaimet links to `/developer`. Turvallisuus is read-only.
+- Missing in the Security tab: changing the password, MFA devices and passkeys (step-up stays in Flask).
+- Activation precondition: the Apache rules stay commented until those controls exist in React, because the
+  page rule makes the Flask page that changes them unreachable. Activation needs the maintainer's go.

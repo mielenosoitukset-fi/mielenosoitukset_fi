@@ -38,6 +38,8 @@ import StatusScreen from './StatusScreen';
 import CancelLinkScreen from './CancelLinkScreen';
 import DeveloperScreen from './DeveloperScreen';
 import ProfileScreen from './ProfileScreen';
+import AccountSettingsScreen from './AccountSettingsScreen';
+import { accountCopy } from './account-settings-route';
 import { loadProfile, profileTitle } from './profile-route';
 import type { ProfileInitial } from './profile-route';
 import { loadCancelLink, cancelLinkTitle, type CancelLinkState } from './cancel-link';
@@ -85,7 +87,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; accountSettings?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -488,6 +490,16 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<DeveloperScreen config={config} session={session} appId={route.appId} />} />);
+  }
+
+  if (route.name === 'account-settings') {
+    // Per-account page: never cached or indexed. The data loads in the browser from the Go read route.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    extraHead = (assets.accountSettings ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${accountCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<AccountSettingsScreen config={config} session={session} />} />);
   }
 
   let profile: ProfileInitial | undefined;

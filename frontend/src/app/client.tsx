@@ -75,6 +75,10 @@ if (container) {
       void import('./DeveloperScreen').then(({ default: DeveloperScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<DeveloperScreen config={props.config} session={props.session} appId={appId} />} />);
       }).catch(error => console.error('Could not start the developer panel', error));
+    } else if (route?.name === 'account-settings') {
+      void import('./AccountSettingsScreen').then(({ default: AccountSettingsScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<AccountSettingsScreen config={props.config} session={props.session} />} />);
+      }).catch(error => console.error('Could not start the settings page', error));
     } else if (route?.name === 'profile' && props.profile) {
       const profile = props.profile;
       const username = route.username;
