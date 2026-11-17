@@ -140,6 +140,8 @@ do-not-change rules in [docs/finnish-style.md](docs/finnish-style.md).
 - `ssh lc-main-root` reaches production as root; the React host is `mielenosoitukset-public.service`, released under `/opt/mielenosoitukset-public`, routed by `/etc/apache2/mielenosoitukset-react-ssr.conf`. Paths and rollback are in `docs/react-ssr-app.md`.
 - Production Flask config is `/var/www/mielenosoitukset_fi/config.yaml` with `MONGO_URI`/`MONGO_DBNAME` (not `MONGODB_URI`); Gunicorn listens on `/var/www/mielenosoitukset_fi/mielenosoitus.sock`.
 
+- **No ad-hoc database dumps by day.** A manual `mongodump` against lc-db took the site down on 17 November 2026 (503). Backups run only from the timers, 03:00-05:00 Helsinki, throttled (see `docs/backups.md`). Before an activation or migration, use the latest nightly archive as the backup plus a `mongoexport` of only the collections you will touch. Never start a fresh dump. "Ship a bit slower rather than the site going down."
+
 ## Repeatable listing verification
 
 For changes to the shared React listings, use

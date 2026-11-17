@@ -48,7 +48,7 @@ def _run(tmp_path, uri=f"mongodb://app:{SECRET}@db.example:27017", **env):
         "APP_CONFIG": str(config), "BACKUP_DIR": str(backups), "PYTHON": sys.executable,
         "MONGODUMP": str(tools / "mongodump"), "MONGORESTORE": str(tools / "mongorestore"),
         "ARGV_LOG": str(tmp_path / "argv.log"), "CONFIG_LOG": str(tmp_path / "config.log"),
-        "BACKUP_RATE_LIMIT": "0",
+        "BACKUP_RATE_LIMIT": "0", "BACKUP_ANYTIME": "1", "PRECHECK_MAX_MS": "0",
         **env,
     }
     result = subprocess.run(["bash", str(SCRIPT)], env=full_env, capture_output=True, text=True)
@@ -277,5 +277,38 @@ def test_a_second_backup_does_not_queue_behind_a_running_one(tmp_path):
 def test_timers_keep_dumps_in_the_night_and_apart():
     core = Path("deploy/backup/mielenosoitukset-mongodb-backup.timer").read_text()
     full = Path("deploy/backup/mielenosoitukset-mongodb-backup-full.timer").read_text()
-    assert "OnCalendar=Mon..Sat *-*-* 02:30:00 UTC" in core
+    assert "OnCalendar=Mon..Sat *-*-* 01:30:00 UTC" in core
     assert "OnCalendar=Sun *-*-* 01:30:00 UTC" in full
+
+
+def _fake_ping(tmp_path, avg, loss):
+    ping = tmp_path / "ping"
+    ping.write_text(
+        "#!/usr/bin/env bash\n"
+        f"echo '5 packets transmitted, {5 - round(loss / 20)} received, {loss}% packet loss, time 4005ms'\n"
+        f"echo 'rtt min/avg/max/mdev = 0.1/{avg}/9.0/0.1 ms'\n"
+    )
+    ping.chmod(0o755)
+    return str(ping)
+
+
+def test_busy_database_host_skips_the_backup_with_exit_4(tmp_path):
+    result, backups = _run(tmp_path, PRECHECK_MAX_MS="50", PING=_fake_ping(tmp_path, "443.0", 50),
+                           PRECHECK_TRIES="2", PRECHECK_WAIT="0")
+    assert result.returncode == 4 and "database host busy" in result.stderr
+    assert not (tmp_path / "argv.log").exists() and not list(backups.glob("*.archive.gz"))
+
+
+def test_quiet_database_host_passes_the_precheck(tmp_path):
+    result, backups = _run(tmp_path, PRECHECK_MAX_MS="50", PING=_fake_ping(tmp_path, "0.8", 0))
+    assert result.returncode == 0, result.stderr
+    assert list(backups.glob("*.archive.gz"))
+
+
+def test_runs_outside_the_night_window_are_refused(tmp_path):
+    fake_date = tmp_path / "date"
+    fake_date.write_text('#!/usr/bin/env bash\n[[ "$1" == "+%H" ]] && echo 14 || exec /bin/date "$@"\n')
+    fake_date.chmod(0o755)
+    result, backups = _run(tmp_path, BACKUP_ANYTIME="0", PATH=f"{tmp_path}:{os.environ['PATH']}")
+    assert result.returncode == 5 and "night window" in result.stderr
+    assert not (tmp_path / "argv.log").exists()

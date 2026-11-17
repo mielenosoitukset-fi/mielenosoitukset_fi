@@ -307,10 +307,15 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
   copies unreadable, so the maintainer keeps a second copy. Install and revert:
   [backups.md](backups.md). Not installed until the maintainer says go.
 
-- **Dumps must be gentle on lc-db (2026-11-17).** An ad-hoc core dump made lc-db's
-  network stack saturate (ksoftirqd 100 %, 50 % packet loss) and the site answered
-  503. Dumps now run through `pv` (default 8 MiB/s), read one collection at a time,
-  never start while another backup runs, and sit at 01:30 UTC (Sunday full) and
-  02:30 UTC (Monday to Saturday core). No manual dumps by day. The rate is unmeasured
-  until a throttled run is watched with the maintainer's go. Alternative not built:
-  dump on lc-db and `rsync --bwlimit` the archive. See [backups.md](backups.md).
+- **Dumps must never hurt the site; no ad-hoc daytime dumps (2026-11-17).** An
+  ad-hoc core dump made lc-db's network stack saturate (ksoftirqd 100 %, 50 %
+  packet loss) and the site answered 503. Maintainer: "ship a bit slower rather
+  than the site going down". Rules: (1) dumps run only 03:00-05:00 Helsinki, from
+  the timers (01:30 UTC), never by hand by day; (2) they are throttled (`pv`,
+  default 1 MiB/s compressed), read one collection at a time, never overlap, and
+  skip with an alert mail when lc-db ping is already high; (3) activations and
+  migrations back up with the latest nightly archive plus a `mongoexport` of only
+  the touched collections, not a new dump; (4) the weekly full dump becomes monthly
+  if a watched run shows it cannot be made gentle. The rate is unmeasured until a
+  watched run with the maintainer's go. Dumping on lc-db with `rsync --bwlimit` is
+  the documented next step, not built. See [backups.md](backups.md).
