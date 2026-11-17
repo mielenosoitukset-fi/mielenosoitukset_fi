@@ -103,11 +103,11 @@ delete a stuck reminder job instead of letting it retry. The window only control
 
 ## Activation (needs the maintainer's go; nothing here was done in production)
 
-1. Backup of the database (core dump), and `config.yaml`.
+1. Backup: the newest nightly core archive (02:32 UTC timer, checked read-only; never run a dump by hand, it makes the public API return 503), and a copy of `config.yaml` and the environment file.
 2. Index, with the go for production: `python -m mielenosoitukset_fi.scripts.ensure_fundraising_reminder_indexes`.
    Revert: `db.fundraising_reminders.dropIndex("email_unique")` (the Go routes then switch themselves off at the next start).
 3. Flask: set `FUNDRAISING_REMINDER_MAILS_ENABLED`, restart the scheduler. Send one confirmation to a test address first.
-4. Go: `FUNDRAISING_REMINDER: true` in `config.yaml`, deploy, restart the API (not during a backup dump).
+4. Go: `FUNDRAISING_REMINDER: true` in `config.yaml`, deploy, restart the API (not while the nightly dump runs).
 5. Before 16.11.2026: dry run, maintainer's go, then set `FUNDRAISING_REMINDER_BULK_SEND_APPROVED`.
 6. After 16.11.2026 and the send: unset the approval flag.
 
