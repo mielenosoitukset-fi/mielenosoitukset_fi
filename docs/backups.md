@@ -1,20 +1,24 @@
 # MongoDB backups (OPS-01)
 
-## Current state (checked 11 November 2026, read-only)
+## Current state (updated 17 November 2026)
 
 - The database runs on **lc-db** (`/var/lib/mongodb`, 4.1 GB including other
-  databases). It has no MongoDB dump timer, cron entry or backup directory.
-- **lc-main** (app host) has no database backup either. Its
-  `luovasec-snapshot-mielenosoitukset` timer is a *static HTML snapshot* of
-  public pages for a fallback site, not a data backup. It currently fails every
-  night in its own link check (missing `/app-assets/*` files and links to
-  `/submit` and `/users/auth/*`), and has no `OnFailure` alert. That tool is
+  databases). Nightly core and weekly full dumps run on **lc-main** and have
+  done so since 13 November 2026 (timers installed, first full dump Sunday
+  15 November). The archives are on lc-main's `/var/backups` disk, a different
+  machine from the database.
+- Restoring from them is still **unproven** until the OPS-02 drill.
+- **Off-site copy and e-mail alerts** (below) are built but installed only after
+  the maintainer's go; until then the archives exist on lc-main alone and a
+  failed backup only writes a journal line.
+- lc-main's `luovasec-snapshot-mielenosoitukset` timer is a *static HTML
+  snapshot* of public pages for a fallback site, not a data backup. It fails
+  every night in its own link check (missing `/app-assets/*` files and links to
+  `/submit` and `/users/auth/*`) and has no `OnFailure` alert. That tool is
   maintained outside this repository.
 - Whether Proxmox takes scheduled VM backups of lc-db was **not checked**. If it
   does, those are crash-consistent disk images; a logical dump is still needed
   for clean, per-database restores.
-
-So today there is no restorable backup of the mielenosoitukset database.
 
 ## What this repository provides
 
@@ -43,59 +47,264 @@ The archives therefore live on a different machine from the database.
     prunes its own files.
   - The URI is passed through a mode-0600 temporary config file, never on the
     command line.
-- `mielenosoitukset-mongodb-backup.service` / `.timer`: core dump nightly at
-  02:30 UTC, with `Persistent=true` so a missed run catches up.
+- `mielenosoitukset-mongodb-backup.service` / `.timer`: core dump Monday to
+  Saturday at 01:30 UTC (03:30 Helsinki in winter), with `Persistent=true` so a
+  missed run catches up.
 - `mielenosoitukset-mongodb-backup-full.service` / `.timer`: full dump on
-  Sundays at 03:30 UTC.
-- `mielenosoitukset-backup-failed.service`: on failure it logs an error-level
-  line tagged `mielenosoitukset-backup`. Hook a real alert to it once a channel
-  is chosen.
+  Sundays at 01:30 UTC (03:30 Helsinki in winter), so it never overlaps a core dump.
+- `mielenosoitukset-backup-failed.service`: the `OnFailure=` hook of every unit
+  here. It writes an error-level journal line tagged `mielenosoitukset-backup`
+  and e-mails the maintainer through `backup-notify.py` (see Alerts).
 
 Expected size: the dump is gzip-compressed BSON, typically well under the
 on-disk size. Check the first archive and adjust `KEEP_DAYS` if lc-main's disk
-(about 45 GB free) gets tight.
+(about 70 GB free, 868 MB used on 17 November 2026) gets tight.
+
+### Gentle dumps (17 November 2026)
+
+An ad-hoc core dump on 17 November 2026 (09:34-09:43 Helsinki) pulled the data
+from lc-db as fast as the network allowed. lc-db's `ksoftirqd` reached 100 %, ping
+rose to 443 ms with 50 % loss, database reads timed out, the public lockdown gate
+failed closed and the site answered 503. The maintainer's rule: **ship a bit
+slower rather than let the site go down.** The script now:
+
+- **throttles** the archive stream through `pv` at `BACKUP_RATE_LIMIT` (default
+  `1m`, `0` turns it off). The cap applies to the *compressed* archive, so the raw
+  BSON on the wire is several times higher: about 4 MiB/s at a typical 4:1 ratio.
+  **That ratio is not measured**; the first watched run must read lc-db's network
+  receive rate and adjust the cap. A slow reader makes TCP back-pressure
+  `mongodump`;
+- reads one collection at a time (`--numParallelCollections=1`, mongodump's own
+  default is 4);
+- **refuses to start outside 03:00-04:59 Helsinki time** (exit 5) unless
+  `BACKUP_ANYTIME=1`. The timers (01:30 UTC, Sunday full and Monday to Saturday
+  core) fall inside the window in winter and summer. A catch-up after downtime
+  therefore waits for the next night;
+- **pre-checks lc-db** with five pings: an average above `PRECHECK_MAX_MS` (50) or
+  any loss means up to three tries five minutes apart, then it **skips the backup
+  (exit 4) and the alert mail says so**;
+- never queues behind a running dump (exit 3);
+- refuses to run unthrottled when `pv` is missing (installed on lc-main).
+
+**Run-time limits.** `RuntimeMaxSec` kills a core dump after 1 hour, a full dump
+after 90 minutes and a copy after 1 hour, and the failure mail follows. Sizes
+behind these: core about 61 MB, full about 420 MB compressed, so about 1 and 7
+minutes at 1 MiB/s.
+
+**Never set `BACKUP_ANYTIME` in `backup.env` or a unit.** It exists only for a
+supervised test run, and the night window is the protection.
+
+**No ad-hoc daytime dumps.** Start a manual backup only at night with
+`systemctl start mielenosoitukset-mongodb-backup.service`. Before a data change
+(an activation, a migration) use the latest nightly archive as the backup, plus a
+`mongoexport` of only the collections that will be touched, never a fresh dump.
+
+**Not built: dumping on lc-db itself.** lc-db has `mongodump` (checked read-only
+17 November 2026). Running it there over the local socket with `nice`/`ionice`,
+then pulling the finished archive with `rsync --bwlimit`, would remove the network
+read from the database host's critical path. It needs a script, secrets handling
+and a timer on lc-db, so it is the next step if the throttled run is still not
+gentle enough. **Weekly full dump:** it reads the 13.6 GB audit logs; if the
+measured run is still not gentle, change `OnCalendar` of the full timer to the
+first Sunday of the month (`Sun *-*-1..7 01:30:00 UTC`).
+
+## Off-site copy (decided by the maintainer on 17 November 2026)
+
+Decisions: the off-site copy is an **encrypted copy to the maintainer's homelab**;
+the **maintainer holds the encryption key**; backup failures **alert by e-mail
+to the maintainer**. Rationale and revert: [decisions.md](decisions.md).
+
+How it works:
+
+1. When a core or full dump finishes and verifies, the backup service starts
+   `mielenosoitukset-offsite-copy.service` (`OnSuccess=`). A daily timer at
+   01:50 UTC (03:50 Helsinki in winter; not persistent, so never by day) retries
+   anything that failed or was missed.
+2. `offsite-copy.sh` encrypts each unsent archive from the last 3 days with
+   [age](https://age-encryption.org) to the **public** recipient keys in
+   `/etc/mielenosoitukset/backup-recipients.txt`, writes a SHA-256 checksum
+   file, and uploads both with rsync over SSH, capped at `OFFSITE_BWLIMIT` (default 2048 KiB/s, about 2 MiB/s) to `OFFSITE_TARGET`. rsync
+   verifies each transferred file. Only after a successful upload does it record
+   the archive in a ledger (`/var/lib/mielenosoitukset-backup/sent`) and a
+   per-mode stamp. The encrypted staging file is deleted after each upload.
+3. The **private key never exists on lc-main**: the maintainer generates it on
+   their own machine and only the public key is copied to the server. The script
+   refuses to run if the recipients file contains a private key. If lc-main or
+   the off-site disk is stolen, the archives cannot be read. If the maintainer
+   loses the private key, the off-site archives cannot be read by anyone, so keep
+   a second copy of it (for example in a password manager and on an offline
+   medium).
+4. The upload key on lc-main is restricted on the homelab to write-only access to
+   one landing directory (`incoming/`). A compromised lc-main can drop or
+   overwrite files there, but cannot read, list or delete the vault.
+   `offsite-housekeeping.sh` runs **on the homelab**: it moves archives whose
+   checksum matches from `incoming/` into a vault directory (never overwriting a
+   file already in the vault), applies the **off-site retention** (30 days of
+   core archives, 90 days of full archives, the newest of each mode is always
+   kept) and reports when no fresh archive arrives.
+5. **Freshness**: `mielenosoitukset-offsite-check.timer` (06:20 UTC) fails, and
+   so e-mails, when the last uploaded core archive is older than 36 hours
+   (`OFFSITE_STALE_HOURS`) or the last full archive older than 9 days
+   (`OFFSITE_STALE_HOURS_FULL`). A fresh install counts from its first check, so
+   it is not blamed for the days before the first upload. The homelab-side
+   housekeeping run checks freshness too, independently of lc-main, so a dead
+   lc-main is noticed as well.
+
+Disk: encryption needs one archive's worth of free space in
+`/var/backups/mielenosoitukset/offsite-staging` (lc-main has about 70 GB free).
+
+### Alerts
+
+`backup-notify.py` sends one e-mail for each failed unit: a dump failure, an
+off-site copy failure, or a stale off-site copy. It uses the site's own SMTP
+account (the `MAIL:` section of `/var/www/mielenosoitukset_fi/config.yaml`) and
+falls back to the local `sendmail`. The recipient is `ALERT_EMAIL` in
+`/etc/mielenosoitukset/backup.env`, which is not in the repository. The mail
+names only the unit and the host, never log lines. If it cannot be sent, the
+journal line remains (`journalctl -u mielenosoitukset-backup-failed -n 20`).
+A stale copy sends a mail every day until fixed.
+
+### Server settings file
+
+`/etc/mielenosoitukset/backup.env` (root, mode 0600), read by the units. systemd
+reads `KEY=value` lines only: no quotes, no comment after a value.
+
+```sh
+ALERT_EMAIL=<maintainer address>
+# The path is relative to the rrsync directory, which is incoming/.
+OFFSITE_TARGET=<user>@<homelab host>:./
+OFFSITE_PORT=22
+# Optional, defaults in parentheses:
+# OFFSITE_RECIPIENTS=/etc/mielenosoitukset/backup-recipients.txt
+# OFFSITE_SSH_KEY=/etc/mielenosoitukset/offsite_ed25519
+# OFFSITE_KNOWN_HOSTS=/etc/mielenosoitukset/offsite_known_hosts
+# OFFSITE_BWLIMIT=2048
+# OFFSITE_SEND_DAYS=3
+# OFFSITE_STALE_HOURS=36
+# OFFSITE_STALE_HOURS_FULL=216
+```
+
+The other files in `/etc/mielenosoitukset/` (mode 0600, root): the upload
+private key `offsite_ed25519`, `offsite_known_hosts` (the homelab's host key,
+checked strictly) and `backup-recipients.txt` (public key lines only).
 
 ## Install (production change: needs the maintainer's go-ahead)
 
-On lc-main as root, after the branch is deployed:
+The dump timers are already installed (13 November 2026). This section adds the
+off-site copy, the alert mail and the gentler dump settings and timer times (copy
+the changed `.service` and `.timer` files, then `systemctl daemon-reload`). Do it **outside the Sunday full-dump window**
+(01:30 UTC; it takes about 7 minutes at the 1 MiB/s cap) and never restart public services while a full dump
+runs. Installing units does not restart anything public.
+
+1. **Homelab, once** (the maintainer; the specifics are kept out of the
+   repository): create a dedicated user with two directories: `incoming/`, which the
+   upload key may write to, and `vault/`, which that key cannot reach. Put the upload key's public half
+   in that user's `authorized_keys` as
+   `restrict,command="rrsync -wo -no-del <path to incoming>" ssh-ed25519 AAAA...`
+   (rsync 3.2.7 on lc-main; check that `rrsync` on the homelab knows `-wo` and
+   `-no-del`). Run `deploy/backup/offsite-housekeeping.sh` from cron there with
+   `INCOMING` and `VAULT` set, and let cron mail its output to you.
+2. **Key, on the maintainer's own machine** (never on lc-main, never in the
+   repository, never in chat):
+
+   ```sh
+   age-keygen -o mielenosoitukset-backup.key
+   ```
+
+   It prints `Public key: age1...`. Keep `mielenosoitukset-backup.key` in a
+   password manager **and** on an offline copy. Send only the `age1...` line.
+3. **lc-main, as root:**
+
+   ```sh
+   apt install age
+   install -d -m 0700 /etc/mielenosoitukset
+   install -m 0600 /dev/null /etc/mielenosoitukset/backup-recipients.txt
+   echo 'age1...public key...' >> /etc/mielenosoitukset/backup-recipients.txt
+   ssh-keygen -t ed25519 -N '' -C mielenosoitukset-backup-upload -f /etc/mielenosoitukset/offsite_ed25519
+   ssh-keyscan -p <port> <homelab host> > /etc/mielenosoitukset/offsite_known_hosts
+   install -m 0600 /dev/null /etc/mielenosoitukset/backup.env   # then fill it in, see above
+   ```
+
+   Compare the fingerprint in `offsite_known_hosts` (`ssh-keygen -lf`) with the
+   homelab's own before trusting it. Copy `offsite_ed25519.pub` to the homelab
+   (step 1).
+4. **Units, on lc-main:**
+
+   ```sh
+   cp /var/www/mielenosoitukset_fi/deploy/backup/mielenosoitukset-*.{service,timer} /etc/systemd/system/
+   systemctl daemon-reload
+   systemctl start mielenosoitukset-offsite-copy.service     # first copy now (the newest archives)
+   journalctl -u mielenosoitukset-offsite-copy -n 20 --no-pager
+   systemctl enable --now mielenosoitukset-offsite-copy.timer mielenosoitukset-offsite-check.timer
+   ```
+
+5. **Test the alert once**, as root on lc-main:
+
+   ```sh
+   set -a; . /etc/mielenosoitukset/backup.env; set +a
+   MONITOR_UNIT=test.service /var/www/mielenosoitukset_fi/deploy/backup/backup-notify.py
+   ```
+
+   Confirm the mail arrives. Then run the housekeeping script on the homelab and
+   check that the first archive is accepted into the vault.
+6. **Prove the key** and the restore: do the OPS-02 restore drill (first real restore
+   from the off-site copy, see below) before relying on the off-site copy.
+
+### Revert
+
+Roll back by stopping and removing only what this adds; archives and the
+existing dump timers stay:
 
 ```sh
-install -d -m 0700 /var/backups/mielenosoitukset
-cp /var/www/mielenosoitukset_fi/deploy/backup/mielenosoitukset-*.{service,timer} /etc/systemd/system/
+systemctl disable --now mielenosoitukset-offsite-copy.timer mielenosoitukset-offsite-check.timer
+rm /etc/systemd/system/mielenosoitukset-offsite-*.{service,timer}
+cp ~/units-before/*.service /etc/systemd/system/
 systemctl daemon-reload
-systemctl start mielenosoitukset-mongodb-backup.service   # first run now
-journalctl -u mielenosoitukset-mongodb-backup -n 20 --no-pager
-ls -lh /var/backups/mielenosoitukset
-systemctl enable --now mielenosoitukset-mongodb-backup.timer mielenosoitukset-mongodb-backup-full.timer
 ```
 
-Roll back with `systemctl disable --now mielenosoitukset-mongodb-backup.timer
-mielenosoitukset-mongodb-backup-full.timer`. The archives stay where they are.
+Before step 4, save the three unit files that get replaced:
+`mkdir ~/units-before && cp /etc/systemd/system/mielenosoitukset-{mongodb-backup,mongodb-backup-full,backup-failed}.service ~/units-before/`.
+Remove the homelab user's `authorized_keys` line to revoke the upload key. Data
+already copied off-site can be deleted on the homelab at any time.
 
 The script needs `mongodump` and `mongorestore` (database tools 100.x, already on
-lc-main) and Python with PyYAML (already used by the app).
+lc-main) and Python with PyYAML (already used by the app). The off-site copy
+also needs `age` (apt package) and rsync (installed).
 
 ## Restore
 
 To a scratch database first. Never restore straight over production.
+
+From the local archive:
 
 ```sh
 mongorestore --config=<file with uri: "..."> --archive=/var/backups/mielenosoitukset/<file>.archive.gz --gzip \
   --nsFrom='mielenosoitukset.*' --nsTo='restore_check.*'
 ```
 
+From the **off-site copy** (needs the private key, on the maintainer's machine or
+a machine they trust; do this from the homelab vault file):
+
+```sh
+age -d -i mielenosoitukset-backup.key mielenosoitukset-core-<time>.archive.gz.age > restore.archive.gz
+gzip -t restore.archive.gz
+mongorestore --config=<file with uri: "..."> --archive=restore.archive.gz --gzip \
+  --nsFrom='mielenosoitukset.*' --nsTo='restore_check.*'
+```
+
+Check the file against its `.sha256` first (`sha256sum -c`). Delete `restore.archive.gz`
+afterwards: it is the unencrypted database.
+
 Compare document counts against production, then drop `restore_check`. A real
 recovery restores into `mielenosoitukset` only after the maintainer decides to.
 
 ## Still to decide (maintainer)
 
-1. **Off-site copy.** lc-main and lc-db may sit on the same physical host. Copy
-   the archives somewhere off that hardware (for example rclone or restic to
-   object storage) and decide on encryption keys and who holds them.
-2. **Alert channel.** Replace the `logger` line in
-   `mielenosoitukset-backup-failed.service` with Telegram, email or the
-   monitoring the team uses.
-3. **Recovery drill (OPS-02).** Restore one archive into a scratch database,
-   time it, and record the RPO (24 h with nightly dumps) and RTO.
-4. **The static snapshot job** on lc-main: fix or silence its nightly failure,
+1. ~~Off-site copy, encryption key holder, alert channel~~ decided 17 November
+   2026 (above). Open: the maintainer's go to install it, and the first
+   decryption test.
+2. **Recovery drill (OPS-02).** Restore one archive, local and off-site, into a
+   scratch database, time it, and record the RPO (24 h with nightly dumps) and
+   RTO.
+3. **The static snapshot job** on lc-main: fix or silence its nightly failure,
    which is outside this repository.

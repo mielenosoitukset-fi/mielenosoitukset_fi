@@ -1,0 +1,1 @@
+- The confirm and unsubscribe links in the fundraising reminder mails work again: `/keräys?muistutus=…` shows the confirm or remove button. Such links are not indexed by search engines.

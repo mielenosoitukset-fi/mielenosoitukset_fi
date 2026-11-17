@@ -126,27 +126,6 @@ export function fundraisingExtras(input: unknown, today: string = helsinkiToday(
     mobilepay_active: Number.isInteger(active) && active >= 1 ? active : 1 };
 }
 
-const icsText = (value: string) => value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
-
-/** An all-day reminder for the opening day. It holds no personal data. */
-export function fundraisingIcs(opensDate: string, pageUrl: string): string {
-  const compact = opensDate.replace(/-/g, '');
-  const [year, month, day] = opensDate.split('-').map(Number);
-  const next = new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10).replace(/-/g, '');
-  return [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Mielenosoitukset.fi//Pienkerays//FI', 'CALSCALE:GREGORIAN',
-    'BEGIN:VEVENT',
-    `UID:pienkerays-${compact}@mielenosoitukset.fi`,
-    `DTSTAMP:${compact}T000000Z`,
-    `DTSTART;VALUE=DATE:${compact}`,
-    `DTEND;VALUE=DATE:${next}`,
-    `SUMMARY:${icsText('Pienkeräys aukeaa')}`,
-    `DESCRIPTION:${icsText('Mielenosoitukset.fi:n pienkeräys alkaa. Tiedot: ' + pageUrl)}`,
-    `URL:${pageUrl}`,
-    'END:VEVENT', 'END:VCALENDAR', '',
-  ].join('\r\n');
-}
-
 /** The configuration without account and payment fields, for pages served before opening. */
 export function withoutAccount(data: Record<string, unknown>): Record<string, unknown> {
   const copy = { ...data };

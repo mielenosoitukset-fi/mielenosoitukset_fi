@@ -253,7 +253,7 @@ Test review runs alongside each milestone. Operations and privacy planning may p
 The PMC **Infrastructure and continuity work plan** owns the detailed OPS-001–OPS-010 documentation and subsequent live work. Reuse it; documentation completion does not prove live recovery.
 
 - [ ] **OPS-01 · P1:** Verify backup coverage/freshness, failure alert delivery, recovery access and ownership. Prepare measurable acceptance evidence for gaps.
-  - **13 November refresh:** core/full timers are installed and active and core archives exist. Off-site copy, alerts, first full-run evidence and a tested restore remain open; the old no-backup snapshot in `docs/backups.md` needs updating.
+  - **17 November refresh:** core/full timers are installed and active and core archives exist (13 November); `docs/backups.md` now says so. Off-site copy and key holder, alert channel and first full-run evidence remain open; the restore drill is OPS-02.
 - [ ] **OPS-02 · P1:** Conduct authorized isolated application/mail/full-service recovery exercises; record RPO/RTO, dependency order, rollback and reproducible server construction.
 - [ ] **OPS-03 · P2:** Review released Web Vitals only after minimum sample thresholds; correlate route/device percentiles with controlled measurements. Verify alert routing and job/email latency coverage.
 - [ ] **OPS-04 · P1:** Maintain exact-build deployment/rollback and CDN dependency contracts. Production, provider, credential, backup-policy, DNS and database mutations follow their established approval scope.
@@ -270,7 +270,7 @@ The PMC **Infrastructure and continuity work plan** owns the detailed OPS-001–
 
 ### Return visits and email subscriptions
 
-- [ ] **FUND-01 · P2 · Implementation complete; official details pending · Codex:** Fill-in-ready `/keräys` page for the planned €2,500 awareness campaign: official-detail placeholders, one JSON configuration, two MobilePay-link slots, optional header promotion and updated existing `/kampanja/` copy. Volunteer roles, confirmation guidance, accessible request feedback and JavaScript-disabled signup safeguards are implemented. Campaign/fundraising pages and the volunteer API require login by default until the authorized campaign-admin publication button is pressed; publication can be withdrawn and does not activate donations. Proposed 15.11.2026–15.2.2027 dates remain unconfirmed; planned 10.11 notification is not a completed filing. Donations remain closed until complete verified details, explicit activation and the valid period. Confirm MobilePay product suitability before publishing links. Server-rendered content/sitemap support the existing separate DR mirror; live date gating does not update a stale snapshot. See `docs/fundraising-page.md`. No deployment or actual payment acceptance claimed.
+- [ ] **FUND-01 · P2 · Live; collection open 16.11.2026–15.2.2027 (#1176, #1184) · Codex:** Fill-in-ready `/keräys` page for the planned €2,500 awareness campaign: official-detail placeholders, one JSON configuration, two MobilePay-link slots, optional header promotion and updated existing `/kampanja/` copy. Volunteer roles, confirmation guidance, accessible request feedback and JavaScript-disabled signup safeguards are implemented. Campaign/fundraising pages and the volunteer API require login by default until the authorized campaign-admin publication button is pressed; publication can be withdrawn and does not activate donations. Proposed 15.11.2026–15.2.2027 dates remain unconfirmed; planned 10.11 notification is not a completed filing. Donations remain closed until complete verified details, explicit activation and the valid period. Confirm MobilePay product suitability before publishing links. Server-rendered content/sitemap support the existing separate DR mirror; live date gating does not update a stale snapshot. See `docs/fundraising-page.md`. No deployment or actual payment acceptance claimed.
 
 Owner request added 2026-10-24. Schedule these P2 product workflows after the
 current P1 reliability/security work; recording them does not authorize a mailing
@@ -293,7 +293,7 @@ or automatically subscribe existing accounts.
 
 - [x] **CLEAN-01 · P3:** Orphan `list_legacy.html`, template `submit.css`, tracked backups and the unused legacy card renderer were removed after reference checks. Intentional Flask rollback templates and active static CSS remain. Completion recorded in `TODO.md`; source absence rechecked 13 November 2026.
 - [ ] **CLEAN-02 · P2:** Consolidate legacy palettes and shared hero geometry incrementally. Do not move all inline CSS into one unstructured stylesheet.
-- [ ] **CLEAN-03 · P2:** Reconcile open dependency PRs with compatibility/security evidence; retire stale branches/PRs only with the appropriate authority.
+- [ ] **CLEAN-03 · P2:** Reconcile open dependency PRs with compatibility/security evidence; retire stale branches/PRs only with the appropriate authority. #948, #527, #457 and #445 closed 17 November 2026; #440, #849, #617, #599 and #1011 still to decide.
 - [ ] **CLEAN-04 · P2:** Keep a finite exception list for dynamic styles/variables and an enforceable CSS/asset-cache contract.
 
 ## Test-by-test review programme
@@ -351,7 +351,7 @@ Test review proceeds beside each delivery batch: review its existing tests befor
 | DATA-01 | P1 | In progress | Codex | M2 | #920–#924 and bounded pagination/automatic loading #927–#928 are merged. Broader integration, legacy data and release acceptance remain pending. |
 | UI-01 | P1 | In progress | Codex | M2 | Search labels/picker and #929/#930 cropper/autocomplete are merged in main 6ef40610. Whole-wizard, broader browser/assistive-technology and release acceptance remain pending. |
 | DATA-02 | P1 | Backlog | Unassigned | M3 | Verify #908 and analytics worker fencing/rebuild pruning; do not conflate this with installed database backups. |
-| OPS-01 | P1 | Partial | Unassigned | M3 | Core/full backup timers active and core archives verified 13 November. Off-site copy, alerts, first full-run evidence and recovery ownership remain; restore drill is OPS-02. |
+| OPS-01 | P1 | Partial | Unassigned | M3 | Core/full backup timers active and core archives verified 13 November (docs updated 17 November). Off-site copy, alerts, first full-run evidence and recovery ownership remain; restore drill is OPS-02. |
 | ACCEPT-01 | P1 | Backlog | Unassigned | M6 | Depends on delivered milestones and completed per-test reviews. |
 | UI-02a | P2 | Merged | Codex | M2/M4 | Footer padding is inside width; card title/address/tag text can wrap. Empty/populated route/theme/viewport and keyboard controls validate this slice; 93 combined cases pass; broader UI-02 acceptance remains open. |
 | UI-02b | P2 | Merged | Codex | M2/M4 | Depends on #936. Shared hero geometry/mobile typography with no fixed-min-width or nowrap conflict; 117 focused cases pass, including 24 actual SSR cases. Wider product acceptance remains open. |

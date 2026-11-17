@@ -59,6 +59,11 @@ def configure(source, target):
         # separate switch, off by default, and only with the bridge on.
         if config.get("DEVELOPER_WRITES") is True:
             values["DEVELOPER_WRITES_ENABLED"] = "true"
+    # Public profile reads (docs/account-pages-react.md): GET /api/profile/<username>.
+    # Its own switch, off by default and independent of the bridge; the own and
+    # viewer parts of the answer appear only when the bridge is on as well.
+    if config.get("PROFILE_READS") is True:
+        values["PROFILE_READS_ENABLED"] = "true"
     # The fundraising details file (docs/go-fundraising-details.md) used to be
     # added to the environment by hand and was lost at the next deploy. Keep it
     # whenever the file exists; `FUNDRAISING_DETAILS_FILE` in config.yaml

@@ -9,6 +9,7 @@ fails until the fixture is regenerated and the Go port is brought along:
     UPDATE_GO_FIXTURES=1 python -m pytest tests/test_go_suggestion_parity.py
 """
 
+import importlib
 import json
 import os
 from datetime import datetime
@@ -19,7 +20,6 @@ from bson import ObjectId
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from mielenosoitukset_fi import basic_routes
-from mielenosoitukset_fi.emailer.EmailSender import EmailSender
 from mielenosoitukset_fi.utils.content_formatting import html_to_markdown, markdown_to_html
 
 FIXTURE = Path(__file__).resolve().parent.parent / "go-api" / "testdata" / "suggestion_parity.json"
@@ -178,10 +178,15 @@ def _post_data(form):
 def captured_mail(monkeypatch):
     calls = []
 
-    def capture(self, template_name, subject, recipients, context, **kwargs):
+    def capture(template_name, subject, recipients, context, **kwargs):
         calls.append({"template": template_name, "subject": subject, "recipients": recipients, "context": context, "kwargs": kwargs})
 
-    monkeypatch.setattr(EmailSender, "queue_email", capture, raising=True)
+    # The handlers call the module-level instance, which other tests may have
+    # swapped or stubbed, so patch the instance they actually use.
+    # Other tests reload the module, so resolve it at call time, not import time.
+    current = importlib.import_module("mielenosoitukset_fi.basic_routes")
+    monkeypatch.setattr(current.email_sender, "queue_email", capture, raising=False)
+    monkeypatch.setattr(type(current.email_sender), "queue_email", lambda self, *a, **k: capture(*a, **k), raising=False)
     return calls
 
 
