@@ -1,0 +1,21 @@
+[Unit]
+Description=Encrypt and copy the newest MongoDB backups off-site for mielenosoitukset.fi
+After=network-online.target
+Wants=network-online.target
+OnFailure=mielenosoitukset-backup-failed.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/mielenosoitukset/backup.env
+StateDirectory=mielenosoitukset-backup
+StateDirectoryMode=0700
+ExecStart=/var/www/mielenosoitukset_fi/deploy/backup/offsite-copy.sh
+# About 420 MB at the 2 MiB/s cap is about 4 minutes.
+RuntimeMaxSec=3600
+Nice=10
+IOSchedulingClass=idle
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/backups/mielenosoitukset
+ReadOnlyPaths=/var/www/mielenosoitukset_fi

@@ -293,6 +293,9 @@ try {
       mobilepay_links: [], end_date: dayHelsinki(60) };
     // Pre-launch: first day is tomorrow. No account, noindex, calendar download only.
     fundState = { status: 200, body: { ...closedFund, start_date: dayHelsinki(1) } };
+    const reminderLink = await fundraising({ search: '?muistutus=vahvista' });
+    assert.equal(reminderLink.headers['X-Robots-Tag'], 'noindex, nofollow', 'Reminder links are never indexed');
+    assert.match(reminderLink.html, /<meta name="robots" content="noindex, nofollow" \/>/);
     const pre = await fundraising();
     assert.equal(pre.status, 200, 'Public without login or campaign publication');
     assert.equal(pre.headers['Cache-Control'], 'private, no-store');
@@ -336,7 +339,7 @@ try {
     for (const path of ['/ker%C3%A4ys', '/keräys']) assert.equal((await fundraising({ path })).status, 200, path);
   } finally { campaignApi.close(); }
   console.log('PASS: campaign keeps the publication gate; fundraising is public with a pre-launch state that hides the account and is noindex until the first collection day');
-  const { fundraisingDetails, fundraisingExtras, activeMobilepayUrl } = await import(pathToFileURL(`${root}/frontend/dist/server/render.js`));
+  const { fundraisingDetails, fundraisingExtras, activeMobilepayUrl, readReminderLink } = await import(pathToFileURL(`${root}/frontend/dist/server/render.js`));
   const parity = JSON.parse(readFileSync(`${root}/tests/fixtures/fundraising_parity.json`, "utf8"));
   for (const item of parity) {
     const got = fundraisingDetails(item.input, item.today);
@@ -358,6 +361,12 @@ try {
   assert.equal(fundraisingExtras({ mobilepay_active: 2 }).mobilepay_active, 2);
   assert.equal(fundraisingExtras({ mobilepay_active: 'x' }).mobilepay_active, 1);
   assert.equal(fundraisingExtras({ mobilepay_active: 0 }).mobilepay_active, 1);
+  // The links the reminder mails send (mielenosoitukset_fi/utils/fundraising_reminder.py).
+  const mailLink = (url) => { const u = new URL(url); return readReminderLink(u.search, u.hash); };
+  assert.deepEqual(mailLink('https://example.test/ker%C3%A4ys?muistutus=vahvista#t=abc'), { mode: 'vahvista', token: 'abc' });
+  assert.deepEqual(mailLink('https://example.test/ker%C3%A4ys?muistutus=peru#t=abc'), { mode: 'peru', token: 'abc' });
+  assert.equal(mailLink('https://example.test/ker%C3%A4ys?muistutus=muu#t=abc'), null);
+  assert.equal(mailLink('https://example.test/ker%C3%A4ys'), null);
   console.log(`PASS: fundraising rules match the Python implementation on ${parity.length} shared cases`);
 } finally {
   await new Promise(resolve => sessionServer.close(resolve));

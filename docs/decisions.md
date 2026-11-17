@@ -296,3 +296,31 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
 ## Lockdown gate when the status read fails
 
 - **A failed lockdown read no longer closes the site (2026-11-17).** The shared public gate (Go API, React host, Flask; collection `panic`) used to fail closed after 30 seconds without a successful read, so a slow database closed the whole site on 17.11.2026 at 09:31 and 09:34–09:43 Helsinki although no lockdown was set ([investigation](investigations/site-503-2026-11.md)). Rule in all three implementations: a successful read that says locked applies at once and is sticky (a failed read never reopens a locked site); after a successful "not locked" read a failed read keeps that answer for 15 minutes (`PUBLIC_GATE_STALE_SECONDS`) and then closes; a process with no successful answer yet (restart during an outage) stays open; the local emergency override closes the gate on every failed read, in any state (`PUBLIC_LOCKDOWN_OVERRIDE=closed` or the file `PUBLIC_LOCKDOWN_OVERRIDE_FILE`, default `/etc/mielenosoitukset/lockdown-override`). Read failures are logged (at most one line per 30 seconds, with a count since start). Trade-off: a database outage cannot be used to bypass a lockdown, because the lockdown lives in the same database, a locked answer is sticky, and a new lockdown cannot be written while the database is down; the cost is that during an outage a lockdown set from another process or just before a restart is applied only once a read succeeds, or through the override.
+
+- **Off-site backup copy and e-mail alerts (2026-11-17).** The maintainer decided
+  (1) the off-site copy is an encrypted copy to their homelab, (2) the maintainer
+  alone holds the encryption key, (3) backup failures alert by e-mail to the
+  maintainer. Built as: `age` encryption on lc-main with a public recipient key
+  only (the private key is never on the server or in the repository), rsync over
+  SSH with a restricted write-only key to a landing directory, a receiving-side
+  script that moves verified archives to a vault and applies the off-site
+  retention (30 days core, 90 days full), a freshness check that alerts when the
+  last off-site core copy is older than 36 hours (full: 9 days), and
+  `backup-notify.py` replacing the log-only `OnFailure` line (site SMTP account,
+  recipient from `/etc/mielenosoitukset/backup.env`). Hostnames, keys and the
+  address live only on the servers. Losing the private key makes the off-site
+  copies unreadable, so the maintainer keeps a second copy. Install and revert:
+  [backups.md](backups.md). Not installed until the maintainer says go.
+
+- **Dumps must never hurt the site; no ad-hoc daytime dumps (2026-11-17).** An
+  ad-hoc core dump made lc-db's network stack saturate (ksoftirqd 100 %, 50 %
+  packet loss) and the site answered 503. Maintainer: "ship a bit slower rather
+  than the site going down". Rules: (1) dumps run only 03:00-05:00 Helsinki, from
+  the timers (01:30 UTC), never by hand by day; (2) they are throttled (`pv`,
+  default 1 MiB/s compressed), read one collection at a time, never overlap, and
+  skip with an alert mail when lc-db ping is already high; (3) activations and
+  migrations back up with the latest nightly archive plus a `mongoexport` of only
+  the touched collections, not a new dump; (4) the weekly full dump becomes monthly
+  if a watched run shows it cannot be made gentle. The rate is unmeasured until a
+  watched run with the maintainer's go. Dumping on lc-db with `rsync --bwlimit` is
+  the documented next step, not built. See [backups.md](backups.md).

@@ -1,0 +1,1 @@
+- The public profile page `/users/profile/<username>` now has a React version and a Go read route (`GET /api/profile/<username>`). It ships dark: it needs `PROFILE_READS: true` in `config.yaml` and the commented Apache rules, so visitors see no change until it is activated.
