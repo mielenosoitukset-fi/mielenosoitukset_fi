@@ -1,0 +1,1 @@
+- Backups: added an encrypted off-site copy of the MongoDB backups (age encryption, public key only on the server, rsync to the maintainer's homelab), a freshness check, and e-mail alerts when a backup step fails or the off-site copy is older than about 36 hours. Operator-only; nothing changes for visitors, and nothing runs until it is installed (docs/backups.md).

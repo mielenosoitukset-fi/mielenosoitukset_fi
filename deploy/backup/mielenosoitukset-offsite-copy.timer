@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily catch-up for the off-site MongoDB backup copy
+
+# The copy normally starts right after each backup (OnSuccess= in the backup
+# services). This timer retries anything that failed or was missed; the ledger
+# makes a second run a no-op.
+[Timer]
+OnCalendar=*-*-* 05:15:00 UTC
+RandomizedDelaySec=10m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

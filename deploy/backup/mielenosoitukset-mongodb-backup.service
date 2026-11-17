@@ -3,6 +3,8 @@ Description=Nightly core MongoDB backup for mielenosoitukset.fi (without audit l
 After=network-online.target
 Wants=network-online.target
 OnFailure=mielenosoitukset-backup-failed.service
+# Start the encrypted off-site copy once the dump is verified (systemd 249+).
+OnSuccess=mielenosoitukset-offsite-copy.service
 
 [Service]
 Type=oneshot
