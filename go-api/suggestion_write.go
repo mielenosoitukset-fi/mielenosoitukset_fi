@@ -262,6 +262,12 @@ func redirectTo(w http.ResponseWriter, location string) {
 	w.WriteHeader(http.StatusFound)
 }
 
+// formURL sends the visitor back to the form with a notice flag the React
+// page turns into a message, since Go cannot set Flask's flash cookie.
+func (s *suggestionWrites) formURL(rawID, notice string) string {
+	return s.origin + "/suggest_change/" + url.PathEscape(rawID) + "?suggestion=" + notice
+}
+
 func (s *suggestionWrites) mailJob(subject, html string) bson.D {
 	return bson.D{
 		{Key: "subject", Value: subject}, {Key: "recipients", Value: bson.A{suggestionRecipient}},
@@ -386,7 +392,7 @@ func (s *suggestionWrites) saveOrganization(ctx context.Context, w http.Response
 		// Flask's non-strict queue_email logs and still reports success.
 		log.Printf("Moderator mail not queued (%s)", dbErrorKind(err))
 	}
-	redirectTo(w, "/organization/"+rawID)
+	redirectTo(w, "/organization/"+rawID+"?suggestion=saved")
 }
 
 // ---------------------------------------------------------------- demonstration
@@ -469,7 +475,7 @@ func (s *suggestionWrites) saveDemonstration(ctx context.Context, w http.Respons
 	}
 	description := analyticsTrim(formValue(r, "description_markdown"))
 	if len(description) > suggestionMaxMarkdown {
-		writeError(w, http.StatusRequestEntityTooLarge, "description too long")
+		redirectTo(w, s.formURL(rawID, "too_long"))
 		return
 	}
 	storedDescription, _ := demoField(demo, "description")
@@ -484,7 +490,7 @@ func (s *suggestionWrites) saveDemonstration(ctx context.Context, w http.Respons
 	}
 	comment, reporterMail := analyticsTrim(formValue(r, "reporter_comment")), analyticsTrim(formValue(r, "reporter_email"))
 	if len(suggested) == 0 && comment == "" {
-		redirectTo(w, s.origin+r.URL.RequestURI())
+		redirectTo(w, s.formURL(rawID, "empty"))
 		return
 	}
 	now := s.now().UTC().Truncate(time.Millisecond)
@@ -504,7 +510,7 @@ func (s *suggestionWrites) saveDemonstration(ctx context.Context, w http.Respons
 	}
 	if err := s.store.InsertDemoSuggestion(ctx, doc); err != nil {
 		log.Printf("Demonstration suggestion save failed (%s)", dbErrorKind(err))
-		redirectTo(w, s.origin+r.URL.RequestURI())
+		redirectTo(w, s.formURL(rawID, "failed"))
 		return
 	}
 	changes := []demoMailChange{}
@@ -520,7 +526,7 @@ func (s *suggestionWrites) saveDemonstration(ctx context.Context, w http.Respons
 	if err := s.store.QueueMail(ctx, s.mailJob("Uusi ehdotus mielenosoitukselle: "+pyStrIfPresentNone(title, present), html)); err != nil {
 		log.Printf("Moderator mail not queued (%s)", dbErrorKind(err))
 	}
-	redirectTo(w, "/demonstration/"+url.PathEscape(rawID))
+	redirectTo(w, "/demonstration/"+url.PathEscape(rawID)+"?suggestion=sent")
 }
 
 // pyStrIfPresentNone is demo_doc.get("title") inside an f-string: a missing key prints None.

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { suggestionLead, suggestionTitle, type SuggestionDemo } from './suggest-change';
 import ListEditor from './suggest-change/ListEditor';
 import MarkdownPreview from './suggest-change/MarkdownPreview';
+import { SuggestionNoticeBanner } from './suggestion-notice';
 import './information/information.css';
 import './suggest-change/suggest-change.css';
 
@@ -50,6 +51,7 @@ export default function SuggestChangeScreen({ demo }: { demo: SuggestionDemo }) 
       <h1 className="public-page-header__title" id="suggest-change-title">{suggestionTitle}</h1>
       <p className="public-page-header__description">{suggestionLead}</p>
     </div></header>
+    <SuggestionNoticeBanner />
     {notices.map((notice, index) => <div key={index} className={`flash-message flash-message--inline flash-${notice.category}`}
       role={notice.category === 'error' ? 'alert' : 'status'}><span className="flash-text">{notice.message}</span></div>)}
     <section className="public-prose-card suggest-change-summary">

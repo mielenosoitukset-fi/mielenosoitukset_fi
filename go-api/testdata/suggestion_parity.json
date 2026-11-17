@@ -939,6 +939,6008 @@
    "same": false
   }
  ],
+ "markdown_fuzz": [
+  {
+   "input": "_b([]* ## ]1. & amailto:a@b.fi1. ",
+   "html": "<p>_b([]* ## ]1. &amp; amailto:a@b.fi1.</p>"
+  },
+  {
+   "input": "# <](&#106;avascript:1)*'",
+   "html": "<h1>&lt;](&amp;#106;avascript:1)*&#x27;</h1>"
+  },
+  {
+   "input": "> <`**## &#106;avascript:&#106;avascript:!===!**data:",
+   "html": "<p>&gt; &lt;`<strong>## &amp;#106;avascript:&amp;#106;avascript:!===!</strong>data:</p>"
+  },
+  {
+   "input": "_x_[x]: http://y.fi__===",
+   "html": "<p><em>x</em>[x]: http://y.fi__===</p>"
+  },
+  {
+   "input": "&#60;script&#62;&#60;script&#62;&#106;avascript:[!\n\n**  data:  ",
+   "html": "<p>&amp;#60;script&amp;#62;&amp;#60;script&amp;#62;&amp;#106;avascript:[!</p>\n<p>**  data:</p>"
+  },
+  {
+   "input": "***",
+   "html": "<hr>"
+  },
+  {
+   "input": "`*=# ](&#106;avascript:1)ä[x]: http://y.fi&#60;script&#62;__",
+   "html": "<p>`*=# ](&amp;#106;avascript:1)ä[x]: http://y.fi&amp;#60;script&amp;#62;__</p>"
+  },
+  {
+   "input": "*     =(a)",
+   "html": "<ul>\n<li>=(a)</li>\n</ul>"
+  },
+  {
+   "input": "__1. [x](javascript:alert(1))1. _](>    *<script>__> javascript:'",
+   "html": "<p><strong>1. <a>x</a>1. _](&gt;    *&lt;script&gt;</strong>&gt; javascript:&#x27;</p>"
+  },
+  {
+   "input": "## >]* [x]: http://y.fi=a(a)    2. [ä",
+   "html": "<h2>&gt;]* [x]: http://y.fi=a(a)    2. [ä</h2>"
+  },
+  {
+   "input": "1. &#106;avascript:&#106;avascript:***\\mailto:a@b.fia",
+   "html": "<ol>\n<li>&amp;#106;avascript:&amp;#106;avascript:***\\mailto:a@b.fia</li>\n</ol>"
+  },
+  {
+   "input": "_x_# ](&#60;script&#62;",
+   "html": "<p><em>x</em># ](&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "`=*y**y*&#60;script&#62;'`(a)===*'](#",
+   "html": "<p><code>=*y**y*&amp;amp;#60;script&amp;amp;#62;&amp;#x27;</code>(a)===*&#x27;](#</p>"
+  },
+  {
+   "input": "# \n* ",
+   "html": "<h1></h1>\n<p>*</p>"
+  },
+  {
+   "input": "mailto:a@b.fi<script> [- >1. # ' ---2. __",
+   "html": "<p>mailto:a@b.fi&lt;script&gt; [- &gt;1. # &#x27; ---2. __</p>"
+  },
+  {
+   "input": "data:]>*y*+ javascript:>\n<[x]: http://y.fi[_",
+   "html": "<p>data:]&gt;<em>y</em>+ javascript:&gt;<br>\n&lt;[x]: http://y.fi[_</p>"
+  },
+  {
+   "input": "(*y*  [x](javascript:alert(1))<- *y*\\\\\\!http://x.fi*y*",
+   "html": "<p>(<em>y</em>  <a>x</a>&lt;- <em>y</em>\\!http://x.fi<em>y</em></p>"
+  },
+  {
+   "input": "word)- _x_> &#60;script&#62;&#106;avascript:&#106;avascript:_x_[_x_<script>",
+   "html": "<p>word)- <em>x</em>&gt; &amp;#60;script&amp;#62;&amp;#106;avascript:&amp;#106;avascript:<em>x</em>[<em>x</em>&lt;script&gt;</p>"
+  },
+  {
+   "input": "_a",
+   "html": "<p>_a</p>"
+  },
+  {
+   "input": "+ ",
+   "html": "<p>+</p>"
+  },
+  {
+   "input": "## *y*+ ",
+   "html": "<h2><em>y</em>+</h2>"
+  },
+  {
+   "input": "(a)* *y**y*#b---    ",
+   "html": "<p>(a)<em> </em>y*<em>y</em>#b---</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))---    _x_",
+   "html": "<p><a>x</a>---    <em>x</em></p>"
+  },
+  {
+   "input": "](&#106;avascript:1)\\    data:>*** *y*&#x6a;avascript:ä[",
+   "html": "<p>](&amp;#106;avascript:1)\\    data:&gt;*<em><em> </em>y</em>&amp;#x6a;avascript:ä[</p>"
+  },
+  {
+   "input": "[x]: http://y.fi\"\n*word- &#x6a;avascript:=`](__",
+   "html": "<p>*word- &amp;#x6a;avascript:=`](__</p>"
+  },
+  {
+   "input": "](=']* javascript:bb](javascript:&#60;script&#62;",
+   "html": "<p>](=&#x27;]* javascript:bb](javascript:&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "---\n\n'&#60;script&#62;>\n===",
+   "html": "<hr>\n<h1>&#x27;&amp;#60;script&amp;#62;&gt;</h1>"
+  },
+  {
+   "input": ">## + ",
+   "html": "<p>&gt;## +</p>"
+  },
+  {
+   "input": "__[- ]( data:2. *`",
+   "html": "<p>__[- ]( data:2. *`</p>"
+  },
+  {
+   "input": "+ \t# http://x.fi\"",
+   "html": "<ul>\n<li>\n<h1>http://x.fi&quot;</h1>\n</li>\n</ul>"
+  },
+  {
+   "input": "]&#x6a;avascript:#'==",
+   "html": "<p>]&amp;#x6a;avascript:#&#x27;==</p>"
+  },
+  {
+   "input": "]\n*\"*y*data:>  word",
+   "html": "<p>]<br>\n<em>&quot;</em>y*data:&gt;  word</p>"
+  },
+  {
+   "input": "data:=\n\n",
+   "html": "<p>data:=</p>"
+  },
+  {
+   "input": "===(*y*---([>",
+   "html": "<p>===(<em>y</em>---([&gt;</p>"
+  },
+  {
+   "input": "## ](* ## 2. ",
+   "html": "<h2>](* ## 2.</h2>"
+  },
+  {
+   "input": "](javascript:* !&",
+   "html": "<p>](javascript:* !&amp;</p>"
+  },
+  {
+   "input": "mailto:a@b.fi>\t## )- ",
+   "html": "<p>mailto:a@b.fi&gt;   ## )-</p>"
+  },
+  {
+   "input": "http://x.fi# &#106;avascript:\\[x](data:text/html,1)* #+ ",
+   "html": "<p>http://x.fi# &amp;#106;avascript:[x](data:text/html,1)* #+</p>"
+  },
+  {
+   "input": "    ",
+   "html": ""
+  },
+  {
+   "input": "\t- b](&#106;avascript:1)'*`http://x.fi",
+   "html": "<ul>\n<li>b](&amp;#106;avascript:1)&#x27;*`http://x.fi</li>\n</ul>"
+  },
+  {
+   "input": "===* amailto:a@b.fi***>(a)<script>#]\n\nmailto:a@b.fi",
+   "html": "<p>===<em> amailto:a@b.fi</em>**&gt;(a)&lt;script&gt;#]</p>\n<p>mailto:a@b.fi</p>"
+  },
+  {
+   "input": "(&#60;script&#62;",
+   "html": "<p>(&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "***=>*y***\"+ \n\na'> \n+ ",
+   "html": "<p><strong><em>=&gt;</em>y</strong>*&quot;+ </p>\n<p>a&#x27;&gt; <br>\n+</p>"
+  },
+  {
+   "input": "\t2. data:](!* !><script>+ )http://x.fi+ \"",
+   "html": "<ol>\n<li>data:](!* !&gt;&lt;script&gt;+ )http://x.fi+ &quot;</li>\n</ol>"
+  },
+  {
+   "input": "_x_ä",
+   "html": "<p>_x_ä</p>"
+  },
+  {
+   "input": "http://x.fi",
+   "html": "<p>http://x.fi</p>"
+  },
+  {
+   "input": "data:!_x_](**]__[x](data:text/html,1)(a)bhttp://x.fi [x]: http://y.fi#",
+   "html": "<p>data:!<em>x</em>](**]__<a>x</a>(a)bhttp://x.fi [x]: http://y.fi#</p>"
+  },
+  {
+   "input": "]\"\\",
+   "html": "<p>]&quot;\\</p>"
+  },
+  {
+   "input": "# javascript:\\>",
+   "html": "<h1>javascript:\\&gt;</h1>"
+  },
+  {
+   "input": "#2. ",
+   "html": "<h1>2.</h1>"
+  },
+  {
+   "input": "_1. b\n&#106;avascript:",
+   "html": "<p>_1. b<br>\n&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "_x_a__\\\t'* ***",
+   "html": "<p>_x_a__\\ &#x27;* ***</p>"
+  },
+  {
+   "input": "\t",
+   "html": ""
+  },
+  {
+   "input": "](# mailto:a@b.fi>",
+   "html": "<p>](# mailto:a@b.fi&gt;</p>"
+  },
+  {
+   "input": "]](",
+   "html": "<p>]](</p>"
+  },
+  {
+   "input": "===]ädata:)[x](data:text/html,1)[x](data:text/html,1)<script>&#106;avascript:_x_data:)*y*&",
+   "html": "<p>===]ädata:)<a>x</a><a>x</a>&lt;script&gt;&amp;#106;avascript:_x_data:)<em>y</em>&amp;</p>"
+  },
+  {
+   "input": ">===)<script>\nhttp://x.fi\t",
+   "html": "<p>&gt;===)&lt;script&gt;<br>\nhttp://x.fi</p>"
+  },
+  {
+   "input": "mailto:a@b.fi  >[x]: http://y.fi<]('worda]***    >***",
+   "html": "<p>mailto:a@b.fi  &gt;[x]: http://y.fi&lt;](&#x27;worda]<strong><em>    &gt;</em></strong></p>"
+  },
+  {
+   "input": "&#x6a;avascript: \\&#106;avascript:&(a)+  ***>\n\n",
+   "html": "<p>&amp;#x6a;avascript: \\&amp;#106;avascript:&amp;(a)+  ***&gt;</p>"
+  },
+  {
+   "input": "* '\\",
+   "html": "<ul>\n<li>&#x27;\\</li>\n</ul>"
+  },
+  {
+   "input": "data:------> \n\n&#60;script&#62;'  data:",
+   "html": "<p>data:------&gt; </p>\n<p>&amp;#60;script&amp;#62;&#x27;  data:</p>"
+  },
+  {
+   "input": "_x_ `2. (a)`    # ]2. ](> ",
+   "html": "<p><em>x</em> <code>2. (a)</code>    # ]2. ](&gt;</p>"
+  },
+  {
+   "input": "\n\n_",
+   "html": "<p>_</p>"
+  },
+  {
+   "input": "#  <(a)[x](javascript:alert(1))__ä* ",
+   "html": "<h1>&lt;(a)<a>x</a>__ä*</h1>"
+  },
+  {
+   "input": "](&#106;avascript:1)<script>+ &#60;script&#62;data:_x_===#&#106;avascript:[x](javascript:alert(1))`",
+   "html": "<p>](&amp;#106;avascript:1)&lt;script&gt;+ &amp;#60;script&amp;#62;data:<em>x</em>===#&amp;#106;avascript:<a>x</a>`</p>"
+  },
+  {
+   "input": "<&#60;script&#62;** ](mailto:a@b.fi](&#106;avascript:1)[x]: http://y.fi",
+   "html": "<p>&lt;&amp;#60;script&amp;#62;** ](mailto:a@b.fi](&amp;#106;avascript:1)[x]: http://y.fi</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)## ===\n__",
+   "html": "<p><a>x</a>## ===<br>\n__</p>"
+  },
+  {
+   "input": "\n\n&* '1. *y*[x]: http://y.fib**y*",
+   "html": "<p>&amp;<em> &#x27;1. </em>y<em>[x]: http://y.fib</em><em>y</em></p>"
+  },
+  {
+   "input": "_x_",
+   "html": "<p><em>x</em></p>"
+  },
+  {
+   "input": "**+ \n\n&#60;script&#62;](  `data:http://x.fi***!",
+   "html": "<p>**+ </p>\n<p>&amp;#60;script&amp;#62;](  `data:http://x.fi***!</p>"
+  },
+  {
+   "input": "\t)'\n\na",
+   "html": "<p>)&#x27;</p>\n<p>a</p>"
+  },
+  {
+   "input": "äb <script>>=- '**",
+   "html": "<p>äb &lt;script&gt;&gt;=- &#x27;**</p>"
+  },
+  {
+   "input": "\n\n[x](data:text/html,1)+ - &#x6a;avascript:]\"***  <script><script># ",
+   "html": "<p><a>x</a>+ - &amp;#x6a;avascript:]&quot;***  &lt;script&gt;&lt;script&gt;#</p>"
+  },
+  {
+   "input": "- **\t",
+   "html": "<ul>\n<li>**</li>\n</ul>"
+  },
+  {
+   "input": "!    <&#106;avascript:##  _\\*y*\t1. b\n_x_",
+   "html": "<p>!    &lt;&amp;#106;avascript:##  <em>*y*  1. b<br>\n_x</em></p>"
+  },
+  {
+   "input": "\n\n](&#106;avascript:1)* ***  + 1. ",
+   "html": "<p>](&amp;#106;avascript:1)* ***  + 1.</p>"
+  },
+  {
+   "input": "---<script>](&#106;avascript:1)[x](javascript:alert(1))\n(a)[+ (a)2. wordmailto:a@b.fi===",
+   "html": "<p>---&lt;script&gt;](&amp;#106;avascript:1)<a>x</a><br>\n(a)[+ (a)2. wordmailto:a@b.fi===</p>"
+  },
+  {
+   "input": "_x_---__word]mailto:a@b.fi2. > javascript:- \\\"&#60;script&#62;***",
+   "html": "<p><em>x</em>---__word]mailto:a@b.fi2. &gt; javascript:- \\&quot;&amp;#60;script&amp;#62;***</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)&&#x6a;avascript:===- http://x.fi---+ )",
+   "html": "<p><a>x</a>&amp;&amp;#x6a;avascript:===- http://x.fi---+ )</p>"
+  },
+  {
+   "input": "# data:b* =2. !\\ä",
+   "html": "<h1>data:b* =2. !\\ä</h1>"
+  },
+  {
+   "input": "&)",
+   "html": "<p>&amp;)</p>"
+  },
+  {
+   "input": "===javascript:=&#106;avascript:# >",
+   "html": "<p>===javascript:=&amp;#106;avascript:# &gt;</p>"
+  },
+  {
+   "input": "[x]: http://y.fi    _+ #][_x_---bmailto:a@b.fi(",
+   "html": "<p>[x]: http://y.fi    <em>+ #][_x</em>---bmailto:a@b.fi(</p>"
+  },
+  {
+   "input": "a_x_[x](data:text/html,1)[x](javascript:alert(1))",
+   "html": "<p>a_x_<a>x</a><a>x</a></p>"
+  },
+  {
+   "input": "]",
+   "html": "<p>]</p>"
+  },
+  {
+   "input": "=ä!`a](1. &#x6a;avascript:=* a=",
+   "html": "<p>=ä!`a](1. &amp;#x6a;avascript:=* a=</p>"
+  },
+  {
+   "input": "&#106;avascript:> - &http://x.fi[x]: http://y.fi---\\",
+   "html": "<p>&amp;#106;avascript:&gt; - &amp;http://x.fi[x]: http://y.fi---\\</p>"
+  },
+  {
+   "input": "====**ä*",
+   "html": "<p>====*<em>ä</em></p>"
+  },
+  {
+   "input": "&#x6a;avascript:**](&#106;avascript:1)## &#x6a;avascript:)!](*y**y*",
+   "html": "<p>&amp;#x6a;avascript:<strong>](&amp;#106;avascript:1)## &amp;#x6a;avascript:)!](*y</strong>y*</p>"
+  },
+  {
+   "input": "\n      ## http://x.fi[x]: http://y.fi`*y*(]( **",
+   "html": "<h2>http://x.fi[x]: http://y.fi`<em>y</em>(]( **</h2>"
+  },
+  {
+   "input": "<script>&#60;script&#62;* ](\t# [x](javascript:alert(1))(\tä***&",
+   "html": "<p>&lt;script&gt;&amp;#60;script&amp;#62;<em> ](  # <a>x</a>( ä</em>**&amp;</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)word]_x_*y*b!***\n*****2. *#",
+   "html": "<p>](&amp;#106;avascript:1)word]<em>x</em><em>y</em>b!<strong><em><br>\n</em></strong>*<em>2. </em>#</p>"
+  },
+  {
+   "input": "'ä ",
+   "html": "<p>&#x27;ä</p>"
+  },
+  {
+   "input": "\"\"\n\n\n<",
+   "html": "<p>&quot;&quot;</p>\n<p>&lt;</p>"
+  },
+  {
+   "input": "(",
+   "html": "<p>(</p>"
+  },
+  {
+   "input": "2. ===  ](&#106;avascript:1)](&#106;avascript:1)&#60;script&#62;",
+   "html": "<ol>\n<li>===  ](&amp;#106;avascript:1)](&amp;#106;avascript:1)&amp;#60;script&amp;#62;</li>\n</ol>"
+  },
+  {
+   "input": "&(a)****> [x]: http://y.fi* &#60;script&#62;&#106;avascript:!> [x](javascript:alert(1))]",
+   "html": "<p>&amp;(a)***<em>&gt; [x]: http://y.fi</em> &amp;#60;script&amp;#62;&amp;#106;avascript:!&gt; <a>x</a>]</p>"
+  },
+  {
+   "input": "1. )javascript:\"[x](data:text/html,1)\\&#106;avascript:b  [x](javascript:alert(1))http://x.fi*y*",
+   "html": "<ol>\n<li>)javascript:&quot;<a>x</a>\\&amp;#106;avascript:b  <a>x</a>http://x.fi<em>y</em></li>\n</ol>"
+  },
+  {
+   "input": "\n\n    &#60;script&#62;_x_]`",
+   "html": "<p>&amp;#60;script&amp;#62;<em>x</em>]`</p>"
+  },
+  {
+   "input": "# __ &#x6a;avascript:&#60;script&#62;  word'ä> ",
+   "html": "<h1>__ &amp;#x6a;avascript:&amp;#60;script&amp;#62;  word&#x27;ä&gt;</h1>"
+  },
+  {
+   "input": "&#60;script&#62;](b***    a[x](data:text/html,1)#*\t&#106;avascript:",
+   "html": "<p>&amp;#60;script&amp;#62;](b**<em>    a<a>x</a>#</em>  &amp;#106;avascript:</p>"
+  },
+  {
+   "input": "(     + (a)\"'mailto:a@b.fi&[x](javascript:alert(1))",
+   "html": "<p>(     + (a)&quot;&#x27;mailto:a@b.fi&amp;<a>x</a></p>"
+  },
+  {
+   "input": "[\n**_",
+   "html": "<p>[<br>\n**_</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))\t* &#106;avascript:1. word    http://x.fidata:\"> ",
+   "html": "<p><a>x</a>    * &amp;#106;avascript:1. word    http://x.fidata:&quot;&gt;</p>"
+  },
+  {
+   "input": "(a)  <[x]: http://y.fihttp://x.fi*](]mailto:a@b.fi&#60;script&#62;)'",
+   "html": "<p>(a)  &lt;[x]: http://y.fihttp://x.fi*](]mailto:a@b.fi&amp;#60;script&amp;#62;)&#x27;</p>"
+  },
+  {
+   "input": "\\&#x6a;avascript:+ > ",
+   "html": "<p>\\&amp;#x6a;avascript:+ &gt;</p>"
+  },
+  {
+   "input": "**=## * # ",
+   "html": "<p>**=## * #</p>"
+  },
+  {
+   "input": "  ## [x]: http://y.fi[x](data:text/html,1)](&#106;avascript:1)***__&#x6a;avascript:",
+   "html": "<h2>[x]: http://y.fi<a>x</a>](&amp;#106;avascript:1)***__&amp;#x6a;avascript:</h2>"
+  },
+  {
+   "input": "data:",
+   "html": "<p>data:</p>"
+  },
+  {
+   "input": "](_[x](data:text/html,1))javascript:\t",
+   "html": "<p>](_<a>x</a>)javascript:</p>"
+  },
+  {
+   "input": "## #\t## [data:<---    \" _x_ä",
+   "html": "<h2>#    ## [data:&lt;---    &quot; _x_ä</h2>"
+  },
+  {
+   "input": "\n\n",
+   "html": ""
+  },
+  {
+   "input": "http://x.fi1. [x](data:text/html,1)&#60;script&#62;>",
+   "html": "<p>http://x.fi1. <a>x</a>&amp;#60;script&amp;#62;&gt;</p>"
+  },
+  {
+   "input": "&#106;avascript:=*y*---ä#",
+   "html": "<p>&amp;#106;avascript:=<em>y</em>---ä#</p>"
+  },
+  {
+   "input": "b",
+   "html": "<p>b</p>"
+  },
+  {
+   "input": "\"*     _[*y*]> + \n\n\n",
+   "html": "<p>&quot;<em>     _[</em>y*]&gt; +</p>"
+  },
+  {
+   "input": "***word",
+   "html": "<p>***word</p>"
+  },
+  {
+   "input": "<1. &#106;avascript:](&#106;avascript:1)>\n`[ *y*word\nhttp://x.fi",
+   "html": "<p>&lt;1. &amp;#106;avascript:](&amp;#106;avascript:1)&gt;<br>\n`[ <em>y</em>word<br>\nhttp://x.fi</p>"
+  },
+  {
+   "input": "*y*a  #&#60;script&#62;  data:)&#60;script&#62;",
+   "html": "<p><em>y</em>a  #&amp;#60;script&amp;#62;  data:)&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "1. &#60;script&#62;",
+   "html": "<ol>\n<li>&amp;#60;script&amp;#62;</li>\n</ol>"
+  },
+  {
+   "input": "## *y*[x](javascript:alert(1))---b`[x]: http://y.fi(# ]- &`](",
+   "html": "<h2><em>y</em><a>x</a>---b<code>[x]: http://y.fi(# ]- &amp;amp;</code>](</h2>"
+  },
+  {
+   "input": "===_b",
+   "html": "<p>===_b</p>"
+  },
+  {
+   "input": "](*y*_=<(",
+   "html": "<p>](<em>y</em>_=&lt;(</p>"
+  },
+  {
+   "input": "]!2. =# &#x6a;avascript:&#106;avascript:&#x6a;avascript:[x](javascript:alert(1))http://x.fi",
+   "html": "<p>]!2. =# &amp;#x6a;avascript:&amp;#106;avascript:&amp;#x6a;avascript:<a>x</a>http://x.fi</p>"
+  },
+  {
+   "input": "+ mailto:a@b.fi ](&#106;avascript:1)## __ [x]: http://y.fi",
+   "html": "<ul>\n<li>mailto:a@b.fi ](&amp;#106;avascript:1)## __ [x]: http://y.fi</li>\n</ul>"
+  },
+  {
+   "input": "*=['",
+   "html": "<p>*=[&#x27;</p>"
+  },
+  {
+   "input": "(a) wordb\n> =<script>**",
+   "html": "<p>(a) wordb<br>\n&gt; =&lt;script&gt;**</p>"
+  },
+  {
+   "input": "# *y*_    *'(a)[x](data:text/html,1)*",
+   "html": "<h1><em>y</em>_    <em>&#x27;(a)<a>x</a></em></h1>"
+  },
+  {
+   "input": "javascript:&#106;avascript:* <script>##   ",
+   "html": "<p>javascript:&amp;#106;avascript:* &lt;script&gt;##</p>"
+  },
+  {
+   "input": "2. > ",
+   "html": "<ol>\n<li>&gt;</li>\n</ol>"
+  },
+  {
+   "input": "****](===2. ",
+   "html": "<p>****](===2.</p>"
+  },
+  {
+   "input": "aword",
+   "html": "<p>aword</p>"
+  },
+  {
+   "input": "ä_+ mailto:a@b.fi",
+   "html": "<p>ä_+ mailto:a@b.fi</p>"
+  },
+  {
+   "input": "***  **]****y*",
+   "html": "<p>***  <strong>]</strong>*<em>y</em></p>"
+  },
+  {
+   "input": "word](2.      [x](javascript:alert(1))\\=_",
+   "html": "<p>word](2.      <a>x</a>\\=_</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)    =",
+   "html": "<p>](&amp;#106;avascript:1)    =</p>"
+  },
+  {
+   "input": "b**]\n***",
+   "html": "<p>b**]</p>\n<hr>"
+  },
+  {
+   "input": "\n",
+   "html": ""
+  },
+  {
+   "input": "***\t[http://x.fi[x](data:text/html,1)]&#106;avascript:\n\n",
+   "html": "<p>*** [http://x.fi<a>x</a>]&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "\n\n# ](",
+   "html": "<h1>](</h1>"
+  },
+  {
+   "input": "2. - http://x.fi`",
+   "html": "<ol>\n<li>\n<ul>\n<li>http://x.fi`</li>\n</ul>\n</li>\n</ol>"
+  },
+  {
+   "input": ">- \t(a)http://x.fi**+ `[x]: http://y.fi",
+   "html": "<p>&gt;-   (a)http://x.fi**+ `[x]: http://y.fi</p>"
+  },
+  {
+   "input": "&#106;avascript:&#data:---&>#[ä# >`",
+   "html": "<p>&amp;#106;avascript:&amp;#data:---&amp;&gt;#[ä# &gt;`</p>"
+  },
+  {
+   "input": "'",
+   "html": "<p>&#x27;</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))](&#106;avascript:1)> *y*<data:",
+   "html": "<p><a>x</a>](&amp;#106;avascript:1)&gt; <em>y</em>&lt;data:</p>"
+  },
+  {
+   "input": " <***[[x](data:text/html,1)* b\n* ](&#106;avascript:1)",
+   "html": "<p>&lt;***<a>[x](data:text/html,1)* b<br>\n* </a></p>"
+  },
+  {
+   "input": "b1. # http://x.fi* http://x.fi[x]: http://y.fi===",
+   "html": "<p>b1. # http://x.fi* http://x.fi[x]: http://y.fi===</p>"
+  },
+  {
+   "input": "\"",
+   "html": "<p>&quot;</p>"
+  },
+  {
+   "input": "a > \\**===a](&#106;avascript:1)`",
+   "html": "<p>a &gt; **===a](&amp;#106;avascript:1)`</p>"
+  },
+  {
+   "input": "`&#106;avascript:",
+   "html": "<p>`&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "[ä\n\n* \"](+         \t",
+   "html": "<p>[ä</p>\n<ul>\n<li>&quot;](+</li>\n</ul>"
+  },
+  {
+   "input": "\n\n\nb[x](data:text/html,1)---&#x6a;avascript:<=&#106;avascript:2. 1. ---",
+   "html": "<p>b<a>x</a>---&amp;#x6a;avascript:&lt;=&amp;#106;avascript:2. 1. ---</p>"
+  },
+  {
+   "input": "äwordhttp://x.fi](_x_*     &#x6a;avascript:===\n\n[!",
+   "html": "<p>äwordhttp://x.fi](<em>x</em>*     &amp;#x6a;avascript:===</p>\n<p>[!</p>"
+  },
+  {
+   "input": "*y*- <script>>1. [",
+   "html": "<p><em>y</em>- &lt;script&gt;&gt;1. [</p>"
+  },
+  {
+   "input": "mailto:a@b.fi[x](data:text/html,1)](&#106;avascript:1)[http://x.fi",
+   "html": "<p>mailto:a@b.fi<a>x</a>](&amp;#106;avascript:1)[http://x.fi</p>"
+  },
+  {
+   "input": "javascript:(a)**",
+   "html": "<p>javascript:(a)**</p>"
+  },
+  {
+   "input": "a  )* _]([x](javascript:alert(1))",
+   "html": "<p>a  )* _](<a>x</a></p>"
+  },
+  {
+   "input": "b[x]: http://y.fi<script>__](_x_*",
+   "html": "<p>b[x]: http://y.fi&lt;script&gt;__](<em>x</em>*</p>"
+  },
+  {
+   "input": "> >>\" [data:javascript:",
+   "html": "<p>&gt; &gt;&gt;&quot; [data:javascript:</p>"
+  },
+  {
+   "input": "---#](&#106;avascript:1)a**#",
+   "html": "<p>---#](&amp;#106;avascript:1)a**#</p>"
+  },
+  {
+   "input": "\n\n&#x6a;avascript:\"- [](_x_ *\"+ `",
+   "html": "<p>&amp;#x6a;avascript:&quot;- [](<em>x</em> *&quot;+ `</p>"
+  },
+  {
+   "input": "1. > &#60;script&#62;>\n'",
+   "html": "<ol>\n<li>&gt; &amp;#60;script&amp;#62;&gt;<br>\n&#x27;</li>\n</ol>"
+  },
+  {
+   "input": "!**",
+   "html": "<p>!**</p>"
+  },
+  {
+   "input": "](](\n=    \\> \ndata:#* ](\\",
+   "html": "<p>](](<br>\n=    \\&gt; <br>\ndata:#* ](\\</p>"
+  },
+  {
+   "input": "+ **_",
+   "html": "<ul>\n<li>**_</li>\n</ul>"
+  },
+  {
+   "input": "ä[x]: http://y.fi",
+   "html": "<p>ä[x]: http://y.fi</p>"
+  },
+  {
+   "input": "(a)(&#x6a;avascript:>[x](data:text/html,1)\\[x]: http://y.fijavascript:\n# data:[**>",
+   "html": "<p>(a)(&amp;#x6a;avascript:&gt;<a>x</a>[x]: http://y.fijavascript:</p>\n<h1>data:[**&gt;</h1>"
+  },
+  {
+   "input": "(a)2. [x](javascript:alert(1))  *y*+ ](&#106;avascript:1)===](\n\n[x](javascript:alert(1))",
+   "html": "<p>(a)2. <a>x</a>  <em>y</em>+ ](&amp;#106;avascript:1)===](</p>\n<p><a>x</a></p>"
+  },
+  {
+   "input": "word* =## \\\tb &# *y*data:&#x6a;avascript:",
+   "html": "<p>word<em> =## \\ b &amp;# </em>y*data:&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "__<script>+ (javascript:  ***](**&#106;avascript:**",
+   "html": "<p>__&lt;script&gt;+ (javascript:  <strong><em>](</em>*&amp;#106;avascript:</strong></p>"
+  },
+  {
+   "input": "#     data:http://x.fi",
+   "html": "<h1>data:http://x.fi</h1>"
+  },
+  {
+   "input": "[x](data:text/html,1)b## &#x6a;avascript:(a)]] >]    *y*===",
+   "html": "<p><a>x</a>b## &amp;#x6a;avascript:(a)]] &gt;]    <em>y</em>===</p>"
+  },
+  {
+   "input": "[x]: http://y.fi---",
+   "html": ""
+  },
+  {
+   "input": "\"http://x.fimailto:a@b.fidata:(word===    &2. ![x]: http://y.fi",
+   "html": "<p>&quot;http://x.fimailto:a@b.fidata:(word===    &amp;2. ![x]: http://y.fi</p>"
+  },
+  {
+   "input": "***<script>**[x](javascript:alert(1))]_x_a* ---\\__\n",
+   "html": "<p><em><strong>&lt;script&gt;</strong><a>x</a>]_x_a</em> ---__</p>"
+  },
+  {
+   "input": "+ <script>__](1. \t---!",
+   "html": "<ul>\n<li>&lt;script&gt;__](1.  ---!</li>\n</ul>"
+  },
+  {
+   "input": "    mailto:a@b.fi](=2. >)http://x.fi",
+   "html": "<p>mailto:a@b.fi](=2. &gt;)http://x.fi</p>"
+  },
+  {
+   "input": "'([x](javascript:alert(1))b(a)javascript:+ \n\n<script>===[x]: http://y.fimailto:a@b.fi",
+   "html": "<p>&#x27;(<a>x</a>b(a)javascript:+ </p>\n<p>&lt;script&gt;===[x]: http://y.fimailto:a@b.fi</p>"
+  },
+  {
+   "input": "\\",
+   "html": "<p>\\</p>"
+  },
+  {
+   "input": "\n\n\n\n+ \n\n",
+   "html": "<p>+</p>"
+  },
+  {
+   "input": "`](&#106;avascript:1)__===1. &#60;script&#62;***\t!&#60;script&#62;\n\n",
+   "html": "<p>`](&amp;#106;avascript:1)__===1. &amp;#60;script&amp;#62;***    !&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "\t# [x](data:text/html,1)(a)# 2. javascript:`(******_x_http://x.fi",
+   "html": "<h1><a>x</a>(a)# 2. javascript:`(<strong>*</strong>*_x_http://x.fi</h1>"
+  },
+  {
+   "input": "      + data:\n`>",
+   "html": "<ul>\n<li>data:<br>\n`&gt;</li>\n</ul>"
+  },
+  {
+   "input": "ajavascript:data:[x](data:text/html,1)'javascript:word#***`# *y*",
+   "html": "<p>ajavascript:data:<a>x</a>&#x27;javascript:word#*<em><em>`# </em>y</em></p>"
+  },
+  {
+   "input": "2. ä&#x6a;avascript:!#     ",
+   "html": "<ol>\n<li>ä&amp;#x6a;avascript:!#</li>\n</ol>"
+  },
+  {
+   "input": "[data:",
+   "html": "<p>[data:</p>"
+  },
+  {
+   "input": "__ä>\t> [x](javascript:alert(1))(a)\"&\\ )2. ]",
+   "html": "<p>__ä&gt; &gt; <a>x</a>(a)&quot;&amp;\\ )2. ]</p>"
+  },
+  {
+   "input": "    #\n\nhttp://x.fi- word!#&#x6a;avascript:<>\n\nword&#106;avascript:",
+   "html": "<h1></h1>\n<p>http://x.fi- word!#&amp;#x6a;avascript:&lt;&gt;</p>\n<p>word&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "<script>*  =&#106;avascript:](&#106;avascript:1)#__)>",
+   "html": "<p>&lt;script&gt;*  =&amp;#106;avascript:](&amp;#106;avascript:1)#__)&gt;</p>"
+  },
+  {
+   "input": "  b===http://x.fi](## ](&#106;avascript:1)`&\n\n# \t",
+   "html": "<p>b===http://x.fi](## ](&amp;#106;avascript:1)`&amp;</p>\n<h1></h1>"
+  },
+  {
+   "input": "* - !---**&#x6a;avascript:",
+   "html": "<ul>\n<li>\n<ul>\n<li>!---**&amp;#x6a;avascript:</li>\n</ul>\n</li>\n</ul>"
+  },
+  {
+   "input": "ä+ ",
+   "html": "<p>ä+</p>"
+  },
+  {
+   "input": "http://x.fi)&#60;script&#62;](> '",
+   "html": "<p>http://x.fi)&amp;#60;script&amp;#62;](&gt; &#x27;</p>"
+  },
+  {
+   "input": "***[x](data:text/html,1)data:)``\n\n---)# _x_  ",
+   "html": "<p>***<a>x</a>data:)``</p>\n<p>---)# <em>x</em></p>"
+  },
+  {
+   "input": "**\n\n    *`\n\n",
+   "html": "<p>**</p>\n<pre><code>*`\n</code></pre>"
+  },
+  {
+   "input": "[x](data:text/html,1)abb1. ***]&#106;avascript:",
+   "html": "<p><a>x</a>abb1. ***]&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "  # _x_2.      &#60;script&#62;===> ](&#106;avascript:1) =",
+   "html": "<h1>_x_2.      &amp;#60;script&amp;#62;===&gt; ](&amp;#106;avascript:1) =</h1>"
+  },
+  {
+   "input": "    (# ",
+   "html": "<p>(#</p>"
+  },
+  {
+   "input": "\\\"<script>ä>&#60;script&#62;\\# [x]: http://y.fi!  #===",
+   "html": "<p>\\&quot;&lt;script&gt;ä&gt;&amp;#60;script&amp;#62;# [x]: http://y.fi!  #===</p>"
+  },
+  {
+   "input": "_x_=`#__",
+   "html": "<p><em>x</em>=`#__</p>"
+  },
+  {
+   "input": "word'2. # ä",
+   "html": "<p>word&#x27;2. # ä</p>"
+  },
+  {
+   "input": "*y*\"===___word>*y*",
+   "html": "<p><em>y</em>&quot;===___word&gt;<em>y</em></p>"
+  },
+  {
+   "input": ">**y*![\"\t__<script>![[x](javascript:alert(1))2. 2. ",
+   "html": "<p>&gt;*<em>y</em>![&quot;    __&lt;script&gt;![<a>x</a>2. 2.</p>"
+  },
+  {
+   "input": "[* ",
+   "html": "<p>[*</p>"
+  },
+  {
+   "input": "\n[",
+   "html": "<p>[</p>"
+  },
+  {
+   "input": "* \\a*ädata:* **&#106;avascript:  (word",
+   "html": "<ul>\n<li>\\a<em>ädata:</em> **&amp;#106;avascript:  (word</li>\n</ul>"
+  },
+  {
+   "input": "#&&#60;script&#62;",
+   "html": "<h1>&amp;&amp;#60;script&amp;#62;</h1>"
+  },
+  {
+   "input": "`mailto:a@b.fidata:b([x](data:text/html,1)+ )\n\n*y*  &#60;script&#62;](&#106;avascript:1)    ",
+   "html": "<p>`mailto:a@b.fidata:b(<a>x</a>+ )</p>\n<p><em>y</em>  &amp;#60;script&amp;#62;](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "_(>  <script>](&#106;avascript:1) (a)2. ](__",
+   "html": "<p>_(&gt;  &lt;script&gt;](&amp;#106;avascript:1) (a)2. ](__</p>"
+  },
+  {
+   "input": "&&(&#60;script&#62;#*y*javascript:=\t=(",
+   "html": "<p>&amp;&amp;(&amp;#60;script&amp;#62;#<em>y</em>javascript:= =(</p>"
+  },
+  {
+   "input": "data:2. \n***y*****word2. *[!&*y*",
+   "html": "<p>data:2. <br>\n<strong><em>y</em></strong><em><em>word2. </em>[!&amp;</em>y*</p>"
+  },
+  {
+   "input": "#>&(a)_(===&\"[- [x]: http://y.fi\n\n",
+   "html": "<h1>&gt;&amp;(a)_(===&amp;&quot;[- [x]: http://y.fi</h1>"
+  },
+  {
+   "input": "ämailto:a@b.fi&[x]: http://y.fi*y*http://x.fi#(a)",
+   "html": "<p>ämailto:a@b.fi&amp;[x]: http://y.fi<em>y</em>http://x.fi#(a)</p>"
+  },
+  {
+   "input": "[",
+   "html": "<p>[</p>"
+  },
+  {
+   "input": "(&b__\"\n\n  # ",
+   "html": "<p>(&amp;b__&quot;</p>\n<p>#</p>"
+  },
+  {
+   "input": "\"&#x6a;avascript:+ )\"\n\twordb2. * \n* (",
+   "html": "<p>&quot;&amp;#x6a;avascript:+ )&quot;<br>\n    wordb2. * <br>\n* (</p>"
+  },
+  {
+   "input": "http://x.fi    _data:`<script>## <script>ä",
+   "html": "<p>http://x.fi    _data:`&lt;script&gt;## &lt;script&gt;ä</p>"
+  },
+  {
+   "input": "word\t# * <____word\n\n=    ",
+   "html": "<p>word    # * &lt;____word</p>\n<p>=</p>"
+  },
+  {
+   "input": "<script>",
+   "html": "<p>&lt;script&gt;</p>"
+  },
+  {
+   "input": "> javascript:_x_](  ",
+   "html": "<p>&gt; javascript:<em>x</em>](</p>"
+  },
+  {
+   "input": "&#60;script&#62;+ * \n\n\n&#x6a;avascript:",
+   "html": "<p>&amp;#60;script&amp;#62;+ * </p>\n<p>&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "*)&#60;script&#62;# `word&#106;avascript:data:[",
+   "html": "<p>*)&amp;#60;script&amp;#62;# `word&amp;#106;avascript:data:[</p>"
+  },
+  {
+   "input": ")2. ## ][\n\n&#106;avascript:]\t",
+   "html": "<p>)2. ## ][</p>\n<p>&amp;#106;avascript:]</p>"
+  },
+  {
+   "input": "_*  (a)&#106;avascript:[[x]: http://y.fi***=#  \n\n",
+   "html": "<p>_<em>  (a)&amp;#106;avascript:[[x]: http://y.fi</em>**=#</p>"
+  },
+  {
+   "input": "&#60;script&#62;_\nä\n\ndata:===http://x.fi_x_## ",
+   "html": "<p>&amp;#60;script&amp;#62;_<br>\nä</p>\n<p>data:===http://x.fi_x_##</p>"
+  },
+  {
+   "input": "](&#60;script&#62;_x_## ]    #[x](javascript:alert(1))",
+   "html": "<p>](&amp;#60;script&amp;#62;<em>x</em>## ]    #<a>x</a></p>"
+  },
+  {
+   "input": "2. word+ http://x.fi !\n\n<script><",
+   "html": "<ol>\n<li>word+ http://x.fi !</li>\n</ol>\n<p>&lt;script&gt;&lt;</p>"
+  },
+  {
+   "input": "\n_x_&#x6a;avascript:>[x]: http://y.fidata:*y*[ ",
+   "html": "<p><em>x</em>&amp;#x6a;avascript:&gt;[x]: http://y.fidata:<em>y</em>[</p>"
+  },
+  {
+   "input": "][x]: http://y.fi`<\n#[x]: http://y.fi&#106;avascript:&#106;avascript:1. a",
+   "html": "<p>][x]: http://y.fi`&lt;</p>\n<h1>[x]: http://y.fi&amp;#106;avascript:&amp;#106;avascript:1. a</h1>"
+  },
+  {
+   "input": "b http://x.fia**&#60;script&#62;# 1. &#x6a;avascript:  ",
+   "html": "<p>b http://x.fia**&amp;#60;script&amp;#62;# 1. &amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "&**\t](&#106;avascript:1)a***javascript:&#106;avascript:#'[x](javascript:alert(1))",
+   "html": "<p>&amp;<strong> ](&amp;#106;avascript:1)a</strong>*javascript:&amp;#106;avascript:#&#x27;<a>x</a></p>"
+  },
+  {
+   "input": "b**](===",
+   "html": "<p>b**](===</p>"
+  },
+  {
+   "input": "'>*_x__x_data:_x_\n\n[x]: http://y.fijavascript:](&#106;avascript:1)\\&#60;script&#62;[x](javascript:alert(1))",
+   "html": "<p>&#x27;&gt;*<em>x__x_data:_x</em></p>"
+  },
+  {
+   "input": "**[x](javascript:alert(1))1. *y*&",
+   "html": "<p><em><em><a>x</a>1. </em>y</em>&amp;</p>"
+  },
+  {
+   "input": "---_x_[x]: http://y.fi!&#106;avascript:\n\n_+ javascript:=***\tb](",
+   "html": "<p>---<em>x</em>[x]: http://y.fi!&amp;#106;avascript:</p>\n<p>_+ javascript:=***  b](</p>"
+  },
+  {
+   "input": "&#106;avascript:mailto:a@b.fi__\n\n\n\njavascript:[---`",
+   "html": "<p>&amp;#106;avascript:mailto:a@b.fi__</p>\n<p>javascript:[---`</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)#*\n> http://x.fi*  javascript:===`)ä* ",
+   "html": "<p><a>x</a>#<em><br>\n&gt; http://x.fi</em>  javascript:===`)ä*</p>"
+  },
+  {
+   "input": "> \\+ &#106;avascript:2. ](ä\"",
+   "html": "<p>&gt; + &amp;#106;avascript:2. ](ä&quot;</p>"
+  },
+  {
+   "input": "b\n\n<http://x.fi*[x](data:text/html,1)** <script>data:*y*",
+   "html": "<p>b</p>\n<p>&lt;http://x.fi<em><a>x</a></em><em> &lt;script&gt;data:</em>y*</p>"
+  },
+  {
+   "input": "[[x](data:text/html,1)word+ ***+ > ===b*!](",
+   "html": "<p>[<a>x</a>word+ **<em>+ &gt; ===b</em>!](</p>"
+  },
+  {
+   "input": "<ä`\n\n    )__]`[x](javascript:alert(1))\t\n\n",
+   "html": "<p>&lt;ä`</p>\n<pre><code>)__]`[x](javascript:alert(1))\n</code></pre>"
+  },
+  {
+   "input": "#\tbjavascript:#mailto:a@b.fiword[x](javascript:alert(1))word",
+   "html": "<h1>bjavascript:#mailto:a@b.fiword<a>x</a>word</h1>"
+  },
+  {
+   "input": "&#60;script&#62;<script>>__[x](data:text/html,1)",
+   "html": "<p>&amp;#60;script&amp;#62;&lt;script&gt;&gt;__<a>x</a></p>"
+  },
+  {
+   "input": "(&# > (a)**_<&#106;avascript:(>*     <",
+   "html": "<p>(&amp;# &gt; (a)*<em>_&lt;&amp;#106;avascript:(&gt;</em>     &lt;</p>"
+  },
+  {
+   "input": "`__\n__`  [x](javascript:alert(1))",
+   "html": "<p><code>__\n__</code>  <a>x</a></p>"
+  },
+  {
+   "input": "- http://x.fi\n[>word*\\",
+   "html": "<ul>\n<li>http://x.fi<br>\n[&gt;word*\\</li>\n</ul>"
+  },
+  {
+   "input": "2. & <script>+ a`[x](javascript:alert(1))](&#106;avascript:1)    ",
+   "html": "<ol>\n<li>&amp; &lt;script&gt;+ a`<a>x</a>](&amp;#106;avascript:1)</li>\n</ol>"
+  },
+  {
+   "input": "mailto:a@b.fi1. (a)*y*'](&#106;avascript:1)]javascript:***data:# #]<script>",
+   "html": "<p>mailto:a@b.fi1. (a)<em>y</em>&#x27;](&amp;#106;avascript:1)]javascript:***data:# #]&lt;script&gt;</p>"
+  },
+  {
+   "input": "](",
+   "html": "<p>](</p>"
+  },
+  {
+   "input": "<script>&#60;script&#62;  http://x.fi]((a)&#60;script&#62;&#60;script&#62;_x_",
+   "html": "<p>&lt;script&gt;&amp;#60;script&amp;#62;  http://x.fi]((a)&amp;#60;script&amp;#62;&amp;#60;script&amp;#62;<em>x</em></p>"
+  },
+  {
+   "input": "2. ",
+   "html": "<p>2.</p>"
+  },
+  {
+   "input": "[\t[&#106;avascript:b_x_- ## ",
+   "html": "<p>[   [&amp;#106;avascript:b_x_- ##</p>"
+  },
+  {
+   "input": "2. #=_  ---_*y*",
+   "html": "<ol>\n<li>\n<h1>=<em>  ---</em><em>y</em></h1>\n</li>\n</ol>"
+  },
+  {
+   "input": "## \"&\\===mailto:a@b.fi](_x_",
+   "html": "<h2>&quot;&amp;\\===mailto:a@b.fi](<em>x</em></h2>"
+  },
+  {
+   "input": "`\n'",
+   "html": "<p>`<br>\n&#x27;</p>"
+  },
+  {
+   "input": "](`",
+   "html": "<p>](`</p>"
+  },
+  {
+   "input": "](",
+   "html": "<p>](</p>"
+  },
+  {
+   "input": "(http://x.fimailto:a@b.fi)_data:_data:",
+   "html": "<p>(http://x.fimailto:a@b.fi)_data:_data:</p>"
+  },
+  {
+   "input": "> * >*y*b",
+   "html": "<p>&gt; * &gt;<em>y</em>b</p>"
+  },
+  {
+   "input": "<1. word[x](data:text/html,1)===__ `&#x6a;avascript:ä 1. > ",
+   "html": "<p>&lt;1. word<a>x</a>===__ `&amp;#x6a;avascript:ä 1. &gt;</p>"
+  },
+  {
+   "input": ">(a)",
+   "html": "<p>&gt;(a)</p>"
+  },
+  {
+   "input": "!\t",
+   "html": "<p>!</p>"
+  },
+  {
+   "input": "=b## ***y*http://x.fi  ",
+   "html": "<p>=b## **<em>y</em>http://x.fi</p>"
+  },
+  {
+   "input": "  (a)2. # ](&#106;avascript:1)  &#106;avascript:",
+   "html": "<p>(a)2. # ](&amp;#106;avascript:1)  &amp;#106;avascript:</p>"
+  },
+  {
+   "input": "&#60;script&#62;javascript:&*y*_\\ \n\n\\",
+   "html": "<p>&amp;#60;script&amp;#62;javascript:&amp;<em>y</em>_\\ </p>\n<p>\\</p>"
+  },
+  {
+   "input": "&javascript:***mailto:a@b.fi word&#x6a;avascript:",
+   "html": "<p>&amp;javascript:***mailto:a@b.fi word&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "[x]: http://y.fi\"_[",
+   "html": ""
+  },
+  {
+   "input": "* > - 1. **&#106;avascript:[x](data:text/html,1)&data:](",
+   "html": "<ul>\n<li>&gt; - 1. **&amp;#106;avascript:<a>x</a>&amp;data:](</li>\n</ul>"
+  },
+  {
+   "input": "http://x.fi'_x_***ä* [x](data:text/html,1)](&#106;avascript:1)b&#60;script&#62;***",
+   "html": "<p>http://x.fi&#x27;<em>x</em><strong><em>ä</em> <a>x</a>](&amp;#106;avascript:1)b&amp;#60;script&amp;#62;</strong>*</p>"
+  },
+  {
+   "input": "- (    \n\n=&#x6a;avascript:mailto:a@b.fi!b2. + *y***b",
+   "html": "<ul>\n<li>(    </li>\n</ul>\n<p>=&amp;#x6a;avascript:mailto:a@b.fi!b2. + <em>y</em>**b</p>"
+  },
+  {
+   "input": "## + _x_data:\\# \t\n    ---](mailto:a@b.fi",
+   "html": "<h2>+ _x_data:#</h2>\n<pre><code>---](mailto:a@b.fi\n</code></pre>"
+  },
+  {
+   "input": "__[x](data:text/html,1)<script>***javascript:",
+   "html": "<p>__<a>x</a>&lt;script&gt;***javascript:</p>"
+  },
+  {
+   "input": "<*y*2. (a)__>",
+   "html": "<p>&lt;<em>y</em>2. (a)__&gt;</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))\t\"",
+   "html": "<p><a>x</a>    &quot;</p>"
+  },
+  {
+   "input": "word[&#106;avascript:",
+   "html": "<p>word[&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "- *y*\" -     # - [x](javascript:alert(1))---",
+   "html": "<ul>\n<li><em>y</em>&quot; -     # - <a>x</a>---</li>\n</ul>"
+  },
+  {
+   "input": "'](b",
+   "html": "<p>&#x27;](b</p>"
+  },
+  {
+   "input": "1. b&(a)<---*y*",
+   "html": "<ol>\n<li>b&amp;(a)&lt;---<em>y</em></li>\n</ol>"
+  },
+  {
+   "input": "## ===](&#106;avascript:1)b",
+   "html": "<h2>===](&amp;#106;avascript:1)b</h2>"
+  },
+  {
+   "input": "\n\na`(a)*- \n\n## 2. ---&#106;avascript:---a\n",
+   "html": "<p>a`(a)*- </p>\n<h2>2. ---&amp;#106;avascript:---a</h2>"
+  },
+  {
+   "input": "\n\n(a)",
+   "html": "<p>(a)</p>"
+  },
+  {
+   "input": "http://x.fi- 1. ",
+   "html": "<p>http://x.fi- 1.</p>"
+  },
+  {
+   "input": "data:<_***__---",
+   "html": "<p>data:&lt;_***__---</p>"
+  },
+  {
+   "input": "---]!# [x]: http://y.fi1. a\\](&#106;avascript:1)*1. !(",
+   "html": "<p>---]!# [x]: http://y.fi1. a](&amp;#106;avascript:1)*1. !(</p>"
+  },
+  {
+   "input": ">mailto:a@b.fi1. ](&#106;avascript:1)\n\nhttp://x.fi&#60;script&#62;](__[x](data:text/html,1)===)***",
+   "html": "<p>&gt;mailto:a@b.fi1. ](&amp;#106;avascript:1)</p>\n<p>http://x.fi&amp;#60;script&amp;#62;](__<a>x</a>===)***</p>"
+  },
+  {
+   "input": ")***+ - \n*&#106;avascript:**b>mailto:a@b.fi===",
+   "html": "<p>)<strong><em>+ - <br>\n</em>&amp;#106;avascript:</strong>b&gt;mailto:a@b.fi===</p>"
+  },
+  {
+   "input": "a1. * ",
+   "html": "<p>a1. *</p>"
+  },
+  {
+   "input": "> 2. ===\"ä",
+   "html": "<p>&gt; 2. ===&quot;ä</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)===(a)word    \"javascript:---",
+   "html": "<p><a>x</a>===(a)word    &quot;javascript:---</p>"
+  },
+  {
+   "input": "&data:![x](javascript:alert(1))",
+   "html": "<p>&amp;data:</p>"
+  },
+  {
+   "input": "&#x6a;avascript:\\(\t",
+   "html": "<p>&amp;#x6a;avascript:(</p>"
+  },
+  {
+   "input": "+ <script>&***(a)][x](javascript:alert(1))&#x6a;avascript:",
+   "html": "<ul>\n<li>&lt;script&gt;&amp;***(a)]<a>x</a>&amp;#x6a;avascript:</li>\n</ul>"
+  },
+  {
+   "input": "](&#106;avascript:1)]=\t## !<",
+   "html": "<p>](&amp;#106;avascript:1)]=  ## !&lt;</p>"
+  },
+  {
+   "input": "2. >+ [x]: http://y.fiä<****y*&#106;avascript:#  `",
+   "html": "<ol>\n<li>&gt;+ [x]: http://y.fiä&lt;***<em>y</em>&amp;#106;avascript:#  `</li>\n</ol>"
+  },
+  {
+   "input": "+ javascript:\"&#x6a;avascript:!## (data:[a<script>",
+   "html": "<ul>\n<li>javascript:&quot;&amp;#x6a;avascript:!## (data:[a&lt;script&gt;</li>\n</ul>"
+  },
+  {
+   "input": "&",
+   "html": "<p>&amp;</p>"
+  },
+  {
+   "input": "a'<2. data:'(a)",
+   "html": "<p>a&#x27;&lt;2. data:&#x27;(a)</p>"
+  },
+  {
+   "input": "]*y*",
+   "html": "<p>]<em>y</em></p>"
+  },
+  {
+   "input": "=\\",
+   "html": "<p>=\\</p>"
+  },
+  {
+   "input": "`http://x.fi## [x](data:text/html,1)*",
+   "html": "<p>`http://x.fi## <a>x</a>*</p>"
+  },
+  {
+   "input": "*y*",
+   "html": "<p><em>y</em></p>"
+  },
+  {
+   "input": "](&#106;avascript:1)[x](data:text/html,1)",
+   "html": "<p>](&amp;#106;avascript:1)<a>x</a></p>"
+  },
+  {
+   "input": "]\\(a))\"",
+   "html": "<p>](a))&quot;</p>"
+  },
+  {
+   "input": "&#106;avascript:* *_&#x6a;avascript:http://x.fi# ](&#106;avascript:1)__",
+   "html": "<p>&amp;#106;avascript:<em> </em>_&amp;#x6a;avascript:http://x.fi# ](&amp;#106;avascript:1)__</p>"
+  },
+  {
+   "input": "-   (",
+   "html": "<ul>\n<li>(</li>\n</ul>"
+  },
+  {
+   "input": "\"http://x.fi* _x_[x](data:text/html,1)`**",
+   "html": "<p>&quot;http://x.fi<em> <em>x</em><a>x</a>`</em>*</p>"
+  },
+  {
+   "input": "a_x_&#106;avascript:\\\n\n)`+ http://x.fi# _\n\n* ",
+   "html": "<p>a_x_&amp;#106;avascript:\\</p>\n<p>)`+ http://x.fi# _</p>\n<p>*</p>"
+  },
+  {
+   "input": "javascript:((a)",
+   "html": "<p>javascript:((a)</p>"
+  },
+  {
+   "input": "    (a)wordb](&#106;avascript:1)===[x](javascript:alert(1))][x](javascript:alert(1))&#106;avascript:",
+   "html": "<p>(a)wordb](&amp;#106;avascript:1)===<a>x</a>]<a>x</a>&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "]a#__#a---* ",
+   "html": "<p>]a#__#a---*</p>"
+  },
+  {
+   "input": "\\=&#60;script&#62;_x_](    `mailto:a@b.fi1. ](&#106;avascript:1)* &#60;script&#62;<",
+   "html": "<p>\\=&amp;#60;script&amp;#62;<em>x</em>](    `mailto:a@b.fi1. ](&amp;#106;avascript:1)* &amp;#60;script&amp;#62;&lt;</p>"
+  },
+  {
+   "input": "&](](&#106;avascript:1)     &#x6a;avascript:data:---",
+   "html": "<p>&amp;](](&amp;#106;avascript:1)     &amp;#x6a;avascript:data:---</p>"
+  },
+  {
+   "input": "]- <**",
+   "html": "<p>]- &lt;**</p>"
+  },
+  {
+   "input": "&#60;script&#62;",
+   "html": "<p>&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "&#106;avascript:- ===- ===]javascript:+ ",
+   "html": "<p>&amp;#106;avascript:- ===- ===]javascript:+</p>"
+  },
+  {
+   "input": "\">   data:[x](javascript:alert(1))",
+   "html": "<p>&quot;&gt;   data:<a>x</a></p>"
+  },
+  {
+   "input": "](&#106;avascript:1)b'=&\"&#106;avascript:[*y*\n\n",
+   "html": "<p>](&amp;#106;avascript:1)b&#x27;=&amp;&quot;&amp;#106;avascript:[<em>y</em></p>"
+  },
+  {
+   "input": "> *y*(&#60;script&#62;](&#106;avascript:1) __](b- ",
+   "html": "<p>&gt; <em>y</em>(&amp;#60;script&amp;#62;](&amp;#106;avascript:1) __](b-</p>"
+  },
+  {
+   "input": "---_x_***\\*y*#='* http://x.fi' ",
+   "html": "<p>---<em>x</em>*<em><em>*y</em>#=&#x27;</em> http://x.fi&#x27;</p>"
+  },
+  {
+   "input": "&#60;script&#62;",
+   "html": "<p>&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "- __---[x]: http://y.fimailto:a@b.fi",
+   "html": "<ul>\n<li>__---[x]: http://y.fimailto:a@b.fi</li>\n</ul>"
+  },
+  {
+   "input": "\n##   #_`<",
+   "html": "<h2>#_`&lt;</h2>"
+  },
+  {
+   "input": ">!>",
+   "html": "<p>&gt;!&gt;</p>"
+  },
+  {
+   "input": "<(a)* *y*'<![x](javascript:alert(1)))_x_!",
+   "html": "<p>&lt;(a)<em> </em>y*&#x27;&lt;)<em>x</em>!</p>"
+  },
+  {
+   "input": "<<'#     '&#x6a;avascript:b",
+   "html": "<p>&lt;&lt;&#x27;#     &#x27;&amp;#x6a;avascript:b</p>"
+  },
+  {
+   "input": "\"**(a) javascript:__b[x]: http://y.fidata:> _",
+   "html": "<p>&quot;**(a) javascript:__b[x]: http://y.fidata:&gt; _</p>"
+  },
+  {
+   "input": "](ä<***a===[x]: http://y.fijavascript:> * ***](((a)",
+   "html": "<p>](ä&lt;<strong><em>a===[x]: http://y.fijavascript:&gt; * </em></strong>](((a)</p>"
+  },
+  {
+   "input": "](mailto:a@b.fi> # #&#60;script&#62;- ",
+   "html": "<p>](mailto:a@b.fi&gt; # #&amp;#60;script&amp;#62;-</p>"
+  },
+  {
+   "input": "__[x]: http://y.fi\"mailto:a@b.fi    ](&#106;avascript:1)<]<_x_(a)# (a)ä",
+   "html": "<p>__[x]: http://y.fi&quot;mailto:a@b.fi    ](&amp;#106;avascript:1)&lt;]&lt;<em>x</em>(a)# (a)ä</p>"
+  },
+  {
+   "input": "word---",
+   "html": "<p>word---</p>"
+  },
+  {
+   "input": "_1. &#x6a;avascript:===](data: * 2. ",
+   "html": "<p>_1. &amp;#x6a;avascript:===](data: * 2.</p>"
+  },
+  {
+   "input": "ä---a",
+   "html": "<p>ä---a</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)",
+   "html": "<p>](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "+ http://x.fi*y*_x_## -    &#60;script&#62;\\&#60;script&#62;mailto:a@b.fi",
+   "html": "<ul>\n<li>http://x.fi<em>y</em><em>x</em>## -    &amp;#60;script&amp;#62;\\&amp;#60;script&amp;#62;mailto:a@b.fi</li>\n</ul>"
+  },
+  {
+   "input": "_)&#x6a;avascript:",
+   "html": "<p>_)&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "__x_&#60;script&#62;](1. ]",
+   "html": "<p>__x_&amp;#60;script&amp;#62;](1. ]</p>"
+  },
+  {
+   "input": "+     [ä#&2. ===http://x.fi\n",
+   "html": "<ul>\n<li>[ä#&amp;2. ===http://x.fi</li>\n</ul>"
+  },
+  {
+   "input": "word\"_x_",
+   "html": "<p>word&quot;<em>x</em></p>"
+  },
+  {
+   "input": "_\n\n&#60;script&#62;ä<_x_",
+   "html": "<p>_</p>\n<p>&amp;#60;script&amp;#62;ä&lt;<em>x</em></p>"
+  },
+  {
+   "input": " '* \n# > word&#x6a;avascript:===[* ",
+   "html": "<p>&#x27;* </p>\n<h1>&gt; word&amp;#x6a;avascript:===[*</h1>"
+  },
+  {
+   "input": "](&#106;avascript:1)data:'\t---===+ http://x.fi+ ",
+   "html": "<p>](&amp;#106;avascript:1)data:&#x27; ---===+ http://x.fi+</p>"
+  },
+  {
+   "input": "&#x6a;avascript:\t\"",
+   "html": "<p>&amp;#x6a;avascript:    &quot;</p>"
+  },
+  {
+   "input": "[x]: http://y.fi]javascript:",
+   "html": ""
+  },
+  {
+   "input": ")[x](javascript:alert(1))  * \"\"*y*\n`javascript:+ *\n\n",
+   "html": "<p>)<a>x</a>  * &quot;&quot;<em>y</em><br>\n`javascript:+ *</p>"
+  },
+  {
+   "input": "***ahttp://x.fi  ===_x_&*y*\"",
+   "html": "<p>*<em><em>ahttp://x.fi  ===<em>x</em>&amp;</em>y</em>&quot;</p>"
+  },
+  {
+   "input": "\\_x_)**## =1. (a)http://x.fi!!",
+   "html": "<p>_x_)**## =1. (a)http://x.fi!!</p>"
+  },
+  {
+   "input": "&#60;script&#62;](&#106;avascript:1)data:<script>data:\n_    ## __  *y*",
+   "html": "<p>&amp;#60;script&amp;#62;](&amp;#106;avascript:1)data:&lt;script&gt;data:<br>\n_    ## __  <em>y</em></p>"
+  },
+  {
+   "input": ">[x](javascript:alert(1))[x](data:text/html,1)ä===a'+ (ä***<script>\n\n&#60;script&#62;",
+   "html": "<p>&gt;<a>x</a><a>x</a>ä===a&#x27;+ (ä***&lt;script&gt;</p>\n<p>&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "\\> `* ****word=a>(\"",
+   "html": "<p>\\&gt; `<em> </em>***word=a&gt;(&quot;</p>"
+  },
+  {
+   "input": "&#106;avascript:a(](-         **&#x6a;avascript:](!",
+   "html": "<p>&amp;#106;avascript:a(](-         **&amp;#x6a;avascript:](!</p>"
+  },
+  {
+   "input": "***=&#x6a;avascript:# \t&#x6a;avascript:",
+   "html": "<p>***=&amp;#x6a;avascript:#   &amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "(a)    ---# 2. ää * ===",
+   "html": "<p>(a)    ---# 2. ää * ===</p>"
+  },
+  {
+   "input": "> mailto:a@b.fi\t[x]: http://y.fi1. mailto:a@b.fib    )(a)*",
+   "html": "<p>&gt; mailto:a@b.fi  [x]: http://y.fi1. mailto:a@b.fib    )(a)*</p>"
+  },
+  {
+   "input": "]\t`\"a",
+   "html": "<p>]   `&quot;a</p>"
+  },
+  {
+   "input": ")javascript:mailto:a@b.fi<script>\"    javascript:'    2. > <script>1. ",
+   "html": "<p>)javascript:mailto:a@b.fi&lt;script&gt;&quot;    javascript:&#x27;    2. &gt; &lt;script&gt;1.</p>"
+  },
+  {
+   "input": "&#106;avascript:***](\\",
+   "html": "<p>&amp;#106;avascript:***](\\</p>"
+  },
+  {
+   "input": "](",
+   "html": "<p>](</p>"
+  },
+  {
+   "input": "äjavascript:[x]: http://y.fi*1. a_x_+ &#106;avascript:",
+   "html": "<p>äjavascript:[x]: http://y.fi*1. a_x_+ &amp;#106;avascript:</p>"
+  },
+  {
+   "input": "[===<script>",
+   "html": "<p>[===&lt;script&gt;</p>"
+  },
+  {
+   "input": "[javascript:a    > '[x](data:text/html,1)> >**",
+   "html": "<p>[javascript:a    &gt; &#x27;<a>x</a>&gt; &gt;**</p>"
+  },
+  {
+   "input": "&#60;script&#62;2. ",
+   "html": "<p>&amp;#60;script&amp;#62;2.</p>"
+  },
+  {
+   "input": "    [x]: http://y.fi",
+   "html": ""
+  },
+  {
+   "input": "`[x](javascript:alert(1))[x]: http://y.fi=",
+   "html": "<p>`<a>x</a>[x]: http://y.fi=</p>"
+  },
+  {
+   "input": "\\***\"> `'",
+   "html": "<p>***&quot;&gt; `&#x27;</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))word",
+   "html": "<p><a>x</a>word</p>"
+  },
+  {
+   "input": "(a)",
+   "html": "<p>(a)</p>"
+  },
+  {
+   "input": "\\http://x.fijavascript:[x](javascript:alert(1))\\&#60;script&#62;&\t",
+   "html": "<p>\\http://x.fijavascript:<a>x</a>\\&amp;#60;script&amp;#62;&amp;</p>"
+  },
+  {
+   "input": "2. ä_x_http://x.fi_\t)\t&#x6a;avascript:***\\## ",
+   "html": "<ol>\n<li>ä_x_http://x.fi_ )   &amp;#x6a;avascript:***##</li>\n</ol>"
+  },
+  {
+   "input": "word[x](data:text/html,1)b&===1. [x]: http://y.fidata:\t'",
+   "html": "<p>word<a>x</a>b&amp;===1. [x]: http://y.fidata:  &#x27;</p>"
+  },
+  {
+   "input": "http://x.fi](&#106;avascript:1)",
+   "html": "<p>http://x.fi](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "[x]: http://y.fi_x_&===)\t**## + \\[x](javascript:alert(1))---1. ",
+   "html": "<p>[x]: http://y.fi_x_&amp;===)    **## + [x](javascript:alert(1))---1.</p>"
+  },
+  {
+   "input": "(a)_x_======[  !\n* http://x.fi2. _",
+   "html": "<p>(a)<em>x</em>======[  !<br>\n* http://x.fi2. _</p>"
+  },
+  {
+   "input": " ",
+   "html": ""
+  },
+  {
+   "input": "`[x](javascript:alert(1))# &#x6a;avascript:__  + >",
+   "html": "<p>`<a>x</a># &amp;#x6a;avascript:__  + &gt;</p>"
+  },
+  {
+   "input": "- _[=](====\t_---word    \n\n*",
+   "html": "<ul>\n<li><em>[=](==== </em>---word    </li>\n</ul>\n<p>*</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))1. ## \"   ",
+   "html": "<p><a>x</a>1. ## &quot;</p>"
+  },
+  {
+   "input": "'a",
+   "html": "<p>&#x27;a</p>"
+  },
+  {
+   "input": "ämailto:a@b.fidata:mailto:a@b.fi](**](&#106;avascript:1)!",
+   "html": "<p>ämailto:a@b.fidata:mailto:a@b.fi](**](&amp;#106;avascript:1)!</p>"
+  },
+  {
+   "input": "  ---<- ](\t1. **javascript:**",
+   "html": "<p>---&lt;- ]( 1. <strong>javascript:</strong></p>"
+  },
+  {
+   "input": "[&#106;avascript:\n--- + __** word",
+   "html": "<p>[&amp;#106;avascript:<br>\n--- + __** word</p>"
+  },
+  {
+   "input": "ä+ ==_  '](",
+   "html": "<p>ä+ ==_  &#x27;](</p>"
+  },
+  {
+   "input": "](***> \tdata:*y*&#x6a;avascript:  (a)[x](javascript:alert(1))---***",
+   "html": "<p>](<strong><em>&gt;   data:</em>y*&amp;#x6a;avascript:  (a)<a>x</a>---</strong>*</p>"
+  },
+  {
+   "input": "`===word---[>* 1. (a)(a)ä&#106;avascript:data:",
+   "html": "<p>`===word---[&gt;* 1. (a)(a)ä&amp;#106;avascript:data:</p>"
+  },
+  {
+   "input": "> ***",
+   "html": "<p>&gt; ***</p>"
+  },
+  {
+   "input": "](1. (a)&#106;avascript:## (a)##  ![x](data:text/html,1)",
+   "html": "<p>](1. (a)&amp;#106;avascript:## (a)##  </p>"
+  },
+  {
+   "input": "## ",
+   "html": "<h2></h2>"
+  },
+  {
+   "input": "><script>&#60;script&#62;",
+   "html": "<p>&gt;&lt;script&gt;&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "_x_> >&#60;script&#62;",
+   "html": "<p><em>x</em>&gt; &gt;&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "b<script>****javascript:(# (a)&#60;script&#62;## _&#60;script&#62;2. ",
+   "html": "<p>b&lt;script&gt;****javascript:(# (a)&amp;#60;script&amp;#62;## _&amp;#60;script&amp;#62;2.</p>"
+  },
+  {
+   "input": "<[x](data:text/html,1)&#60;script&#62;[x](data:text/html,1)__",
+   "html": "<p>&lt;<a>x</a>&amp;#60;script&amp;#62;<a>x</a>__</p>"
+  },
+  {
+   "input": "word](&#106;avascript:1)(a)'**[x]: http://y.fi !2. javascript:\n***",
+   "html": "<p>word](&amp;#106;avascript:1)(a)&#x27;**[x]: http://y.fi !2. javascript:</p>\n<hr>"
+  },
+  {
+   "input": "& ",
+   "html": "<p>&amp;</p>"
+  },
+  {
+   "input": "2. #2. * [1. ](<script>http://x.fi[](&#106;avascript:1)[x](data:text/html,1)!",
+   "html": "<ol>\n<li>\n<h1>2. * [1. ](&lt;script&gt;http://x.fi<a></a><a>x</a>!</h1>\n</li>\n</ol>"
+  },
+  {
+   "input": "data:ä[",
+   "html": "<p>data:ä[</p>"
+  },
+  {
+   "input": "_b## [x]: http://y.fi<script>_x_+ ",
+   "html": "<p><em>b## [x]: http://y.fi&lt;script&gt;_x</em>+</p>"
+  },
+  {
+   "input": "*word)<script>javascript:__\n=\n\n><**word__",
+   "html": "<h1>*word)&lt;script&gt;javascript:__</h1>\n<p>&gt;&lt;**word__</p>"
+  },
+  {
+   "input": "_!__-     ",
+   "html": "<p>_!__-</p>"
+  },
+  {
+   "input": "[x]: http://y.fi1. &#60;script&#62;http://x.fi!*a= `    ===[",
+   "html": "<p>[x]: http://y.fi1. &amp;#60;script&amp;#62;http://x.fi!*a= `    ===[</p>"
+  },
+  {
+   "input": "=&a***[[x](javascript:alert(1))\t- *y*([x]: http://y.fi",
+   "html": "<p>=&amp;a*<em><em>[<a>x</a> - </em>y</em>([x]: http://y.fi</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)](&#106;avascript:1) ******]([x]: http://y.fi(a)\\**__b",
+   "html": "<p><a>x</a>](&amp;#106;avascript:1) <em><strong>*</strong>]([x]: http://y.fi(a)*</em>__b</p>"
+  },
+  {
+   "input": "\n\n \n\n[x](data:text/html,1)http://x.fi](&#106;avascript:1)",
+   "html": "<p><a>x</a>http://x.fi](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "__\\_\\&+ [x](data:text/html,1)",
+   "html": "<p>___\\&amp;+ <a>x</a></p>"
+  },
+  {
+   "input": "\n+ # __>\\# <script><script>b",
+   "html": "<ul>\n<li>\n<h1>__&gt;# &lt;script&gt;&lt;script&gt;b</h1>\n</li>\n</ul>"
+  },
+  {
+   "input": "\\<script>&#106;avascript:=- &#x6a;avascript:[x]: http://y.fi]",
+   "html": "<p>\\&lt;script&gt;&amp;#106;avascript:=- &amp;#x6a;avascript:[x]: http://y.fi]</p>"
+  },
+  {
+   "input": "&  [x](data:text/html,1)***\t*===\n---]word!>",
+   "html": "<p>&amp;  <a>x</a>**<em> </em>===<br>\n---]word!&gt;</p>"
+  },
+  {
+   "input": " (a)## &",
+   "html": "<p>(a)## &amp;</p>"
+  },
+  {
+   "input": "**` \t---",
+   "html": "<p>**`     ---</p>"
+  },
+  {
+   "input": ">&#106;avascript:(ä===&#x6a;avascript:b---\n\n> * &wordb",
+   "html": "<p>&gt;&amp;#106;avascript:(ä===&amp;#x6a;avascript:b---</p>\n<p>&gt; * &amp;wordb</p>"
+  },
+  {
+   "input": "+ [x](data:text/html,1)(*y*\n\nhttp://x.fi&#106;avascript:[x](data:text/html,1)](&#106;avascript:1)<)",
+   "html": "<ul>\n<li><a>x</a>(<em>y</em></li>\n</ul>\n<p>http://x.fi&amp;#106;avascript:<a>x</a>](&amp;#106;avascript:1)&lt;)</p>"
+  },
+  {
+   "input": "1. > # \\1. &#60;script&#62;[x]: http://y.fi`# ''+ ",
+   "html": "<ol>\n<li>&gt; # \\1. &amp;#60;script&amp;#62;[x]: http://y.fi`# &#x27;&#x27;+</li>\n</ol>"
+  },
+  {
+   "input": "&_#b[---`(\n\n*\t>",
+   "html": "<p>&amp;_#b[---`(</p>\n<ul>\n<li>&gt;</li>\n</ul>"
+  },
+  {
+   "input": "\"",
+   "html": "<p>&quot;</p>"
+  },
+  {
+   "input": "data:ä(a)bword)[x](javascript:alert(1))ä",
+   "html": "<p>data:ä(a)bword)<a>x</a>ä</p>"
+  },
+  {
+   "input": "http://x.fi<_)<](&#106;avascript:1)<a[x](javascript:alert(1))javascript:<script>> + ",
+   "html": "<p>http://x.fi&lt;_)&lt;](&amp;#106;avascript:1)&lt;a<a>x</a>javascript:&lt;script&gt;&gt; +</p>"
+  },
+  {
+   "input": "<script>  <_x__](&#106;avascript:1)*y**y*&#106;avascript:)",
+   "html": "<p>&lt;script&gt;  &lt;_x__](&amp;#106;avascript:1)<em>y</em><em>y</em>&amp;#106;avascript:)</p>"
+  },
+  {
+   "input": "----     \\===",
+   "html": "<p>----     \\===</p>"
+  },
+  {
+   "input": "]",
+   "html": "<p>]</p>"
+  },
+  {
+   "input": "&#60;script&#62;***  &\"[-     #    ",
+   "html": "<p>&amp;#60;script&amp;#62;***  &amp;&quot;[-     #</p>"
+  },
+  {
+   "input": "\"    worda *javascript:=_*'",
+   "html": "<p>&quot;    worda <em>javascript:=_</em>&#x27;</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)]]",
+   "html": "<p><a>x</a>]]</p>"
+  },
+  {
+   "input": "* *# # ---=]2. ",
+   "html": "<ul>\n<li>*# # ---=]2.</li>\n</ul>"
+  },
+  {
+   "input": "]\\[# [x](javascript:alert(1))>+ ",
+   "html": "<p>][# <a>x</a>&gt;+</p>"
+  },
+  {
+   "input": "`(a)_x_<script> &#106;avascript:data:- ",
+   "html": "<p>`(a)<em>x</em>&lt;script&gt; &amp;#106;avascript:data:-</p>"
+  },
+  {
+   "input": "* data:&#x6a;avascript:!*b=[2. <script>http://x.fi\\    ",
+   "html": "<ul>\n<li>data:&amp;#x6a;avascript:!*b=[2. &lt;script&gt;http://x.fi\\</li>\n</ul>"
+  },
+  {
+   "input": "=[x](javascript:alert(1))'_[](&#106;avascript:1)===2. [x]: http://y.fi\"`(**",
+   "html": "<p>=<a>x</a>&#x27;_<a></a>===2. [x]: http://y.fi&quot;`(**</p>"
+  },
+  {
+   "input": "____#\n\nää[x]: http://y.fi# ](&#106;avascript:1)]",
+   "html": "<p>____#</p>\n<p>ää[x]: http://y.fi# ](&amp;#106;avascript:1)]</p>"
+  },
+  {
+   "input": "> \\*\n(_x_- data:\n\n2. http://x.fi_",
+   "html": "<p>&gt; *<br>\n(<em>x</em>- data:</p>\n<ol>\n<li>http://x.fi_</li>\n</ol>"
+  },
+  {
+   "input": "*[b]## =# \tab[x](data:text/html,1)===[",
+   "html": "<p>*[b]## =#   ab<a>x</a>===[</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)[x](javascript:alert(1))word&#x6a;avascript: [bb***=",
+   "html": "<p>](&amp;#106;avascript:1)<a>x</a>word&amp;#x6a;avascript: [bb***=</p>"
+  },
+  {
+   "input": "#mailto:a@b.fi[a](",
+   "html": "<h1>mailto:a@b.fi[a](</h1>"
+  },
+  {
+   "input": "](* \n_x_&> !",
+   "html": "<p>](* <br>\n<em>x</em>&amp;&gt; !</p>"
+  },
+  {
+   "input": "&''- 2. ---ä&#106;avascript:__=(*2. ",
+   "html": "<p>&amp;&#x27;&#x27;- 2. ---ä&amp;#106;avascript:__=(*2.</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)](&#106;avascript:1)]&#x6a;avascript:  ä=<script>2. data:",
+   "html": "<p>](&amp;#106;avascript:1)](&amp;#106;avascript:1)]&amp;#x6a;avascript:  ä=&lt;script&gt;2. data:</p>"
+  },
+  {
+   "input": "> 1. [x](javascript:alert(1))  [x]: http://y.fi_",
+   "html": "<p>&gt; 1. <a>x</a>  [x]: http://y.fi_</p>"
+  },
+  {
+   "input": "'[x](data:text/html,1)a#    ",
+   "html": "<p>&#x27;<a>x</a>a#</p>"
+  },
+  {
+   "input": "***\t([_*y**   2. 2. ",
+   "html": "<p>*** ([_<em>y</em>*   2. 2.</p>"
+  },
+  {
+   "input": "_x_]&#x6a;avascript:[x](javascript:alert(1)))> &#x6a;avascript:mailto:a@b.fi#&=",
+   "html": "<p><em>x</em>]&amp;#x6a;avascript:<a>x</a>)&gt; &amp;#x6a;avascript:mailto:a@b.fi#&amp;=</p>"
+  },
+  {
+   "input": "## äword*data:## >b---*y*",
+   "html": "<h2>äword<em>data:## &gt;b---</em>y*</h2>"
+  },
+  {
+   "input": "* &#106;avascript:",
+   "html": "<ul>\n<li>&amp;#106;avascript:</li>\n</ul>"
+  },
+  {
+   "input": "<script>](&#106;avascript:1)- =mailto:a@b.fi\">mailto:a@b.fi + ",
+   "html": "<p>&lt;script&gt;](&amp;#106;avascript:1)- =mailto:a@b.fi&quot;&gt;mailto:a@b.fi +</p>"
+  },
+  {
+   "input": " >    \\[[x](javascript:alert(1))&#x6a;avascript:http://x.fi",
+   "html": "<p>&gt;    [<a>x</a>&amp;#x6a;avascript:http://x.fi</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)**!*y*(javascript:mailto:a@b.fi!](&#106;avascript:1)&#x6a;avascript:*y*    ===---",
+   "html": "<p><a>x</a><em><em>!</em>y</em>(javascript:mailto:a@b.fi!](&amp;#106;avascript:1)&amp;#x6a;avascript:<em>y</em>    ===---</p>"
+  },
+  {
+   "input": "===-   \\+ \n](&#106;avascript:1)",
+   "html": "<p>===-   + <br>\n](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "javascript:](&#106;avascript:1)http://x.fi)mailto:a@b.fi&=]('[x]: http://y.fi1. \n\n",
+   "html": "<p>javascript:](&amp;#106;avascript:1)http://x.fi)mailto:a@b.fi&amp;=](&#x27;[x]: http://y.fi1.</p>"
+  },
+  {
+   "input": "# \t*y***(===&#60;script&#62;&#x6a;avascript:1. [x]: http://y.fi* &#106;avascript:",
+   "html": "<h1><em>y</em>*<em>(===&amp;#60;script&amp;#62;&amp;#x6a;avascript:1. [x]: http://y.fi</em> &amp;#106;avascript:</h1>"
+  },
+  {
+   "input": "mailto:a@b.fi",
+   "html": "<p>mailto:a@b.fi</p>"
+  },
+  {
+   "input": "* ** [x]: http://y.fi",
+   "html": "<ul>\n<li>** [x]: http://y.fi</li>\n</ul>"
+  },
+  {
+   "input": "\"b1. ]ä'",
+   "html": "<p>&quot;b1. ]ä&#x27;</p>"
+  },
+  {
+   "input": "(a)[x]: http://y.fi_x__x_\"# \\<script>",
+   "html": "<p>(a)[x]: http://y.fi_x__x_&quot;# \\&lt;script&gt;</p>"
+  },
+  {
+   "input": "1.   1. (a)&#106;avascript:`",
+   "html": "<ol>\n<li>\n<ol>\n<li>(a)&amp;#106;avascript:`</li>\n</ol>\n</li>\n</ol>"
+  },
+  {
+   "input": "](&#106;avascript:1)&#60;script&#62;#! ***",
+   "html": "<p>](&amp;#106;avascript:1)&amp;#60;script&amp;#62;#! ***</p>"
+  },
+  {
+   "input": "http://x.fi## http://x.fi",
+   "html": "<p>http://x.fi## http://x.fi</p>"
+  },
+  {
+   "input": ")](__",
+   "html": "<p>)](__</p>"
+  },
+  {
+   "input": "a)===+ _&#106;avascript:- [x]: http://y.fia[word",
+   "html": "<p>a)===+ _&amp;#106;avascript:- [x]: http://y.fia[word</p>"
+  },
+  {
+   "input": "(a)javascript:>  ",
+   "html": "<p>(a)javascript:&gt;</p>"
+  },
+  {
+   "input": ")ä]data:1. **[x]: http://y.fi- - ",
+   "html": "<p>)ä]data:1. **[x]: http://y.fi- -</p>"
+  },
+  {
+   "input": "\n  [x](data:text/html,1)## ",
+   "html": "<p><a>x</a>##</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)javascript:_***](** + >    _",
+   "html": "<p><a>x</a>javascript:_<strong>*](</strong> + &gt;    _</p>"
+  },
+  {
+   "input": "    > \t(\tmailto:a@b.fi",
+   "html": "<p>&gt;    (   mailto:a@b.fi</p>"
+  },
+  {
+   "input": "\n\n",
+   "html": ""
+  },
+  {
+   "input": "#&`# a## &***]***",
+   "html": "<h1>&amp;`# a## &amp;<strong><em>]</em></strong></h1>"
+  },
+  {
+   "input": "http://x.fi__>*",
+   "html": "<p>http://x.fi__&gt;*</p>"
+  },
+  {
+   "input": "(a)_---[*word&\n\nhttp://x.fi*y*[x](data:text/html,1)===",
+   "html": "<p>(a)_---[*word&amp;</p>\n<p>http://x.fi<em>y</em><a>x</a>===</p>"
+  },
+  {
+   "input": "!1. ä_x_ä\n\n---- ",
+   "html": "<p>!1. ä_x_ä</p>\n<hr>"
+  },
+  {
+   "input": "\\1. \\*y*# ",
+   "html": "<p>\\1. *y*#</p>"
+  },
+  {
+   "input": "&#106;avascript:](&#106;avascript:1)---+ ",
+   "html": "<p>&amp;#106;avascript:](&amp;#106;avascript:1)---+</p>"
+  },
+  {
+   "input": "'1. [x]: http://y.fi=&b_x_b___",
+   "html": "<p>&#x27;1. [x]: http://y.fi=&amp;b_x_b___</p>"
+  },
+  {
+   "input": "***__ =](<)&#106;avascript:[x](data:text/html,1)&+ ---\"",
+   "html": "<p>***__ =](&lt;)&amp;#106;avascript:<a>x</a>&amp;+ ---&quot;</p>"
+  },
+  {
+   "input": "javascript:b`a\n\n_ä#  \n\n>>\t",
+   "html": "<p>javascript:b`a</p>\n<p>_ä#  </p>\n<p>&gt;&gt;</p>"
+  },
+  {
+   "input": "b",
+   "html": "<p>b</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)]===<script> \"http://x.fi__x_mailto:a@b.fi_x_",
+   "html": "<p>](&amp;#106;avascript:1)]===&lt;script&gt; &quot;http://x.fi__x_mailto:a@b.fi_x_</p>"
+  },
+  {
+   "input": "*[x](javascript:alert(1))_[x]: http://y.fi",
+   "html": "<p>*<a>x</a>_[x]: http://y.fi</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)(a) \"",
+   "html": "<p><a>x</a>(a) &quot;</p>"
+  },
+  {
+   "input": "data:&)javascript:>- &#106;avascript:'",
+   "html": "<p>data:&amp;)javascript:&gt;- &amp;#106;avascript:&#x27;</p>"
+  },
+  {
+   "input": "*data:[x](javascript:alert(1))",
+   "html": "<p>*data:<a>x</a></p>"
+  },
+  {
+   "input": "<* \\&    ](&#106;avascript:1)'***- \n\n**",
+   "html": "<p>&lt;<em> \\&amp;    ](&amp;#106;avascript:1)&#x27;</em>**- </p>\n<p>**</p>"
+  },
+  {
+   "input": "<script>data:&#x6a;avascript:[x](javascript:alert(1))]a# ***",
+   "html": "<p>&lt;script&gt;data:&amp;#x6a;avascript:<a>x</a>]a# ***</p>"
+  },
+  {
+   "input": "===[x](javascript:alert(1))ä_[x](javascript:alert(1))#]=\n\n# &#x6a;avascript:mailto:a@b.fi- ",
+   "html": "<p>===<a>x</a>ä_<a>x</a>#]=</p>\n<h1>&amp;#x6a;avascript:mailto:a@b.fi-</h1>"
+  },
+  {
+   "input": "\njavascript:&#x6a;avascript:**data:ä  =",
+   "html": "<p>javascript:&amp;#x6a;avascript:**data:ä  =</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)",
+   "html": "<p><a>x</a></p>"
+  },
+  {
+   "input": "&",
+   "html": "<p>&amp;</p>"
+  },
+  {
+   "input": "]bä[x]: http://y.fi*y*data:[]http://x.fi===ä",
+   "html": "<p>]bä[x]: http://y.fi<em>y</em>data:[]http://x.fi===ä</p>"
+  },
+  {
+   "input": "ä    \\<script>(a)]a ",
+   "html": "<p>ä    \\&lt;script&gt;(a)]a</p>"
+  },
+  {
+   "input": "http://x.fi",
+   "html": "<p>http://x.fi</p>"
+  },
+  {
+   "input": "**>",
+   "html": "<p>**&gt;</p>"
+  },
+  {
+   "input": "*y*2. [x]: http://y.fi> &#60;script&#62;\n &+   ",
+   "html": "<p><em>y</em>2. [x]: http://y.fi&gt; &amp;#60;script&amp;#62;<br>\n &amp;+</p>"
+  },
+  {
+   "input": "http://x.fi*'\t!2. _# ",
+   "html": "<p>http://x.fi*&#x27;  !2. _#</p>"
+  },
+  {
+   "input": "\n\n## wordjavascript:2. (a)a-  * ",
+   "html": "<h2>wordjavascript:2. (a)a-  *</h2>"
+  },
+  {
+   "input": "\n\nworda\n**data:&#x6a;avascript:_x_ ** &#x6a;avascript:a",
+   "html": "<p>worda<br>\n**data:&amp;#x6a;avascript:<em>x</em> ** &amp;#x6a;avascript:a</p>"
+  },
+  {
+   "input": "__",
+   "html": "<p>__</p>"
+  },
+  {
+   "input": "***\"    )+ &#x6a;avascript:[> 2. !===",
+   "html": "<p>***&quot;    )+ &amp;#x6a;avascript:[&gt; 2. !===</p>"
+  },
+  {
+   "input": "!> **\n\n\n**<script>># \n\n    >[x]: http://y.fi'",
+   "html": "<p>!&gt; **</p>\n<p>**&lt;script&gt;&gt;# </p>\n<pre><code>&amp;gt;[x]: http://y.fi&amp;#x27;\n</code></pre>"
+  },
+  {
+   "input": "- # ](&#106;avascript:1)](&#106;avascript:1)",
+   "html": "<ul>\n<li>\n<h1>](&amp;#106;avascript:1)](&amp;#106;avascript:1)</h1>\n</li>\n</ul>"
+  },
+  {
+   "input": "---__*\n\nword__)&#106;avascript:>",
+   "html": "<p>---__*</p>\n<p>word__)&amp;#106;avascript:&gt;</p>"
+  },
+  {
+   "input": "__\"[x](javascript:alert(1))===## `",
+   "html": "<p>__&quot;<a>x</a>===## `</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)# *y*&#x6a;avascript:*=word[x](data:text/html,1)&#60;script&#62;<script>",
+   "html": "<p>](&amp;#106;avascript:1)# <em>y</em>&amp;#x6a;avascript:*=word<a>x</a>&amp;#60;script&amp;#62;&lt;script&gt;</p>"
+  },
+  {
+   "input": "#\\+         ][> *y*]\"\"[x](javascript:alert(1))&#60;script&#62;",
+   "html": "<h1>+         ][&gt; <em>y</em>]&quot;&quot;<a>x</a>&amp;#60;script&amp;#62;</h1>"
+  },
+  {
+   "input": "_x_",
+   "html": "<p><em>x</em></p>"
+  },
+  {
+   "input": "](",
+   "html": "<p>](</p>"
+  },
+  {
+   "input": "+ &#106;avascript:\t<&#60;script&#62;(1. data:",
+   "html": "<ul>\n<li>&amp;#106;avascript:  &lt;&amp;#60;script&amp;#62;(1. data:</li>\n</ul>"
+  },
+  {
+   "input": "1. ===(",
+   "html": "<ol>\n<li>===(</li>\n</ol>"
+  },
+  {
+   "input": "2. __\n\n[x]: http://y.fi! word===http://x.fi!***`",
+   "html": "<ol>\n<li>__</li>\n</ol>\n<p>[x]: http://y.fi! word===http://x.fi!***`</p>"
+  },
+  {
+   "input": ">****y*<===data:http://x.fidata:a+ ---'",
+   "html": "<p>&gt;***<em>y</em>&lt;===data:http://x.fidata:a+ ---&#x27;</p>"
+  },
+  {
+   "input": "#_# + `******* ===",
+   "html": "<h1>_# + `<strong><em>*</em></strong> ===</h1>"
+  },
+  {
+   "input": "\"!",
+   "html": "<p>&quot;!</p>"
+  },
+  {
+   "input": "**",
+   "html": "<p>**</p>"
+  },
+  {
+   "input": "mailto:a@b.fi&#x6a;avascript:&# (a)(a)*",
+   "html": "<p>mailto:a@b.fi&amp;#x6a;avascript:&amp;# (a)(a)*</p>"
+  },
+  {
+   "input": "- ",
+   "html": "<p>-</p>"
+  },
+  {
+   "input": "<*\t!&\"\\    word",
+   "html": "<p>&lt;*   !&amp;&quot;\\    word</p>"
+  },
+  {
+   "input": "===# mailto:a@b.fi\\* http://x.fi    \n\n**",
+   "html": "<p>===# mailto:a@b.fi* http://x.fi    </p>\n<p>**</p>"
+  },
+  {
+   "input": "# (- b*y*\n\n!    \\`data:&#60;script&#62;",
+   "html": "<h1>(- b<em>y</em></h1>\n<p>!    `data:&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "_x_1. =b===",
+   "html": "<p>_x_1. =b===</p>"
+  },
+  {
+   "input": "javascript:word\n\n'(a)",
+   "html": "<p>javascript:word</p>\n<p>&#x27;(a)</p>"
+  },
+  {
+   "input": "**[x](data:text/html,1)ä[====",
+   "html": "<p>**<a>x</a>ä[====</p>"
+  },
+  {
+   "input": "](\"\\[x](data:text/html,1)## *y**y*\n\n[x]: http://y.fi- <script>[",
+   "html": "<p>](&quot;[x](data:text/html,1)## <em>y</em><em>y</em></p>\n<p>[x]: http://y.fi- &lt;script&gt;[</p>"
+  },
+  {
+   "input": "\"&#106;avascript:***__x_<---[[x](javascript:alert(1))](&#106;avascript:1)* mailto:a@b.fi\n\n[",
+   "html": "<p>&quot;&amp;#106;avascript:**<em>__x_&lt;---<a><a>x</a></a></em> mailto:a@b.fi</p>\n<p>[</p>"
+  },
+  {
+   "input": "_===[x](data:text/html,1)1. ä)(a)  ]\"_#",
+   "html": "<p><em>===<a>x</a>1. ä)(a)  ]&quot;</em>#</p>"
+  },
+  {
+   "input": "`    ",
+   "html": "<p>`</p>"
+  },
+  {
+   "input": "__\n__<(    ä[",
+   "html": "<p>__<br>\n__&lt;(    ä[</p>"
+  },
+  {
+   "input": "\n\n- (a)_x_`]\n\n__------",
+   "html": "<ul>\n<li>(a)<em>x</em>`]</li>\n</ul>\n<p>__------</p>"
+  },
+  {
+   "input": "](_mailto:a@b.fijavascript:  &",
+   "html": "<p>](_mailto:a@b.fijavascript:  &amp;</p>"
+  },
+  {
+   "input": "* ",
+   "html": "<p>*</p>"
+  },
+  {
+   "input": "## ](&#60;script&#62;[x]: http://y.fi* ***",
+   "html": "<h2>](&amp;#60;script&amp;#62;[x]: http://y.fi* ***</h2>"
+  },
+  {
+   "input": "+ a---===ä***",
+   "html": "<ul>\n<li>a---===ä***</li>\n</ul>"
+  },
+  {
+   "input": "&#106;avascript:http://x.fi\\1. &#60;script&#62;&#60;script&#62;1. ",
+   "html": "<p>&amp;#106;avascript:http://x.fi\\1. &amp;#60;script&amp;#62;&amp;#60;script&amp;#62;1.</p>"
+  },
+  {
+   "input": ">ä",
+   "html": "<p>&gt;ä</p>"
+  },
+  {
+   "input": "\t&",
+   "html": "<p>&amp;</p>"
+  },
+  {
+   "input": "**`#&#106;avascript:mailto:a@b.fi__======[x]: http://y.fi\"",
+   "html": "<p>**`#&amp;#106;avascript:mailto:a@b.fi__======[x]: http://y.fi&quot;</p>"
+  },
+  {
+   "input": "    ===  ",
+   "html": "<p>===</p>"
+  },
+  {
+   "input": "#\t**(a)> \\[x](data:text/html,1) \n)",
+   "html": "<h1>**(a)&gt; [x](data:text/html,1)</h1>\n<p>)</p>"
+  },
+  {
+   "input": ">+ ![",
+   "html": "<p>&gt;+ ![</p>"
+  },
+  {
+   "input": "=`\"[x](data:text/html,1)+ &#x6a;avascript:  ",
+   "html": "<p>=`&quot;<a>x</a>+ &amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": " **+ (_x_# &#60;script&#62;__(a)=  ***&",
+   "html": "<p><strong>+ (<em>x</em># &amp;#60;script&amp;#62;__(a)=  </strong>*&amp;</p>"
+  },
+  {
+   "input": "](< &#60;script&#62;]](&#106;avascript:1)(",
+   "html": "<p>](&lt; &amp;#60;script&amp;#62;]](&amp;#106;avascript:1)(</p>"
+  },
+  {
+   "input": "---## ](",
+   "html": "<p>---## ](</p>"
+  },
+  {
+   "input": "\n\n1. ](&#106;avascript:1)\n\n!_data:_x_data:- ",
+   "html": "<ol>\n<li>](&amp;#106;avascript:1)</li>\n</ol>\n<p>!_data:_x_data:-</p>"
+  },
+  {
+   "input": "  ",
+   "html": ""
+  },
+  {
+   "input": "*y*word",
+   "html": "<p><em>y</em>word</p>"
+  },
+  {
+   "input": "**http://x.fi)](",
+   "html": "<p>**http://x.fi)](</p>"
+  },
+  {
+   "input": "**- ",
+   "html": "<p>**-</p>"
+  },
+  {
+   "input": "**#\\!<#",
+   "html": "<p>**#!&lt;#</p>"
+  },
+  {
+   "input": "2. ---mailto:a@b.fib!",
+   "html": "<ol>\n<li>---mailto:a@b.fib!</li>\n</ol>"
+  },
+  {
+   "input": "\\](  http://x.fi* ",
+   "html": "<p>](  http://x.fi*</p>"
+  },
+  {
+   "input": "**<",
+   "html": "<p>**&lt;</p>"
+  },
+  {
+   "input": " # [x](javascript:alert(1))(",
+   "html": "<h1><a>x</a>(</h1>"
+  },
+  {
+   "input": "+ ===_*y*",
+   "html": "<ul>\n<li>===_<em>y</em></li>\n</ul>"
+  },
+  {
+   "input": "***'*[&#106;avascript:[x](javascript:alert(1))<---***    ===[x](javascript:alert(1)) ",
+   "html": "<p><strong><em>&#x27;</em>[&amp;#106;avascript:<a>x</a>&lt;---</strong>*    ===<a>x</a></p>"
+  },
+  {
+   "input": "_x_\"*    b## )mailto:a@b.fi\\__`",
+   "html": "<p><em>x</em>&quot;*    b## )mailto:a@b.fi__`</p>"
+  },
+  {
+   "input": "## [x](data:text/html,1) > `  # ä=**",
+   "html": "<h2><a>x</a> &gt; `  # ä=**</h2>"
+  },
+  {
+   "input": "===worddata:&#60;script&#62;",
+   "html": "<p>===worddata:&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": " ---<**\t>&<script>",
+   "html": "<p>---&lt;**   &gt;&amp;&lt;script&gt;</p>"
+  },
+  {
+   "input": "  ",
+   "html": ""
+  },
+  {
+   "input": "1. \n  [x]: http://y.fi[x](javascript:alert(1))",
+   "html": "<ol>\n<li></li>\n</ol>"
+  },
+  {
+   "input": "> + &- _x_**'](\\]",
+   "html": "<p>&gt; + &amp;- <em>x</em>**&#x27;](]</p>"
+  },
+  {
+   "input": "__\t- `b=",
+   "html": "<p>__  - `b=</p>"
+  },
+  {
+   "input": "***#   ",
+   "html": "<p>***#</p>"
+  },
+  {
+   "input": "\n&#x6a;avascript:\n=\t",
+   "html": "<h1>&amp;#x6a;avascript:</h1>"
+  },
+  {
+   "input": "javascript:[x](data:text/html,1)    data:*#mailto:a@b.fi](=2. \"",
+   "html": "<p>javascript:<a>x</a>    data:*#mailto:a@b.fi](=2. &quot;</p>"
+  },
+  {
+   "input": "[x]: http://y.fi)><(a))&#106;avascript:",
+   "html": ""
+  },
+  {
+   "input": "***## ab\n\n(a)\n\"_",
+   "html": "<p>***## ab</p>\n<p>(a)<br>\n&quot;_</p>"
+  },
+  {
+   "input": "mailto:a@b.fi\t\n\n\n&#106;avascript:**ä1.     \n=",
+   "html": "<p>mailto:a@b.fi   </p>\n<h1>&amp;#106;avascript:**ä1.</h1>"
+  },
+  {
+   "input": "===\n[x]: http://y.fi+ data:([]<script>",
+   "html": "<p>===<br>\n[x]: http://y.fi+ data:([]&lt;script&gt;</p>"
+  },
+  {
+   "input": "](&#106;avascript:](&#106;avascript:1)",
+   "html": "<p>](&amp;#106;avascript:](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "2. word''&#106;avascript:&#106;avascript:  \n\n&#106;avascript:*y*",
+   "html": "<ol>\n<li>word&#x27;&#x27;&amp;#106;avascript:&amp;#106;avascript:  </li>\n</ol>\n<p>&amp;#106;avascript:<em>y</em></p>"
+  },
+  {
+   "input": "- ",
+   "html": "<p>-</p>"
+  },
+  {
+   "input": "> # *`[x]: http://y.fi    [x](data:text/html,1)=b2. (_x_===\"",
+   "html": "<p>&gt; # *`[x]: http://y.fi    <a>x</a>=b2. (<em>x</em>===&quot;</p>"
+  },
+  {
+   "input": "\t[[x]: http://y.fi# \"**`[&#106;avascript:javascript:",
+   "html": "<p>[[x]: http://y.fi# &quot;**`[&amp;#106;avascript:javascript:</p>"
+  },
+  {
+   "input": "mailto:a@b.fidata:&\t> a!## ***!\n mailto:a@b.fi",
+   "html": "<p>mailto:a@b.fidata:&amp; &gt; a!## ***!<br>\n mailto:a@b.fi</p>"
+  },
+  {
+   "input": "__!]\thttp://x.fi&#106;avascript:- &#60;script&#62;'&#106;avascript:](&#106;avascript:1)http://x.fi&#106;avascript:[x](data:text/html,1)",
+   "html": "<p>__!]    http://x.fi&amp;#106;avascript:- &amp;#60;script&amp;#62;&#x27;&amp;#106;avascript:](&amp;#106;avascript:1)http://x.fi&amp;#106;avascript:<a>x</a></p>"
+  },
+  {
+   "input": "> `=\\#ä*** > wordmailto:a@b.fi# ",
+   "html": "<p>&gt; `=#ä*** &gt; wordmailto:a@b.fi#</p>"
+  },
+  {
+   "input": "===word'",
+   "html": "<p>===word&#x27;</p>"
+  },
+  {
+   "input": "&***    ***\n**",
+   "html": "<p>&amp;***    ***<br>\n**</p>"
+  },
+  {
+   "input": "\n'## `1. >word\\*y*2. (a)[\t",
+   "html": "<p>&#x27;## `1. &gt;word*y*2. (a)[</p>"
+  },
+  {
+   "input": "http://x.fi&#x6a;avascript:a__[__> __&[x](javascript:alert(1))data:(mailto:a@b.fib",
+   "html": "<p>http://x.fi&amp;#x6a;avascript:a__[<strong>&gt; </strong>&amp;<a>x</a>data:(mailto:a@b.fib</p>"
+  },
+  {
+   "input": "***javascript:> [x](data:text/html,1)_x_&#60;script&#62;2. ",
+   "html": "<p>***javascript:&gt; <a>x</a><em>x</em>&amp;#60;script&amp;#62;2.</p>"
+  },
+  {
+   "input": "- ",
+   "html": "<p>-</p>"
+  },
+  {
+   "input": "===(&",
+   "html": "<p>===(&amp;</p>"
+  },
+  {
+   "input": "\\## <&\"",
+   "html": "<p>## &lt;&amp;&quot;</p>"
+  },
+  {
+   "input": ">](&#106;avascript:1)&#106;avascript:---  [x](javascript:alert(1))#http://x.fi\t<script>",
+   "html": "<p>&gt;](&amp;#106;avascript:1)&amp;#106;avascript:---  <a>x</a>#http://x.fi   &lt;script&gt;</p>"
+  },
+  {
+   "input": "***===&#106;avascript:`[](&#106;avascript:1)",
+   "html": "<p>***===&amp;#106;avascript:`<a></a></p>"
+  },
+  {
+   "input": "](***\n> data:2.  * &#60;script&#62;---  ]=",
+   "html": "<p>](***<br>\n&gt; data:2.  * &amp;#60;script&amp;#62;---  ]=</p>"
+  },
+  {
+   "input": "javascript:#===2. ",
+   "html": "<p>javascript:#===2.</p>"
+  },
+  {
+   "input": "# _x_\nword&#106;avascript:word&#60;script&#62;ä=&#x6a;avascript:!!",
+   "html": "<h1><em>x</em></h1>\n<p>word&amp;#106;avascript:word&amp;#60;script&amp;#62;ä=&amp;#x6a;avascript:!!</p>"
+  },
+  {
+   "input": "* =  [x](javascript:alert(1)))",
+   "html": "<ul>\n<li>=  <a>x</a>)</li>\n</ul>"
+  },
+  {
+   "input": "# &#x6a;avascript:](&#106;avascript:1)\n)2. `!=",
+   "html": "<h1>&amp;#x6a;avascript:](&amp;#106;avascript:1)</h1>\n<p>)2. `!=</p>"
+  },
+  {
+   "input": "_#[    *\t---===]((_x_",
+   "html": "<p><em>#[    *    ---===]((_x</em></p>"
+  },
+  {
+   "input": "]([x]: http://y.fi    '",
+   "html": "<p>]([x]: http://y.fi    &#x27;</p>"
+  },
+  {
+   "input": "=***> _x_*y*# http://x.fiword&#60;script&#62;word(a)- &#x6a;avascript:",
+   "html": "<p>=*<em><em>&gt; <em>x</em></em>y</em># http://x.fiword&amp;#60;script&amp;#62;word(a)- &amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "* *http://x.fi]# &#106;avascript:(http://x.fi<\"[x](data:text/html,1)&#106;avascript:[x](javascript:alert(1))",
+   "html": "<ul>\n<li>*http://x.fi]# &amp;#106;avascript:(http://x.fi&lt;&quot;<a>x</a>&amp;#106;avascript:<a>x</a></li>\n</ul>"
+  },
+  {
+   "input": "\t#ä`",
+   "html": "<h1>ä`</h1>"
+  },
+  {
+   "input": "[x](data:text/html,1)](&#106;avascript:1)[+ = '&#60;script&#62;<script>http://x.fi",
+   "html": "<p><a>x</a>](&amp;#106;avascript:1)[+ = &#x27;&amp;#60;script&amp;#62;&lt;script&gt;http://x.fi</p>"
+  },
+  {
+   "input": "word\t&===[x]: http://y.fi&#60;script&#62;_)\"mailto:a@b.fi\n",
+   "html": "<p>word    &amp;===[x]: http://y.fi&amp;#60;script&amp;#62;_)&quot;mailto:a@b.fi</p>"
+  },
+  {
+   "input": "*y*)---- &#x6a;avascript:===(> >*y*",
+   "html": "<p><em>y</em>)---- &amp;#x6a;avascript:===(&gt; &gt;<em>y</em></p>"
+  },
+  {
+   "input": "[x](data:text/html,1)!**[x](data:text/html,1)\n\n&#106;avascript:_x_&#60;script&#62;",
+   "html": "<p><a>x</a>!**<a>x</a></p>\n<p>&amp;#106;avascript:<em>x</em>&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "#(a)",
+   "html": "<h1>(a)</h1>"
+  },
+  {
+   "input": "!# &#106;avascript:)a[\n]",
+   "html": "<p>!# &amp;#106;avascript:)a[<br>\n]</p>"
+  },
+  {
+   "input": "_x_](&#60;script&#62;*y*(",
+   "html": "<p><em>x</em>](&amp;#60;script&amp;#62;<em>y</em>(</p>"
+  },
+  {
+   "input": "(a)---# &=1. javascript:&#60;script&#62;)",
+   "html": "<p>(a)---# &amp;=1. javascript:&amp;#60;script&amp;#62;)</p>"
+  },
+  {
+   "input": "1. <script>[word=___x_`===\n\"",
+   "html": "<ol>\n<li>&lt;script&gt;[word=___x_`===<br>\n&quot;</li>\n</ol>"
+  },
+  {
+   "input": "_x_      ",
+   "html": "<p><em>x</em></p>"
+  },
+  {
+   "input": "* 2. ",
+   "html": "<ul>\n<li>2.</li>\n</ul>"
+  },
+  {
+   "input": "+ ",
+   "html": "<p>+</p>"
+  },
+  {
+   "input": "* \\word> [x](data:text/html,1)[x](javascript:alert(1))&#60;script&#62;****",
+   "html": "<ul>\n<li>\\word&gt; <a>x</a><a>x</a>&amp;#60;script&amp;#62;****</li>\n</ul>"
+  },
+  {
+   "input": "b*y*",
+   "html": "<p>b<em>y</em></p>"
+  },
+  {
+   "input": "<script>http://x.fi]+ ---(a)[x]: http://y.fi",
+   "html": "<p>&lt;script&gt;http://x.fi]+ ---(a)[x]: http://y.fi</p>"
+  },
+  {
+   "input": "_x_",
+   "html": "<p><em>x</em></p>"
+  },
+  {
+   "input": "==#",
+   "html": "<p>==#</p>"
+  },
+  {
+   "input": "_x_javascript:a <",
+   "html": "<p>_x_javascript:a &lt;</p>"
+  },
+  {
+   "input": "2. [x](javascript:alert(1))(javascript:(a)`[x]: http://y.fijavascript:b](&#106;avascript:1)=",
+   "html": "<ol>\n<li><a>x</a>(javascript:(a)`[x]: http://y.fijavascript:b](&amp;#106;avascript:1)=</li>\n</ol>"
+  },
+  {
+   "input": "\n\n\\)---!# word*<&#106;avascript:=](&#106;avascript:1)",
+   "html": "<p>)---!# word*&lt;&amp;#106;avascript:=](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "__](a- **word\n\n*<(a)    *y*&#60;script&#62;***",
+   "html": "<p>__](a- **word</p>\n<p><em>&lt;(a)    </em>y<em>&amp;#60;script&amp;#62;</em>**</p>"
+  },
+  {
+   "input": "_x_\n",
+   "html": "<p><em>x</em></p>"
+  },
+  {
+   "input": "&#60;script&#62;=&#106;avascript:1. ",
+   "html": "<p>&amp;#60;script&amp;#62;=&amp;#106;avascript:1.</p>"
+  },
+  {
+   "input": "!&#60;script&#62;data:\n\n",
+   "html": "<p>!&amp;#60;script&amp;#62;data:</p>"
+  },
+  {
+   "input": "_x_['[==",
+   "html": "<p><em>x</em>[&#x27;[==</p>"
+  },
+  {
+   "input": "#\\\nmailto:a@b.fi## javascript:---",
+   "html": "<p>#\\<br>\nmailto:a@b.fi## javascript:---</p>"
+  },
+  {
+   "input": "](>__`)(a)* word---\n\n`",
+   "html": "<p>](&gt;__`)(a)* word---</p>\n<p>`</p>"
+  },
+  {
+   "input": "word)",
+   "html": "<p>word)</p>"
+  },
+  {
+   "input": "[(- \n#",
+   "html": "<p>[(- </p>\n<h1></h1>"
+  },
+  {
+   "input": "*y*)<script>---#1. \n\"",
+   "html": "<p><em>y</em>)&lt;script&gt;---#1. <br>\n&quot;</p>"
+  },
+  {
+   "input": "[x]: http://y.fi===>**data:](&#106;avascript:1)!\"* ",
+   "html": ""
+  },
+  {
+   "input": "[x]: http://y.fi    ! ---_x_",
+   "html": "<p>[x]: http://y.fi    ! ---<em>x</em></p>"
+  },
+  {
+   "input": "`+ (a)]([x]: http://y.fi&1. ä---)* &#x6a;avascript:",
+   "html": "<p>`+ (a)]([x]: http://y.fi&amp;1. ä---)* &amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "**<\\`word\t_\n> > ---<* ",
+   "html": "<p>*<em>&lt;`word    _<br>\n&gt; &gt; ---&lt;</em></p>"
+  },
+  {
+   "input": "[x]: http://y.fi",
+   "html": ""
+  },
+  {
+   "input": "[[mailto:a@b.fia\n# # ",
+   "html": "<p>[[mailto:a@b.fia</p>\n<h1></h1>"
+  },
+  {
+   "input": "\n\"&&#x6a;avascript:[(- ](&#106;avascript:1)- ## data:&a>",
+   "html": "<p>&quot;&amp;&amp;#x6a;avascript:<a>(- </a>- ## data:&amp;a&gt;</p>"
+  },
+  {
+   "input": "*&#x6a;avascript:",
+   "html": "<p>*&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "## ",
+   "html": "<h2></h2>"
+  },
+  {
+   "input": "data:_word[_***__'__x_  &#106;avascript:",
+   "html": "<p>data:<em>word[</em>***__&#x27;__x_  &amp;#106;avascript:</p>"
+  },
+  {
+   "input": "\"    `===\t]`_x_",
+   "html": "<p>&quot;    <code>===  ]</code><em>x</em></p>"
+  },
+  {
+   "input": "> `* javascript:1.     ### _x_'1. ",
+   "html": "<p>&gt; `* javascript:1.     ### <em>x</em>&#x27;1.</p>"
+  },
+  {
+   "input": "---__* (a)* &#x6a;avascript:## + ",
+   "html": "<p>---__<em> (a)</em> &amp;#x6a;avascript:## +</p>"
+  },
+  {
+   "input": "=[x]: http://y.fi<script>\n\nmailto:a@b.fi",
+   "html": "<p>=[x]: http://y.fi&lt;script&gt;</p>\n<p>mailto:a@b.fi</p>"
+  },
+  {
+   "input": "## b[x](data:text/html,1)&#60;script&#62;",
+   "html": "<h2>b<a>x</a>&amp;#60;script&amp;#62;</h2>"
+  },
+  {
+   "input": "__=***&#x6a;avascript:=http://x.fi&#106;avascript:_x_",
+   "html": "<p>__=***&amp;#x6a;avascript:=http://x.fi&amp;#106;avascript:<em>x</em></p>"
+  },
+  {
+   "input": "\"*  + \n\n===(__",
+   "html": "<p>&quot;*  + </p>\n<p>===(__</p>"
+  },
+  {
+   "input": ")(a)* mailto:a@b.fib+ ",
+   "html": "<p>)(a)* mailto:a@b.fib+</p>"
+  },
+  {
+   "input": "    ](    &#106;avascript:&(",
+   "html": "<p>](    &amp;#106;avascript:&amp;(</p>"
+  },
+  {
+   "input": "> > ===2. ==='[x](data:text/html,1)javascript:1. <",
+   "html": "<p>&gt; &gt; ===2. ===&#x27;<a>x</a>javascript:1. &lt;</p>"
+  },
+  {
+   "input": "b## 1. [x]: http://y.fi&#60;script&#62;",
+   "html": "<p>b## 1. [x]: http://y.fi&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "[x]: http://y.fi&#60;script&#62;+ [x](javascript:alert(1))## ",
+   "html": "<p>[x]: http://y.fi&amp;#60;script&amp;#62;+ <a>x</a>##</p>"
+  },
+  {
+   "input": "_&#60;script&#62;]+ \"===",
+   "html": "<p>_&amp;#60;script&amp;#62;]+ &quot;===</p>"
+  },
+  {
+   "input": "*y*a \t2. ",
+   "html": "<p><em>y</em>a    2.</p>"
+  },
+  {
+   "input": "<script>data:**javascript:+ ---*   *y*\t",
+   "html": "<p>&lt;script&gt;data:<em><em>javascript:+ ---</em>   </em>y*</p>"
+  },
+  {
+   "input": "&#106;avascript:_]ä******1. )&# ](",
+   "html": "<p>&amp;#106;avascript:_]ä<strong>*</strong>*1. )&amp;# ](</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)javascript:(a)word<script>* word=    \"> <script>",
+   "html": "<p><a>x</a>javascript:(a)word&lt;script&gt;* word=    &quot;&gt; &lt;script&gt;</p>"
+  },
+  {
+   "input": "_`<script>**\n",
+   "html": "<p>_`&lt;script&gt;**</p>"
+  },
+  {
+   "input": "2. 2. ",
+   "html": "<ol>\n<li>2.</li>\n</ol>"
+  },
+  {
+   "input": "* ](a)`]([x]: http://y.fi# \t---_1. [x]: http://y.fi  ",
+   "html": "<ul>\n<li>](a)`]([x]: http://y.fi#  ---_1. [x]: http://y.fi</li>\n</ul>"
+  },
+  {
+   "input": "]('__'*y*](&#106;avascript:1)- &#x6a;avascript:!\"_x_http://x.fi",
+   "html": "<p>](&#x27;__&#x27;<em>y</em>](&amp;#106;avascript:1)- &amp;#x6a;avascript:!&quot;_x_http://x.fi</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)#mailto:a@b.fi",
+   "html": "<p>](&amp;#106;avascript:1)#mailto:a@b.fi</p>"
+  },
+  {
+   "input": "&#x6a;avascript:",
+   "html": "<p>&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "ä&#106;avascript:===+ http://x.fi  ",
+   "html": "<p>ä&amp;#106;avascript:===+ http://x.fi</p>"
+  },
+  {
+   "input": "1. ",
+   "html": "<p>1.</p>"
+  },
+  {
+   "input": "](mailto:a@b.fi]#\"*y** =&#106;avascript:[+ _x_## mailto:a@b.fi",
+   "html": "<p>](mailto:a@b.fi]#&quot;<em>y</em>* =&amp;#106;avascript:[+ <em>x</em>## mailto:a@b.fi</p>"
+  },
+  {
+   "input": "!\"&#x6a;avascript:[x](data:text/html,1)http://x.fi[x]: http://y.fi[x](javascript:alert(1))a&#60;script&#62;    ",
+   "html": "<p>!&quot;&amp;#x6a;avascript:<a>x</a>http://x.fi[x]: http://y.fi<a>x</a>a&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "1. b&#106;avascript:](&#106;avascript:1)- ***",
+   "html": "<ol>\n<li>b&amp;#106;avascript:](&amp;#106;avascript:1)- ***</li>\n</ol>"
+  },
+  {
+   "input": "* ",
+   "html": "<p>*</p>"
+  },
+  {
+   "input": "+   **ä",
+   "html": "<ul>\n<li>**ä</li>\n</ul>"
+  },
+  {
+   "input": "(a)\n\n",
+   "html": "<p>(a)</p>"
+  },
+  {
+   "input": "*y*&#x6a;avascript:bä\\+   [x]: http://y.fi  \t",
+   "html": "<p><em>y</em>&amp;#x6a;avascript:bä+   [x]: http://y.fi</p>"
+  },
+  {
+   "input": "data:- ><script>  1. ===\n",
+   "html": "<p>data:- &gt;&lt;script&gt;  1. ===</p>"
+  },
+  {
+   "input": "<script>word    __ #",
+   "html": "<p>&lt;script&gt;word    __ #</p>"
+  },
+  {
+   "input": "\n\n*+ ___x_",
+   "html": "<p>*+ ___x_</p>"
+  },
+  {
+   "input": "\\&#106;avascript:**&#x6a;avascript:_[x](data:text/html,1)# >* > word    [x](javascript:alert(1))",
+   "html": "<p>\\&amp;#106;avascript:*<em>&amp;#x6a;avascript:_<a>x</a># &gt;</em> &gt; word    <a>x</a></p>"
+  },
+  {
+   "input": "'_x__x_\n\n===b",
+   "html": "<p>&#x27;<em>x__x</em></p>\n<p>===b</p>"
+  },
+  {
+   "input": "\n===# http://x.fi>`'ä[x]: http://y.fi_*y*- javascript:",
+   "html": "<p>===# http://x.fi&gt;`&#x27;ä[x]: http://y.fi_<em>y</em>- javascript:</p>"
+  },
+  {
+   "input": "2. aädata:(a)[x]: http://y.fia\n<script>\"[\n\n\n",
+   "html": "<ol>\n<li>aädata:(a)[x]: http://y.fia<br>\n&lt;script&gt;&quot;[</li>\n</ol>"
+  },
+  {
+   "input": "](&#106;avascript:1)===",
+   "html": "<p>](&amp;#106;avascript:1)===</p>"
+  },
+  {
+   "input": "]",
+   "html": "<p>]</p>"
+  },
+  {
+   "input": "  # mailto:a@b.fi_`\"2. &#x6a;avascript:__#\tmailto:a@b.fi",
+   "html": "<h1>mailto:a@b.fi_`&quot;2. &amp;#x6a;avascript:__#   mailto:a@b.fi</h1>"
+  },
+  {
+   "input": "'\"]([x](data:text/html,1)&#x6a;avascript:><script>[x](data:text/html,1)([",
+   "html": "<p>&#x27;&quot;](<a>x</a>&amp;#x6a;avascript:&gt;&lt;script&gt;<a>x</a>([</p>"
+  },
+  {
+   "input": "+ [x](data:text/html,1)<\"\\## mailto:a@b.fimailto:a@b.fib  ##       ",
+   "html": "<ul>\n<li><a>x</a>&lt;&quot;## mailto:a@b.fimailto:a@b.fib  ##</li>\n</ul>"
+  },
+  {
+   "input": "ä    &#x6a;avascript:&&#x6a;avascript:word)2. \n\na",
+   "html": "<p>ä    &amp;#x6a;avascript:&amp;&amp;#x6a;avascript:word)2. </p>\n<p>a</p>"
+  },
+  {
+   "input": "---    data:javascript:&](word=---a&#106;avascript:&",
+   "html": "<p>---    data:javascript:&amp;](word=---a&amp;#106;avascript:&amp;</p>"
+  },
+  {
+   "input": "2. ***2. (a)# javascript:]",
+   "html": "<ol>\n<li>***2. (a)# javascript:]</li>\n</ol>"
+  },
+  {
+   "input": "2. \"worddata:",
+   "html": "<ol>\n<li>&quot;worddata:</li>\n</ol>"
+  },
+  {
+   "input": "](javascript:http://x.fi- &#60;script&#62;\"---(a)[x](javascript:alert(1))",
+   "html": "<p>](javascript:http://x.fi- &amp;#60;script&amp;#62;&quot;---(a)<a>x</a></p>"
+  },
+  {
+   "input": "http://x.fi## &#x6a;avascript:a#",
+   "html": "<p>http://x.fi## &amp;#x6a;avascript:a#</p>"
+  },
+  {
+   "input": "[x]: http://y.fi[x]: http://y.fi",
+   "html": "<p>[x]: http://y.fi[x]: http://y.fi</p>"
+  },
+  {
+   "input": ")#2. '**[x](data:text/html,1)`(&#x6a;avascript:",
+   "html": "<p>)#2. &#x27;**<a>x</a>`(&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": ")[x](data:text/html,1)",
+   "html": "<p>)<a>x</a></p>"
+  },
+  {
+   "input": "*",
+   "html": "<p>*</p>"
+  },
+  {
+   "input": "(b",
+   "html": "<p>(b</p>"
+  },
+  {
+   "input": "(a)**** <## '",
+   "html": "<p>(a)**** &lt;## &#x27;</p>"
+  },
+  {
+   "input": " [x](data:text/html,1)a* - [x]: http://y.fi# \"- &http://x.fi>'",
+   "html": "<p><a>x</a>a* - [x]: http://y.fi# &quot;- &amp;http://x.fi&gt;&#x27;</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))\\\nb> b#&#106;avascript:'(a)  `](\"",
+   "html": "<p><a>x</a>\\<br>\nb&gt; b#&amp;#106;avascript:&#x27;(a)  `](&quot;</p>"
+  },
+  {
+   "input": "<&#60;script&#62;_x_# ===[x](javascript:alert(1))word_x_\n\n](",
+   "html": "<p>&lt;&amp;#60;script&amp;#62;<em>x</em># ===<a>x</a>word_x_</p>\n<p>](</p>"
+  },
+  {
+   "input": "('&#106;avascript:===&#106;avascript:)ä**&#x6a;avascript:worda",
+   "html": "<p>(&#x27;&amp;#106;avascript:===&amp;#106;avascript:)ä**&amp;#x6a;avascript:worda</p>"
+  },
+  {
+   "input": "1. ---]((&#60;script&#62;](&#106;avascript:1)- * mailto:a@b.fi_x_",
+   "html": "<ol>\n<li>---]((&amp;#60;script&amp;#62;](&amp;#106;avascript:1)- * mailto:a@b.fi_x_</li>\n</ol>"
+  },
+  {
+   "input": "javascript:--->\n\n&&",
+   "html": "<p>javascript:---&gt;</p>\n<p>&amp;&amp;</p>"
+  },
+  {
+   "input": "  [x](javascript:alert(1))<script>`[[x](javascript:alert(1))+ javascript:    http://x.fihttp://x.fi",
+   "html": "<p><a>x</a>&lt;script&gt;`[<a>x</a>+ javascript:    http://x.fihttp://x.fi</p>"
+  },
+  {
+   "input": "ä\n> __&#60;script&#62;# ",
+   "html": "<p>ä<br>\n&gt; __&amp;#60;script&amp;#62;#</p>"
+  },
+  {
+   "input": "    ",
+   "html": ""
+  },
+  {
+   "input": "\t(a)",
+   "html": "<p>(a)</p>"
+  },
+  {
+   "input": "data:mailto:a@b.fi\t",
+   "html": "<p>data:mailto:a@b.fi</p>"
+  },
+  {
+   "input": "    *y*mailto:a@b.fi* mailto:a@b.fi> http://x.fimailto:a@b.fi<script> word&#60;script&#62;_x_mailto:a@b.fi",
+   "html": "<p><em>y</em>mailto:a@b.fi* mailto:a@b.fi&gt; http://x.fimailto:a@b.fi&lt;script&gt; word&amp;#60;script&amp;#62;_x_mailto:a@b.fi</p>"
+  },
+  {
+   "input": "*data:- javascript:",
+   "html": "<p>*data:- javascript:</p>"
+  },
+  {
+   "input": "#1. [x](javascript:alert(1))[x](javascript:alert(1))<script>`*y*(a)http://x.fi> #1. *y*[",
+   "html": "<h1>1. <a>x</a><a>x</a>&lt;script&gt;`<em>y</em>(a)http://x.fi&gt; #1. <em>y</em>[</h1>"
+  },
+  {
+   "input": "(",
+   "html": "<p>(</p>"
+  },
+  {
+   "input": "===__\t\"",
+   "html": "<p>===__   &quot;</p>"
+  },
+  {
+   "input": "*    ](&#106;avascript:1)&#106;avascript:_x_&#x6a;avascript:[x]: http://y.fi===b",
+   "html": "<ul>\n<li>](&amp;#106;avascript:1)&amp;#106;avascript:<em>x</em>&amp;#x6a;avascript:[x]: http://y.fi===b</li>\n</ul>"
+  },
+  {
+   "input": "&#60;script&#62;***&#106;avascript:",
+   "html": "<p>&amp;#60;script&amp;#62;***&amp;#106;avascript:</p>"
+  },
+  {
+   "input": " &#106;avascript:---data:",
+   "html": "<p>&amp;#106;avascript:---data:</p>"
+  },
+  {
+   "input": "äa<script>word",
+   "html": "<p>äa&lt;script&gt;word</p>"
+  },
+  {
+   "input": "    (a)_x_(a)2. ä[x]: http://y.fibhttp://x.fi(http://x.fi'",
+   "html": "<p>(a)<em>x</em>(a)2. ä[x]: http://y.fibhttp://x.fi(http://x.fi&#x27;</p>"
+  },
+  {
+   "input": "> **(http://x.fi",
+   "html": "<p>&gt; **(http://x.fi</p>"
+  },
+  {
+   "input": "[x]: http://y.fi__data:_x_](&#106;avascript:1)\"=",
+   "html": ""
+  },
+  {
+   "input": "_]#     ***javascript:!=\n*y*_x_",
+   "html": "<p><em>]#     *<em><em>javascript:!=<br>\n</em>y</em>_x</em></p>"
+  },
+  {
+   "input": "&#106;avascript:",
+   "html": "<p>&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "__']__",
+   "html": "<p><strong>&#x27;]</strong></p>"
+  },
+  {
+   "input": "mailto:a@b.fi*!***===(* * &#x6a;avascript:&#106;avascript:()    ",
+   "html": "<p>mailto:a@b.fi<em>!</em>*<em>===(</em> * &amp;#x6a;avascript:&amp;#106;avascript:()</p>"
+  },
+  {
+   "input": "&#106;avascript:*&)<script>&#60;script&#62;",
+   "html": "<p>&amp;#106;avascript:*&amp;)&lt;script&gt;&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "&#x6a;avascript:&#106;avascript:## [x](javascript:alert(1))*y*#mailto:a@b.fi",
+   "html": "<p>&amp;#x6a;avascript:&amp;#106;avascript:## <a>x</a><em>y</em>#mailto:a@b.fi</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)",
+   "html": "<p><a>x</a></p>"
+  },
+  {
+   "input": "&#x6a;avascript:*<script>## \\##   &#106;avascript:&",
+   "html": "<p>&amp;#x6a;avascript:*&lt;script&gt;## ##   &amp;#106;avascript:&amp;</p>"
+  },
+  {
+   "input": "1. > ](\n`b__\"](a)data:- *!",
+   "html": "<ol>\n<li>&gt; ](<br>\n`b__&quot;](a)data:- *!</li>\n</ol>"
+  },
+  {
+   "input": "\n- _===- [a",
+   "html": "<ul>\n<li>_===- [a</li>\n</ul>"
+  },
+  {
+   "input": "(a)\n]",
+   "html": "<p>(a)<br>\n]</p>"
+  },
+  {
+   "input": ")[      [x](javascript:alert(1))",
+   "html": "<p>)[      <a>x</a></p>"
+  },
+  {
+   "input": "`---]([x](data:text/html,1)](\t[)[x]: http://y.fi!- &#60;script&#62;word",
+   "html": "<p>`---](<a>x</a>](   [)[x]: http://y.fi!- &amp;#60;script&amp;#62;word</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)",
+   "html": "<p>](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "'a(a)()[x](javascript:alert(1))",
+   "html": "<p>&#x27;a(a)()<a>x</a></p>"
+  },
+  {
+   "input": "http://x.fi&#60;script&#62;\n\n*     &+ ",
+   "html": "<p>http://x.fi&amp;#60;script&amp;#62;</p>\n<ul>\n<li>&amp;+</li>\n</ul>"
+  },
+  {
+   "input": "[x](data:text/html,1)>_x_",
+   "html": "<p><a>x</a>&gt;<em>x</em></p>"
+  },
+  {
+   "input": "(a)&#x6a;avascript:1. \\a>\\",
+   "html": "<p>(a)&amp;#x6a;avascript:1. \\a&gt;\\</p>"
+  },
+  {
+   "input": "\n\n> )---(a)>\"&#106;avascript:",
+   "html": "<p>&gt; )---(a)&gt;&quot;&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "(a)",
+   "html": "<p>(a)</p>"
+  },
+  {
+   "input": "`",
+   "html": "<p>`</p>"
+  },
+  {
+   "input": "mailto:a@b.fi&#x6a;avascript:\n---ä\t===&#106;avascript:=",
+   "html": "<p>mailto:a@b.fi&amp;#x6a;avascript:<br>\n---ä    ===&amp;#106;avascript:=</p>"
+  },
+  {
+   "input": ">\t1. _x_`2. ==",
+   "html": "<p>&gt;    1. <em>x</em>`2. ==</p>"
+  },
+  {
+   "input": "<[***  ===mailto:a@b.fimailto:a@b.fi",
+   "html": "<p>&lt;[***  ===mailto:a@b.fimailto:a@b.fi</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)2. &#106;avascript:[&#106;avascript:<bwordb",
+   "html": "<p>](&amp;#106;avascript:1)2. &amp;#106;avascript:[&amp;#106;avascript:&lt;bwordb</p>"
+  },
+  {
+   "input": "##  _#`\t===(a)&>",
+   "html": "<h2>_#` ===(a)&amp;&gt;</h2>"
+  },
+  {
+   "input": " \\\nmailto:a@b.fi**[===\t]***",
+   "html": "<p>\\<br>\nmailto:a@b.fi<strong>[=== ]</strong>*</p>"
+  },
+  {
+   "input": "*y***\"",
+   "html": "<p><em>y</em>**&quot;</p>"
+  },
+  {
+   "input": ">__ _* [x]: http://y.fi'(__* ",
+   "html": "<p>&gt;__ _<em> [x]: http://y.fi&#x27;(__</em></p>"
+  },
+  {
+   "input": "# (a)![2. mailto:a@b.fi",
+   "html": "<h1>(a)![2. mailto:a@b.fi</h1>"
+  },
+  {
+   "input": "data:__](&#106;avascript:1)# &#x6a;avascript:[x](data:text/html,1)<script>[x](data:text/html,1)",
+   "html": "<p>data:__](&amp;#106;avascript:1)# &amp;#x6a;avascript:<a>x</a>&lt;script&gt;<a>x</a></p>"
+  },
+  {
+   "input": "+ ___\n\n*y*a&#106;avascript:!&#60;script&#62;****y*",
+   "html": "<ul>\n<li>\n<hr>\n</li>\n</ul>\n<p><em>y</em>a&amp;#106;avascript:!&amp;#60;script&amp;#62;***<em>y</em></p>"
+  },
+  {
+   "input": "_x_1. ",
+   "html": "<p>_x_1.</p>"
+  },
+  {
+   "input": "a    =#> \\[x]: http://y.fi&#106;avascript:> (&#106;avascript:===!",
+   "html": "<p>a    =#&gt; [x]: http://y.fi&amp;#106;avascript:&gt; (&amp;#106;avascript:===!</p>"
+  },
+  {
+   "input": "(+ 2. * __&#x6a;avascript:**data:",
+   "html": "<p>(+ 2. * __&amp;#x6a;avascript:**data:</p>"
+  },
+  {
+   "input": "&#60;script&#62;=\"",
+   "html": "<p>&amp;#60;script&amp;#62;=&quot;</p>"
+  },
+  {
+   "input": "data:*_x_",
+   "html": "<p>data:*<em>x</em></p>"
+  },
+  {
+   "input": "&#106;avascript:mailto:a@b.fi* \n\nmailto:a@b.fimailto:a@b.fi2. [x](javascript:alert(1))<script>[x](data:text/html,1)---",
+   "html": "<p>&amp;#106;avascript:mailto:a@b.fi* </p>\n<p>mailto:a@b.fimailto:a@b.fi2. <a>x</a>&lt;script&gt;<a>x</a>---</p>"
+  },
+  {
+   "input": "=&ä[x]: http://y.fidata:=__",
+   "html": "<p>=&amp;ä[x]: http://y.fidata:=__</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)\"a[x]: http://y.fidata:",
+   "html": "<p><a>x</a>&quot;a[x]: http://y.fidata:</p>"
+  },
+  {
+   "input": "2. (a)](&#106;avascript:1)&#60;script&#62;\\- &#106;avascript:",
+   "html": "<ol>\n<li>(a)](&amp;#106;avascript:1)&amp;#60;script&amp;#62;- &amp;#106;avascript:</li>\n</ol>"
+  },
+  {
+   "input": "ä*y*---&#60;script&#62;](===\t* [x]: http://y.fihttp://x.fi\n\n",
+   "html": "<p>ä<em>y</em>---&amp;#60;script&amp;#62;](===    * [x]: http://y.fihttp://x.fi</p>"
+  },
+  {
+   "input": "http://x.fi](&#106;avascript:1)",
+   "html": "<p>http://x.fi](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "- ---![x](javascript:alert(1))",
+   "html": "<ul>\n<li>---</li>\n</ul>"
+  },
+  {
+   "input": "mailto:a@b.fi\n1. !)data:&#x6a;avascript:> (`](&#106;avascript:1)a",
+   "html": "<p>mailto:a@b.fi<br>\n1. !)data:&amp;#x6a;avascript:&gt; (`](&amp;#106;avascript:1)a</p>"
+  },
+  {
+   "input": "!****#http://x.fi> *     (a)javascript:\n]a",
+   "html": "<p>!****#http://x.fi&gt; *     (a)javascript:<br>\n]a</p>"
+  },
+  {
+   "input": "---!1. data:\\---](!  ",
+   "html": "<p>---!1. data:---](!</p>"
+  },
+  {
+   "input": "`1. _  \n\n*y*\"__<",
+   "html": "<p>`1. _  </p>\n<p><em>y</em>&quot;__&lt;</p>"
+  },
+  {
+   "input": "http://x.fi=ä",
+   "html": "<p>http://x.fi=ä</p>"
+  },
+  {
+   "input": "<script>\\\t",
+   "html": "<p>&lt;script&gt;\\</p>"
+  },
+  {
+   "input": "http://x.fi=wordjavascript:---data:",
+   "html": "<p>http://x.fi=wordjavascript:---data:</p>"
+  },
+  {
+   "input": "\n\n>\tbä\\http://x.fi**    *ä_>",
+   "html": "<p>&gt;    bä\\http://x.fi*<em>    </em>ä_&gt;</p>"
+  },
+  {
+   "input": "__    ---",
+   "html": "<p>__    ---</p>"
+  },
+  {
+   "input": "---+ ]*y*#'[x](data:text/html,1)===[x](data:text/html,1)[x](javascript:alert(1))#b\t",
+   "html": "<p>---+ ]<em>y</em>#&#x27;<a>x</a>===<a>x</a><a>x</a>#b</p>"
+  },
+  {
+   "input": "#`#- 2. &- \n***",
+   "html": "<h1>`#- 2. &amp;-</h1>\n<hr>"
+  },
+  {
+   "input": "`* javascript:    # ]> ",
+   "html": "<p>`* javascript:    # ]&gt;</p>"
+  },
+  {
+   "input": "***data:",
+   "html": "<p>***data:</p>"
+  },
+  {
+   "input": "]\n1. <script>!](&#106;avascript:1)> + &#60;script&#62;\"[x]: http://y.fi\n\n\n=",
+   "html": "<p>]<br>\n1. &lt;script&gt;!](&amp;#106;avascript:1)&gt; + &amp;#60;script&amp;#62;&quot;[x]: http://y.fi</p>\n<p>=</p>"
+  },
+  {
+   "input": "&#106;avascript:_x_1. ===&(_> &#60;script&#62;`javascript:",
+   "html": "<p>&amp;#106;avascript:<em>x_1. ===&amp;(</em>&gt; &amp;#60;script&amp;#62;`javascript:</p>"
+  },
+  {
+   "input": "_a- (a'\nmailto:a@b.fi",
+   "html": "<p>_a- (a&#x27;<br>\nmailto:a@b.fi</p>"
+  },
+  {
+   "input": "&#60;script&#62;javascript:\n\n_1. ](&#106;avascript:1)",
+   "html": "<p>&amp;#60;script&amp;#62;javascript:</p>\n<p>_1. ](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "mailto:a@b.fiä*y*> word\n\n===javascript:## '**# (a)__",
+   "html": "<p>mailto:a@b.fiä<em>y</em>&gt; word</p>\n<p>===javascript:## &#x27;**# (a)__</p>"
+  },
+  {
+   "input": "##     [x]: http://y.fi***!!****",
+   "html": "<h2>[x]: http://y.fi<strong><em>!!</em></strong>*</h2>"
+  },
+  {
+   "input": "\n\t==[x]: http://y.fi\n\n  1. ",
+   "html": "<p>==[x]: http://y.fi</p>\n<p>1.</p>"
+  },
+  {
+   "input": "(a)&\n\n[x](data:text/html,1)## ",
+   "html": "<p>(a)&amp;</p>\n<p><a>x</a>##</p>"
+  },
+  {
+   "input": "\\a\"\n\n",
+   "html": "<p>\\a&quot;</p>"
+  },
+  {
+   "input": ")a    wordhttp://x.fi2. `***",
+   "html": "<p>)a    wordhttp://x.fi2. `***</p>"
+  },
+  {
+   "input": "]#a*y*&#60;script&#62;\"[x](javascript:alert(1))[x](javascript:alert(1))***&#x6a;avascript:(=**# ",
+   "html": "<p>]#a<em>y</em>&amp;#60;script&amp;#62;&quot;<a>x</a><a>x</a><strong>*&amp;#x6a;avascript:(=</strong>#</p>"
+  },
+  {
+   "input": ">- > &#106;avascript:)&#60;script&#62;`*y*\t*&#60;script&#62;(a)",
+   "html": "<p>&gt;- &gt; &amp;#106;avascript:)&amp;#60;script&amp;#62;`<em>y</em>    *&amp;#60;script&amp;#62;(a)</p>"
+  },
+  {
+   "input": "&#60;script&#62;(`]&#106;avascript:",
+   "html": "<p>&amp;#60;script&amp;#62;(`]&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "---&#60;script&#62;__äword__!> ---2. a",
+   "html": "<p>---&amp;#60;script&amp;#62;<strong>äword</strong>!&gt; ---2. a</p>"
+  },
+  {
+   "input": "***# [&#106;avascript:[x](data:text/html,1)[\n",
+   "html": "<p>***# [&amp;#106;avascript:<a>x</a>[</p>"
+  },
+  {
+   "input": "  **===javascript:http://x.fi===",
+   "html": "<p>**===javascript:http://x.fi===</p>"
+  },
+  {
+   "input": "- ",
+   "html": "<p>-</p>"
+  },
+  {
+   "input": "]> )\\__&#x6a;avascript:<)data:&#106;avascript:__<===",
+   "html": "<p>]&gt; )__&amp;#x6a;avascript:&lt;)data:&amp;#106;avascript:__&lt;===</p>"
+  },
+  {
+   "input": "&[x](javascript:alert(1))&#106;avascript:\"",
+   "html": "<p>&amp;<a>x</a>&amp;#106;avascript:&quot;</p>"
+  },
+  {
+   "input": "===**&#60;script&#62;_<script>b> ",
+   "html": "<p>===**&amp;#60;script&amp;#62;_&lt;script&gt;b&gt;</p>"
+  },
+  {
+   "input": "`word'*!<script>[===`- !     ",
+   "html": "<p><code>word&amp;#x27;*!&amp;lt;script&amp;gt;[===</code>- !</p>"
+  },
+  {
+   "input": "__data:]&*&#60;script&#62;mailto:a@b.fi<script>\\<javascript:>+ # ",
+   "html": "<p>__data:]&amp;*&amp;#60;script&amp;#62;mailto:a@b.fi&lt;script&gt;\\&lt;javascript:&gt;+ #</p>"
+  },
+  {
+   "input": "><<2. 2. [x](javascript:alert(1))\"",
+   "html": "<p>&gt;&lt;&lt;2. 2. <a>x</a>&quot;</p>"
+  },
+  {
+   "input": " \n\n(a)# *y*",
+   "html": "<p>(a)# <em>y</em></p>"
+  },
+  {
+   "input": "\"&#60;script&#62;- )2. >[x](javascript:alert(1))> #http://x.fi[x](data:text/html,1)",
+   "html": "<p>&quot;&amp;#60;script&amp;#62;- )2. &gt;<a>x</a>&gt; #http://x.fi<a>x</a></p>"
+  },
+  {
+   "input": "\n\n*y*## [x](javascript:alert(1))",
+   "html": "<p><em>y</em>## <a>x</a></p>"
+  },
+  {
+   "input": "# &#60;script&#62;]",
+   "html": "<h1>&amp;#60;script&amp;#62;]</h1>"
+  },
+  {
+   "input": "> 2. !<",
+   "html": "<p>&gt; 2. !&lt;</p>"
+  },
+  {
+   "input": "\n](&#106;avascript:1)ä!&#106;avascript:#javascript:*y* (](",
+   "html": "<p>](&amp;#106;avascript:1)ä!&amp;#106;avascript:#javascript:<em>y</em> (](</p>"
+  },
+  {
+   "input": "## *y*`2. ",
+   "html": "<h2><em>y</em>`2.</h2>"
+  },
+  {
+   "input": "](&#106;avascript:1)",
+   "html": "<p>](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "b**]_javascript:",
+   "html": "<p>b**]_javascript:</p>"
+  },
+  {
+   "input": "<script>bhttp://x.fi&#60;script&#62;&    [*y*    \\[x](javascript:alert(1))http://x.fi\\===",
+   "html": "<p>&lt;script&gt;bhttp://x.fi&amp;#60;script&amp;#62;&amp;    <a><em>y</em>    [x</a>http://x.fi\\===</p>"
+  },
+  {
+   "input": "&#60;script&#62;# ===word[x](javascript:alert(1))(a)1. ",
+   "html": "<p>&amp;#60;script&amp;#62;# ===word<a>x</a>(a)1.</p>"
+  },
+  {
+   "input": ">word_x_* word `aword&#x6a;avascript:1. 2. >>",
+   "html": "<p>&gt;word_x_* word `aword&amp;#x6a;avascript:1. 2. &gt;&gt;</p>"
+  },
+  {
+   "input": "+ b### #   <[x](javascript:alert(1))2. ",
+   "html": "<ul>\n<li>b### #   &lt;<a>x</a>2.</li>\n</ul>"
+  },
+  {
+   "input": "data:a*y*`__*y*`<script>(a)",
+   "html": "<p>data:a<em>y</em><code>__*y*</code>&lt;script&gt;(a)</p>"
+  },
+  {
+   "input": "(a)_",
+   "html": "<p>(a)_</p>"
+  },
+  {
+   "input": "([x](javascript:alert(1))(a)## _x_===](&#106;avascript:1)",
+   "html": "<p>(<a>x</a>(a)## <em>x</em>===](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "- &#60;script&#62;&#60;script&#62;---*[x](javascript:alert(1))+ >\n[x](javascript:alert(1))!(a)data:",
+   "html": "<ul>\n<li>&amp;#60;script&amp;#62;&amp;#60;script&amp;#62;---*<a>x</a>+ &gt;<br>\n<a>x</a>!(a)data:</li>\n</ul>"
+  },
+  {
+   "input": "b[x]: http://y.fi&",
+   "html": "<p>b[x]: http://y.fi&amp;</p>"
+  },
+  {
+   "input": "``**&  [x](data:text/html,1)## <",
+   "html": "<p>``**&amp;  <a>x</a>## &lt;</p>"
+  },
+  {
+   "input": "***javascript:<http://x.fi##   =\n&#x6a;avascript:]",
+   "html": "<p>***javascript:&lt;http://x.fi##   =<br>\n&amp;#x6a;avascript:]</p>"
+  },
+  {
+   "input": "]",
+   "html": "<p>]</p>"
+  },
+  {
+   "input": "#[x](javascript:alert(1))===>javascript:[\\\t***",
+   "html": "<h1><a>x</a>===&gt;javascript:[\\   ***</h1>"
+  },
+  {
+   "input": "    ",
+   "html": ""
+  },
+  {
+   "input": "javascript:](mailto:a@b.fi](#*`**javascript:__",
+   "html": "<p>javascript:](mailto:a@b.fi](#<em>`</em>*javascript:__</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)+ (a)__*word_**    ",
+   "html": "<p>](&amp;#106;avascript:1)+ (a)__<em>word_</em>*</p>"
+  },
+  {
+   "input": "+ [x](data:text/html,1)<* javascript:\t",
+   "html": "<ul>\n<li><a>x</a>&lt;* javascript:</li>\n</ul>"
+  },
+  {
+   "input": "data:**\"\\- `word",
+   "html": "<p>data:**&quot;- `word</p>"
+  },
+  {
+   "input": "a<http://x.fi\n\n******",
+   "html": "<p>a&lt;http://x.fi</p>\n<hr>"
+  },
+  {
+   "input": "#[x]: http://y.fiword*(_x__x_* *y*data:&#x6a;avascript:**",
+   "html": "<h1>[x]: http://y.fiword<em>(<em>x__x</em></em> <em>y</em>data:&amp;#x6a;avascript:**</h1>"
+  },
+  {
+   "input": "> data:*y****\\* (---",
+   "html": "<p>&gt; data:<em>y</em>**** (---</p>"
+  },
+  {
+   "input": "&#106;avascript:*y*",
+   "html": "<p>&amp;#106;avascript:<em>y</em></p>"
+  },
+  {
+   "input": "\\",
+   "html": "<p>\\</p>"
+  },
+  {
+   "input": "+ word=\n\n(+ - ",
+   "html": "<ul>\n<li>word=</li>\n</ul>\n<p>(+ -</p>"
+  },
+  {
+   "input": "<script>a+ `1. a<`b]======*",
+   "html": "<p>&lt;script&gt;a+ <code>1. a&amp;lt;</code>b]======*</p>"
+  },
+  {
+   "input": "'",
+   "html": "<p>&#x27;</p>"
+  },
+  {
+   "input": "_***](&#106;avascript:1)(a)===",
+   "html": "<p>_***](&amp;#106;avascript:1)(a)===</p>"
+  },
+  {
+   "input": "# *y*__]* _x_&(===*",
+   "html": "<h1><em>y</em>__]<em> <em>x</em>&amp;(===</em></h1>"
+  },
+  {
+   "input": "&#60;script&#62;a'mailto:a@b.fi__<***(](\t&#106;avascript:---['",
+   "html": "<p>&amp;#60;script&amp;#62;a&#x27;mailto:a@b.fi__&lt;***(](    &amp;#106;avascript:---[&#x27;</p>"
+  },
+  {
+   "input": "2. \\<script>  ==='#===\n## + data:",
+   "html": "<ol>\n<li>\\&lt;script&gt;  ===&#x27;#===</li>\n</ol>\n<h2>+ data:</h2>"
+  },
+  {
+   "input": "](&#106;avascript:1)](&(===***_x_&#60;script&#62;ä",
+   "html": "<p>](&amp;#106;avascript:1)](&amp;(===***<em>x</em>&amp;#60;script&amp;#62;ä</p>"
+  },
+  {
+   "input": "&#106;avascript:(\\b\n\n*_=b&#60;script&#62;'",
+   "html": "<p>&amp;#106;avascript:(\\b</p>\n<p>*_=b&amp;#60;script&amp;#62;&#x27;</p>"
+  },
+  {
+   "input": "data:<word__')> =(a)ä&#106;avascript:[wordjavascript:",
+   "html": "<p>data:&lt;word__&#x27;)&gt; =(a)ä&amp;#106;avascript:[wordjavascript:</p>"
+  },
+  {
+   "input": "](\\&#x6a;avascript:*y*#",
+   "html": "<p>](\\&amp;#x6a;avascript:<em>y</em>#</p>"
+  },
+  {
+   "input": "javascript:<script>'`<",
+   "html": "<p>javascript:&lt;script&gt;&#x27;`&lt;</p>"
+  },
+  {
+   "input": "<_    ",
+   "html": "<p>&lt;_</p>"
+  },
+  {
+   "input": "[x]: http://y.fi\"(a)<script>#*\n_x_- word`#",
+   "html": "<p><em>x</em>- word`#</p>"
+  },
+  {
+   "input": "&#60;script&#62;&word\"    ",
+   "html": "<p>&amp;#60;script&amp;#62;&amp;word&quot;</p>"
+  },
+  {
+   "input": "_x_[x]: http://y.fijavascript:",
+   "html": "<p><em>x</em>[x]: http://y.fijavascript:</p>"
+  },
+  {
+   "input": "# mailto:a@b.fi[x](data:text/html,1)",
+   "html": "<h1>mailto:a@b.fi<a>x</a></h1>"
+  },
+  {
+   "input": "***",
+   "html": "<hr>"
+  },
+  {
+   "input": ")&#x6a;avascript:<script>''  [x](data:text/html,1)",
+   "html": "<p>)&amp;#x6a;avascript:&lt;script&gt;&#x27;&#x27;  <a>x</a></p>"
+  },
+  {
+   "input": "---<script>]javascript: _x_>__>",
+   "html": "<p>---&lt;script&gt;]javascript: <em>x</em>&gt;__&gt;</p>"
+  },
+  {
+   "input": "data:<`#[x]: http://y.fi#[javascript:(\n\n`b",
+   "html": "<p>data:&lt;`#[x]: http://y.fi#[javascript:(</p>\n<p>`b</p>"
+  },
+  {
+   "input": "mailto:a@b.fi)*     _x_`data:",
+   "html": "<p>mailto:a@b.fi)*     <em>x</em>`data:</p>"
+  },
+  {
+   "input": "=***",
+   "html": "<p>=***</p>"
+  },
+  {
+   "input": "](&#106;avascript:1) *y*&#x6a;avascript:  ([(&#106;avascript:_x_ ",
+   "html": "<p>](&amp;#106;avascript:1) <em>y</em>&amp;#x6a;avascript:  ([(&amp;#106;avascript:<em>x</em></p>"
+  },
+  {
+   "input": "mailto:a@b.fi",
+   "html": "<p>mailto:a@b.fi</p>"
+  },
+  {
+   "input": "_x_\n](",
+   "html": "<p><em>x</em><br>\n](</p>"
+  },
+  {
+   "input": "mailto:a@b.fi",
+   "html": "<p>mailto:a@b.fi</p>"
+  },
+  {
+   "input": "- [x](javascript:alert(1))http://x.fi#b[[x](data:text/html,1)---**> b* <===",
+   "html": "<ul>\n<li><a>x</a>http://x.fi#b[<a>x</a>---*<em>&gt; b</em> &lt;===</li>\n</ul>"
+  },
+  {
+   "input": "#+ \n\nmailto:a@b.fijavascript:&#x6a;avascript:1. ",
+   "html": "<h1>+</h1>\n<p>mailto:a@b.fijavascript:&amp;#x6a;avascript:1.</p>"
+  },
+  {
+   "input": "!=",
+   "html": "<p>!=</p>"
+  },
+  {
+   "input": "]    )    _x_# &#60;script&#62;\"> ===#",
+   "html": "<p>]    )    <em>x</em># &amp;#60;script&amp;#62;&quot;&gt; ===#</p>"
+  },
+  {
+   "input": "2. * => \n_1. ](&#106;avascript:1) ",
+   "html": "<ol>\n<li>\n<ul>\n<li>=&gt; <br>\n_1. ](&amp;#106;avascript:1)</li>\n</ul>\n</li>\n</ol>"
+  },
+  {
+   "input": "ä***data:<script>(",
+   "html": "<p>ä***data:&lt;script&gt;(</p>"
+  },
+  {
+   "input": "*y*#> ===- \"*",
+   "html": "<p><em>y</em>#&gt; ===- &quot;*</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))",
+   "html": "<p><a>x</a></p>"
+  },
+  {
+   "input": "1. <===a]<script>",
+   "html": "<ol>\n<li>&lt;===a]&lt;script&gt;</li>\n</ol>"
+  },
+  {
+   "input": "word+ ____",
+   "html": "<p>word+ ____</p>"
+  },
+  {
+   "input": "data:<# b>",
+   "html": "<p>data:&lt;# b&gt;</p>"
+  },
+  {
+   "input": "\"===\n\n> &#60;script&#62;](&#106;avascript:1)\nä",
+   "html": "<p>&quot;===</p>\n<p>&gt; &amp;#60;script&amp;#62;](&amp;#106;avascript:1)<br>\nä</p>"
+  },
+  {
+   "input": "+ ",
+   "html": "<p>+</p>"
+  },
+  {
+   "input": "1. )&#106;avascript:+ word1. ",
+   "html": "<ol>\n<li>)&amp;#106;avascript:+ word1.</li>\n</ol>"
+  },
+  {
+   "input": "data:\n_x_\n(a)]&#106;avascript:",
+   "html": "<p>data:<br>\n<em>x</em><br>\n(a)]&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "`2. <&#60;script&#62;\"**+ \t****data:",
+   "html": "<p>`2. &lt;&amp;#60;script&amp;#62;&quot;<strong>+   </strong>**data:</p>"
+  },
+  {
+   "input": "&#x6a;avascript:http://x.fi\t>",
+   "html": "<p>&amp;#x6a;avascript:http://x.fi &gt;</p>"
+  },
+  {
+   "input": "_x_* mailto:a@b.fi\n",
+   "html": "<p><em>x</em>* mailto:a@b.fi</p>"
+  },
+  {
+   "input": "<script>\"&#106;avascript:***a",
+   "html": "<p>&lt;script&gt;&quot;&amp;#106;avascript:***a</p>"
+  },
+  {
+   "input": "2. \n)_x_[x](data:text/html,1)*<&#x6a;avascript:*+ *y*`&# ",
+   "html": "<ol>\n<li>)<em>x</em><a>x</a><em>&lt;&amp;#x6a;avascript:</em>+ <em>y</em>`&amp;#</li>\n</ol>"
+  },
+  {
+   "input": "\n`](&#106;avascript:1)[x](javascript:alert(1))",
+   "html": "<p>`](&amp;#106;avascript:1)<a>x</a></p>"
+  },
+  {
+   "input": "http://x.fi\n\n\n\n",
+   "html": "<p>http://x.fi</p>"
+  },
+  {
+   "input": "word]1. +   \\",
+   "html": "<p>word]1. +   \\</p>"
+  },
+  {
+   "input": "**2. *)===",
+   "html": "<p>*<em>2. </em>)===</p>"
+  },
+  {
+   "input": "***__)*---",
+   "html": "<p>**<em>__)</em>---</p>"
+  },
+  {
+   "input": "'\"<script>mailto:a@b.fib&#60;script&#62;[x](data:text/html,1)mailto:a@b.fi",
+   "html": "<p>&#x27;&quot;&lt;script&gt;mailto:a@b.fib&amp;#60;script&amp;#62;<a>x</a>mailto:a@b.fi</p>"
+  },
+  {
+   "input": "* ]javascript:",
+   "html": "<ul>\n<li>]javascript:</li>\n</ul>"
+  },
+  {
+   "input": "- mailto:a@b.fi\n\n(a)2. * \n# [#[x]: http://y.fi[x](javascript:alert(1))>",
+   "html": "<ul>\n<li>mailto:a@b.fi</li>\n</ul>\n<p>(a)2. * </p>\n<h1>[#[x]: http://y.fi<a>x</a>&gt;</h1>"
+  },
+  {
+   "input": "_\\",
+   "html": "<p>_\\</p>"
+  },
+  {
+   "input": "_------* ",
+   "html": "<p>_------*</p>"
+  },
+  {
+   "input": "`---\t",
+   "html": "<p>`---</p>"
+  },
+  {
+   "input": "  &**2.   &  b2.  javascript:!",
+   "html": "<p>&amp;**2.   &amp;  b2.  javascript:!</p>"
+  },
+  {
+   "input": "=javascript:a#[x]: http://y.fi===mailto:a@b.fi__",
+   "html": "<p>=javascript:a#[x]: http://y.fi===mailto:a@b.fi__</p>"
+  },
+  {
+   "input": "(2. &#106;avascript:ä# \"**(a)[x]: http://y.fidata:",
+   "html": "<p>(2. &amp;#106;avascript:ä# &quot;**(a)[x]: http://y.fidata:</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)word",
+   "html": "<p><a>x</a>word</p>"
+  },
+  {
+   "input": "+ !]> ",
+   "html": "<ul>\n<li>!]&gt;</li>\n</ul>"
+  },
+  {
+   "input": "&](&#x6a;avascript:* &data:",
+   "html": "<p>&amp;](&amp;#x6a;avascript:* &amp;data:</p>"
+  },
+  {
+   "input": "a ",
+   "html": "<p>a</p>"
+  },
+  {
+   "input": "> #- 1. [x](data:text/html,1)[x]: http://y.fi>\n<*y*javascript:+ * ",
+   "html": "<p>&gt; #- 1. <a>x</a>[x]: http://y.fi&gt;<br>\n&lt;<em>y</em>javascript:+ *</p>"
+  },
+  {
+   "input": "javascript:> ",
+   "html": "<p>javascript:&gt;</p>"
+  },
+  {
+   "input": "<script>http://x.fi!* data:mailto:a@b.fi[\n\n",
+   "html": "<p>&lt;script&gt;http://x.fi!* data:mailto:a@b.fi[</p>"
+  },
+  {
+   "input": "&#x6a;avascript:\\word__<_a_x_(a)](",
+   "html": "<p>&amp;#x6a;avascript:\\word__&lt;<em>a_x</em>(a)](</p>"
+  },
+  {
+   "input": "_a===b_x_## ]b",
+   "html": "<p><em>a===b_x</em>## ]b</p>"
+  },
+  {
+   "input": "&#106;avascript:**)2. <script>",
+   "html": "<p>&amp;#106;avascript:**)2. &lt;script&gt;</p>"
+  },
+  {
+   "input": "__  'http://x.fi](#2. (",
+   "html": "<p>__  &#x27;http://x.fi](#2. (</p>"
+  },
+  {
+   "input": "[x]: http://y.fihttp://x.fi",
+   "html": ""
+  },
+  {
+   "input": "=",
+   "html": "<p>=</p>"
+  },
+  {
+   "input": "(a))\n\n`\"",
+   "html": "<p>(a))</p>\n<p>`&quot;</p>"
+  },
+  {
+   "input": "data:",
+   "html": "<p>data:</p>"
+  },
+  {
+   "input": "ä\n\n# #",
+   "html": "<p>ä</p>\n<h1></h1>"
+  },
+  {
+   "input": "&#x6a;avascript:<script>[x]: http://y.fi'b ",
+   "html": "<p>&amp;#x6a;avascript:&lt;script&gt;[x]: http://y.fi&#x27;b</p>"
+  },
+  {
+   "input": "#[> ä**#2. &#60;script&#62;",
+   "html": "<h1>[&gt; ä**#2. &amp;#60;script&amp;#62;</h1>"
+  },
+  {
+   "input": "[x](javascript:alert(1)))    !<script>=\\*y*===---\\  =* ",
+   "html": "<p><a>x</a>)    !&lt;script&gt;=*y<em>===---\\  =</em></p>"
+  },
+  {
+   "input": "data:&#60;script&#62;# a",
+   "html": "<p>data:&amp;#60;script&amp;#62;# a</p>"
+  },
+  {
+   "input": "> &#x6a;avascript:(a)&#106;avascript:",
+   "html": "<p>&gt; &amp;#x6a;avascript:(a)&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "*y*_x__x_",
+   "html": "<p><em>y</em><em>x__x</em></p>"
+  },
+  {
+   "input": "<a# <script>>> &#x6a;avascript:\t&#106;avascript:",
+   "html": "<p>&lt;a# &lt;script&gt;&gt;&gt; &amp;#x6a;avascript:  &amp;#106;avascript:</p>"
+  },
+  {
+   "input": "(    *&#106;avascript:[http://x.fi## [x]: http://y.fi",
+   "html": "<p>(    *&amp;#106;avascript:[http://x.fi## [x]: http://y.fi</p>"
+  },
+  {
+   "input": ">",
+   "html": "<p>&gt;</p>"
+  },
+  {
+   "input": " ",
+   "html": ""
+  },
+  {
+   "input": " http://x.fi 2. `\n## mailto:a@b.fi",
+   "html": "<p>http://x.fi 2. `</p>\n<h2>mailto:a@b.fi</h2>"
+  },
+  {
+   "input": "## )[x]: http://y.fi_x_](&#106;avascript:1)\n<script>",
+   "html": "<h2>)[x]: http://y.fi_x_](&amp;#106;avascript:1)</h2>\n<p>&lt;script&gt;</p>"
+  },
+  {
+   "input": " [x](javascript:alert(1))\n&=worda](http://x.fi[x](javascript:alert(1))&#x6a;avascript:'&#106;avascript:**",
+   "html": "<p><a>x</a><br>\n&amp;=worda](http://x.fi<a>x</a>&amp;#x6a;avascript:&#x27;&amp;#106;avascript:**</p>"
+  },
+  {
+   "input": "\t    !_x_****mailto:a@b.fi([x]: http://y.fi# - ",
+   "html": "<p>!<em>x</em>****mailto:a@b.fi([x]: http://y.fi# -</p>"
+  },
+  {
+   "input": "b\n](&#106;avascript:1)<[x](javascript:alert(1))***+ ",
+   "html": "<p>b<br>\n](&amp;#106;avascript:1)&lt;<a>x</a>***+</p>"
+  },
+  {
+   "input": "data:\n\nword\"# &#106;avascript:!`](",
+   "html": "<p>data:</p>\n<p>word&quot;# &amp;#106;avascript:!`](</p>"
+  },
+  {
+   "input": "*a===( `",
+   "html": "<p>*a===( `</p>"
+  },
+  {
+   "input": "javascript:word&#106;avascript:--->]---1.     ---\"'\n",
+   "html": "<p>javascript:word&amp;#106;avascript:---&gt;]---1.     ---&quot;&#x27;</p>"
+  },
+  {
+   "input": "\\\n\nb&*)'word---[x](data:text/html,1)*---",
+   "html": "<p>\\</p>\n<p>b&amp;<em>)&#x27;word---<a>x</a></em>---</p>"
+  },
+  {
+   "input": "- `&#x6a;avascript:\n]> ===b&#60;script&#62;",
+   "html": "<ul>\n<li>`&amp;#x6a;avascript:<br>\n]&gt; ===b&amp;#60;script&amp;#62;</li>\n</ul>"
+  },
+  {
+   "input": "&- ",
+   "html": "<p>&amp;-</p>"
+  },
+  {
+   "input": "\n\n`data:**a",
+   "html": "<p>`data:**a</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))['http://x.fi](#   ](a)']([x](javascript:alert(1))",
+   "html": "<p><a>x</a>[&#x27;http://x.fi](#   ](a)&#x27;](<a>x</a></p>"
+  },
+  {
+   "input": "2. &#106;avascript:<script> ",
+   "html": "<ol>\n<li>&amp;#106;avascript:&lt;script&gt;</li>\n</ol>"
+  },
+  {
+   "input": "http://x.fi](&#106;avascript:1)> [x]: http://y.fi](&#106;avascript:1)')",
+   "html": "<p>http://x.fi](&amp;#106;avascript:1)&gt; [x]: http://y.fi](&amp;#106;avascript:1)&#x27;)</p>"
+  },
+  {
+   "input": "data:",
+   "html": "<p>data:</p>"
+  },
+  {
+   "input": "ä[<",
+   "html": "<p>ä[&lt;</p>"
+  },
+  {
+   "input": "=*=('_!word_> ",
+   "html": "<p>=*=(&#x27;<em>!word</em>&gt;</p>"
+  },
+  {
+   "input": "<script>&mailto:a@b.fi**!*y*\t(\"",
+   "html": "<p>&lt;script&gt;&amp;mailto:a@b.fi<em><em>!</em>y</em>  (&quot;</p>"
+  },
+  {
+   "input": "- &#x6a;avascript:'javascript:=",
+   "html": "<ul>\n<li>&amp;#x6a;avascript:&#x27;javascript:=</li>\n</ul>"
+  },
+  {
+   "input": "](http://x.fi__&* (a)[x](data:text/html,1)(javascript:> ",
+   "html": "<p>](http://x.fi__&amp;* (a)<a>x</a>(javascript:&gt;</p>"
+  },
+  {
+   "input": "`2. ](  # b",
+   "html": "<p>`2. ](  # b</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)](## <script> &#106;avascript:\t\\[[x]: http://y.fi# ",
+   "html": "<p><a>x</a>](## &lt;script&gt; &amp;#106;avascript:   [[x]: http://y.fi#</p>"
+  },
+  {
+   "input": "]> ba",
+   "html": "<p>]&gt; ba</p>"
+  },
+  {
+   "input": "](b<data:<script>&#106;avascript:",
+   "html": "<p>](b&lt;data:&lt;script&gt;&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "](__\"'*y*1. +     2. ",
+   "html": "<p>](__&quot;&#x27;<em>y</em>1. +     2.</p>"
+  },
+  {
+   "input": "a[](\t__",
+   "html": "<p>a[](    __</p>"
+  },
+  {
+   "input": "> http://x.fi",
+   "html": "<p>&gt; http://x.fi</p>"
+  },
+  {
+   "input": "&#x6a;avascript:***a## ",
+   "html": "<p>&amp;#x6a;avascript:***a##</p>"
+  },
+  {
+   "input": "__\\*---](__\\        ",
+   "html": "<p><strong>*---](</strong>\\</p>"
+  },
+  {
+   "input": "\t&**_x_'&#x6a;avascript:*y*> javascript:#ä<script>!  ",
+   "html": "<p>&amp;<em><em><em>x</em>&#x27;&amp;#x6a;avascript:</em>y</em>&gt; javascript:#ä&lt;script&gt;!</p>"
+  },
+  {
+   "input": "ä\n",
+   "html": "<p>ä</p>"
+  },
+  {
+   "input": "mailto:a@b.fi[x](javascript:alert(1))    ) <script>\"\n\n[x](data:text/html,1)",
+   "html": "<p>mailto:a@b.fi<a>x</a>    ) &lt;script&gt;&quot;</p>\n<p><a>x</a></p>"
+  },
+  {
+   "input": "javascript:aä&#60;script&#62;](&#106;avascript:1)[x](data:text/html,1) javascript:",
+   "html": "<p>javascript:aä&amp;#60;script&amp;#62;](&amp;#106;avascript:1)<a>x</a> javascript:</p>"
+  },
+  {
+   "input": "- > _x_>ä##",
+   "html": "<ul>\n<li>&gt; <em>x</em>&gt;ä##</li>\n</ul>"
+  },
+  {
+   "input": "_x_a[x]: http://y.fi&#60;script&#62;",
+   "html": "<p>_x_a[x]: http://y.fi&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "data:(a)- !\\&#60;script&#62;http://x.fi(a)",
+   "html": "<p>data:(a)- !\\&amp;#60;script&amp;#62;http://x.fi(a)</p>"
+  },
+  {
+   "input": "- ",
+   "html": "<p>-</p>"
+  },
+  {
+   "input": "## (* b***>   (*y*\"*y*>",
+   "html": "<h2>(<em> b</em><em><em>&gt;   (</em>y</em>&quot;<em>y</em>&gt;</h2>"
+  },
+  {
+   "input": "- ä]data:b",
+   "html": "<ul>\n<li>ä]data:b</li>\n</ul>"
+  },
+  {
+   "input": "* javascript:]('word\n",
+   "html": "<ul>\n<li>javascript:](&#x27;word</li>\n</ul>"
+  },
+  {
+   "input": "(a)&#x6a;avascript:## # &#x6a;avascript:http://x.fi&]# >",
+   "html": "<p>(a)&amp;#x6a;avascript:## # &amp;#x6a;avascript:http://x.fi&amp;]# &gt;</p>"
+  },
+  {
+   "input": "__<<script> (a))**!# ",
+   "html": "<p>__&lt;&lt;script&gt; (a))**!#</p>"
+  },
+  {
+   "input": "---ä(a)\\[x](javascript:alert(1))'## [x]: http://y.fi_x_  `__#",
+   "html": "<p>---ä(a)[x](javascript:alert(1))&#x27;## [x]: http://y.fi_x_  `__#</p>"
+  },
+  {
+   "input": "#    ",
+   "html": "<h1></h1>"
+  },
+  {
+   "input": "\"&!_=#+ ",
+   "html": "<p>&quot;&amp;!_=#+</p>"
+  },
+  {
+   "input": "+ ===javascript:# ===http://x.fib",
+   "html": "<ul>\n<li>===javascript:# ===http://x.fib</li>\n</ul>"
+  },
+  {
+   "input": "***bä---_\n**javascript:<script>&#60;script&#62;",
+   "html": "<p><strong>*bä---_<br>\n</strong>javascript:&lt;script&gt;&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "`* ](&#106;avascript:1)    data:a2. a\\mailto:a@b.fi)data:\"+ ",
+   "html": "<p>`* ](&amp;#106;avascript:1)    data:a2. a\\mailto:a@b.fi)data:&quot;+</p>"
+  },
+  {
+   "input": "mailto:a@b.fi",
+   "html": "<p>mailto:a@b.fi</p>"
+  },
+  {
+   "input": "1. * [***[x]: http://y.fi(a)",
+   "html": "<ol>\n<li>\n<ul>\n<li>[***[x]: http://y.fi(a)</li>\n</ul>\n</li>\n</ol>"
+  },
+  {
+   "input": "mailto:a@b.fi&#60;script&#62;## <javascript:&",
+   "html": "<p>mailto:a@b.fi&amp;#60;script&amp;#62;## &lt;javascript:&amp;</p>"
+  },
+  {
+   "input": "---\n\n---\t#**[x]: http://y.fi&#x6a;avascript:",
+   "html": "<hr>\n<p>--- #**[x]: http://y.fi&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "## (2. ## ]*'",
+   "html": "<h2>(2. ## ]*&#x27;</h2>"
+  },
+  {
+   "input": "[x](data:text/html,1)\n\n1. **data:#&#106;avascript:#&#106;avascript:*y*",
+   "html": "<p><a>x</a></p>\n<ol>\n<li><em><em>data:#&amp;#106;avascript:#&amp;#106;avascript:</em>y</em></li>\n</ol>"
+  },
+  {
+   "input": "b*y*(_[x]: http://y.fi1. ä`_x__---[x]: http://y.fi",
+   "html": "<p>b<em>y</em>(_[x]: http://y.fi1. ä`_x__---[x]: http://y.fi</p>"
+  },
+  {
+   "input": "1. data:)!>_",
+   "html": "<ol>\n<li>data:)!&gt;_</li>\n</ol>"
+  },
+  {
+   "input": "(a))## ",
+   "html": "<p>(a))##</p>"
+  },
+  {
+   "input": "* data:javascript:b<2. ***",
+   "html": "<ul>\n<li>data:javascript:b&lt;2. ***</li>\n</ul>"
+  },
+  {
+   "input": "\\\t[x](javascript:alert(1))  + > _x_#ä ",
+   "html": "<p>\\   <a>x</a>  + &gt; <em>x</em>#ä</p>"
+  },
+  {
+   "input": "&#60;script&#62;[x](data:text/html,1)",
+   "html": "<p>&amp;#60;script&amp;#62;<a>x</a></p>"
+  },
+  {
+   "input": "&#106;avascript:)>**)",
+   "html": "<p>&amp;#106;avascript:)&gt;**)</p>"
+  },
+  {
+   "input": "b&#x6a;avascript:]((a)](&#106;avascript:1)](",
+   "html": "<p>b&amp;#x6a;avascript:]((a)](&amp;#106;avascript:1)](</p>"
+  },
+  {
+   "input": "!data:ä(a)",
+   "html": "<p>!data:ä(a)</p>"
+  },
+  {
+   "input": "]'#!***<* (=\"",
+   "html": "<p>]&#x27;#!**<em>&lt;</em> (=&quot;</p>"
+  },
+  {
+   "input": "]*javascript:mailto:a@b.fi2. a",
+   "html": "<p>]*javascript:mailto:a@b.fi2. a</p>"
+  },
+  {
+   "input": "  [x]: http://y.fi(a)[",
+   "html": ""
+  },
+  {
+   "input": "_x_- #\\[***",
+   "html": "<p><em>x</em>- #[***</p>"
+  },
+  {
+   "input": "  + [x](javascript:alert(1))",
+   "html": "<ul>\n<li><a>x</a></li>\n</ul>"
+  },
+  {
+   "input": "<script>*y*+ \"`! ]ba*y*&data:](",
+   "html": "<p>&lt;script&gt;<em>y</em>+ &quot;`! ]ba<em>y</em>&amp;data:](</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))[x](javascript:alert(1))a#\\>](&#106;avascript:1)\n\n* ",
+   "html": "<p><a>x</a><a>x</a>a#\\&gt;](&amp;#106;avascript:1)</p>\n<p>*</p>"
+  },
+  {
+   "input": "__1. ",
+   "html": "<p>__1.</p>"
+  },
+  {
+   "input": "aä* <&#106;avascript:[x](javascript:alert(1))javascript:***\n\n",
+   "html": "<p>aä<em> &lt;&amp;#106;avascript:<a>x</a>javascript:</em>**</p>"
+  },
+  {
+   "input": "\nmailto:a@b.fi[x](javascript:alert(1))---- &*",
+   "html": "<p>mailto:a@b.fi<a>x</a>---- &amp;*</p>"
+  },
+  {
+   "input": "_",
+   "html": "<p>_</p>"
+  },
+  {
+   "input": "*y*`>=",
+   "html": "<p><em>y</em>`&gt;=</p>"
+  },
+  {
+   "input": "+ &#x6a;avascript:_    _x_1. &#60;script&#62;<script>    > [x](javascript:alert(1))]([x](data:text/html,1)",
+   "html": "<ul>\n<li>&amp;#x6a;avascript:_    _x_1. &amp;#60;script&amp;#62;&lt;script&gt;    &gt; <a>x</a>](<a>x</a></li>\n</ul>"
+  },
+  {
+   "input": "<' ==",
+   "html": "<p>&lt;&#x27; ==</p>"
+  },
+  {
+   "input": "data:2. ===[x]: http://y.fi* * '> 2. \"\n(* ",
+   "html": "<p>data:2. ===[x]: http://y.fi<em> * &#x27;&gt; 2. &quot;<br>\n(</em></p>"
+  },
+  {
+   "input": "`&#x6a;avascript:<\n===\n\n<script>",
+   "html": "<h1>`&amp;#x6a;avascript:&lt;</h1>\n<p>&lt;script&gt;</p>"
+  },
+  {
+   "input": "*** http://x.fi**_\"***<#",
+   "html": "<p>*** http://x.fi<strong>_&quot;</strong>*&lt;#</p>"
+  },
+  {
+   "input": "+ [x]: http://y.fi  __>data:  <script>(a)- [#===",
+   "html": "<ul>\n<li>[x]: http://y.fi  __&gt;data:  &lt;script&gt;(a)- [#===</li>\n</ul>"
+  },
+  {
+   "input": "](&#106;avascript:1)**",
+   "html": "<p>](&amp;#106;avascript:1)**</p>"
+  },
+  {
+   "input": "[===__## ***>[x]: http://y.fi(b> ",
+   "html": "<p>[===__## ***&gt;[x]: http://y.fi(b&gt;</p>"
+  },
+  {
+   "input": "['** - __data:_x_>](&#106;avascript:1)* ",
+   "html": "<p><a>&#x27;** - __data:<em>x</em>&gt;</a>*</p>"
+  },
+  {
+   "input": "\t---\"__\n)",
+   "html": "<p>---&quot;__<br>\n)</p>"
+  },
+  {
+   "input": "\n<script>mailto:a@b.fi",
+   "html": "<p>&lt;script&gt;mailto:a@b.fi</p>"
+  },
+  {
+   "input": "    (**1. &#106;avascript:[x]: http://y.fi\n\nb***](***&[x](javascript:alert(1))",
+   "html": "<p>(**1. &amp;#106;avascript:[x]: http://y.fi</p>\n<p>b<strong><em>](</em></strong>&amp;<a>x</a></p>"
+  },
+  {
+   "input": "&&#60;script&#62;",
+   "html": "<p>&amp;&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "ä\t&)***]",
+   "html": "<p>ä   &amp;)***]</p>"
+  },
+  {
+   "input": "1.  #      [(a)",
+   "html": "<ol>\n<li>\n<h1>[(a)</h1>\n</li>\n</ol>"
+  },
+  {
+   "input": "[x]: http://y.fi\n\n[x](data:text/html,1)_]>!data:**===_\\(_x_",
+   "html": "<p><a>x</a><em>]&gt;!data:**===</em>(<em>x</em></p>"
+  },
+  {
+   "input": "_x_",
+   "html": "<p><em>x</em></p>"
+  },
+  {
+   "input": "_x_ ***](1. **data:a\n\n_x_a",
+   "html": "<p><em>x</em> <strong>*](1. </strong>data:a</p>\n<p>_x_a</p>"
+  },
+  {
+   "input": "\"\"===# ===ä***    `**&#x6a;avascript:_\\",
+   "html": "<p>&quot;&quot;===# ===ä<strong>*    `</strong>&amp;#x6a;avascript:_\\</p>"
+  },
+  {
+   "input": "***b\n\nmailto:a@b.fi<script>1. _x_",
+   "html": "<p>***b</p>\n<p>mailto:a@b.fi&lt;script&gt;1. <em>x</em></p>"
+  },
+  {
+   "input": "\" mailto:a@b.fi+ ",
+   "html": "<p>&quot; mailto:a@b.fi+</p>"
+  },
+  {
+   "input": "\n- &#60;script&#62;",
+   "html": "<ul>\n<li>&amp;#60;script&amp;#62;</li>\n</ul>"
+  },
+  {
+   "input": "]+ [x](data:text/html,1)javascript:*&#60;script&#62;",
+   "html": "<p>]+ <a>x</a>javascript:*&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "__---__**+ _&a___x_",
+   "html": "<p><strong>---</strong>**+ <em>&amp;a___x</em></p>"
+  },
+  {
+   "input": "!(&#60;script&#62;word",
+   "html": "<p>!(&amp;#60;script&amp;#62;word</p>"
+  },
+  {
+   "input": "**+ _x_",
+   "html": "<p>**+ <em>x</em></p>"
+  },
+  {
+   "input": "word> [x]: http://y.fi`+   a",
+   "html": "<p>word&gt; [x]: http://y.fi`+   a</p>"
+  },
+  {
+   "input": "[2. * [[x](javascript:alert(1))](---===*  >\\***http://x.fi",
+   "html": "<p>[2. * [<a>x</a>](---===<em>  &gt;*</em>*http://x.fi</p>"
+  },
+  {
+   "input": "2. *y****[x]: http://y.fi[x]: http://y.fi\t\n- &>&#x6a;avascript:+ \\",
+   "html": "<ol>\n<li><em>y</em>***[x]: http://y.fi[x]: http://y.fi <br>\n- &amp;&gt;&amp;#x6a;avascript:+ \\</li>\n</ol>"
+  },
+  {
+   "input": "2. \t](&#106;avascript:1)1. &#106;avascript:!***\n",
+   "html": "<ol>\n<li>](&amp;#106;avascript:1)1. &amp;#106;avascript:!***</li>\n</ol>"
+  },
+  {
+   "input": "* ***javascript:b&)ä\n\n_x_[&#106;avascript:",
+   "html": "<ul>\n<li>***javascript:b&amp;)ä</li>\n</ul>\n<p><em>x</em>[&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "    mailto:a@b.fi* \\>&#x6a;avascript:<script>]* ",
+   "html": "<p>mailto:a@b.fi<em> \\&gt;&amp;#x6a;avascript:&lt;script&gt;]</em></p>"
+  },
+  {
+   "input": "* \"(a)*y*data:===> &#106;avascript:(***__",
+   "html": "<ul>\n<li>&quot;(a)<em>y</em>data:===&gt; &amp;#106;avascript:(***__</li>\n</ul>"
+  },
+  {
+   "input": "<script>](&#106;avascript:1)_\ndata:a",
+   "html": "<p>&lt;script&gt;](&amp;#106;avascript:1)_<br>\ndata:a</p>"
+  },
+  {
+   "input": "!## &#60;script&#62;- [!a---b[x]: http://y.fi",
+   "html": "<p>!## &amp;#60;script&amp;#62;- [!a---b[x]: http://y.fi</p>"
+  },
+  {
+   "input": "****=http://x.fi ",
+   "html": "<p>****=http://x.fi</p>"
+  },
+  {
+   "input": "<script>]((",
+   "html": "<p>&lt;script&gt;]((</p>"
+  },
+  {
+   "input": "ä&[)\\#",
+   "html": "<p>ä&amp;[)#</p>"
+  },
+  {
+   "input": "+ (_",
+   "html": "<ul>\n<li>(_</li>\n</ul>"
+  },
+  {
+   "input": "(  [x]: http://y.fi#   word(a) http://x.fi",
+   "html": "<p>(  [x]: http://y.fi#   word(a) http://x.fi</p>"
+  },
+  {
+   "input": "\")+ _x_http://x.fi\t<script>* [x]: http://y.fi<*a]<script>",
+   "html": "<p>&quot;)+ _x_http://x.fi &lt;script&gt;<em> [x]: http://y.fi&lt;</em>a]&lt;script&gt;</p>"
+  },
+  {
+   "input": "&#x6a;avascript:&#106;avascript:ä[>[x](data:text/html,1)&#x6a;avascript:\t",
+   "html": "<p>&amp;#x6a;avascript:&amp;#106;avascript:ä[&gt;<a>x</a>&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "+ http://x.fi",
+   "html": "<ul>\n<li>http://x.fi</li>\n</ul>"
+  },
+  {
+   "input": "* + a- ",
+   "html": "<ul>\n<li>\n<ul>\n<li>a-</li>\n</ul>\n</li>\n</ul>"
+  },
+  {
+   "input": "_*>&- &[x](javascript:alert(1))http://x.fi'>a>'",
+   "html": "<p>_*&gt;&amp;- &amp;<a>x</a>http://x.fi&#x27;&gt;a&gt;&#x27;</p>"
+  },
+  {
+   "input": "b](## 2.   - ](",
+   "html": "<p>b](## 2.   - ](</p>"
+  },
+  {
+   "input": "a\n__\t](## ## http://x.fi&#106;avascript:---](<[x](data:text/html,1)word",
+   "html": "<p>a<br>\n__  ](## ## http://x.fi&amp;#106;avascript:---](&lt;<a>x</a>word</p>"
+  },
+  {
+   "input": "     <script>",
+   "html": "<p>&lt;script&gt;</p>"
+  },
+  {
+   "input": "word*y*&#106;avascript:[x](javascript:alert(1))",
+   "html": "<p>word<em>y</em>&amp;#106;avascript:<a>x</a></p>"
+  },
+  {
+   "input": "=",
+   "html": "<p>=</p>"
+  },
+  {
+   "input": "2. ",
+   "html": "<p>2.</p>"
+  },
+  {
+   "input": "_===\n\n===#&#106;avascript:http://x.fi\"http://x.fi](&#106;avascript:1)---",
+   "html": "<p>_===</p>\n<p>===#&amp;#106;avascript:http://x.fi&quot;http://x.fi](&amp;#106;avascript:1)---</p>"
+  },
+  {
+   "input": "*_# \\\t>## <script>([x](data:text/html,1)>[x]: http://y.fi&#106;avascript:*",
+   "html": "<p><em>_# \\   &gt;## &lt;script&gt;(<a>x</a>&gt;[x]: http://y.fi&amp;#106;avascript:</em></p>"
+  },
+  {
+   "input": ")b'**_<b*y*2. (> [x](data:text/html,1)&#60;script&#62;](",
+   "html": "<p>)b&#x27;<em><em>_&lt;b</em>y</em>2. (&gt; <a>x</a>&amp;#60;script&amp;#62;](</p>"
+  },
+  {
+   "input": ")[x](javascript:alert(1))]&#60;script&#62;\t*y*(a)\\## ",
+   "html": "<p>)<a>x</a>]&amp;#60;script&amp;#62;  <em>y</em>(a)##</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))(b# ",
+   "html": "<p><a>x</a>(b#</p>"
+  },
+  {
+   "input": ")",
+   "html": "<p>)</p>"
+  },
+  {
+   "input": "bdata:## >\\&\t[x]: http://y.fi",
+   "html": "<p>bdata:## &gt;\\&amp; [x]: http://y.fi</p>"
+  },
+  {
+   "input": "#= <script>`__[x](data:text/html,1)&#106;avascript:](http://x.fi1. + b",
+   "html": "<h1>= &lt;script&gt;`__<a>x</a>&amp;#106;avascript:](http://x.fi1. + b</h1>"
+  },
+  {
+   "input": "\"javascript:data:[x](data:text/html,1)\\ \"  data:> **___'",
+   "html": "<p>&quot;javascript:data:<a>x</a>\\ &quot;  data:&gt; **___&#x27;</p>"
+  },
+  {
+   "input": "&#106;avascript:data:<script>word*y*](&#106;avascript:1)*y*([- ](&#106;avascript:1)",
+   "html": "<p>&amp;#106;avascript:data:&lt;script&gt;word<em>y</em>](&amp;#106;avascript:1)<em>y</em>(<a>- </a></p>"
+  },
+  {
+   "input": "&#106;avascript:#",
+   "html": "<p>&amp;#106;avascript:#</p>"
+  },
+  {
+   "input": "---\"\n\n",
+   "html": "<p>---&quot;</p>"
+  },
+  {
+   "input": "data:<script>]!===)](&#106;avascript:1)\n\n&#106;avascript:",
+   "html": "<p>data:&lt;script&gt;]!===)](&amp;#106;avascript:1)</p>\n<p>&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "======b\n\\=== b",
+   "html": "<p>======b<br>\n\\=== b</p>"
+  },
+  {
+   "input": " &#60;script&#62;_x_2. (\"<script>]* # )_x_[x]: http://y.fi\n",
+   "html": "<p>&amp;#60;script&amp;#62;<em>x_2. (&quot;&lt;script&gt;]* # )_x</em>[x]: http://y.fi</p>"
+  },
+  {
+   "input": "---\t&#60;script&#62;",
+   "html": "<p>--- &amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)> #[ahttp://x.fi- aä<script>> =*y*## ",
+   "html": "<p>](&amp;#106;avascript:1)&gt; #[ahttp://x.fi- aä&lt;script&gt;&gt; =<em>y</em>##</p>"
+  },
+  {
+   "input": "<",
+   "html": "<p>&lt;</p>"
+  },
+  {
+   "input": "]2. \\=- ><***\\",
+   "html": "<p>]2. \\=- &gt;&lt;***\\</p>"
+  },
+  {
+   "input": "*_x_&#60;script&#62;data:_[x]: http://y.fi=)[x](data:text/html,1)***=2. &#x6a;avascript:",
+   "html": "<p><em><em>x</em>&amp;#60;script&amp;#62;data:_[x]: http://y.fi=)<a>x</a></em>**=2. &amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "2. ",
+   "html": "<p>2.</p>"
+  },
+  {
+   "input": "](__&#106;avascript:\\\nb&#106;avascript:[x]: http://y.fi\n](&#106;avascript:1)]* <script>",
+   "html": "<p>](__&amp;#106;avascript:\\<br>\nb&amp;#106;avascript:[x]: http://y.fi<br>\n](&amp;#106;avascript:1)]* &lt;script&gt;</p>"
+  },
+  {
+   "input": "## __",
+   "html": "<h2>__</h2>"
+  },
+  {
+   "input": "  \\<",
+   "html": "<p>\\&lt;</p>"
+  },
+  {
+   "input": "#](&#106;avascript:1)!**",
+   "html": "<h1>](&amp;#106;avascript:1)!**</h1>"
+  },
+  {
+   "input": "***\n\t**b'](__    &#106;avascript:",
+   "html": "<hr>\n<pre><code>**b&amp;#x27;](__    &amp;amp;#106;avascript:\n</code></pre>"
+  },
+  {
+   "input": "](&#106;avascript:1)]'](&#106;avascript:1)\"[x]: http://y.fi[x](data:text/html,1)\\a[*   a_x_",
+   "html": "<p>](&amp;#106;avascript:1)]&#x27;](&amp;#106;avascript:1)&quot;[x]: http://y.fi<a>x</a>\\a[*   a_x_</p>"
+  },
+  {
+   "input": "---_x_    <script>(\n> http://x.fiä__javascript:2. ",
+   "html": "<p>---<em>x</em>    &lt;script&gt;(<br>\n&gt; http://x.fiä__javascript:2.</p>"
+  },
+  {
+   "input": "&#60;script&#62;data:*_x_)=\n\n",
+   "html": "<p>&amp;#60;script&amp;#62;data:*<em>x</em>)=</p>"
+  },
+  {
+   "input": "a__mailto:a@b.fi**b >- **&#106;avascript:***ä",
+   "html": "<p>a__mailto:a@b.fi<strong>b &gt;- </strong>&amp;#106;avascript:***ä</p>"
+  },
+  {
+   "input": "2. ",
+   "html": "<p>2.</p>"
+  },
+  {
+   "input": "2. word\\",
+   "html": "<ol>\n<li>word\\</li>\n</ol>"
+  },
+  {
+   "input": "[x]: http://y.fimailto:a@b.fi+ '__'](&#106;avascript:1)",
+   "html": "<p>[x]: http://y.fimailto:a@b.fi+ &#x27;__&#x27;](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "\n'\"===## \t<<script>[x](data:text/html,1)](&#106;avascript:1)2. # ---",
+   "html": "<p>&#x27;&quot;===##   &lt;&lt;script&gt;<a>x</a>](&amp;#106;avascript:1)2. # ---</p>"
+  },
+  {
+   "input": "&#106;avascript:)[_# ",
+   "html": "<p>&amp;#106;avascript:)[_#</p>"
+  },
+  {
+   "input": "**# [x](data:text/html,1)\n(a)]\t\"",
+   "html": "<p>**# <a>x</a><br>\n(a)]    &quot;</p>"
+  },
+  {
+   "input": "javascript:\n\n    &#106;avascript:'+ ",
+   "html": "<p>javascript:</p>\n<pre><code>&amp;amp;#106;avascript:&amp;#x27;+\n</code></pre>"
+  },
+  {
+   "input": " ***_'!_* ](&#106;avascript:1)",
+   "html": "<p>**<em><em>&#x27;!</em></em> ](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "word> [x](javascript:alert(1))&#60;script&#62;*\n\n",
+   "html": "<p>word&gt; <a>x</a>&amp;#60;script&amp;#62;*</p>"
+  },
+  {
+   "input": "''__(a)**2. [x](data:text/html,1)data:__===#",
+   "html": "<p>&#x27;&#x27;<strong>(a)**2. <a>x</a>data:</strong>===#</p>"
+  },
+  {
+   "input": "\n\n",
+   "html": ""
+  },
+  {
+   "input": "_x___data:`<<script>+ ",
+   "html": "<p>_x___data:`&lt;&lt;script&gt;+</p>"
+  },
+  {
+   "input": "](## ---",
+   "html": "<p>](## ---</p>"
+  },
+  {
+   "input": "\t2.     ](](#]\"<script>> mailto:a@b.fi&#60;script&#62;*y*",
+   "html": "<ol>\n<li>](](#]&quot;&lt;script&gt;&gt; mailto:a@b.fi&amp;#60;script&amp;#62;<em>y</em></li>\n</ol>"
+  },
+  {
+   "input": "# bdata:'](&#106;avascript:1)\"",
+   "html": "<h1>bdata:&#x27;](&amp;#106;avascript:1)&quot;</h1>"
+  },
+  {
+   "input": "__](<script>  `  )word\\(a)&#x6a;avascript:",
+   "html": "<p>__](&lt;script&gt;  `  )word(a)&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)",
+   "html": "<p><a>x</a></p>"
+  },
+  {
+   "input": "&#106;avascript:&---## (a)`1. ](&#106;avascript:1)",
+   "html": "<p>&amp;#106;avascript:&amp;---## (a)`1. ](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "    __",
+   "html": "<p>__</p>"
+  },
+  {
+   "input": "_x_ä[[x](javascript:alert(1))",
+   "html": "<p>_x_ä[<a>x</a></p>"
+  },
+  {
+   "input": "!'=\\\n\n## \t",
+   "html": "<p>!&#x27;=\\</p>\n<h2></h2>"
+  },
+  {
+   "input": "_x_a>b&#60;script&#62;+ \\&#x6a;avascript:mailto:a@b.fi  ",
+   "html": "<p>_x_a&gt;b&amp;#60;script&amp;#62;+ \\&amp;#x6a;avascript:mailto:a@b.fi</p>"
+  },
+  {
+   "input": "word[x](data:text/html,1)<script>  (===",
+   "html": "<p>word<a>x</a>&lt;script&gt;  (===</p>"
+  },
+  {
+   "input": "&#106;avascript:[x](javascript:alert(1))",
+   "html": "<p>&amp;#106;avascript:<a>x</a></p>"
+  },
+  {
+   "input": " [x](data:text/html,1)__<&[x]: http://y.fidata:",
+   "html": "<p><a>x</a>__&lt;&amp;[x]: http://y.fidata:</p>"
+  },
+  {
+   "input": ">===**",
+   "html": "<p>&gt;===**</p>"
+  },
+  {
+   "input": "1. \t'_#<&#106;avascript:",
+   "html": "<ol>\n<li>&#x27;_#&lt;&amp;#106;avascript:</li>\n</ol>"
+  },
+  {
+   "input": "a<\n\n`word#_\t\"]&#106;avascript:_&#106;avascript:# ",
+   "html": "<p>a&lt;</p>\n<p>`word#<em> &quot;]&amp;#106;avascript:</em>&amp;#106;avascript:#</p>"
+  },
+  {
+   "input": "]([x](data:text/html,1)&](<script>__",
+   "html": "<p>](<a>x</a>&amp;](&lt;script&gt;__</p>"
+  },
+  {
+   "input": "[\n\n* (",
+   "html": "<p>[</p>\n<ul>\n<li>(</li>\n</ul>"
+  },
+  {
+   "input": "===\n\n",
+   "html": "<p>===</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))## #](([x](javascript:alert(1))*** _x_",
+   "html": "<p><a>x</a>## #]((<a>x</a>*** <em>x</em></p>"
+  },
+  {
+   "input": "`2. 1.   #&word* ](&#106;avascript:1)data:",
+   "html": "<p>`2. 1.   #&amp;word* ](&amp;#106;avascript:1)data:</p>"
+  },
+  {
+   "input": "# 2. _&#106;avascript:* #\\<\nword[",
+   "html": "<h1>2. _&amp;#106;avascript:* #\\&lt;</h1>\n<p>word[</p>"
+  },
+  {
+   "input": "(*javascript:[x](javascript:alert(1))",
+   "html": "<p>(*javascript:<a>x</a></p>"
+  },
+  {
+   "input": "***a[*2. data:&#x6a;avascript:(a)]*y*](](&#106;avascript:1)`[x]: http://y.fi",
+   "html": "<p><em><em><em>a[</em>2. data:&amp;#x6a;avascript:(a)]</em>y</em>](](&amp;#106;avascript:1)`[x]: http://y.fi</p>"
+  },
+  {
+   "input": "mailto:a@b.fi__        2. ",
+   "html": "<p>mailto:a@b.fi__        2.</p>"
+  },
+  {
+   "input": "# &#x6a;avascript:[x]: http://y.fi",
+   "html": "<h1>&amp;#x6a;avascript:[x]: http://y.fi</h1>"
+  },
+  {
+   "input": ")---(a)",
+   "html": "<p>)---(a)</p>"
+  },
+  {
+   "input": "__ä_ba---](__javascript:b    *y****",
+   "html": "<p>__ä_ba---](__javascript:b    <em>y</em>***</p>"
+  },
+  {
+   "input": "](javascript:__a*y*",
+   "html": "<p>](javascript:__a<em>y</em></p>"
+  },
+  {
+   "input": "data:",
+   "html": "<p>data:</p>"
+  },
+  {
+   "input": "2. word&#60;script&#62;",
+   "html": "<ol>\n<li>word&amp;#60;script&amp;#62;</li>\n</ol>"
+  },
+  {
+   "input": "* \"* !a    <script>* &#106;avascript:[x](data:text/html,1)* ",
+   "html": "<ul>\n<li>&quot;<em> !a    &lt;script&gt;</em> &amp;#106;avascript:<a>x</a>*</li>\n</ul>"
+  },
+  {
+   "input": "\n\n## \"b",
+   "html": "<h2>&quot;b</h2>"
+  },
+  {
+   "input": "`\"\t  &#60;script&#62;[x]: http://y.fi* (word*y*_&#x6a;avascript: http://x.fi",
+   "html": "<p>`&quot;   &amp;#60;script&amp;#62;[x]: http://y.fi<em> (word</em>y*_&amp;#x6a;avascript: http://x.fi</p>"
+  },
+  {
+   "input": "javascript:***>   ",
+   "html": "<p>javascript:***&gt;</p>"
+  },
+  {
+   "input": "mailto:a@b.fimailto:a@b.fi=[x](javascript:alert(1))[x](data:text/html,1)=",
+   "html": "<p>mailto:a@b.fimailto:a@b.fi=<a>x</a><a>x</a>=</p>"
+  },
+  {
+   "input": "> _&javascript:",
+   "html": "<p>&gt; _&amp;javascript:</p>"
+  },
+  {
+   "input": "!> \n[x]: http://y.fi===**## 'javascript:",
+   "html": "<p>!&gt; <br>\n[x]: http://y.fi===**## &#x27;javascript:</p>"
+  },
+  {
+   "input": "data:ä==\"",
+   "html": "<p>data:ä==&quot;</p>"
+  },
+  {
+   "input": "([x](javascript:alert(1))## ---1. [>data:- ",
+   "html": "<p>(<a>x</a>## ---1. [&gt;data:-</p>"
+  },
+  {
+   "input": "* 1. [__*## >",
+   "html": "<ul>\n<li>\n<ol>\n<li>[__*## &gt;</li>\n</ol>\n</li>\n</ul>"
+  },
+  {
+   "input": "`&#x6a;avascript:[x](javascript:alert(1))> > \"**## 2. b- \t'",
+   "html": "<p>`&amp;#x6a;avascript:<a>x</a>&gt; &gt; &quot;**## 2. b-     &#x27;</p>"
+  },
+  {
+   "input": "\\=\"- **\t[x]: http://y.fia  # 1. '",
+   "html": "<p>\\=&quot;- **    [x]: http://y.fia  # 1. &#x27;</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)&#106;avascript:http://x.fi# data:a\n2. (a)\\!",
+   "html": "<p>](&amp;#106;avascript:1)&amp;#106;avascript:http://x.fi# data:a<br>\n2. (a)!</p>"
+  },
+  {
+   "input": "***[word***y*  data:>*",
+   "html": "<p><strong><em>[word</em></strong>y<em>  data:&gt;</em></p>"
+  },
+  {
+   "input": "http://x.fi mailto:a@b.fi",
+   "html": "<p>http://x.fi mailto:a@b.fi</p>"
+  },
+  {
+   "input": "&#106;avascript:*y*#*y**b[x](data:text/html,1)",
+   "html": "<p>&amp;#106;avascript:<em>y</em>#<em>y</em>*b<a>x</a></p>"
+  },
+  {
+   "input": "> (a)word[&#106;avascript:## \t\\_* _",
+   "html": "<p>&gt; (a)word[&amp;#106;avascript:##     _* _</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)&#106;avascript:[x](data:text/html,1)*ä>2. &[x]: http://y.fi_x_<](&#106;avascript:1)_",
+   "html": "<p><a>x</a>&amp;#106;avascript:<a>x</a>*ä&gt;2. &amp;[x]: http://y.fi_x_&lt;](&amp;#106;avascript:1)_</p>"
+  },
+  {
+   "input": "](http://x.fi",
+   "html": "<p>](http://x.fi</p>"
+  },
+  {
+   "input": "data:[*y** &#106;avascript:\t## &#60;script&#62;",
+   "html": "<p>data:[<em>y</em>* &amp;#106;avascript: ## &amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "1. 2. ](&#106;avascript:1)==  [x](javascript:alert(1))[x]: http://y.fi",
+   "html": "<ol>\n<li>\n<ol>\n<li>](&amp;#106;avascript:1)==  <a>x</a>[x]: http://y.fi</li>\n</ol>\n</li>\n</ol>"
+  },
+  {
+   "input": "    &#106;avascript:    <script>'        ## >**    &#x6a;avascript:",
+   "html": "<p>&amp;#106;avascript:    &lt;script&gt;&#x27;        ## &gt;**    &amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "[**  word[x]: http://y.fi&!<script>\t",
+   "html": "<p>[**  word[x]: http://y.fi&amp;!&lt;script&gt;</p>"
+  },
+  {
+   "input": "javascript:&  =](&#106;avascript:1)ä`ä([word    ",
+   "html": "<p>javascript:&amp;  =](&amp;#106;avascript:1)ä`ä([word</p>"
+  },
+  {
+   "input": ">__a+ (mailto:a@b.fi",
+   "html": "<p>&gt;__a+ (mailto:a@b.fi</p>"
+  },
+  {
+   "input": "* ## _x_]ä_x_***\\- data:mailto:a@b.fi",
+   "html": "<ul>\n<li>\n<h2><em>x</em>]ä_x_***- data:mailto:a@b.fi</h2>\n</li>\n</ul>"
+  },
+  {
+   "input": "(a)_x_<script>***(&\n\n\n&javascript:  ",
+   "html": "<p>(a)<em>x</em>&lt;script&gt;***(&amp;</p>\n<p>&amp;javascript:</p>"
+  },
+  {
+   "input": "http://x.fi'",
+   "html": "<p>http://x.fi&#x27;</p>"
+  },
+  {
+   "input": "    (a)=__=_[x](data:text/html,1)word",
+   "html": "<p>(a)=__=_<a>x</a>word</p>"
+  },
+  {
+   "input": "2. ",
+   "html": "<p>2.</p>"
+  },
+  {
+   "input": "!***<'word_x_&#x6a;avascript:+ \n\n=b****",
+   "html": "<p>!***&lt;&#x27;word_x_&amp;#x6a;avascript:+ </p>\n<p>=b****</p>"
+  },
+  {
+   "input": "**> mailto:a@b.fi](",
+   "html": "<p>**&gt; mailto:a@b.fi](</p>"
+  },
+  {
+   "input": "ämailto:a@b.fi<script>[x](javascript:alert(1))[x](data:text/html,1)!)\"",
+   "html": "<p>ämailto:a@b.fi&lt;script&gt;<a>x</a><a>x</a>!)&quot;</p>"
+  },
+  {
+   "input": " *y*>ä_x_------word> + __",
+   "html": "<p><em>y</em>&gt;ä_x_------word&gt; + __</p>"
+  },
+  {
+   "input": "\n[)*y*&#60;script&#62;mailto:a@b.fimailto:a@b.fi)> \\][x](data:text/html,1)# ===",
+   "html": "<p>[)<em>y</em>&amp;#60;script&amp;#62;mailto:a@b.fimailto:a@b.fi)&gt; ]<a>x</a># ===</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)\n\t- \\&#x6a;avascript:*y*javascript:!\"](*y*",
+   "html": "<p><a>x</a><br>\n    - \\&amp;#x6a;avascript:<em>y</em>javascript:!&quot;](<em>y</em></p>"
+  },
+  {
+   "input": "(a)#2. http://x.fi[x](data:text/html,1)(__mailto:a@b.fi",
+   "html": "<p>(a)#2. http://x.fi<a>x</a>(__mailto:a@b.fi</p>"
+  },
+  {
+   "input": "\n- &#60;script&#62;",
+   "html": "<ul>\n<li>&amp;#60;script&amp;#62;</li>\n</ul>"
+  },
+  {
+   "input": "b* !*`javascript:***__+ ---[x](data:text/html,1)+ \"2. ",
+   "html": "<p>b<em> !</em>`javascript:***__+ ---<a>x</a>+ &quot;2.</p>"
+  },
+  {
+   "input": "- # javascript:\"[x](data:text/html,1)***> 1. a[x](javascript:alert(1))<script>",
+   "html": "<ul>\n<li>\n<h1>javascript:&quot;<a>x</a>***&gt; 1. a<a>x</a>&lt;script&gt;</h1>\n</li>\n</ul>"
+  },
+  {
+   "input": "\n#](&#106;avascript:1)  ## ä](&#106;avascript:1)",
+   "html": "<h1>](&amp;#106;avascript:1)  ## ä](&amp;#106;avascript:1)</h1>"
+  },
+  {
+   "input": "!",
+   "html": "<p>!</p>"
+  },
+  {
+   "input": "<",
+   "html": "<p>&lt;</p>"
+  },
+  {
+   "input": ">*\n",
+   "html": "<p>&gt;*</p>"
+  },
+  {
+   "input": "](",
+   "html": "<p>](</p>"
+  },
+  {
+   "input": "< 1. \n_x_---- >*#",
+   "html": "<p>&lt; 1. <br>\n<em>x</em>---- &gt;*#</p>"
+  },
+  {
+   "input": "  **a]&#x6a;avascript:*y*&\nhttp://x.fiword\"",
+   "html": "<p><em><em>a]&amp;#x6a;avascript:</em>y</em>&amp;<br>\nhttp://x.fiword&quot;</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)\n***1. ",
+   "html": "<p>](&amp;#106;avascript:1)<br>\n***1.</p>"
+  },
+  {
+   "input": "](  data:\tb    mailto:a@b.fimailto:a@b.fimailto:a@b.fi",
+   "html": "<p>](  data:   b    mailto:a@b.fimailto:a@b.fimailto:a@b.fi</p>"
+  },
+  {
+   "input": "[[x](data:text/html,1)\"_data:&#60;script&#62;* ]()",
+   "html": "<p><a>[x](data:text/html,1)&quot;_data:&amp;#60;script&amp;#62;* </a></p>"
+  },
+  {
+   "input": "&#60;script&#62;  ",
+   "html": "<p>&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "_x__\n\n*\n\n&#106;avascript:\t[\"a\t",
+   "html": "<p>_x__</p>\n<p>*</p>\n<p>&amp;#106;avascript:    [&quot;a</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)'[x](data:text/html,1)2. *y*- =  \n---* ",
+   "html": "<p>](&amp;#106;avascript:1)&#x27;<a>x</a>2. <em>y</em>- =<br>\n---*</p>"
+  },
+  {
+   "input": "\t&#106;avascript:---* *",
+   "html": "<p>&amp;#106;avascript:---* *</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)",
+   "html": "<p><a>x</a></p>"
+  },
+  {
+   "input": "(a))`***",
+   "html": "<p>(a))`***</p>"
+  },
+  {
+   "input": "_&#x6a;avascript:_2. *y*# ]](&#106;avascript:1)[ä_x_&#106;avascript:# **",
+   "html": "<p><em>&amp;#x6a;avascript:_2. <em>y</em># ]](&amp;#106;avascript:1)[ä_x</em>&amp;#106;avascript:# **</p>"
+  },
+  {
+   "input": "#> _a*y*b[x]: http://y.fi",
+   "html": "<h1>&gt; _a<em>y</em>b[x]: http://y.fi</h1>"
+  },
+  {
+   "input": "_x_(**)&#60;script&#62;http://x.fi(a)](## mailto:a@b.fi][x](javascript:alert(1))",
+   "html": "<p><em>x</em>(**)&amp;#60;script&amp;#62;http://x.fi(a)](## mailto:a@b.fi]<a>x</a></p>"
+  },
+  {
+   "input": "]&  <script>data:javascript:- (a)a]\n\n<script>",
+   "html": "<p>]&amp;  &lt;script&gt;data:javascript:- (a)a]</p>\n<p>&lt;script&gt;</p>"
+  },
+  {
+   "input": "\t`>   --- ",
+   "html": "<p>`&gt;   ---</p>"
+  },
+  {
+   "input": "2. ",
+   "html": "<p>2.</p>"
+  },
+  {
+   "input": "____&#60;script&#62; \\javascript:a> >    # - *y*",
+   "html": "<p>____&amp;#60;script&amp;#62; \\javascript:a&gt; &gt;    # - <em>y</em></p>"
+  },
+  {
+   "input": "_x_1. [x](data:text/html,1)",
+   "html": "<p>_x_1. <a>x</a></p>"
+  },
+  {
+   "input": "> \\",
+   "html": "<p>&gt; \\</p>"
+  },
+  {
+   "input": "\n\n&#60;script&#62;(&#60;script&#62;b## ](&#106;avascript:1)> ",
+   "html": "<p>&amp;#60;script&amp;#62;(&amp;#60;script&amp;#62;b## ](&amp;#106;avascript:1)&gt;</p>"
+  },
+  {
+   "input": "ä\n\\[x]: http://y.fi!&#60;script&#62;\t",
+   "html": "<p>ä<br>\n[x]: http://y.fi!&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "*y* ((a) \" _x_`javascript:",
+   "html": "<p><em>y</em> ((a) &quot; <em>x</em>`javascript:</p>"
+  },
+  {
+   "input": "[x]: http://y.fi[x]: http://y.fimailto:a@b.fi>===!# ***[data:",
+   "html": "<p>[x]: http://y.fi[x]: http://y.fimailto:a@b.fi&gt;===!# ***[data:</p>"
+  },
+  {
+   "input": "data:<script>- [#    word[*y*",
+   "html": "<p>data:&lt;script&gt;- [#    word[<em>y</em></p>"
+  },
+  {
+   "input": "* [x](javascript:alert(1))+ &#x6a;avascript:[x]: http://y.fi    !#**",
+   "html": "<ul>\n<li><a>x</a>+ &amp;#x6a;avascript:[x]: http://y.fi    !#**</li>\n</ul>"
+  },
+  {
+   "input": "word",
+   "html": "<p>word</p>"
+  },
+  {
+   "input": "`- ## [x]: http://y.fi\\",
+   "html": "<p>`- ## [x]: http://y.fi\\</p>"
+  },
+  {
+   "input": "> )<script>&#106;avascript: 2. ä_x_**=",
+   "html": "<p>&gt; )&lt;script&gt;&amp;#106;avascript: 2. ä_x_**=</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)>a\n\n---\n\n\"_]([x]: http://y.fi\"*",
+   "html": "<p>](&amp;#106;avascript:1)&gt;a</p>\n<hr>\n<p>&quot;_]([x]: http://y.fi&quot;*</p>"
+  },
+  {
+   "input": "##   ***http://x.fi=[x]: http://y.fi#1. # ",
+   "html": "<h2>***http://x.fi=[x]: http://y.fi#1.</h2>"
+  },
+  {
+   "input": "a\n\n&#60;script&#62;>",
+   "html": "<p>a</p>\n<p>&amp;#60;script&amp;#62;&gt;</p>"
+  },
+  {
+   "input": "# a_`__[x]: http://y.fi---\\",
+   "html": "<p># a_`__[x]: http://y.fi---\\</p>"
+  },
+  {
+   "input": "][x](javascript:alert(1))<script>*y*&2. &#106;avascript:+ (a)",
+   "html": "<p>]<a>x</a>&lt;script&gt;<em>y</em>&amp;2. &amp;#106;avascript:+ (a)</p>"
+  },
+  {
+   "input": "#](&#106;avascript:1)>*y*<&#60;script&#62;",
+   "html": "<h1>](&amp;#106;avascript:1)&gt;<em>y</em>&lt;&amp;#60;script&amp;#62;</h1>"
+  },
+  {
+   "input": "](word[x](data:text/html,1)]",
+   "html": "<p>](word<a>x</a>]</p>"
+  },
+  {
+   "input": "[x]: http://y.fi`    [x]: http://y.fi> [x](data:text/html,1)[x]: http://y.fi1. (a)******\t<script>",
+   "html": "<p>[x]: http://y.fi`    [x]: http://y.fi&gt; <a>x</a>[x]: http://y.fi1. (a)<strong>*</strong>* &lt;script&gt;</p>"
+  },
+  {
+   "input": "*y*ä&#x6a;avascript: äjavascript:``  javascript:**- !<script>",
+   "html": "<p><em>y</em>ä&amp;#x6a;avascript: äjavascript:``  javascript:**- !&lt;script&gt;</p>"
+  },
+  {
+   "input": "__***'&#106;avascript:__[mailto:a@b.fimailto:a@b.fi",
+   "html": "<p><strong>***&#x27;&amp;#106;avascript:</strong>[mailto:a@b.fimailto:a@b.fi</p>"
+  },
+  {
+   "input": "](a>javascript:**",
+   "html": "<p>](a&gt;javascript:**</p>"
+  },
+  {
+   "input": "*y*## ",
+   "html": "<p><em>y</em>##</p>"
+  },
+  {
+   "input": "_(__## \t]\\",
+   "html": "<p>_(__##  ]\\</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)`---__b&***<script>2. '<# ",
+   "html": "<p>](&amp;#106;avascript:1)`---__b&amp;***&lt;script&gt;2. &#x27;&lt;#</p>"
+  },
+  {
+   "input": "](](    ",
+   "html": "<p>](](</p>"
+  },
+  {
+   "input": "&\n",
+   "html": "<p>&amp;</p>"
+  },
+  {
+   "input": "&#60;script&#62;&#x6a;avascript:",
+   "html": "<p>&amp;#60;script&amp;#62;&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "`===__",
+   "html": "<p>`===__</p>"
+  },
+  {
+   "input": "word&#x6a;avascript:](&#106;avascript:1)=# _x_'## \\\\\"\"",
+   "html": "<p>word&amp;#x6a;avascript:](&amp;#106;avascript:1)=# <em>x</em>&#x27;## \\&quot;&quot;</p>"
+  },
+  {
+   "input": "1. [x](data:text/html,1)",
+   "html": "<ol>\n<li><a>x</a></li>\n</ol>"
+  },
+  {
+   "input": "&#60;script&#62;\"ab_x_\n- a_x_amailto:a@b.fi<script>",
+   "html": "<p>&amp;#60;script&amp;#62;&quot;ab_x_<br>\n- a_x_amailto:a@b.fi&lt;script&gt;</p>"
+  },
+  {
+   "input": "=&#x6a;avascript:",
+   "html": "<p>=&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "- 2. &[x]: http://y.fimailto:a@b.fi  \n",
+   "html": "<ul>\n<li>\n<ol>\n<li>&amp;[x]: http://y.fimailto:a@b.fi</li>\n</ol>\n</li>\n</ul>"
+  },
+  {
+   "input": "b***## )a&#106;avascript:! &&#106;avascript:[***!",
+   "html": "<p>b<strong><em>## )a&amp;#106;avascript:! &amp;&amp;#106;avascript:[</em></strong>!</p>"
+  },
+  {
+   "input": "&#106;avascript:word[===**]mailto:a@b.fi(a)  &#106;avascript:",
+   "html": "<p>&amp;#106;avascript:word[===**]mailto:a@b.fi(a)  &amp;#106;avascript:</p>"
+  },
+  {
+   "input": "]*y*a* ",
+   "html": "<p>]<em>y</em>a*</p>"
+  },
+  {
+   "input": "_x_#<script>&",
+   "html": "<p><em>x</em>#&lt;script&gt;&amp;</p>"
+  },
+  {
+   "input": "\\",
+   "html": "<p>\\</p>"
+  },
+  {
+   "input": "=!![x](data:text/html,1)]\n!***&#106;avascript:",
+   "html": "<p>=!]<br>\n!***&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "a_x_a#1. [[",
+   "html": "<p>a_x_a#1. [[</p>"
+  },
+  {
+   "input": "\n\n",
+   "html": ""
+  },
+  {
+   "input": "> ***     a!",
+   "html": "<p>&gt; ***     a!</p>"
+  },
+  {
+   "input": "&#60;script&#62;<script>)>  [x](javascript:alert(1))]&#x6a;avascript:))http://x.fi    [x]: http://y.fi",
+   "html": "<p>&amp;#60;script&amp;#62;&lt;script&gt;)&gt;  <a>x</a>]&amp;#x6a;avascript:))http://x.fi    [x]: http://y.fi</p>"
+  },
+  {
+   "input": "&#x6a;avascript:+ ---\"!>2. \n\n",
+   "html": "<p>&amp;#x6a;avascript:+ ---&quot;!&gt;2.</p>"
+  },
+  {
+   "input": "](]ä_x_**'ba<    ",
+   "html": "<p>](]ä_x_**&#x27;ba&lt;</p>"
+  },
+  {
+   "input": "]\n",
+   "html": "<p>]</p>"
+  },
+  {
+   "input": "data:[__2. &#x6a;avascript:**b[x](javascript:alert(1))# [mailto:a@b.fi# ",
+   "html": "<p>data:[__2. &amp;#x6a;avascript:**b<a>x</a># [mailto:a@b.fi#</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)===`+ javascript:__- **",
+   "html": "<p><a>x</a>===`+ javascript:__- **</p>"
+  },
+  {
+   "input": "&(http://x.fi    \t&#60;script&#62;word",
+   "html": "<p>&amp;(http://x.fi       &amp;#60;script&amp;#62;word</p>"
+  },
+  {
+   "input": "data:_x_(1. <***===data:_x_http://x.fi\\](&#106;avascript:1)",
+   "html": "<p>data:<em>x</em>(1. &lt;***===data:_x_http://x.fi](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "ab\n\njavascript:2.      &#106;avascript:word[x]: http://y.fi'",
+   "html": "<p>ab</p>\n<p>javascript:2.      &amp;#106;avascript:word[x]: http://y.fi&#x27;</p>"
+  },
+  {
+   "input": "<&#60;script&#62;*javascript:    + \"> \nword",
+   "html": "<p>&lt;&amp;#60;script&amp;#62;*javascript:    + &quot;&gt; <br>\nword</p>"
+  },
+  {
+   "input": "2. a",
+   "html": "<ol>\n<li>a</li>\n</ol>"
+  },
+  {
+   "input": "=\\[x](javascript:alert(1))2. - )<mailto:a@b.fi[x](javascript:alert(1))",
+   "html": "<p>=[x](javascript:alert(1))2. - )&lt;mailto:a@b.fi<a>x</a></p>"
+  },
+  {
+   "input": "- + &#x6a;avascript:\n\n__mailto:a@b.fib\n*y*mailto:a@b.fi\n\n+ > > ",
+   "html": "<ul>\n<li>\n<ul>\n<li>&amp;#x6a;avascript:</li>\n</ul>\n</li>\n</ul>\n<p>__mailto:a@b.fib<br>\n<em>y</em>mailto:a@b.fi</p>\n<ul>\n<li>&gt; &gt;</li>\n</ul>"
+  },
+  {
+   "input": "*< # **# javascript:# [",
+   "html": "<p><em>&lt; # </em>*# javascript:# [</p>"
+  },
+  {
+   "input": "[)word<* !# ===",
+   "html": "<p>[)word&lt;* !# ===</p>"
+  },
+  {
+   "input": "] bhttp://x.fi\t",
+   "html": "<p>] bhttp://x.fi</p>"
+  },
+  {
+   "input": "## a- [x]: http://y.fi1.  ",
+   "html": "<h2>a- [x]: http://y.fi1.</h2>"
+  },
+  {
+   "input": "!",
+   "html": "<p>!</p>"
+  },
+  {
+   "input": "(_x_<",
+   "html": "<p>(<em>x</em>&lt;</p>"
+  },
+  {
+   "input": "=**javascript:",
+   "html": "<p>=**javascript:</p>"
+  },
+  {
+   "input": "#(a)*! ***## \t)",
+   "html": "<h1>(a)<em>! </em>**##    )</h1>"
+  },
+  {
+   "input": ">__](&#106;avascript:1)<script>b(a)* 2. \t",
+   "html": "<p>&gt;__](&amp;#106;avascript:1)&lt;script&gt;b(a)* 2.</p>"
+  },
+  {
+   "input": "word&#x6a;avascript:* (a)[x]: http://y.fi    =[x](data:text/html,1)## \\[x](javascript:alert(1))",
+   "html": "<p>word&amp;#x6a;avascript:* (a)[x]: http://y.fi    =<a>x</a>## [x](javascript:alert(1))</p>"
+  },
+  {
+   "input": "&#60;script&#62;<script>'[_x_`\"http://x.fi#word",
+   "html": "<p>&amp;#60;script&amp;#62;&lt;script&gt;&#x27;[<em>x</em>`&quot;http://x.fi#word</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)`!\\\\",
+   "html": "<p>](&amp;#106;avascript:1)`!\\</p>"
+  },
+  {
+   "input": "<* __**+ #*y*2. a",
+   "html": "<p>&lt;<em> __</em><em>+ #</em>y*2. a</p>"
+  },
+  {
+   "input": "]_x_****y*",
+   "html": "<p>]<em>x</em>***<em>y</em></p>"
+  },
+  {
+   "input": "<script>[x](javascript:alert(1))[x]: http://y.fi 1. `2. >- > ---# ",
+   "html": "<p>&lt;script&gt;<a>x</a>[x]: http://y.fi 1. `2. &gt;- &gt; ---#</p>"
+  },
+  {
+   "input": "+ (a)> +  \" \n\n  2. ](*",
+   "html": "<ul>\n<li>(a)&gt; +  &quot; </li>\n</ul>\n<ol>\n<li>](*</li>\n</ol>"
+  },
+  {
+   "input": "]+ # b#>\n\nhttp://x.fi&#60;script&#62;***===# ---## ",
+   "html": "<p>]+ # b#&gt;</p>\n<p>http://x.fi&amp;#60;script&amp;#62;***===# ---##</p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))[x](javascript:alert(1))`a_[***(",
+   "html": "<p><a>x</a><a>x</a>`a_[***(</p>"
+  },
+  {
+   "input": "\"## - >> )",
+   "html": "<p>&quot;## - &gt;&gt; )</p>"
+  },
+  {
+   "input": ")[x]: http://y.fi1. data:*y*&#60;script&#62;[x](javascript:alert(1))\n\n](&#106;avascript:1)",
+   "html": "<p>)[x]: http://y.fi1. data:<em>y</em>&amp;#60;script&amp;#62;<a>x</a></p>\n<p>](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "__word <script>a]a*`*y*&#x6a;avascript:",
+   "html": "<p>__word &lt;script&gt;a]a<em>`</em>y*&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "data:>1. 1. [x](data:text/html,1)`>\")",
+   "html": "<p>data:&gt;1. 1. <a>x</a>`&gt;&quot;)</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)=2. [x](javascript:alert(1))ä&__1. ",
+   "html": "<p>](&amp;#106;avascript:1)=2. <a>x</a>ä&amp;__1.</p>"
+  },
+  {
+   "input": "\t- javascript:[x](javascript:alert(1))",
+   "html": "<ul>\n<li>javascript:<a>x</a></li>\n</ul>"
+  },
+  {
+   "input": "1. [&#x6a;avascript:](\n\n**\"*y*a'<",
+   "html": "<ol>\n<li>[&amp;#x6a;avascript:](</li>\n</ol>\n<p><em><em>&quot;</em>y</em>a&#x27;&lt;</p>"
+  },
+  {
+   "input": "_>http://x.fi&> )>!",
+   "html": "<p>_&gt;http://x.fi&amp;&gt; )&gt;!</p>"
+  },
+  {
+   "input": "wordword&\n\n===- ](&#106;avascript:1)",
+   "html": "<p>wordword&amp;</p>\n<p>===- ](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "*&#106;avascript:\nmailto:a@b.fihttp://x.fi2. ]",
+   "html": "<p>*&amp;#106;avascript:<br>\nmailto:a@b.fihttp://x.fi2. ]</p>"
+  },
+  {
+   "input": "&*y*#  _)\n\na&#x6a;avascript:_x_===&#x6a;avascript:",
+   "html": "<p>&amp;<em>y</em>#  _)</p>\n<p>a&amp;#x6a;avascript:<em>x</em>===&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "##   + &#106;avascript:\n\n> &",
+   "html": "<h2>+ &amp;#106;avascript:</h2>\n<p>&gt; &amp;</p>"
+  },
+  {
+   "input": "_`===\t(a)([x](javascript:alert(1))\n\n(a)__",
+   "html": "<p>_`===   (a)(<a>x</a></p>\n<p>(a)__</p>"
+  },
+  {
+   "input": "## ***# # ",
+   "html": "<h2>***#</h2>"
+  },
+  {
+   "input": "2. (*",
+   "html": "<ol>\n<li>(*</li>\n</ol>"
+  },
+  {
+   "input": "# \\data:    ](\\>&#x6a;avascript:word*y*[x](javascript:alert(1))",
+   "html": "<h1>\\data:    ](\\&gt;&amp;#x6a;avascript:word<em>y</em><a>x</a></h1>"
+  },
+  {
+   "input": " [x]: http://y.fi <script>&* mailto:a@b.fi]",
+   "html": "<p>[x]: http://y.fi &lt;script&gt;&amp;* mailto:a@b.fi]</p>"
+  },
+  {
+   "input": "> ]( &#106;avascript:[x](javascript:alert(1))[x](javascript:alert(1))",
+   "html": "<p>&gt; ]( &amp;#106;avascript:<a>x</a><a>x</a></p>"
+  },
+  {
+   "input": " data:&#106;avascript:b- \n\n> ",
+   "html": "<p>data:&amp;#106;avascript:b- </p>\n<p>&gt;</p>"
+  },
+  {
+   "input": "_x_",
+   "html": "<p><em>x</em></p>"
+  },
+  {
+   "input": "**ä\n\nhttp://x.fi***`2. &#x6a;avascript:",
+   "html": "<p>**ä</p>\n<p>http://x.fi***`2. &amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "_(data:##1. \"",
+   "html": "<p>_(data:##1. &quot;</p>"
+  },
+  {
+   "input": "ä__`ä1. ===[x]: http://y.fi<script>    - ",
+   "html": "<p>ä__`ä1. ===[x]: http://y.fi&lt;script&gt;    -</p>"
+  },
+  {
+   "input": "&#106;avascript:",
+   "html": "<p>&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "&#60;script&#62;",
+   "html": "<p>&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "&#x6a;avascript:>#\t[\"&#60;script&#62;___===[\\",
+   "html": "<p>&amp;#x6a;avascript:&gt;#   [&quot;&amp;#60;script&amp;#62;___===[\\</p>"
+  },
+  {
+   "input": "<script>[",
+   "html": "<p>&lt;script&gt;[</p>"
+  },
+  {
+   "input": "word+ &#60;script&#62;&#60;script&#62;+ ](&#106;avascript:1)ä[x]: http://y.fi",
+   "html": "<p>word+ &amp;#60;script&amp;#62;&amp;#60;script&amp;#62;+ ](&amp;#106;avascript:1)ä[x]: http://y.fi</p>"
+  },
+  {
+   "input": "# \t&#106;avascript:**![x]: http://y.fi\n\njavascript:# 2. ",
+   "html": "<h1>&amp;#106;avascript:**![x]: http://y.fi</h1>\n<p>javascript:# 2.</p>"
+  },
+  {
+   "input": "'http://x.fi+ ",
+   "html": "<p>&#x27;http://x.fi+</p>"
+  },
+  {
+   "input": "\t\\http://x.fi===1. aä](## \n\n<\n\n* b",
+   "html": "<p>\\http://x.fi===1. aä](## </p>\n<p>&lt;</p>\n<ul>\n<li>b</li>\n</ul>"
+  },
+  {
+   "input": "&#60;script&#62;a- [x](data:text/html,1)[]    [x](javascript:alert(1))\n!\n\n>",
+   "html": "<p>&amp;#60;script&amp;#62;a- <a>x</a>[]    <a>x</a><br>\n!</p>\n<p>&gt;</p>"
+  },
+  {
+   "input": "#\nä* (a)",
+   "html": "<h1></h1>\n<p>ä* (a)</p>"
+  },
+  {
+   "input": "data:**&#60;script&#62;## ]> ===#mailto:a@b.fi&http://x.fi",
+   "html": "<p>data:**&amp;#60;script&amp;#62;## ]&gt; ===#mailto:a@b.fi&amp;http://x.fi</p>"
+  },
+  {
+   "input": "_x_  #  =*",
+   "html": "<p><em>x</em>  #  =*</p>"
+  },
+  {
+   "input": "* &#60;script&#62;b data:&#106;avascript:`([x](data:text/html,1)&\"(*y*",
+   "html": "<ul>\n<li>&amp;#60;script&amp;#62;b data:&amp;#106;avascript:`(<a>x</a>&amp;&quot;(<em>y</em></li>\n</ul>"
+  },
+  {
+   "input": "!+ ](&#106;avascript:1)===&#106;avascript:\\[x](data:text/html,1)---===javascript: &",
+   "html": "<p>!+ ](&amp;#106;avascript:1)===&amp;#106;avascript:[x](data:text/html,1)---===javascript: &amp;</p>"
+  },
+  {
+   "input": "+ !`javascript:<script>(data:>(a)&(a)](     ",
+   "html": "<ul>\n<li>!`javascript:&lt;script&gt;(data:&gt;(a)&amp;(a)](</li>\n</ul>"
+  },
+  {
+   "input": "&#106;avascript:b+ [x](data:text/html,1)",
+   "html": "<p>&amp;#106;avascript:b+ <a>x</a></p>"
+  },
+  {
+   "input": "*y*`!\n\nb_x_word&#x6a;avascript:<script>",
+   "html": "<p><em>y</em>`!</p>\n<p>b_x_word&amp;#x6a;avascript:&lt;script&gt;</p>"
+  },
+  {
+   "input": "b**](&#106;avascript:1)(mailto:a@b.fi](    javascript:## ",
+   "html": "<p>b**](&amp;#106;avascript:1)(mailto:a@b.fi](    javascript:##</p>"
+  },
+  {
+   "input": "b  `ädata:1. ##  (a)      ['&#x6a;avascript:",
+   "html": "<p>b  `ädata:1. ##  (a)      [&#x27;&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "# ## <>**",
+   "html": "<h1>## &lt;&gt;**</h1>"
+  },
+  {
+   "input": "_x_\"\n\n_x____`&#106;avascript:",
+   "html": "<p><em>x</em>&quot;</p>\n<p>_x____`&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)# - [x](data:text/html,1)http://x.fi*y* http://x.fi[x](data:text/html,1)\n\n#",
+   "html": "<p>](&amp;#106;avascript:1)# - <a>x</a>http://x.fi<em>y</em> http://x.fi<a>x</a></p>\n<h1></h1>"
+  },
+  {
+   "input": "[x](data:text/html,1)javascript:=(b<<script>[x](javascript:alert(1))* \"[x](javascript:alert(1))http://x.fia",
+   "html": "<p><a>x</a>javascript:=(b&lt;&lt;script&gt;<a>x</a>* &quot;<a>x</a>http://x.fia</p>"
+  },
+  {
+   "input": "&- a*y*http://x.fi[javascript:",
+   "html": "<p>&amp;- a<em>y</em>http://x.fi[javascript:</p>"
+  },
+  {
+   "input": "__ <\n\n* ===[x](javascript:alert(1))\"mailto:a@b.fi",
+   "html": "<p>__ &lt;</p>\n<ul>\n<li>===<a>x</a>&quot;mailto:a@b.fi</li>\n</ul>"
+  },
+  {
+   "input": "=\\http://x.fijavascript:---> ä    `'a> ***",
+   "html": "<p>=\\http://x.fijavascript:---&gt; ä    `&#x27;a&gt; ***</p>"
+  },
+  {
+   "input": ")*_#)javascript:",
+   "html": "<p>)*_#)javascript:</p>"
+  },
+  {
+   "input": "data:<## 1. ",
+   "html": "<p>data:&lt;## 1.</p>"
+  },
+  {
+   "input": "<[=)\n\n(a)#   &#60;script&#62;=\ta",
+   "html": "<p>&lt;[=)</p>\n<p>(a)#   &amp;#60;script&amp;#62;=    a</p>"
+  },
+  {
+   "input": "***][x]: http://y.fi+ http://x.fi",
+   "html": "<p>***][x]: http://y.fi+ http://x.fi</p>"
+  },
+  {
+   "input": "2.     ]([x](data:text/html,1)](&#106;avascript:1)*](](## __---",
+   "html": "<ol>\n<li>](<a>x</a>](&amp;#106;avascript:1)*](](## __---</li>\n</ol>"
+  },
+  {
+   "input": "__[x]: http://y.fi_2. ===__(a)",
+   "html": "<p><strong>[x]: http://y.fi_2. ===</strong>(a)</p>"
+  },
+  {
+   "input": "***",
+   "html": "<hr>"
+  },
+  {
+   "input": "](!<'_x_a",
+   "html": "<p>](!&lt;&#x27;_x_a</p>"
+  },
+  {
+   "input": "- ",
+   "html": "<p>-</p>"
+  },
+  {
+   "input": "===)a\n\n`#_x_\n\n\n&#60;script&#62;",
+   "html": "<p>===)a</p>\n<p>`#<em>x</em></p>\n<p>&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "  - ****[x]: http://y.fi*y*[&word(a)[x](javascript:alert(1))worda](&#106;avascript:1)",
+   "html": "<ul>\n<li>**<em><em>[x]: http://y.fi</em>y</em><a>&amp;word(a)[x](javascript:alert(1))worda</a></li>\n</ul>"
+  },
+  {
+   "input": "`__1. ]([x]: http://y.fia        ",
+   "html": "<p>`__1. ]([x]: http://y.fia</p>"
+  },
+  {
+   "input": "a===b_x_&#x6a;avascript:b(a)---",
+   "html": "<p>a===b_x_&amp;#x6a;avascript:b(a)---</p>"
+  },
+  {
+   "input": "data:[x]: http://y.fi'(a!&#106;avascript:&<script>_x_`",
+   "html": "<p>data:[x]: http://y.fi&#x27;(a!&amp;#106;avascript:&amp;&lt;script&gt;<em>x</em>`</p>"
+  },
+  {
+   "input": "<script>'&#106;avascript:1. ",
+   "html": "<p>&lt;script&gt;&#x27;&amp;#106;avascript:1.</p>"
+  },
+  {
+   "input": "ä<script>_x_",
+   "html": "<p>ä&lt;script&gt;<em>x</em></p>"
+  },
+  {
+   "input": "2. ===**http://x.fi2. &#60;script&#62;",
+   "html": "<ol>\n<li>===**http://x.fi2. &amp;#60;script&amp;#62;</li>\n</ol>"
+  },
+  {
+   "input": "&#x6a;avascript:    ](&#106;avascript:1)[- b=- word*",
+   "html": "<p>&amp;#x6a;avascript:    ](&amp;#106;avascript:1)[- b=- word*</p>"
+  },
+  {
+   "input": "  _x_",
+   "html": "<p><em>x</em></p>"
+  },
+  {
+   "input": "`__1. ",
+   "html": "<p>`__1.</p>"
+  },
+  {
+   "input": "- ](+ \"](&#60;script&#62;",
+   "html": "<ul>\n<li>](+ &quot;](&amp;#60;script&amp;#62;</li>\n</ul>"
+  },
+  {
+   "input": ")<http://x.fi)'_\n#&#x6a;avascript:mailto:a@b.fi",
+   "html": "<p>)&lt;http://x.fi)&#x27;_</p>\n<h1>&amp;#x6a;avascript:mailto:a@b.fi</h1>"
+  },
+  {
+   "input": "\n- <[`\\javascript:",
+   "html": "<ul>\n<li>&lt;[`\\javascript:</li>\n</ul>"
+  },
+  {
+   "input": "1. ===>",
+   "html": "<ol>\n<li>===&gt;</li>\n</ol>"
+  },
+  {
+   "input": "](    *",
+   "html": "<p>](    *</p>"
+  },
+  {
+   "input": "\n\n`=* (a)\t[",
+   "html": "<p>`=* (a) [</p>"
+  },
+  {
+   "input": "****y*",
+   "html": "<p>***<em>y</em></p>"
+  },
+  {
+   "input": "[x]: http://y.fi[x]: http://y.fib",
+   "html": "<p>[x]: http://y.fi[x]: http://y.fib</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)**javascript:",
+   "html": "<p>](&amp;#106;avascript:1)**javascript:</p>"
+  },
+  {
+   "input": "_x_\"javascript:*data:> - * \\(a)2. ",
+   "html": "<p><em>x</em>&quot;javascript:*data:&gt; - * (a)2.</p>"
+  },
+  {
+   "input": "===",
+   "html": "<p>===</p>"
+  },
+  {
+   "input": "\t    > \\--- &#60;script&#62;](&#106;avascript:1)`",
+   "html": "<p>&gt; --- &amp;#60;script&amp;#62;](&amp;#106;avascript:1)`</p>"
+  },
+  {
+   "input": "#[x](javascript:alert(1))(a)\t",
+   "html": "<h1><a>x</a>(a)</h1>"
+  },
+  {
+   "input": "=* ')## \\b",
+   "html": "<p>=* &#x27;)## \\b</p>"
+  },
+  {
+   "input": "](*y*(a)## __b---*(a)_`)](&#106;avascript:1)javascript:",
+   "html": "<p>](<em>y</em>(a)## __b---*(a)_`)](&amp;#106;avascript:1)javascript:</p>"
+  },
+  {
+   "input": "2.   ](&#106;avascript:1)&#60;script&#62;***<*y*&#106;avascript:",
+   "html": "<ol>\n<li>](&amp;#106;avascript:1)&amp;#60;script&amp;#62;*<em><em>&lt;</em>y</em>&amp;#106;avascript:</li>\n</ol>"
+  },
+  {
+   "input": "\t",
+   "html": ""
+  },
+  {
+   "input": "*y*===\\\"[x]: http://y.fi",
+   "html": "<p><em>y</em>===\\&quot;[x]: http://y.fi</p>"
+  },
+  {
+   "input": "javascript:&#60;script&#62;\t",
+   "html": "<p>javascript:&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "'+ \n\n\n\\#\n*`mailto:a@b.fi]***__ä",
+   "html": "<p>&#x27;+ </p>\n<p>#<br>\n<em>`mailto:a@b.fi]</em>**__ä</p>"
+  },
+  {
+   "input": "* ",
+   "html": "<p>*</p>"
+  },
+  {
+   "input": "a",
+   "html": "<p>a</p>"
+  },
+  {
+   "input": "*y*\"",
+   "html": "<p><em>y</em>&quot;</p>"
+  },
+  {
+   "input": "ä&#x6a;avascript:ä  data:__    ",
+   "html": "<p>ä&amp;#x6a;avascript:ä  data:__</p>"
+  },
+  {
+   "input": "\t*y*\nhttp://x.fi&#60;script&#62;\n)**2. ",
+   "html": "<p><em>y</em><br>\nhttp://x.fi&amp;#60;script&amp;#62;<br>\n)**2.</p>"
+  },
+  {
+   "input": "\n\n>http://x.fi  \n[x](data:text/html,1)> !'javascript:[x](javascript:alert(1))! ",
+   "html": "<p>&gt;http://x.fi<br>\n<a>x</a>&gt; !&#x27;javascript:<a>x</a>!</p>"
+  },
+  {
+   "input": "\na---(a)[x](data:text/html,1)(_x_",
+   "html": "<p>a---(a)<a>x</a>(<em>x</em></p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))2. word )#\n> ## ",
+   "html": "<p><a>x</a>2. word )#<br>\n&gt; ##</p>"
+  },
+  {
+   "input": "#[`(a)\\&#60;script&#62;<script>b# javascript:",
+   "html": "<h1>[`(a)\\&amp;#60;script&amp;#62;&lt;script&gt;b# javascript:</h1>"
+  },
+  {
+   "input": "&***=== &#x6a;avascript:",
+   "html": "<p>&amp;***=== &amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "_",
+   "html": "<p>_</p>"
+  },
+  {
+   "input": "_word&1. \\&#x6a;avascript:\\&#x6a;avascript:",
+   "html": "<p>_word&amp;1. \\&amp;#x6a;avascript:\\&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "word##   !&#106;avascript:    ",
+   "html": "<p>word##   !&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "ä*y*&#106;avascript:===\"",
+   "html": "<p>ä<em>y</em>&amp;#106;avascript:===&quot;</p>"
+  },
+  {
+   "input": "http://x.fiä\"*y*&#x6a;avascript:]= # _",
+   "html": "<p>http://x.fiä&quot;<em>y</em>&amp;#x6a;avascript:]= # _</p>"
+  },
+  {
+   "input": "  \"* ",
+   "html": "<p>&quot;*</p>"
+  },
+  {
+   "input": "\t2. ajavascript:#&#60;script&#62;*#\\",
+   "html": "<ol>\n<li>ajavascript:#&amp;#60;script&amp;#62;*#\\</li>\n</ol>"
+  },
+  {
+   "input": "\n\n\"http://x.fi&#60;script&#62;mailto:a@b.fihttp://x.fi\n[x]: http://y.fi[x](data:text/html,1)",
+   "html": "<p>&quot;http://x.fi&amp;#60;script&amp;#62;mailto:a@b.fihttp://x.fi</p>"
+  },
+  {
+   "input": "***javascript:> [x]: http://y.fi#\n\n",
+   "html": "<p>***javascript:&gt; [x]: http://y.fi#</p>"
+  },
+  {
+   "input": "*y*data:word===> *y*a---&#106;avascript:word  2. > \t",
+   "html": "<p><em>y</em>data:word===&gt; <em>y</em>a---&amp;#106;avascript:word  2. &gt;</p>"
+  },
+  {
+   "input": "2. &#x6a;avascript:ä* <# > &#60;script&#62;",
+   "html": "<ol>\n<li>&amp;#x6a;avascript:ä* &lt;# &gt; &amp;#60;script&amp;#62;</li>\n</ol>"
+  },
+  {
+   "input": "\t>ä*y*\n\n  !`ä#===(- ",
+   "html": "<p>&gt;ä<em>y</em></p>\n<p>!`ä#===(-</p>"
+  },
+  {
+   "input": "\"[- + '2. ===[x](data:text/html,1)[x]: http://y.fi\t)    ",
+   "html": "<p>&quot;[- + &#x27;2. ===<a>x</a>[x]: http://y.fi    )</p>"
+  },
+  {
+   "input": "## ]mailto:a@b.fi[x](data:text/html,1)**](---2. >  \t](][x](data:text/html,1)",
+   "html": "<h2>]mailto:a@b.fi<a>x</a>**](---2. &gt;    ](]<a>x</a></h2>"
+  },
+  {
+   "input": "&[]'<*&#106;avascript:*y*",
+   "html": "<p>&amp;[]&#x27;&lt;<em>&amp;#106;avascript:</em>y*</p>"
+  },
+  {
+   "input": "<[***---\thttp://x.fi+ [x](data:text/html,1)**+ > [x](data:text/html,1)[x]: http://y.fi",
+   "html": "<p>&lt;[<strong>*--- http://x.fi+ <a>x</a></strong>+ &gt; <a>x</a>[x]: http://y.fi</p>"
+  },
+  {
+   "input": "(a)_]    \"[x](javascript:alert(1))",
+   "html": "<p>(a)_]    &quot;<a>x</a></p>"
+  },
+  {
+   "input": "\n\nhttp://x.fi2. [x](javascript:alert(1))[x]: http://y.fi1. ",
+   "html": "<p>http://x.fi2. <a>x</a>[x]: http://y.fi1.</p>"
+  },
+  {
+   "input": "<script>*y*[x]: http://y.fi'#]&#x6a;avascript:(a)ä2. * ---",
+   "html": "<p>&lt;script&gt;<em>y</em>[x]: http://y.fi&#x27;#]&amp;#x6a;avascript:(a)ä2. * ---</p>"
+  },
+  {
+   "input": "[x]: http://y.fi  ---[&#106;avascript:## [",
+   "html": "<p>[x]: http://y.fi  ---[&amp;#106;avascript:## [</p>"
+  },
+  {
+   "input": "(][x]: http://y.fidata:\"'",
+   "html": "<p>(][x]: http://y.fidata:&quot;&#x27;</p>"
+  },
+  {
+   "input": "'[x]: http://y.fi***!  _x_[x](data:text/html,1)1. ](mailto:a@b.fi## >---===",
+   "html": "<p>&#x27;[x]: http://y.fi***!  <em>x</em><a>x</a>1. ](mailto:a@b.fi## &gt;---===</p>"
+  },
+  {
+   "input": "`&#106;avascript:****# > a_x_ä]](  ",
+   "html": "<p>`&amp;#106;avascript:****# &gt; a_x_ä]](</p>"
+  },
+  {
+   "input": "(a)_]ä]===word> ",
+   "html": "<p>(a)_]ä]===word&gt;</p>"
+  },
+  {
+   "input": "_x_http://x.fi\n\n\näa\"_x___\\data:&#x6a;avascript:",
+   "html": "<p>_x_http://x.fi</p>\n<p>äa&quot;_x___\\data:&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "\n\n[x](data:text/html,1)data:",
+   "html": "<p><a>x</a>data:</p>"
+  },
+  {
+   "input": "__# (******- ",
+   "html": "<p>__# (<strong>*</strong>*-</p>"
+  },
+  {
+   "input": "*y*(a)])>* ",
+   "html": "<p><em>y</em>(a)])&gt;*</p>"
+  },
+  {
+   "input": "[x](data:text/html,1)=",
+   "html": "<p><a>x</a>=</p>"
+  },
+  {
+   "input": "&#106;avascript:",
+   "html": "<p>&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "2. &#106;avascript:- \n[x]: http://y.fi\n&#106;avascript:>bämailto:a@b.fijavascript:",
+   "html": "<ol>\n<li>&amp;#106;avascript:- <br>\n&amp;#106;avascript:&gt;bämailto:a@b.fijavascript:</li>\n</ol>"
+  },
+  {
+   "input": "b)  ===b)",
+   "html": "<p>b)  ===b)</p>"
+  },
+  {
+   "input": "  ",
+   "html": ""
+  },
+  {
+   "input": "b+ ",
+   "html": "<p>b+</p>"
+  },
+  {
+   "input": "http://x.fi](<script>**+  \"](&#106;avascript:1)> ===b#",
+   "html": "<p>http://x.fi](&lt;script&gt;**+  &quot;](&amp;#106;avascript:1)&gt; ===b#</p>"
+  },
+  {
+   "input": "_x_](- __- + * ## *__<script>",
+   "html": "<p><em>x</em>](- <strong>- + * ## *</strong>&lt;script&gt;</p>"
+  },
+  {
+   "input": "2. <> ===]([x]: http://y.fi**data:&#60;script&#62;_>",
+   "html": "<ol>\n<li>&lt;&gt; ===]([x]: http://y.fi**data:&amp;#60;script&amp;#62;_&gt;</li>\n</ol>"
+  },
+  {
+   "input": "&#106;avascript:",
+   "html": "<p>&amp;#106;avascript:</p>"
+  },
+  {
+   "input": "javascript:\t\"## \n[x]: http://y.fi",
+   "html": "<p>javascript: &quot;## </p>"
+  },
+  {
+   "input": "mailto:a@b.fi)]])**1. >***",
+   "html": "<p>mailto:a@b.fi)]])<strong>1. &gt;</strong>*</p>"
+  },
+  {
+   "input": "*[x]: http://y.fimailto:a@b.fi](&#106;avascript:1)#\t> ",
+   "html": "<p>*[x]: http://y.fimailto:a@b.fi](&amp;#106;avascript:1)# &gt;</p>"
+  },
+  {
+   "input": "`\t(a)[x]: http://y.fia__2. *     1. b",
+   "html": "<p>`   (a)[x]: http://y.fia__2. *     1. b</p>"
+  },
+  {
+   "input": "<script>&http://x.fi===_x_    \t!!&",
+   "html": "<p>&lt;script&gt;&amp;http://x.fi===<em>x</em>        !!&amp;</p>"
+  },
+  {
+   "input": "***mailto:a@b.fi",
+   "html": "<p>***mailto:a@b.fi</p>"
+  },
+  {
+   "input": "# !_!_x_!",
+   "html": "<h1>!<em>!_x</em>!</h1>"
+  },
+  {
+   "input": "](&#106;avascript:1)*y*\\`## ",
+   "html": "<p>](&amp;#106;avascript:1)<em>y</em>`##</p>"
+  },
+  {
+   "input": "2. 1. '&)a",
+   "html": "<ol>\n<li>\n<ol>\n<li>&#x27;&amp;)a</li>\n</ol>\n</li>\n</ol>"
+  },
+  {
+   "input": "a\\b)b*y*",
+   "html": "<p>a\\b)b<em>y</em></p>"
+  },
+  {
+   "input": "+ <(> __",
+   "html": "<ul>\n<li>&lt;(&gt; __</li>\n</ul>"
+  },
+  {
+   "input": "](&#106;avascript:1)",
+   "html": "<p>](&amp;#106;avascript:1)</p>"
+  },
+  {
+   "input": "ä__1. ---",
+   "html": "<p>ä__1. ---</p>"
+  },
+  {
+   "input": "+ )`a*y**y*## ",
+   "html": "<ul>\n<li>)`a<em>y</em><em>y</em>##</li>\n</ul>"
+  },
+  {
+   "input": "[x](javascript:alert(1))](&#106;avascript:1)&#60;script&#62;",
+   "html": "<p><a>x</a>](&amp;#106;avascript:1)&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "mailto:a@b.fijavascript:## __2. (a)(2. data:\n\n\tjavascript:&#106;avascript:=",
+   "html": "<p>mailto:a@b.fijavascript:## __2. (a)(2. data:</p>\n<pre><code>javascript:&amp;amp;#106;avascript:=\n</code></pre>"
+  },
+  {
+   "input": "&#60;script&#62;__\n\n`[x](javascript:alert(1))  # [`data:[x](javascript:alert(1))## # ",
+   "html": "<p>&amp;#60;script&amp;#62;__</p>\n<p><code>[x](javascript:alert(1))  # [</code>data:<a>x</a>## #</p>"
+  },
+  {
+   "input": "<#>'+ 2. javascript:",
+   "html": "<p>&lt;#&gt;&#x27;+ 2. javascript:</p>"
+  },
+  {
+   "input": "&1. ](&#106;avascript:1)- a---  !    [x](data:text/html,1)&#60;script&#62;",
+   "html": "<p>&amp;1. ](&amp;#106;avascript:1)- a---  !    <a>x</a>&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "!\"",
+   "html": "<p>!&quot;</p>"
+  },
+  {
+   "input": "\n\n\twordab&_x_#1. [x](javascript:alert(1))*",
+   "html": "<p>wordab&amp;<em>x</em>#1. <a>x</a>*</p>"
+  },
+  {
+   "input": "word*y**  ](&#106;avascript:1)word**",
+   "html": "<p>word<em>y</em><em>  ](&amp;#106;avascript:1)word</em>*</p>"
+  },
+  {
+   "input": "&#106;avascript:data:(a)_word",
+   "html": "<p>&amp;#106;avascript:data:(a)_word</p>"
+  },
+  {
+   "input": "(a)&#60;script&#62;&#106;avascript:<script><#  http://x.fijavascript:***mailto:a@b.fi",
+   "html": "<p>(a)&amp;#60;script&amp;#62;&amp;#106;avascript:&lt;script&gt;&lt;#  http://x.fijavascript:***mailto:a@b.fi</p>"
+  },
+  {
+   "input": "(_x_+ ***javascript: =",
+   "html": "<p>(<em>x</em>+ ***javascript: =</p>"
+  },
+  {
+   "input": "<mailto:a@b.fi<script>\"1. '2. 2. `",
+   "html": "<p>&lt;mailto:a@b.fi&lt;script&gt;&quot;1. &#x27;2. 2. `</p>"
+  },
+  {
+   "input": "mailto:a@b.fidata:`===\\<script>2. =&#x6a;avascript:!http://x.fi# [x]: http://y.fi",
+   "html": "<p>mailto:a@b.fidata:`===\\&lt;script&gt;2. =&amp;#x6a;avascript:!http://x.fi# [x]: http://y.fi</p>"
+  },
+  {
+   "input": "[***\n    javascript:<`- ",
+   "html": "<p>[***<br>\n    javascript:&lt;`-</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)\"***  '    [x]: http://y.fi\t---",
+   "html": "<p>](&amp;#106;avascript:1)&quot;***  &#x27;    [x]: http://y.fi   ---</p>"
+  },
+  {
+   "input": "- [_x_(a)=&http://x.fi\n\n ",
+   "html": "<ul>\n<li>[<em>x</em>(a)=&amp;http://x.fi</li>\n</ul>"
+  },
+  {
+   "input": "\n\nmailto:a@b.fidata:)__# ' ##\n",
+   "html": "<p>mailto:a@b.fidata:)__# &#x27; ##</p>"
+  },
+  {
+   "input": "(a)_!\"a_*   [x]: http://y.fi&#60;script&#62;&#106;avascript:mailto:a@b.fi",
+   "html": "<p>(a)<em>!&quot;a</em>*   [x]: http://y.fi&amp;#60;script&amp;#62;&amp;#106;avascript:mailto:a@b.fi</p>"
+  },
+  {
+   "input": "&#60;script&#62;***# __<script> )data:===\"&",
+   "html": "<p>&amp;#60;script&amp;#62;***# __&lt;script&gt; )data:===&quot;&amp;</p>"
+  },
+  {
+   "input": "## > - 1. _x_**",
+   "html": "<h2>&gt; - 1. <em>x</em>**</h2>"
+  },
+  {
+   "input": "**[x](javascript:alert(1))\"===",
+   "html": "<p>**<a>x</a>&quot;===</p>"
+  },
+  {
+   "input": "`[x]: http://y.fi[x]: http://y.fimailto:a@b.fi> data:[x](data:text/html,1)\t#",
+   "html": "<p>`[x]: http://y.fi[x]: http://y.fimailto:a@b.fi&gt; data:<a>x</a>   #</p>"
+  },
+  {
+   "input": "word# # ===**\n]",
+   "html": "<p>word# # ===**<br>\n]</p>"
+  },
+  {
+   "input": "  *[javascript:mailto:a@b.fib***data:",
+   "html": "<p><em>[javascript:mailto:a@b.fib</em>**data:</p>"
+  },
+  {
+   "input": "_x_",
+   "html": "<p><em>x</em></p>"
+  },
+  {
+   "input": "**## >`",
+   "html": "<p>**## &gt;`</p>"
+  },
+  {
+   "input": "ä__\n=(=<script><script>\t`<---",
+   "html": "<p>ä__<br>\n=(=&lt;script&gt;&lt;script&gt; `&lt;---</p>"
+  },
+  {
+   "input": "- data:javascript:\"",
+   "html": "<ul>\n<li>data:javascript:&quot;</li>\n</ul>"
+  },
+  {
+   "input": "[x]: http://y.fi[x](javascript:alert(1))    \t***<script>\\ `> ===](__&",
+   "html": "<p>[x]: http://y.fi<a>x</a>        ***&lt;script&gt;\\ `&gt; ===](__&amp;</p>"
+  },
+  {
+   "input": "\n\n](&#106;avascript:1)!_x_  ## http://x.fi***(a)\"---",
+   "html": "<p>](&amp;#106;avascript:1)!<em>x</em>  ## http://x.fi***(a)&quot;---</p>"
+  },
+  {
+   "input": "\n[!](](**\n\n&#x6a;avascript:***## ](&#106;avascript:1)!>",
+   "html": "<p>[!](](**</p>\n<p>&amp;#x6a;avascript:***## ](&amp;#106;avascript:1)!&gt;</p>"
+  },
+  {
+   "input": "===  )`ä[x]: http://y.fi__<&#x6a;avascript:",
+   "html": "<p>===  )`ä[x]: http://y.fi__&lt;&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "2. _)[x](data:text/html,1))ää1. (  b> ",
+   "html": "<ol>\n<li>_)<a>x</a>)ää1. (  b&gt;</li>\n</ol>"
+  },
+  {
+   "input": "\"[x](data:text/html,1)[x](data:text/html,1)",
+   "html": "<p>&quot;<a>x</a><a>x</a></p>"
+  },
+  {
+   "input": "=_x_javascript:\\`**ä__a_x_ ",
+   "html": "<p>=<em>x_javascript:`**ä__a_x</em></p>"
+  },
+  {
+   "input": "mailto:a@b.fi    + \"javascript:\"**    \n\n_x_",
+   "html": "<p>mailto:a@b.fi    + &quot;javascript:&quot;**    </p>\n<p><em>x</em></p>"
+  },
+  {
+   "input": "**http://x.fi+ mailto:a@b.fi\\'",
+   "html": "<p>**http://x.fi+ mailto:a@b.fi\\&#x27;</p>"
+  },
+  {
+   "input": "1. ](&#106;avascript:1))mailto:a@b.fi[x](data:text/html,1)",
+   "html": "<ol>\n<li>](&amp;#106;avascript:1))mailto:a@b.fi<a>x</a></li>\n</ol>"
+  },
+  {
+   "input": ")=ä>[x]: http://y.fi[x]: http://y.fi***\\=1. \"",
+   "html": "<p>)=ä&gt;[x]: http://y.fi[x]: http://y.fi***\\=1. &quot;</p>"
+  },
+  {
+   "input": "_x_<script><script>* &#x6a;avascript:*y*=mailto:a@b.fi[x](javascript:alert(1))&#60;script&#62;data: ## ",
+   "html": "<p><em>x</em>&lt;script&gt;&lt;script&gt;<em> &amp;#x6a;avascript:</em>y*=mailto:a@b.fi<a>x</a>&amp;#60;script&amp;#62;data: ##</p>"
+  },
+  {
+   "input": "data:<b---`\"    # ä__## 1. *&#x6a;avascript:",
+   "html": "<p>data:&lt;b---`&quot;    # ä__## 1. *&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "&#106;avascript:](=&[x](data:text/html,1))\t",
+   "html": "<p>&amp;#106;avascript:](=&amp;<a>x</a>)</p>"
+  },
+  {
+   "input": "- ]",
+   "html": "<ul>\n<li>]</li>\n</ul>"
+  },
+  {
+   "input": "data:&===",
+   "html": "<p>data:&amp;===</p>"
+  },
+  {
+   "input": "!word*+ `*y*&#60;script&#62;",
+   "html": "<p>!word<em>+ `</em>y*&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "\n'ä&# #&#60;script&#62;",
+   "html": "<p>&#x27;ä&amp;# #&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "## `&#106;avascript:[x]: http://y.fijavascript:\t> 2. ](\n",
+   "html": "<h2>`&amp;#106;avascript:[x]: http://y.fijavascript: &gt; 2. ](</h2>"
+  },
+  {
+   "input": "&#106;avascript:# *****- ## (a)]---***  ",
+   "html": "<p>&amp;#106;avascript:# <strong><em>*</em>- ## (a)]---</strong>*</p>"
+  },
+  {
+   "input": "2. __\n\n\\\t`]]",
+   "html": "<ol>\n<li>__</li>\n</ol>\n<p>\\   `]]</p>"
+  },
+  {
+   "input": "&#x6a;avascript:",
+   "html": "<p>&amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "\\(&#106;avascript:](](&#106;avascript:1)_x_===---a_x_",
+   "html": "<p>(&amp;#106;avascript:](](&amp;#106;avascript:1)<em>x</em>===---a_x_</p>"
+  },
+  {
+   "input": "(a)data:http://x.fi__1. + \n\n",
+   "html": "<p>(a)data:http://x.fi__1. +</p>"
+  },
+  {
+   "input": ")***===\t===javascript:(javascript:](&#106;avascript:1)ä***_x_",
+   "html": "<p>)<strong><em>=== ===javascript:(javascript:](&amp;#106;avascript:1)ä</em></strong><em>x</em></p>"
+  },
+  {
+   "input": "_",
+   "html": "<p>_</p>"
+  },
+  {
+   "input": "\nahttp://x.fi\n\n<",
+   "html": "<p>ahttp://x.fi</p>\n<p>&lt;</p>"
+  },
+  {
+   "input": "<script>**2. _- [x](javascript:alert(1))!word>- &#x6a;avascript:[",
+   "html": "<p>&lt;script&gt;**2. _- <a>x</a>!word&gt;- &amp;#x6a;avascript:[</p>"
+  },
+  {
+   "input": " ",
+   "html": ""
+  },
+  {
+   "input": "\"&#60;script&#62;b    + _x_=",
+   "html": "<p>&quot;&amp;#60;script&amp;#62;b    + <em>x</em>=</p>"
+  },
+  {
+   "input": "(_x_",
+   "html": "<p>(<em>x</em></p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))javascript:[x](javascript:alert(1))ämailto:a@b.fi!",
+   "html": "<p><a>x</a>javascript:<a>x</a>ämailto:a@b.fi!</p>"
+  },
+  {
+   "input": "__[(*y*](&#106;avascript:1)## &#x6a;avascript:",
+   "html": "<p>__<a>(<em>y</em></a>## &amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "*y*b](> javascript:",
+   "html": "<p><em>y</em>b](&gt; javascript:</p>"
+  },
+  {
+   "input": "\"`a<\nmailto:a@b.fi",
+   "html": "<p>&quot;`a&lt;<br>\nmailto:a@b.fi</p>"
+  },
+  {
+   "input": "  a_x_\n\n==    #\tword",
+   "html": "<p>a_x_</p>\n<p>==    # word</p>"
+  },
+  {
+   "input": "](&#106;avascript:1)data:mailto:a@b.fi  &#x6a;avascript:",
+   "html": "<p>](&amp;#106;avascript:1)data:mailto:a@b.fi  &amp;#x6a;avascript:</p>"
+  },
+  {
+   "input": "1.     -     javascript:<](&#106;avascript:1)ab  [b",
+   "html": "<ol>\n<li>\n<ul>\n<li>javascript:&lt;](&amp;#106;avascript:1)ab  [b</li>\n</ul>\n</li>\n</ol>"
+  },
+  {
+   "input": "\n[x](data:text/html,1)===`ä- ",
+   "html": "<p><a>x</a>===`ä-</p>"
+  },
+  {
+   "input": "_x_## ä]data:-     [x]: http://y.fi",
+   "html": "<p><em>x</em>## ä]data:-     [x]: http://y.fi</p>"
+  },
+  {
+   "input": ">`äb> [x](javascript:alert(1))+ (a)*y*1. &#60;script&#62;[x]: http://y.fi",
+   "html": "<p>&gt;`äb&gt; <a>x</a>+ (a)<em>y</em>1. &amp;#60;script&amp;#62;[x]: http://y.fi</p>"
+  },
+  {
+   "input": "## ",
+   "html": "<h2></h2>"
+  },
+  {
+   "input": "__\n\n<",
+   "html": "<p>__</p>\n<p>&lt;</p>"
+  },
+  {
+   "input": "a1. ___",
+   "html": "<p>a1. ___</p>"
+  },
+  {
+   "input": "* '[&`ä__<+ data:",
+   "html": "<ul>\n<li>&#x27;[&amp;`ä__&lt;+ data:</li>\n</ul>"
+  },
+  {
+   "input": "***__[x](javascript:alert(1))&#106;avascript:[x](javascript:alert(1))**#`_## [x]: http://y.fi",
+   "html": "<p><strong>*__<a>x</a>&amp;#106;avascript:<a>x</a></strong>#`_## [x]: http://y.fi</p>"
+  },
+  {
+   "input": "&\n\n\n>\n\ndata:wordword \" ]\"",
+   "html": "<p>&amp;</p>\n<p>&gt;</p>\n<p>data:wordword &quot; ]&quot;</p>"
+  },
+  {
+   "input": "\n*",
+   "html": "<p>*</p>"
+  },
+  {
+   "input": "* [x](data:text/html,1)javascript:1. `+ &#x6a;avascript:",
+   "html": "<ul>\n<li><a>x</a>javascript:1. `+ &amp;#x6a;avascript:</li>\n</ul>"
+  },
+  {
+   "input": "===*y*ä*****_&#106;avascript:[",
+   "html": "<p>===<em>y</em>ä<strong>*</strong>_&amp;#106;avascript:[</p>"
+  },
+  {
+   "input": "*****word1. (a)  ---!",
+   "html": "<p><strong>*</strong>word1. (a)  ---!</p>"
+  },
+  {
+   "input": "#  b=    #+ <script>__](&#106;avascript:1)",
+   "html": "<h1>b=    #+ &lt;script&gt;__](&amp;#106;avascript:1)</h1>"
+  },
+  {
+   "input": "- *y*> _&## ]([x](javascript:alert(1))`+ <script>",
+   "html": "<ul>\n<li><em>y</em>&gt; _&amp;## ](<a>x</a>`+ &lt;script&gt;</li>\n</ul>"
+  },
+  {
+   "input": " ",
+   "html": ""
+  },
+  {
+   "input": "](&#106;avascript:1)> [x]: http://y.fimailto:a@b.fi+ a***b[<a",
+   "html": "<p>](&amp;#106;avascript:1)&gt; [x]: http://y.fimailto:a@b.fi+ a***b[&lt;a</p>"
+  },
+  {
+   "input": "word](!word&#60;script&#62;'(a)_  \"+ ",
+   "html": "<p>word](!word&amp;#60;script&amp;#62;&#x27;(a)_  &quot;+</p>"
+  },
+  {
+   "input": "&#x6a;avascript:[x]: http://y.fi&#106;avascript: !    ===",
+   "html": "<p>&amp;#x6a;avascript:[x]: http://y.fi&amp;#106;avascript: !    ===</p>"
+  },
+  {
+   "input": "&)](!&`\\<",
+   "html": "<p>&amp;)](!&amp;`\\&lt;</p>"
+  },
+  {
+   "input": "---> (a)&---===1. **> &#106;avascript:\t",
+   "html": "<p>---&gt; (a)&amp;---===1. **&gt; &amp;#106;avascript:</p>"
+  },
+  {
+   "input": "2. \"2. * *>](&#106;avascript:1)+ ",
+   "html": "<ol>\n<li>&quot;2. * *&gt;](&amp;#106;avascript:1)+</li>\n</ol>"
+  },
+  {
+   "input": "'!#",
+   "html": "<p>&#x27;!#</p>"
+  },
+  {
+   "input": "===&#x6a;avascript:>word",
+   "html": "<p>===&amp;#x6a;avascript:&gt;word</p>"
+  },
+  {
+   "input": ">word* **\n\n",
+   "html": "<p>&gt;word* **</p>"
+  },
+  {
+   "input": "* javascript:](__***_x_=#\"mailto:a@b.fi",
+   "html": "<ul>\n<li>javascript:](__***<em>x</em>=#&quot;mailto:a@b.fi</li>\n</ul>"
+  },
+  {
+   "input": "&#60;script&#62;",
+   "html": "<p>&amp;#60;script&amp;#62;</p>"
+  },
+  {
+   "input": "<script>## =word2. ",
+   "html": "<p>&lt;script&gt;## =word2.</p>"
+  },
+  {
+   "input": "&#x6a;avascript:data:[x](data:text/html,1)***",
+   "html": "<p>&amp;#x6a;avascript:data:<a>x</a>***</p>"
+  },
+  {
+   "input": "_x_===[> - ",
+   "html": "<p><em>x</em>===[&gt; -</p>"
+  },
+  {
+   "input": "ähttp://x.fi* ",
+   "html": "<p>ähttp://x.fi*</p>"
+  },
+  {
+   "input": "(a)***word>#- =* ===](&#106;avascript:1)data:(a)---javascript:",
+   "html": "<p>(a)**<em>word&gt;#- =</em> ===](&amp;#106;avascript:1)data:(a)---javascript:</p>"
+  },
+  {
+   "input": "> ",
+   "html": "<p>&gt;</p>"
+  },
+  {
+   "input": "]&",
+   "html": "<p>]&amp;</p>"
+  },
+  {
+   "input": "# \n\n](&#106;avascript:2. >**[[<script>> ",
+   "html": "<h1></h1>\n<p>](&amp;#106;avascript:2. &gt;**[[&lt;script&gt;&gt;</p>"
+  },
+  {
+   "input": "\"[http://x.fi\t=---=\"_](1. &#106;avascript:javascript:    ",
+   "html": "<p>&quot;[http://x.fi  =---=&quot;_](1. &amp;#106;avascript:javascript:</p>"
+  },
+  {
+   "input": "_\\[x]: http://y.fia<script>!(a)[x]: http://y.fi",
+   "html": "<p>_[x]: http://y.fia&lt;script&gt;!(a)[x]: http://y.fi</p>"
+  },
+  {
+   "input": "    ---(http://x.fi>&&#60;script&#62;&#x6a;avascript:>1. (<# ",
+   "html": "<p>---(http://x.fi&gt;&amp;&amp;#60;script&amp;#62;&amp;#x6a;avascript:&gt;1. (&lt;#</p>"
+  }
+ ],
  "demo_scenarios": [
   {
    "name": "comment only",

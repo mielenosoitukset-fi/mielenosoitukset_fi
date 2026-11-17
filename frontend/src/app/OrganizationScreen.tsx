@@ -5,6 +5,7 @@ import type { AppConfig } from './config';
 import { listingProps } from './listing';
 import type { OrganizationBootstrap } from './organization';
 import type { SessionSummary } from './session';
+import { SuggestionNoticeBanner } from './suggestion-notice';
 import { useSession } from './useSession';
 
 export default function OrganizationScreen({ organization, config, session: initialSession }: {
@@ -37,6 +38,7 @@ export default function OrganizationScreen({ organization, config, session: init
   }, [id, state?.hasMessages]);
   const path = `/organization/${id}`;
   return <div className={session.authenticated ? 'organization-screen organization-screen--signed-in' : 'organization-screen'}>
+    <SuggestionNoticeBanner />
     {notices.map((notice, index) => <div key={index} className={`flash-message flash-message--inline flash-${notice.category}`}
       role={notice.category === 'error' ? 'alert' : 'status'}><span className="flash-text">{notice.message}</span></div>)}
     <OrganizationPage organization={organization.profile} authenticated={session.authenticated} privateState={privateState}

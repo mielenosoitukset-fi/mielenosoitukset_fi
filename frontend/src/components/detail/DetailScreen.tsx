@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DemonstrationDetailPage } from '../../pages/DemonstrationDetailPage';
 import { trackDemoView } from '../../lib/track-demo-view';
+import { SuggestionNoticeBanner } from '../../app/suggestion-notice';
 import type { DetailEvent, DetailProps } from './types';
 
 /**
@@ -95,9 +96,9 @@ export function DetailScreen({ base, id, canonicalUrl, initialHref }: DetailScre
     attendance: base.urls.attendance.replaceAll('__EVENT_ID__', encodeURIComponent(route.id)),
     login: loginHref('like'), loginInvite: loginHref('inviteFriends'),
   };
-  return <DemonstrationDetailPage {...base} id={route.id}
+  return <><SuggestionNoticeBanner /><DemonstrationDetailPage {...base} id={route.id}
     canonicalUrl={route.id === id ? canonicalUrl : route.href} urls={urls}
     initialAction={intent} onIntentConsumed={consumeIntent} onSelect={select} onLoaded={loaded}
     followedOrganizations={followedOrganizations} recurringFollowing={recurringFollowing}
-    onOrganizationFollowChange={organizationChanged} onRecurringFollowChange={setRecurringFollowing} />;
+    onOrganizationFollowChange={organizationChanged} onRecurringFollowChange={setRecurringFollowing} /></>;
 }

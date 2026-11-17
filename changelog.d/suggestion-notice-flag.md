@@ -1,0 +1,1 @@
+- The suggestion forms can now show their thank-you and error notices from a `?suggestion=` flag in the address, so the Go backend can replace Flask without losing the messages. Nothing changes for visitors until the Go backend is switched on.

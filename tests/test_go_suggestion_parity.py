@@ -129,6 +129,22 @@ ORG_SCENARIOS = [
 ]
 
 
+FUZZ_TOKENS = [
+    "a", "b", "word", " ", "  ", "\n", "\n\n", "*", "**", "_", "__", "`", "[", "]", "(", ")", "](", "http://x.fi",
+    "# ", "## ", "- ", "* ", "1. ", "2. ", "    ", "> ", "---", "***", "\\", "&", "<", ">", "'", '"', "!",
+    "[x]: http://y.fi", "=", "===", "javascript:", "data:", "[x](javascript:alert(1))", "[x](data:text/html,1)",
+    "&#106;avascript:", "&#x6a;avascript:", "&#60;script&#62;", "](&#106;avascript:1)", "<script>", "mailto:a@b.fi", "ä", "\t", "#", "+ ", "(a)", "_x_", "*y*",
+]
+
+
+def _fuzz_cases(count=1500, seed=20261117):
+    """Deterministic random Markdown for the differential check against the Go port."""
+    import random
+
+    generator = random.Random(seed)
+    return ["".join(generator.choice(FUZZ_TOKENS) for _ in range(generator.randint(1, 14))) for _ in range(count)]
+
+
 def _repr_free(value):
     """JSON-safe copy of a BSON value (ObjectId and datetime become strings)."""
     if isinstance(value, ObjectId):
@@ -182,6 +198,7 @@ def _generate(client, db, seeded_data, captured_mail):
         "route": [{"input": text, "output": basic_routes._normalize_route_points(text)} for text in ROUTE_CASES],
         "organizers": [{"input": text, "output": basic_routes._normalize_organizers(text)} for text in ORGANIZER_CASES],
         "clock": [{"a": a, "b": b, "same": bool((basic_routes._parse_clock(a) or a) == (basic_routes._parse_clock(b) or b))} for a, b in CLOCK_PAIRS],
+        "markdown_fuzz": [{"input": text, "html": markdown_to_html(text)} for text in _fuzz_cases()],
         "demo_scenarios": [],
         "org_scenarios": [],
     }

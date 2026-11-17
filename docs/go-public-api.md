@@ -447,9 +447,13 @@ What Go does, matching Flask:
   job shape (`status: pending`, null sender, recipient `tuki@mielenosoitukset.fi`).
   Flask's worker sends it. Go never sends mail. Like Flask's non-strict
   `queue_email`, an insert failure is logged and the visitor still sees success.
-- Same redirects: 302 to `/organization/<id>` or `/demonstration/<id>`; missing
-  target and bad demonstration id to `/`; an unchanged form with no comment back to
-  the form URL. A malformed organisation id is a plain 400 (Flask returned a 500).
+- Same redirect targets, plus a notice flag because Go cannot set Flask's flash
+  cookie: 302 to `/organization/<id>?suggestion=saved` or
+  `/demonstration/<id>?suggestion=sent`; missing target and bad demonstration id to
+  `/`; an unchanged form with no comment, a failed save and an over-long
+  description back to `/suggest_change/<id>?suggestion=empty|failed|too_long`.
+  The React pages (`suggestion-notice.tsx`) turn the flag into the message Flask
+  flashes. A malformed organisation id is a plain 400 (Flask returned a 500).
 - Limits: Flask's shared defaults (10 per second, 3600 per hour per client, using
   the existing Go rate buckets), the 500,000 byte form size Werkzeug enforces, the
   outer lockdown gate and a panic check. Added for safety, not in Flask: a
@@ -458,13 +462,14 @@ What Go does, matching Flask:
 
 Known gaps (see the pull request for the open questions):
 
-1. Flask's flash message ("Kiitos! ...") cannot be set by Go. The redirect is
-   identical but the notice is not shown until React reads a query flag.
+1. Flask's flash message cannot be set by Go. The React notice above replaces it
+   (shipped with the follow-up pull request; it needs the visual reviewer SHIP).
 2. Case numbers are allocated read-then-write in both Flask and Go, so two
    writers can pick the same number. Unchanged from Flask; a shared atomic
    allocator needs a separate approval.
-3. The Markdown port matches Python-Markdown on the fixture corpus and on 6,000
-   random inputs; reference-style edge cases outside that are untested. Output is
+3. The Markdown port matches Python-Markdown on the fixture corpus and on a seeded
+   differential corpus of 1,500 random inputs (regenerated with the fixture);
+   cases outside those are untested. Output is
    always escaped and allowlisted.
 
 Parity is checked by `tests/test_go_suggestion_parity.py`, which runs the real Flask
@@ -478,7 +483,7 @@ MongoDB runs when `REMINDER_TEST_MONGO` is set.
 
 1. Set `SUGGESTIONS_GO_ENABLED=true` in `/etc/mielenosoitukset-api/environment` and restart
    the Go service. Public submissions must already be configured.
-2. Decide the flash replacement (gap 1) and ship the React notice first.
+2. Ship the React notice (gap 1) first.
 3. Add to `deploy/apache/react-ssr-routing.conf`, using the submission upstream:
 
    ```apache

@@ -929,9 +929,14 @@ func (p *mdParser) split(data string) (string, []*mdNode) {
 	return lead.String(), nodes
 }
 
-func (p *mdParser) processElement(element *mdNode, inLink bool) {
-	if element.tag == "a" {
-		inLink = true
+func (p *mdParser) processElement(element *mdNode, inLink, underEmphasis bool) {
+	// Python-Markdown skips links inside a link, but not once an emphasis
+	// element sits in between (observed against the real converter).
+	switch element.tag {
+	case "a":
+		inLink = !underEmphasis
+	case "em", "strong":
+		inLink, underEmphasis = false, true
 	}
 	original := append([]*mdNode(nil), element.kids...)
 	if element.text != "" && !element.atomic {
@@ -954,7 +959,7 @@ func (p *mdParser) processElement(element *mdNode, inLink bool) {
 		element.kids = append(element.kids[:position], append(nodes, element.kids[position:]...)...)
 	}
 	for _, child := range element.kids {
-		p.processElement(child, inLink)
+		p.processElement(child, inLink, underEmphasis)
 	}
 }
 
@@ -1104,7 +1109,7 @@ func markdownToHTML(value string) string {
 	parser := &mdParser{refs: map[string]string{}, placeholders: map[string]any{}}
 	root := &mdNode{tag: "div"}
 	parser.parseChunk(root, source)
-	parser.processElement(root, false)
+	parser.processElement(root, false, false)
 	for _, child := range root.kids {
 		prettify(child)
 	}
