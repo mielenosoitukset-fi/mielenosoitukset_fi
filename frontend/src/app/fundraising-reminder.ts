@@ -8,19 +8,7 @@ export const reminderConsentVersion = '2026-11-13';
 export const reminderPath = '/api/fundraising/reminder';
 
 export const reminderCopy = {
-  title: 'Tilaa muistutus sähköpostiin',
-  intro: 'Jos haluat, lähetämme sinulle yhden sähköpostiviestin, kun keräys alkaa. Vahvistat tilauksen ensin sähköpostiin tulevasta linkistä.',
-  emailLabel: 'Sähköpostiosoite',
-  consent: 'Hyväksyn, että Mielenosoitukset.fi käyttää sähköpostiosoitettani tämän yhden muistutuksen lähettämiseen.',
-  results: 'Haluan myös kuulla keräyksen tuloksista',
-  resultsHint: 'Valinta on vapaaehtoinen. Voimme lähettää tällöin yhden viestin tuloksista keräyksen päätyttyä.',
-  submit: 'Tilaa muistutus',
-  sent: 'Tarkista sähköpostisi. Jos osoite on kelvollinen, lähetämme siihen vahvistusviestin.',
-  sending: 'Lähetetään',
-  privacy: 'Lue, miten osoitettasi käsitellään',
-  retention: 'Poistamme osoitteen viimeistään 30 päivää keräyksen päättymisen jälkeen. Voit poistaa sen milloin tahansa jokaisen viestin linkistä.',
   error: 'Tilausta ei voitu lähettää. Yritä uudelleen hetken kuluttua.',
-  rateLimited: 'Yrityksiä on liian monta. Odota hetki ja yritä uudelleen.',
   confirmTitle: 'Vahvista muistutuksen tilaus',
   confirmIntro: 'Vahvista tilaus painamalla painiketta. Sen jälkeen saat yhden viestin, kun keräys alkaa.',
   confirmButton: 'Vahvista tilaus',
@@ -57,9 +45,6 @@ async function post(path: string, body: Record<string, unknown>): Promise<Remind
     return { ok: false, status: 0, message: '' };
   }
 }
-
-export const signUpForReminder = (input: { email: string; resultsConsent: boolean; website: string; locale?: string }) =>
-  post(reminderPath, { email: input.email, consent: true, results_consent: input.resultsConsent, website: input.website, locale: input.locale ?? 'fi' });
 
 export const confirmReminder = (token: string) => post(`${reminderPath}/confirm`, { token });
 
