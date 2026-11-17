@@ -1,0 +1,1 @@
+- Saving the profile bio can go through a new Go route (`POST /api/account/profile`) with the same CSRF and rate-limit guards as the developer pages. It is off until `ACCOUNT_SETTINGS_WRITES: true` is set, and the bio is limited to 1000 characters there. Picture uploads stay in Flask.

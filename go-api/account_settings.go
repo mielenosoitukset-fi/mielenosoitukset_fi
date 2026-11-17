@@ -226,15 +226,25 @@ func accountSettingsPayload(data *accountSettingsData) map[string]any {
 
 // accountSettingsReadHandler serves the route when its flag is on; it is only
 // wired inside the auth bridge, so it cannot exist without the bridge.
-func accountSettingsReadHandler(next http.Handler, db *mongo.Database, resolver *sessionResolver) http.Handler {
+func accountSettingsReadHandler(next http.Handler, db *mongo.Database, resolver *sessionResolver, origin string) http.Handler {
 	if resolver == nil || os.Getenv("ACCOUNT_SETTINGS_READS_ENABLED") != "true" {
 		return next
 	}
-	return accountSettingsHandler(next, mongoAccountSettingsStore{db}, resolver)
+	var writes *accountWrites
+	if os.Getenv("ACCOUNT_SETTINGS_WRITES_ENABLED") == "true" {
+		writes = newAccountWrites(mongoAccountWriteStore{db}, origin)
+	}
+	return accountSettingsHandler(next, mongoAccountSettingsStore{db}, resolver, writes)
 }
 
-func accountSettingsHandler(next http.Handler, store accountSettingsStore, resolver *sessionResolver) http.Handler {
+// accountSettingsHandler serves the read route and, when writes is not nil, the
+// write routes (account_settings_write.go). With nil they are unknown paths.
+func accountSettingsHandler(next http.Handler, store accountSettingsStore, resolver *sessionResolver, writes *accountWrites) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writes != nil && r.URL.Path == accountProfilePath {
+			writes.serveProfile(w, r, resolver)
+			return
+		}
 		if r.URL.Path != accountSettingsPath {
 			next.ServeHTTP(w, r)
 			return
@@ -270,7 +280,12 @@ func accountSettingsHandler(next http.Handler, store accountSettingsStore, resol
 				writeError(w, http.StatusServiceUnavailable, "service unavailable")
 				return
 			}
-			writeJSON(w, http.StatusOK, accountSettingsPayload(data))
+			payload := accountSettingsPayload(data)
+			if writes != nil {
+				payload["writes"] = true
+				payload["csrf"] = writes.guard.csrfToken(owner.Hex())
+			}
+			writeJSON(w, http.StatusOK, payload)
 		})).ServeHTTP(w, r)
 	})
 }

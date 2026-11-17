@@ -8,7 +8,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = """
-import { readAccountSettings, classifyAccountResponse, tabFromHash, nextTabIndex, generalPayload, filterCities, postFlaskJson }
+import { readAccountSettings, classifyAccountResponse, tabFromHash, nextTabIndex, generalPayload, filterCities, postFlaskJson, postBioToGo }
   from './frontend/src/app/account-settings-route.ts';
 const id = 'abcdefabcdefabcdefabcdef';
 const good = { general: { display_name: 'Maija', city: null, language: 'fi', dark_mode: null }, profile: { bio: null, profile_picture: 'javascript:x' },
@@ -17,7 +17,20 @@ const good = { general: { display_name: 'Maija', city: null, language: 'fi', dar
   cities: ['Helsinki', 5, ''] };
 const parsed = readAccountSettings(good);
 const answer = (status, body) => async () => ({ ok: status < 300, status, json: async () => body });
+const goCalls = [];
+const goAnswer = (status, body) => async (url, init) => { goCalls.push([url, init.method, init.headers['X-CSRF-Token'], init.body]); return { ok: status < 300, status, json: async () => body }; };
+const token = 'a'.repeat(30) + '.' + 'b'.repeat(10);
+const withToken = readAccountSettings({ ...good, writes: true, csrf: token });
 const out = {
+  csrf: [parsed?.csrf, withToken?.csrf, readAccountSettings({ ...good, writes: true, csrf: 'short' })?.csrf, readAccountSettings({ ...good, csrf: token })?.csrf],
+  goOk: await postBioToGo(token, 'Hei', 'fb', goAnswer(200, { status: 'success', bio: 'Hei' })),
+  goCalls,
+  go400: await postBioToGo(token, 'x', 'fb', goAnswer(400, { error: 'Esittely on liian pitkä' })),
+  go401: (await postBioToGo(token, 'x', 'fb', goAnswer(401, { error: 'unauthorized' }))).message,
+  go403: (await postBioToGo(token, 'x', 'fb', goAnswer(403, { error: 'invalid csrf token' }))).message,
+  go403plain: (await postBioToGo(token, 'x', 'fb', goAnswer(403, { error: 'forbidden' }))).message,
+  go429: (await postBioToGo(token, 'x', 'fb', goAnswer(429, { error: 'too many requests' }))).message,
+  go503: (await postBioToGo(token, 'x', 'fb', goAnswer(503, { error: 'service unavailable' }))).message,
   picture: parsed?.picture, devices: parsed?.mfa.devices.length, cities: parsed?.cities, transports: parsed?.passkeys[0].transports,
   badBody: readAccountSettings('x'), noMfa: readAccountSettings({ ...good, mfa: undefined }),
   badDark: readAccountSettings({ ...good, general: { ...good.general, dark_mode: 'yes' } }),
@@ -52,3 +65,11 @@ def test_account_settings_parser_rejects_malformed_bodies():
     assert out["flaskError"] == {"ok": False, "message": "Admin-nimitys on varattu palvelun sisäiseen käyttöön."}
     assert out["flaskHtml"]["ok"] is False and out["flaskHtml"]["message"] == "fallback"
     assert out["flaskOk"] is True
+    assert out["csrf"] == [None, "a" * 30 + "." + "b" * 10, None, None]  # the token needs writes: true and a sane shape
+    assert out["goOk"]["ok"] is True
+    assert out["goCalls"][0][:3] == ["/api/account/profile", "POST", "a" * 30 + "." + "b" * 10]
+    assert json.loads(out["goCalls"][0][3]) == {"bio": "Hei"}
+    assert out["go400"] == {"ok": False, "message": "Esittely on liian pitkä"}
+    assert out["go401"] == out["go403"] == "Istunto vanhentui. Lataa sivu uudelleen."
+    assert out["go403plain"] == out["go503"] == "fb"
+    assert out["go429"] == "Liian monta pyyntöä. Yritä hetken kuluttua uudelleen."

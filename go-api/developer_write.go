@@ -172,6 +172,13 @@ func developerHash(value string) string {
 }
 
 func (d *developerWrites) serve(w http.ResponseWriter, r *http.Request, owner bson.ObjectID) {
+	d.guarded(w, r, owner, func(ctx context.Context) error { return d.dispatch(ctx, w, r, owner) })
+}
+
+// guarded applies the write guards shared by every Go write route (the developer
+// pages and the account settings) and then runs the handler. Do not weaken them
+// for one caller; a different route needs its own guard type instead.
+func (d *developerWrites) guarded(w http.ResponseWriter, r *http.Request, owner bson.ObjectID, run func(context.Context) error) {
 	actor := owner.Hex()
 	// Same-origin only, on top of the CSRF token: browsers always send Sec-Fetch-Site.
 	if r.Header.Get("Sec-Fetch-Site") != "same-origin" {
@@ -197,9 +204,8 @@ func (d *developerWrites) serve(w http.ResponseWriter, r *http.Request, owner bs
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	err := d.dispatch(ctx, w, r, owner)
-	if err != nil {
-		log.Printf("Developer write failed (%s)", dbErrorKind(err))
+	if err := run(ctx); err != nil {
+		log.Printf("Write failed (%s)", dbErrorKind(err))
 		writeError(w, http.StatusServiceUnavailable, "service unavailable")
 	}
 }

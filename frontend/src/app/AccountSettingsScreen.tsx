@@ -4,9 +4,9 @@ import type { AppConfig } from './config';
 import type { SessionSummary } from './session';
 import { useSession } from './useSession';
 import {
-  accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
+  accountBioMax, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
   accountSettingsPath, accountStanding, accountTabs, accountTranslationsUrl, classifyAccountResponse, filterCities,
-  generalPayload, nextTabIndex, postFlaskJson, profilePayload, readAccountSettings, safePicture, tabFromHash,
+  generalPayload, nextTabIndex, postBioToGo, postFlaskJson, profilePayload, readAccountSettings, safePicture, tabFromHash,
 } from './account-settings-route';
 import type { AccountSettingsRead, AccountTabId } from './account-settings-route';
 import { formatDeveloperDate } from './developer-route';
@@ -186,7 +186,10 @@ function ProfilePanel({ data, report }: { data: AccountSettingsRead; report: (me
     if (chosen) {
       try { image = await toBase64(chosen); } catch { report({ kind: 'error', text: copy.imageFailed }); setBusy(false); return; }
     }
-    const result = await postFlaskJson(accountProfileWriteApi, profilePayload(bio, image), copy.profileFailed);
+    // A bio alone goes to Go when it has the write route on; a picture needs S3, so that stays in Flask.
+    const viaGo = Boolean(data.csrf) && image === null;
+    const result = viaGo ? await postBioToGo(data.csrf!, bio, copy.profileFailed)
+      : await postFlaskJson(accountProfileWriteApi, profilePayload(bio, image), copy.profileFailed);
     setBusy(false);
     if (!result.ok) { report({ kind: 'error', text: result.message }); return; }
     const returned = result.body.data as { profile_picture?: unknown } | undefined;
@@ -201,8 +204,9 @@ function ProfilePanel({ data, report }: { data: AccountSettingsRead; report: (me
       <p className="account-muted">{copy.profileLead}</p>
       <div className="suggest-change-field">
         <label htmlFor={ids.bio}>{copy.bio}</label>
-        <textarea id={ids.bio} rows={5} value={bio} maxLength={5000} aria-describedby={ids.bioHelp} onChange={event => setBio(event.target.value)} />
+        <textarea id={ids.bio} rows={5} value={bio} maxLength={data.csrf ? accountBioMax : 5000} aria-describedby={ids.bioHelp} onChange={event => setBio(event.target.value)} />
         <p className="account-muted" id={ids.bioHelp}>{copy.bioHelp}</p>
+        {data.csrf && <p className="account-muted" aria-hidden="true">{Array.from(bio).length} / {accountBioMax}</p>}
       </div>
       <div className="suggest-change-field">
         <label htmlFor={ids.pic}>{copy.picture} <span className="account-muted">({copy.optional})</span></label>

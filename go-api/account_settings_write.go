@@ -1,0 +1,139 @@
+package main
+
+// Bio write for the React settings page (docs/account-pages-react.md, step 3a).
+//
+// POST /api/account/profile exists only when ACCOUNT_SETTINGS_WRITES_ENABLED=true,
+// ACCOUNT_SETTINGS_READS_ENABLED=true and the auth bridge is on. It uses the same
+// guards as the /developer writes (developerWrites.guarded): bridge sign-in,
+// same-origin fetch metadata, Origin, JSON content type, an account-bound CSRF
+// token from the read answer, and a per-account rate limit. It updates only
+// users.bio of the signed-in account. The profile picture stays in Flask (S3).
+// Run a single Go instance: the CSRF key and the rate limit live in process memory.
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+)
+
+const (
+	accountProfilePath = "/api/account/profile"
+	accountBioMax      = 1000
+	accountWriteBody   = 8 << 10
+)
+
+// accountWriteStore holds every account write. Each call is scoped to the owner.
+type accountWriteStore interface {
+	// SetBio stores bio (nil clears it) and reports whether the account exists.
+	SetBio(ctx context.Context, owner bson.ObjectID, bio *string) (bool, error)
+	Audit(ctx context.Context, doc bson.M) error
+}
+
+type accountWrites struct {
+	guard *developerWrites // guards only; its store is never used
+	store accountWriteStore
+}
+
+func newAccountWrites(store accountWriteStore, origin string) *accountWrites {
+	guard := newDeveloperWrites(nil, origin)
+	if guard == nil {
+		return nil
+	}
+	return &accountWrites{guard: guard, store: store}
+}
+
+func (a *accountWrites) serveProfile(w http.ResponseWriter, r *http.Request, resolver *sessionResolver) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Vary", "Cookie")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", "POST")
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	resolver.RequireAuthenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		principal, _ := PrincipalFromContext(r.Context())
+		owner, err := bson.ObjectIDFromHex(principal.ActorID)
+		if err != nil {
+			authDenied(w, http.StatusServiceUnavailable, "session unavailable")
+			return
+		}
+		a.guard.guarded(w, r, owner, func(ctx context.Context) error { return a.updateBio(ctx, w, r, owner) })
+	})).ServeHTTP(w, r)
+}
+
+// cleanBio trims the text and applies the limits; ok is false when it is refused.
+// Flask stores any string; the 1000 character limit and the control character
+// rule are stricter on purpose (docs/decisions.md).
+func cleanBio(raw string) (string, bool) {
+	text := strings.TrimSpace(strings.ReplaceAll(raw, "\r\n", "\n"))
+	if utf8.RuneCountInString(text) > accountBioMax {
+		return "", false
+	}
+	for _, c := range text {
+		if unicode.IsControl(c) && c != '\n' && c != '\t' {
+			return "", false
+		}
+	}
+	return text, true
+}
+
+func (a *accountWrites) updateBio(ctx context.Context, w http.ResponseWriter, r *http.Request, owner bson.ObjectID) error {
+	var body struct {
+		Bio *string `json:"bio"`
+	}
+	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, accountWriteBody))
+	if err == nil {
+		err = json.NewDecoder(strings.NewReader(string(data))).Decode(&body)
+	}
+	if err != nil || body.Bio == nil {
+		writeError(w, http.StatusBadRequest, "Virheellinen pyyntö.")
+		return nil
+	}
+	text, ok := cleanBio(*body.Bio)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "Esittely on liian pitkä tai sisältää kiellettyjä merkkejä.")
+		return nil
+	}
+	var stored *string
+	if text != "" {
+		stored = &text
+	}
+	found, err := a.store.SetBio(ctx, owner, stored)
+	if err != nil {
+		return err
+	}
+	if !found {
+		writeError(w, http.StatusNotFound, "not found")
+		return nil
+	}
+	// The audit row never carries the text. A failed audit write must not hide a change that happened.
+	doc := bson.M{"user_id": owner, "action": "profile bio updated", "ip_address": submissionClientAddress(r),
+		"timestamp": bson.NewDateTimeFromTime(a.guard.now().UTC()), "source": "go-api"}
+	_ = a.store.Audit(ctx, doc)
+	writeJSON(w, http.StatusOK, map[string]any{"status": "success", "bio": stored})
+	return nil
+}
+
+type mongoAccountWriteStore struct{ db *mongo.Database }
+
+func (s mongoAccountWriteStore) SetBio(ctx context.Context, owner bson.ObjectID, bio *string) (bool, error) {
+	var value any
+	if bio != nil {
+		value = *bio
+	}
+	res, err := s.db.Collection("users").UpdateOne(ctx, bson.M{"_id": owner}, bson.M{"$set": bson.M{"bio": value}})
+	return err == nil && res.MatchedCount == 1, err
+}
+
+func (s mongoAccountWriteStore) Audit(ctx context.Context, doc bson.M) error {
+	_, err := s.db.Collection("api_usage").InsertOne(ctx, doc)
+	return err
+}

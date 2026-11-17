@@ -25,7 +25,7 @@ func (f *fakeAccountSettingsStore) Load(_ context.Context, owner bson.ObjectID) 
 func accountSettingsRig(t *testing.T, store *fakeAccountSettingsStore) http.Handler {
 	config, _ := fakeFlask(t, flaskAnswer)
 	resolver, _ := newSessionResolver(config)
-	return accountSettingsHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(299) }), store, resolver)
+	return accountSettingsHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(299) }), store, resolver, nil)
 }
 
 func fullAccount() *accountSettingsData {
@@ -141,11 +141,11 @@ func TestAccountSettingsFlagOffPassesThrough(t *testing.T) {
 	config, _ := fakeFlask(t, flaskAnswer)
 	resolver, _ := newSessionResolver(config)
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(299) })
-	h := accountSettingsReadHandler(next, nil, resolver)
+	h := accountSettingsReadHandler(next, nil, resolver, "")
 	if w := get(h, accountSettingsPath, "session=member"); w.Code != 299 {
 		t.Fatalf("flag off must leave the route to the next handler, got %d", w.Code)
 	}
-	if h2 := accountSettingsReadHandler(next, nil, nil); h2 == nil {
+	if h2 := accountSettingsReadHandler(next, nil, nil, ""); h2 == nil {
 		t.Fatal("no resolver (bridge off) must still return a handler")
 	}
 }
