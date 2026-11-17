@@ -2,6 +2,8 @@
 .profile-page > * + * { margin-top: 1.5rem; }
 .profile-muted { color: var(--product-text-muted); margin: 0; }
 .profile-missing { margin: 1rem 0; }
+.profile-avatar--empty { display: inline-block; overflow: hidden; background: var(--product-surface-muted); }
+img.profile-avatar, img.profile-person__avatar { overflow: hidden; font-size: 0; }
 
 .profile-header {
   overflow: hidden;
@@ -23,7 +25,8 @@
 }
 .profile-details { flex: 1 1 auto; min-width: 0; padding-top: 1rem; }
 .profile-details > * + * { margin-top: 0.75rem; }
-.profile-name { margin: 0; font-size: 1.75rem; line-height: 1.2; text-align: left; color: var(--product-text); }
+.profile-details > .profile-name + *, .profile-details > .profile-bio + * { margin-top: 0.75rem; }
+.profile-name { margin-block: 0; font-size: 1.75rem; line-height: 1.2; text-align: left; color: var(--product-text); }
 .profile-badge {
   display: inline-flex;
   gap: 0.4rem;
@@ -36,7 +39,7 @@
   font-size: 0.9rem;
   font-weight: 650;
 }
-.profile-bio { margin: 0; max-width: 70ch; white-space: pre-wrap; color: var(--product-text-muted); }
+.profile-bio { margin-block: 0; max-width: 70ch; white-space: pre-wrap; color: var(--product-text-muted); }
 
 .profile-stats { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; margin: 0; padding: 0; list-style: none; }
 .profile-stat {
@@ -113,7 +116,8 @@
   .profile-header__body { flex-direction: column; align-items: center; padding: 0 16px 1.25rem; text-align: center; }
   .profile-details { width: 100%; padding-top: 0; }
   .profile-name { text-align: center; }
-  .profile-bio { margin-inline: auto; text-align: left; }
+  .profile-bio { margin-inline: auto; text-align: center; }
+  .profile-missing, .profile-missing__actions { text-align: center; justify-content: center; }
   .profile-stats, .profile-actions { justify-content: center; }
   .profile-section { padding: 1rem; }
 }

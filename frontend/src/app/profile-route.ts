@@ -186,7 +186,7 @@ export async function loadProfile(readBase: string, username: string, fetcher: t
   } finally { clearTimeout(timer); }
 }
 
-export const profileTitle = (displayname: string) => `${displayname}'n Profiili`;
+export const profileTitle = (displayname: string) => `Profiili: ${displayname}`;
 
 /** The share message of the Flask page, with the profile's absolute address. */
 export function profileShareMessage(profileUrl: string): string {

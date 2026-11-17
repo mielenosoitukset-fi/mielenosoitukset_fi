@@ -12,9 +12,12 @@ import './profile/profile.css';
 type Dialog = 'followers' | 'following' | 'share' | null;
 
 function Avatar({ src, alt, className }: { src: string | null; alt: string; className: string }) {
-  const [failed, setFailed] = useState(false);
-  return <img className={className} src={failed || !src ? defaultProfilePicture : src} alt={alt} loading="lazy"
-    referrerPolicy="no-referrer" onError={() => setFailed(true)} />;
+  // 0: own picture, 1: default picture, 2: plain circle (neither image loaded).
+  const [stage, setStage] = useState(0);
+  if (stage >= 2) return <span className={`${className} profile-avatar--empty`} role="img" aria-label={alt} />;
+  const useDefault = stage === 1 || !src;
+  return <img className={className} src={useDefault ? defaultProfilePicture : src ?? defaultProfilePicture} alt={alt}
+    loading="lazy" referrerPolicy="no-referrer" onError={() => setStage(useDefault ? 2 : 1)} />;
 }
 
 const notice = (kind: 'error' | 'info', children: ReactNode) =>
@@ -154,7 +157,7 @@ export default function ProfileScreen({ config, session, username, initial }: Pr
   if (initial.status === 'not-found') {
     return <article className="profile-page" aria-labelledby="profile-missing">
       <h1 id="profile-missing" className="profile-missing">{copy.notFound}</h1>
-      <div className="detail-actions"><a className="detail-button" href={config.urls.home}>{copy.home}</a></div>
+      <div className="detail-actions profile-missing__actions"><a className="detail-button" href={config.urls.home}>{copy.home}</a></div>
     </article>;
   }
 
