@@ -720,3 +720,23 @@ def test_events_honour_dnt_and_the_site_switch(app, db):
         site_analytics.record_event = original
         app.config["SITE_ANALYTICS_ENABLED"] = True
     assert len(calls) == 1
+
+
+def test_known_generic_pages_are_distinct_without_storing_unknown_paths():
+    assert classify_path("/keräys") == {"page_type": "page", "resource_id": "/keräys"}
+    assert classify_path("/ker%C3%A4ys?x=private") == {"page_type": "page", "resource_id": "/keräys"}
+    assert classify_path("/privacy") == {"page_type": "page", "resource_id": "/privacy"}
+    assert classify_path("/cancel_demonstration/secret") == {"page_type": "page", "resource_id": None}
+
+
+def test_admin_overview_identifies_known_generic_pages(admin_client, db):
+    _clear(db)
+    for path in ("/keräys", "/privacy"):
+        increment_counter(**classify_path(path))
+    increment_counter(page_type="page")
+    response = admin_client.get("/admin/analytics/")
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert "Keräys" in page
+    assert "Tietosuojaseloste" in page
+    assert "Muu sivu" in page

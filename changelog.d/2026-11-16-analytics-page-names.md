@@ -1,0 +1,2 @@
+- Analytiikka erottelee keräyksen ja muut tunnetut sivut yleisestä sivuryhmästä, jotta niiden sivunäyttöjä voi seurata erikseen.
+- Adminin analytiikassa on erillinen raportti Apache-lokeista palautettaville sivupyynnöille. Palautetut luvut eivät muuta seurannan sivunäyttöjä tai kävijäarvioita.

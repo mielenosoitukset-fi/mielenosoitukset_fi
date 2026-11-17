@@ -69,7 +69,7 @@ from bisect import bisect_left
 from datetime import date, datetime, time, timedelta, timezone
 from ipaddress import ip_address
 from types import SimpleNamespace
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 import pytz
 from werkzeug.datastructures import Headers, MultiDict
@@ -256,6 +256,22 @@ PAGE_TYPE_LABELS = {
     PAGE_TYPE_GENERIC: "Muu sivu",
 }
 
+# Only fixed public routes are identified here. Arbitrary paths can contain
+# private tokens and must never become analytics resource IDs.
+GENERIC_PAGE_TITLES = {
+    "/keräys": "Keräys",
+    "/info": "Tietoa sivustosta",
+    "/ohjeet": "Ohjeet järjestäjille",
+    "/privacy": "Tietosuojaseloste",
+    "/terms": "Käyttöehdot",
+    "/contact": "Ota yhteyttä",
+    "/report": "Ilmoita ongelmasta",
+    "/upcoming/translations": "Käännöshanke",
+    "/pride": "Pride",
+    "/api-docs": "Rajapinnan dokumentaatio",
+    "/kaupunkiadmin": "Hae kaupunkiadminiksi",
+}
+
 # URI families already represented by the stored page_type dimension.
 PAGE_TYPE_PATHS = {
     "index": "/", "demonstrations": "/demonstrations",
@@ -404,8 +420,12 @@ def classify_path(path):
     if head == "submit":
         return {"page_type": "submit", "resource_id": None}
 
-    # --- Remaining public HTML pages (info, guides, terms, contact...) ----
-    return {"page_type": PAGE_TYPE_GENERIC, "resource_id": None}
+    # Keep unknown paths aggregated; they may contain private information.
+    known_path = unquote(path).lower()
+    return {
+        "page_type": PAGE_TYPE_GENERIC,
+        "resource_id": known_path if known_path in GENERIC_PAGE_TITLES else None,
+    }
 
 
 def should_count_response(response):

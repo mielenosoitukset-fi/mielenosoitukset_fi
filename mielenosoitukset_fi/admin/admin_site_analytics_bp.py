@@ -15,9 +15,11 @@ from flask_login import login_required
 from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.utils.logger import logger
 from mielenosoitukset_fi.utils.campaign_analytics import get_campaign_report
+from mielenosoitukset_fi.utils.analytics_log_recovery import get_recovered_pages
 from mielenosoitukset_fi.utils.site_analytics import (
     DEVICE_LABELS,
     EVENT_LABELS,
+    GENERIC_PAGE_TITLES,
     LANGUAGE_LABELS,
     PAGE_TYPE_LABELS,
     REFERRER_LABELS,
@@ -32,6 +34,7 @@ from mielenosoitukset_fi.utils.site_analytics import (
     get_visitor_overview,
     get_visitor_series,
     get_web_vitals_explorer,
+    _match_window,
 )
 from mielenosoitukset_fi.utils.wrappers import admin_required, permission_required
 from mielenosoitukset_fi.admin.utils import _ADMIN_TEMPLATE_FOLDER, log_admin_action_V2
@@ -90,11 +93,15 @@ def _org_title(page_type, resource_id):
 
 
 def _resolve_titles(rows):
-    """Attach friendly titles to demonstration/organization top-page rows."""
+    """Attach known page names and demonstration/organization titles."""
     for row in rows:
         page_type = row.get("page_type")
         resource_id = row.get("resource_id")
-        if page_type == "demonstration":
+        if page_type == "page" and resource_id in GENERIC_PAGE_TITLES:
+            row["title"] = GENERIC_PAGE_TITLES[resource_id]
+        elif page_type == "campaign" and resource_id == "pride-nakyvaksi":
+            row["title"] = "Pride näkyväksi"
+        elif page_type == "demonstration":
             row["title"] = _demo_title(page_type, resource_id) or row["title"]
         elif page_type == "organization":
             row["title"] = _org_title(page_type, resource_id) or row["title"]
@@ -108,6 +115,8 @@ def _page_views_endpoint(page_type, resource_id):
     if not resource_id:
         return None
     try:
+        if page_type == "page" and resource_id in GENERIC_PAGE_TITLES:
+            return resource_id
         if page_type == "demonstration":
             return url_for("demonstration_detail", demo_id=resource_id)
         if page_type == "organization":
@@ -164,6 +173,18 @@ def site_overview():
         campaigns = []
         campaign_error = True
 
+    recovery_error = False
+    try:
+        _, start, end = _match_window(days=days)
+        recovered_pages = get_recovered_pages(
+            DatabaseManager.get_instance().get_db(),
+            start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"),
+        )
+    except Exception:
+        logger.exception("Failed to read recovered page requests")
+        recovered_pages = None
+        recovery_error = True
+
     rows = [
         {**row, "url": _page_views_endpoint(row["page_type"], row["resource_id"])}
         for row in top_pages
@@ -197,6 +218,8 @@ def site_overview():
         vitals_explorer=vitals_explorer,
         campaigns=campaigns,
         campaign_error=campaign_error,
+        recovered_pages=recovered_pages,
+        recovery_error=recovery_error,
         language_labels=LANGUAGE_LABELS,
         device_labels=DEVICE_LABELS,
         referrer_labels=REFERRER_LABELS,
