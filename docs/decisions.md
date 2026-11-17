@@ -320,3 +320,8 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
   if a watched run shows it cannot be made gentle. The rate is unmeasured until a
   watched run with the maintainer's go. Dumping on lc-db with `rsync --bwlimit` is
   the documented next step, not built. See [backups.md](backups.md).
+
+## Suggestion forms in Go
+
+- **Suggestion writes move to Go, dark first (2026-11-17).** `POST /organization/<id>/save_suggestion` and `POST /suggest_change/<demo_id>` have Go handlers with exact Flask parity (stored fields, case record, queued moderator mail, validation, redirects), behind `SUGGESTIONS_GO_ENABLED` (default false, no Apache rule). Defaults chosen by the coordinator because the change is revertible: no new schema, index, session or auth change; the reporter's account id is read only through the existing read-only session call; Flask's worker keeps sending mail. Activation, the flash replacement and the case-number allocator are separate approvals. See [go-public-api.md](go-public-api.md).
+- **Suggestion forms: answers to the open questions (2026-11-17, coordinator, revertible because the routes ship off).** (1) The missing flash message is replaced by a React notice driven by a query flag, in a separate small pull request before activation; it needs a visual reviewer SHIP. (2) An atomic case counter is a separate change, proposed at activation. (3) A failed mail insert is only logged, as in Flask. (4) Stricter per-client limits are decided at activation. (5) A malformed organisation id stays a 400. (6) Markdown edge cases outside the test corpus are accepted, because output is escaped and allowlisted.

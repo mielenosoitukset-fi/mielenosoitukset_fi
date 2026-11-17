@@ -1,0 +1,2637 @@
+{
+ "markdown": [
+  {
+   "input": "Plain text",
+   "html": "<p>Plain text</p>"
+  },
+  {
+   "input": "Line one\nLine two",
+   "html": "<p>Line one<br>\nLine two</p>"
+  },
+  {
+   "input": "Para one\n\nPara two",
+   "html": "<p>Para one</p>\n<p>Para two</p>"
+  },
+  {
+   "input": "**bold** and *em*",
+   "html": "<p><strong>bold</strong> and <em>em</em></p>"
+  },
+  {
+   "input": "__bold__ _em_",
+   "html": "<p><strong>bold</strong> <em>em</em></p>"
+  },
+  {
+   "input": "***both***",
+   "html": "<p><strong><em>both</em></strong></p>"
+  },
+  {
+   "input": "___both___",
+   "html": "<p><strong><em>both</em></strong></p>"
+  },
+  {
+   "input": "# H1\n\ntext",
+   "html": "<h1>H1</h1>\n<p>text</p>"
+  },
+  {
+   "input": "## H2 ##",
+   "html": "<h2>H2</h2>"
+  },
+  {
+   "input": "###### H6",
+   "html": "<h6>H6</h6>"
+  },
+  {
+   "input": "####### seven",
+   "html": "<h6># seven</h6>"
+  },
+  {
+   "input": "#NoSpace",
+   "html": "<h1>NoSpace</h1>"
+  },
+  {
+   "input": "Title\n=====\n\ntext",
+   "html": "<h1>Title</h1>\n<p>text</p>"
+  },
+  {
+   "input": "Sub\n---",
+   "html": "<h2>Sub</h2>"
+  },
+  {
+   "input": "- a\n- b",
+   "html": "<ul>\n<li>a</li>\n<li>b</li>\n</ul>"
+  },
+  {
+   "input": "* a\n* b",
+   "html": "<ul>\n<li>a</li>\n<li>b</li>\n</ul>"
+  },
+  {
+   "input": "+ a\n+ b",
+   "html": "<ul>\n<li>a</li>\n<li>b</li>\n</ul>"
+  },
+  {
+   "input": "1. a\n2. b",
+   "html": "<ol>\n<li>a</li>\n<li>b</li>\n</ol>"
+  },
+  {
+   "input": "1) a",
+   "html": "<p>1) a</p>"
+  },
+  {
+   "input": "- a\n\n- b",
+   "html": "<ul>\n<li>\n<p>a</p>\n</li>\n<li>\n<p>b</p>\n</li>\n</ul>"
+  },
+  {
+   "input": "- a\n  - b\n  - c\n- d",
+   "html": "<ul>\n<li>a</li>\n<li>b</li>\n<li>c</li>\n<li>d</li>\n</ul>"
+  },
+  {
+   "input": "- a\n    - b",
+   "html": "<ul>\n<li>a<ul>\n<li>b</li>\n</ul>\n</li>\n</ul>"
+  },
+  {
+   "input": "1. a\n   1. b",
+   "html": "<ol>\n<li>a</li>\n<li>b</li>\n</ol>"
+  },
+  {
+   "input": "- a\n1. b",
+   "html": "<ul>\n<li>a<br>\n1. b</li>\n</ul>"
+  },
+  {
+   "input": "> quote",
+   "html": "<p>&gt; quote</p>"
+  },
+  {
+   "input": "> a\n> b",
+   "html": "<p>&gt; a<br>\n&gt; b</p>"
+  },
+  {
+   "input": "---",
+   "html": "<hr>"
+  },
+  {
+   "input": "***",
+   "html": "<hr>"
+  },
+  {
+   "input": "___",
+   "html": "<hr>"
+  },
+  {
+   "input": "- - -",
+   "html": "<hr>"
+  },
+  {
+   "input": "[link](https://example.test)",
+   "html": "<p><a href=\"https://example.test\">link</a></p>"
+  },
+  {
+   "input": "[link](https://example.test 'title')",
+   "html": "<p><a href=\"https://example.test &#x27;title&#x27;\">link</a></p>"
+  },
+  {
+   "input": "[x](javascript:alert(1))",
+   "html": "<p><a>x</a></p>"
+  },
+  {
+   "input": "[x](mailto:a@b.fi)",
+   "html": "<p><a href=\"mailto:a@b.fi\">x</a></p>"
+  },
+  {
+   "input": "[x](/relative)",
+   "html": "<p><a>x</a></p>"
+  },
+  {
+   "input": "[x][ref]\n\n[ref]: https://x.fi",
+   "html": "<p><a href=\"https://x.fi\">x</a></p>"
+  },
+  {
+   "input": "[ref]\n\n[ref]: https://x.fi",
+   "html": "<p><a href=\"https://x.fi\">ref</a></p>"
+  },
+  {
+   "input": "<b>html</b>",
+   "html": "<p>&lt;b&gt;html&lt;/b&gt;</p>"
+  },
+  {
+   "input": "<script>alert(1)</script>",
+   "html": "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>"
+  },
+  {
+   "input": "a & b",
+   "html": "<p>a &amp; b</p>"
+  },
+  {
+   "input": "quote \"x\" 'y'",
+   "html": "<p>quote &quot;x&quot; &#x27;y&#x27;</p>"
+  },
+  {
+   "input": "`code`",
+   "html": "<p><code>code</code></p>"
+  },
+  {
+   "input": "``a`b``",
+   "html": "<p><code>a`b</code></p>"
+  },
+  {
+   "input": "    indented code",
+   "html": "<p>indented code</p>"
+  },
+  {
+   "input": "para\n\n    code line\n    second",
+   "html": "<p>para</p>\n<pre><code>code line\nsecond\n</code></pre>"
+  },
+  {
+   "input": "```\nfence\n```",
+   "html": "<p><code>fence</code></p>"
+  },
+  {
+   "input": "![img](x.png)",
+   "html": "<p></p>"
+  },
+  {
+   "input": "https://auto.link/plain",
+   "html": "<p>https://auto.link/plain</p>"
+  },
+  {
+   "input": "<https://auto>",
+   "html": "<p>&lt;https://auto&gt;</p>"
+  },
+  {
+   "input": "\\*not em\\*",
+   "html": "<p>*not em*</p>"
+  },
+  {
+   "input": "snake_case_word",
+   "html": "<p>snake_case_word</p>"
+  },
+  {
+   "input": "2 * 3 * 4",
+   "html": "<p>2 * 3 * 4</p>"
+  },
+  {
+   "input": "a\n\n\n\nb",
+   "html": "<p>a</p>\n<p>b</p>"
+  },
+  {
+   "input": "  leading spaces",
+   "html": "<p>leading spaces</p>"
+  },
+  {
+   "input": "Ääkköset 💖",
+   "html": "<p>Ääkköset 💖</p>"
+  },
+  {
+   "input": "line  \nbreak",
+   "html": "<p>line<br>\nbreak</p>"
+  },
+  {
+   "input": "- item with **bold**",
+   "html": "<ul>\n<li>item with <strong>bold</strong></li>\n</ul>"
+  },
+  {
+   "input": "1. one\n\n   para in item\n2. two",
+   "html": "<ol>\n<li>one</li>\n</ol>\n<p>para in item<br>\n2. two</p>"
+  },
+  {
+   "input": "Text\n- list right after text",
+   "html": "<p>Text<br>\n- list right after text</p>"
+  },
+  {
+   "input": "Text\n\n- list after blank",
+   "html": "<p>Text</p>\n<ul>\n<li>list after blank</li>\n</ul>"
+  },
+  {
+   "input": "&amp; entity &lt;",
+   "html": "<p>&amp;amp; entity &amp;lt;</p>"
+  },
+  {
+   "input": "&copy; &#169;",
+   "html": "<p>&amp;copy; &amp;#169;</p>"
+  },
+  {
+   "input": "a * b * c",
+   "html": "<p>a * b * c</p>"
+  },
+  {
+   "input": "*a\n\n*b",
+   "html": "<p>*a</p>\n<p>*b</p>"
+  },
+  {
+   "input": "[a](http://x.fi/a_b_c)",
+   "html": "<p><a href=\"http://x.fi/a_b_c\">a</a></p>"
+  },
+  {
+   "input": "[a](<http://x.fi>)",
+   "html": "<p><a>a</a></p>"
+  },
+  {
+   "input": "[a](http://x.fi/(x))",
+   "html": "<p><a href=\"http://x.fi/(x)\">a</a></p>"
+  },
+  {
+   "input": "**unclosed",
+   "html": "<p>**unclosed</p>"
+  },
+  {
+   "input": "*",
+   "html": "<p>*</p>"
+  },
+  {
+   "input": "_",
+   "html": "<p>_</p>"
+  },
+  {
+   "input": "- ",
+   "html": "<p>-</p>"
+  },
+  {
+   "input": "1.",
+   "html": "<p>1.</p>"
+  },
+  {
+   "input": "> ",
+   "html": "<p>&gt;</p>"
+  },
+  {
+   "input": "# ",
+   "html": "<h1></h1>"
+  },
+  {
+   "input": "**a**b",
+   "html": "<p><strong>a</strong>b</p>"
+  },
+  {
+   "input": "a**b**c",
+   "html": "<p>a<strong>b</strong>c</p>"
+  },
+  {
+   "input": "_a_b",
+   "html": "<p>_a_b</p>"
+  },
+  {
+   "input": "a_b_",
+   "html": "<p>a_b_</p>"
+  },
+  {
+   "input": "**a *b* c**",
+   "html": "<p><strong>a <em>b</em> c</strong></p>"
+  },
+  {
+   "input": "`<b> & x`",
+   "html": "<p><code>&amp;lt;b&amp;gt; &amp;amp; x</code></p>"
+  },
+  {
+   "input": "``` `x` ```",
+   "html": "<p><code>`x`</code></p>"
+  },
+  {
+   "input": "\\\\`code`",
+   "html": "<p>\\<code>code</code></p>"
+  },
+  {
+   "input": "a\\\nb",
+   "html": "<p>a\\<br>\nb</p>"
+  },
+  {
+   "input": "Tab\there",
+   "html": "<p>Tab here</p>"
+  },
+  {
+   "input": "\tindented tab",
+   "html": "<p>indented tab</p>"
+  },
+  {
+   "input": "- a\n\n    para\n- b",
+   "html": "<ul>\n<li>\n<p>a</p>\n<p>para<br>\n- b</p>\n</li>\n</ul>"
+  },
+  {
+   "input": "1. a\n\n    - nested\n2. b",
+   "html": "<ol>\n<li>\n<p>a</p>\n<ul>\n<li>nested<br>\n2. b</li>\n</ul>\n</li>\n</ol>"
+  },
+  {
+   "input": "- a\n    - b\n    - c\n- d",
+   "html": "<ul>\n<li>a<ul>\n<li>b</li>\n<li>c</li>\n</ul>\n</li>\n<li>d</li>\n</ul>"
+  },
+  {
+   "input": "line1\r\nline2",
+   "html": "<p>line1<br>\nline2</p>"
+  },
+  {
+   "input": "# Heading\ntext right after",
+   "html": "<h1>Heading</h1>\n<p>text right after</p>"
+  },
+  {
+   "input": "text\n# heading",
+   "html": "<p>text</p>\n<h1>heading</h1>"
+  },
+  {
+   "input": "* * *\ntext",
+   "html": "<hr>\n<p>text</p>"
+  },
+  {
+   "input": "a\n***\nb",
+   "html": "<p>a</p>\n<hr>\n<p>b</p>"
+  },
+  {
+   "input": "[a]\n\n[a]: <https://x.fi> (title)",
+   "html": "<p><a>a</a></p>"
+  },
+  {
+   "input": "[a](https://x.fi) and [b](https://y.fi)",
+   "html": "<p><a href=\"https://x.fi\">a</a> and <a href=\"https://y.fi\">b</a></p>"
+  },
+  {
+   "input": "[[nested]](https://x.fi)",
+   "html": "<p><a href=\"https://x.fi\">[nested]</a></p>"
+  },
+  {
+   "input": "*em with `code` inside*",
+   "html": "<p><em>em with <code>code</code> inside</em></p>"
+  },
+  {
+   "input": "**bold with [link](https://x.fi)**",
+   "html": "<p><strong>bold with <a href=\"https://x.fi\">link</a></strong></p>"
+  },
+  {
+   "input": "[**bold link**](https://x.fi)",
+   "html": "<p><a href=\"https://x.fi\"><strong>bold link</strong></a></p>"
+  },
+  {
+   "input": "Päivämäärä: **12.11.** klo *18*",
+   "html": "<p>Päivämäärä: <strong>12.11.</strong> klo <em>18</em></p>"
+  },
+  {
+   "input": "- a\n- b\n\ntext\n\n1. c\n2. d",
+   "html": "<ul>\n<li>a</li>\n<li>b</li>\n</ul>\n<p>text</p>\n<ol>\n<li>c</li>\n<li>d</li>\n</ol>"
+  },
+  {
+   "input": "x\n\n\n- y\n\n\n- z",
+   "html": "<p>x</p>\n<ul>\n<li>\n<p>y</p>\n</li>\n<li>\n<p>z</p>\n</li>\n</ul>"
+  },
+  {
+   "input": "___",
+   "html": "<hr>"
+  },
+  {
+   "input": "_ _",
+   "html": "<p>_ _</p>"
+  },
+  {
+   "input": "* a *",
+   "html": "<ul>\n<li>a *</li>\n</ul>"
+  },
+  {
+   "input": "word*star*word",
+   "html": "<p>word<em>star</em>word</p>"
+  },
+  {
+   "input": "word_under_word",
+   "html": "<p>word_under_word</p>"
+  },
+  {
+   "input": "__strong__word",
+   "html": "<p>__strong__word</p>"
+  },
+  {
+   "input": "*a*b*c*",
+   "html": "<p><em>a</em>b<em>c</em></p>"
+  },
+  {
+   "input": "**a**b**c**",
+   "html": "<p><strong>a</strong>b<strong>c</strong></p>"
+  },
+  {
+   "input": "*a **b***",
+   "html": "<p><em>a </em><em>b</em>**</p>"
+  },
+  {
+   "input": "***a** b*",
+   "html": "<p><em><strong>a</strong> b</em></p>"
+  },
+  {
+   "input": "**a *b***",
+   "html": "<p><strong>a <em>b</em></strong></p>"
+  },
+  {
+   "input": "**~~x~~**",
+   "html": "<p><strong>~~x~~</strong></p>"
+  },
+  {
+   "input": "tags #one #two",
+   "html": "<p>tags #one #two</p>"
+  },
+  {
+   "input": "\\# not heading",
+   "html": "<p># not heading</p>"
+  },
+  {
+   "input": "1986\\. year",
+   "html": "<p>1986. year</p>"
+  },
+  {
+   "input": "+ plus",
+   "html": "<ul>\n<li>plus</li>\n</ul>"
+  },
+  {
+   "input": "- [ ] task",
+   "html": "<ul>\n<li>[ ] task</li>\n</ul>"
+  },
+  {
+   "input": "| a | b |\n|---|---|\n| 1 | 2 |",
+   "html": "<p>| a | b |<br>\n|---|---|<br>\n| 1 | 2 |</p>"
+  }
+ ],
+ "html_to_markdown": [
+  {
+   "input": "",
+   "markdown": ""
+  },
+  {
+   "input": "  Tavallinen teksti  ",
+   "markdown": "Tavallinen teksti"
+  },
+  {
+   "input": "<p>Rivi<br/>Toinen</p>",
+   "markdown": "Rivi\nToinen"
+  },
+  {
+   "input": "<p>Ensimmainen kappale.</p><p><strong>Tarkea</strong> lisatieto.</p>",
+   "markdown": "Ensimmainen kappale.\n\n**Tarkea** lisatieto."
+  },
+  {
+   "input": "<blockquote>Pidetaan suunta rauhallisena.</blockquote><p>Nykyinen kuvaus.</p>",
+   "markdown": "Pidetaan suunta rauhallisena.\n\nNykyinen kuvaus."
+  },
+  {
+   "input": "<h2>Otsikko</h2><p><b>Lihava</b> ja <i>kursiivi</i><br>rivi &amp; &lt;teksti&gt; &#228;.</p>",
+   "markdown": "## Otsikko\n\n**Lihava** ja *kursiivi*\nrivi & <teksti> ä."
+  },
+  {
+   "input": "<ol><li>Yksi</li><li>Kaksi<ul><li>Sisalla</li></ul></li></ol>",
+   "markdown": "1. Yksi\n2. Kaksi\n  - Sisalla"
+  },
+  {
+   "input": "<p><a href=\"https://example.test/?a=1&amp;b=2\">Linkki</a> <a href=\"mailto:a@example.test\">Viesti</a> <a href=\"javascript:alert(1)\">Ei</a> <a href=\"/relative\">Suhteellinen</a></p>",
+   "markdown": "[Linkki](https://example.test/?a=1&b=2) [Viesti](mailto:a@example.test) Ei Suhteellinen"
+  }
+ ],
+ "tags": [
+  {
+   "input": "a, b",
+   "output": [
+    "a",
+    "b"
+   ]
+  },
+  {
+   "input": "#x, #y ,, z",
+   "output": [
+    "x",
+    "y",
+    "z"
+   ]
+  },
+  {
+   "input": " # spaced , ,#",
+   "output": [
+    "spaced"
+   ]
+  },
+  {
+   "input": "same, same",
+   "output": [
+    "same",
+    "same"
+   ]
+  },
+  {
+   "input": "ääkkönen, #Öljy",
+   "output": [
+    "ääkkönen",
+    "Öljy"
+   ]
+  },
+  {
+   "input": "none",
+   "output": []
+  },
+  {
+   "input": "NULL",
+   "output": []
+  },
+  {
+   "input": "",
+   "output": []
+  }
+ ],
+ "route": [
+  {
+   "input": "A, B",
+   "output": [
+    "A",
+    "B"
+   ]
+  },
+  {
+   "input": "A\nB",
+   "output": [
+    "A",
+    "B"
+   ]
+  },
+  {
+   "input": "A, B\nC",
+   "output": [
+    "A",
+    "B",
+    "C"
+   ]
+  },
+  {
+   "input": "['A', 'B']",
+   "output": [
+    "A",
+    "B"
+   ]
+  },
+  {
+   "input": "[\"A\", \"B C\"]",
+   "output": [
+    "A",
+    "B C"
+   ]
+  },
+  {
+   "input": "[1, 2]",
+   "output": [
+    "1",
+    "2"
+   ]
+  },
+  {
+   "input": "['A', None, True]",
+   "output": [
+    "A",
+    "None",
+    "True"
+   ]
+  },
+  {
+   "input": "[]",
+   "output": []
+  },
+  {
+   "input": "['A' 'B']",
+   "output": [
+    "AB"
+   ]
+  },
+  {
+   "input": "[(1, 2)]",
+   "output": [
+    "(1, 2)"
+   ]
+  },
+  {
+   "input": "['it\\'s']",
+   "output": [
+    "it's"
+   ]
+  },
+  {
+   "input": "A,,B",
+   "output": [
+    "A",
+    "B"
+   ]
+  },
+  {
+   "input": "  ",
+   "output": []
+  },
+  {
+   "input": "[\"a\\nb\"]",
+   "output": [
+    "a\nb"
+   ]
+  },
+  {
+   "input": "['a', ['b']]",
+   "output": [
+    "a",
+    "['b']"
+   ]
+  },
+  {
+   "input": "['a',]",
+   "output": [
+    "a"
+   ]
+  },
+  {
+   "input": "[ 'x' ,'y' ]",
+   "output": [
+    "x",
+    "y"
+   ]
+  }
+ ],
+ "organizers": [
+  {
+   "input": "Järjestö Ry",
+   "output": [
+    {
+     "name": "Järjestö Ry",
+     "email": "",
+     "website": ""
+    }
+   ]
+  },
+  {
+   "input": "Järjestö Ry (info@x.fi, https://x.fi)",
+   "output": [
+    {
+     "name": "Järjestö Ry",
+     "email": "info@x.fi",
+     "website": "https://x.fi"
+    }
+   ]
+  },
+  {
+   "input": "A (a@x.fi), B (b@y.fi, www.y.fi)",
+   "output": [
+    {
+     "name": "A",
+     "email": "a@x.fi",
+     "website": ""
+    },
+    {
+     "name": "B",
+     "email": "b@y.fi",
+     "website": "www.y.fi"
+    }
+   ]
+  },
+  {
+   "input": "A <a@x.fi>",
+   "output": [
+    {
+     "name": "A",
+     "email": "a@x.fi",
+     "website": ""
+    }
+   ]
+  },
+  {
+   "input": "A\nB (b@y.fi)\n  \nC",
+   "output": [
+    {
+     "name": "A",
+     "email": "",
+     "website": ""
+    },
+    {
+     "name": "B",
+     "email": "b@y.fi",
+     "website": ""
+    },
+    {
+     "name": "C",
+     "email": "",
+     "website": ""
+    }
+   ]
+  },
+  {
+   "input": "A, B, C",
+   "output": [
+    {
+     "name": "A",
+     "email": "",
+     "website": ""
+    },
+    {
+     "name": "B",
+     "email": "",
+     "website": ""
+    },
+    {
+     "name": "C",
+     "email": "",
+     "website": ""
+    }
+   ]
+  },
+  {
+   "input": "Name (a@x.fi; https://x.fi)",
+   "output": [
+    {
+     "name": "Name",
+     "email": "a@x.fi",
+     "website": "https://x.fi"
+    }
+   ]
+  },
+  {
+   "input": "Name (https://x.fi)",
+   "output": [
+    {
+     "name": "Name",
+     "email": "",
+     "website": "https://x.fi"
+    }
+   ]
+  },
+  {
+   "input": "a@x.fi",
+   "output": [
+    {
+     "name": "",
+     "email": "a@x.fi",
+     "website": ""
+    }
+   ]
+  },
+  {
+   "input": "https://x.fi",
+   "output": [
+    {
+     "name": "",
+     "email": "",
+     "website": "https://x.fi"
+    }
+   ]
+  },
+  {
+   "input": "Name a@x.fi https://x.fi",
+   "output": [
+    {
+     "name": "Name",
+     "email": "a@x.fi",
+     "website": "https://x.fi"
+    }
+   ]
+  },
+  {
+   "input": "Name (",
+   "output": [
+    {
+     "name": "Name (",
+     "email": "",
+     "website": ""
+    }
+   ]
+  },
+  {
+   "input": "(only)",
+   "output": [
+    {
+     "name": "(only)",
+     "email": "",
+     "website": ""
+    }
+   ]
+  },
+  {
+   "input": "Name ()",
+   "output": [
+    {
+     "name": "Name",
+     "email": "",
+     "website": ""
+    }
+   ]
+  },
+  {
+   "input": "  ",
+   "output": []
+  },
+  {
+   "input": "A  B   C",
+   "output": [
+    {
+     "name": "A B C",
+     "email": "",
+     "website": ""
+    }
+   ]
+  },
+  {
+   "input": "A (x/y)",
+   "output": [
+    {
+     "name": "A",
+     "email": "",
+     "website": "x/y"
+    }
+   ]
+  },
+  {
+   "input": "A (b@x.fi, c@y.fi)",
+   "output": [
+    {
+     "name": "A",
+     "email": "b@x.fi",
+     "website": "c@y.fi"
+    }
+   ]
+  },
+  {
+   "input": "A (www.x.fi, d@x.fi)",
+   "output": [
+    {
+     "name": "A",
+     "email": "d@x.fi",
+     "website": "www.x.fi"
+    }
+   ]
+  }
+ ],
+ "clock": [
+  {
+   "a": "12:00",
+   "b": "12:00:00",
+   "same": true
+  },
+  {
+   "a": "9:05",
+   "b": "09:05",
+   "same": true
+  },
+  {
+   "a": "12:00",
+   "b": "12:01",
+   "same": false
+  },
+  {
+   "a": "24:00",
+   "b": "24:00",
+   "same": true
+  },
+  {
+   "a": "12:60",
+   "b": "12:60",
+   "same": true
+  },
+  {
+   "a": "12:00:61",
+   "b": "12:00:61",
+   "same": true
+  },
+  {
+   "a": "noon",
+   "b": "noon",
+   "same": true
+  },
+  {
+   "a": "12:00:00",
+   "b": "12:00",
+   "same": true
+  },
+  {
+   "a": "1:2",
+   "b": "01:02",
+   "same": true
+  },
+  {
+   "a": "",
+   "b": "12:00",
+   "same": false
+  }
+ ],
+ "demo_scenarios": [
+  {
+   "name": "comment only",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "reporter_comment": "Vain kommentti."
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {},
+   "original_values": {},
+   "reporter_comment": "Vain kommentti.",
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    <p>Käyttäjä ei ehdottanut yksittäisiä kenttämuutoksia, mutta jätti kommentin tarkistettavaksi.</p>\n\n\n\n<h2>Lisäkommentti</h2>\n<p>Vain kommentti.</p>\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "empty",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {},
+   "status": 302,
+   "outcome": "rejected",
+   "location_is_request_url": true
+  },
+  {
+   "name": "whitespace only",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "title": "  ",
+    "reporter_comment": "   "
+   },
+   "status": 302,
+   "outcome": "rejected",
+   "location_is_request_url": true
+  },
+  {
+   "name": "same values",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "title": "Ilmastomarssi",
+    "city": "Helsinki",
+    "tags": "ilmasto, rauha",
+    "route": "Keskustori, Hämeenkatu",
+    "start_time": "12:00:00",
+    "end_time": "14:00",
+    "organizers": "Järjestö Ry (info@x.fi, https://x.fi)",
+    "reporter_comment": "x"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {},
+   "original_values": {},
+   "reporter_comment": "x",
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    <p>Käyttäjä ei ehdottanut yksittäisiä kenttämuutoksia, mutta jätti kommentin tarkistettavaksi.</p>\n\n\n\n<h2>Lisäkommentti</h2>\n<p>x</p>\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "scalar changes",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "title": " Uusi otsikko ",
+    "date": "2026-12-02",
+    "start_time": "13:30",
+    "end_time": "15:00",
+    "city": "Espoo",
+    "address": "Uusi 5",
+    "facebook": "https://f.example/2"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {
+    "title": "Uusi otsikko",
+    "date": "2026-12-02",
+    "start_time": "13:30",
+    "end_time": "15:00",
+    "city": "Espoo",
+    "address": "Uusi 5",
+    "facebook": "https://f.example/2"
+   },
+   "original_values": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1"
+   },
+   "reporter_comment": null,
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    \n    <ul class=\"data-list\">\n        \n            \n            <li>\n                <strong>title</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    Uusi otsikko\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    Ilmastomarssi\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>date</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    2026-12-02\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    2026-12-01\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>start_time</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    13:30\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    12:00\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>end_time</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    15:00\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    14:00:00\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>city</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    Espoo\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    Helsinki\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>address</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    Uusi 5\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    Mannerheimintie 1\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>facebook</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    https://f.example/2\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    https://facebook.example/e/1\n                </div>\n                \n            </li>\n        \n    </ul>\n\n\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "none and null ignored",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "title": "None",
+    "city": "NULL",
+    "address": "null",
+    "reporter_comment": "c"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {},
+   "original_values": {},
+   "reporter_comment": "c",
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    <p>Käyttäjä ei ehdottanut yksittäisiä kenttämuutoksia, mutta jätti kommentin tarkistettavaksi.</p>\n\n\n\n<h2>Lisäkommentti</h2>\n<p>c</p>\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "tags and route",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "tags": "#ilmasto, uusi,, #rauha",
+    "route": "A\nB, C"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {
+    "tags": [
+     "ilmasto",
+     "uusi",
+     "rauha"
+    ],
+    "route": [
+     "A",
+     "B",
+     "C"
+    ]
+   },
+   "original_values": {
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ]
+   },
+   "reporter_comment": null,
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    \n    <ul class=\"data-list\">\n        \n            \n            <li>\n                <strong>tags</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    ilmasto, uusi, rauha\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    ilmasto, rauha\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>route</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    A, B, C\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    Keskustori, Hämeenkatu\n                </div>\n                \n            </li>\n        \n    </ul>\n\n\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "route literal",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": "['Vanha', 'Reitti']",
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "route": "['Vanha', 'Uusi']"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {
+    "route": [
+     "Vanha",
+     "Uusi"
+    ]
+   },
+   "original_values": {
+    "route": "['Vanha', 'Reitti']"
+   },
+   "reporter_comment": null,
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    \n    <ul class=\"data-list\">\n        \n            \n            <li>\n                <strong>route</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    Vanha, Uusi\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    [&#39;Vanha&#39;, &#39;Reitti&#39;]\n                </div>\n                \n            </li>\n        \n    </ul>\n\n\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "organizers changed",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "organizers": "Uusi Ry (a@b.fi, www.uusi.fi)\nToinen"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {
+    "organizers": [
+     {
+      "name": "Uusi Ry",
+      "email": "a@b.fi",
+      "website": "www.uusi.fi"
+     },
+     {
+      "name": "Toinen",
+      "email": "",
+      "website": ""
+     }
+    ]
+   },
+   "original_values": {
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ]
+   },
+   "reporter_comment": null,
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    \n    <ul class=\"data-list\">\n        \n            \n            <li>\n                <strong>organizers</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    {&#39;name&#39;: &#39;Uusi Ry&#39;, &#39;email&#39;: &#39;a@b.fi&#39;, &#39;website&#39;: &#39;www.uusi.fi&#39;}, {&#39;name&#39;: &#39;Toinen&#39;, &#39;email&#39;: &#39;&#39;, &#39;website&#39;: &#39;&#39;}\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    {&#39;name&#39;: &#39;Järjestö Ry&#39;, &#39;email&#39;: &#39;info@x.fi&#39;, &#39;website&#39;: &#39;https://x.fi&#39;, &#39;organization_id&#39;: &#39;abc&#39;}\n                </div>\n                \n            </li>\n        \n    </ul>\n\n\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "organizers metadata only",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "organizers": "Järjestö Ry (info@x.fi, https://x.fi)",
+    "reporter_comment": "same"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {},
+   "original_values": {},
+   "reporter_comment": "same",
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    <p>Käyttäjä ei ehdottanut yksittäisiä kenttämuutoksia, mutta jätti kommentin tarkistettavaksi.</p>\n\n\n\n<h2>Lisäkommentti</h2>\n<p>same</p>\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "description changed",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "description_markdown": "Uusi **kuvaus**\n\n- yksi\n- kaksi"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {
+    "description": "<p>Uusi <strong>kuvaus</strong></p>\n<ul>\n<li>yksi</li>\n<li>kaksi</li>\n</ul>"
+   },
+   "original_values": {
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "reporter_comment": null,
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    \n    <ul class=\"data-list\">\n        \n            \n            <li>\n                <strong>description</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    &lt;p&gt;Uusi &lt;strong&gt;kuvaus&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;yksi&lt;/li&gt;\n&lt;li&gt;kaksi&lt;/li&gt;\n&lt;/ul&gt;\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    &lt;p&gt;Alkuperäinen &lt;strong&gt;kuvaus&lt;/strong&gt;.&lt;/p&gt;\n                </div>\n                \n            </li>\n        \n    </ul>\n\n\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "description same",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "description_markdown": "Alkuperäinen **kuvaus**.",
+    "reporter_comment": "x"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {},
+   "original_values": {},
+   "reporter_comment": "x",
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    <p>Käyttäjä ei ehdottanut yksittäisiä kenttämuutoksia, mutta jätti kommentin tarkistettavaksi.</p>\n\n\n\n<h2>Lisäkommentti</h2>\n<p>x</p>\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "description lossy",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<blockquote>Rauhallisesti.</blockquote><p>Nykyinen.</p>"
+   },
+   "form": {
+    "description_markdown": "Rauhallisesti.\n\nNykyinen.",
+    "address": "Uusi 5"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {
+    "address": "Uusi 5"
+   },
+   "original_values": {
+    "address": "Mannerheimintie 1"
+   },
+   "reporter_comment": null,
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    \n    <ul class=\"data-list\">\n        \n            \n            <li>\n                <strong>address</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    Uusi 5\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    Mannerheimintie 1\n                </div>\n                \n            </li>\n        \n    </ul>\n\n\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "description html escaped",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "description_markdown": "<script>x</script> & [a](javascript:1) [b](https://x.fi)"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {
+    "description": "<p>&lt;script&gt;x&lt;/script&gt; &amp; <a>a</a> <a href=\"https://x.fi\">b</a></p>"
+   },
+   "original_values": {
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "reporter_comment": null,
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    \n    <ul class=\"data-list\">\n        \n            \n            <li>\n                <strong>description</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    &lt;p&gt;&amp;lt;script&amp;gt;x&amp;lt;/script&amp;gt; &amp;amp; &lt;a&gt;a&lt;/a&gt; &lt;a href=&#34;https://x.fi&#34;&gt;b&lt;/a&gt;&lt;/p&gt;\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    &lt;p&gt;Alkuperäinen &lt;strong&gt;kuvaus&lt;/strong&gt;.&lt;/p&gt;\n                </div>\n                \n            </li>\n        \n    </ul>\n\n\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "missing demo fields",
+   "demo": {
+    "title": "Vain otsikko"
+   },
+   "form": {
+    "title": "Toinen",
+    "tags": "a",
+    "route": "b",
+    "organizers": "c",
+    "start_time": "10:00"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {
+    "title": "Toinen",
+    "start_time": "10:00",
+    "tags": [
+     "a"
+    ],
+    "route": [
+     "b"
+    ],
+    "organizers": [
+     {
+      "name": "c",
+      "email": "",
+      "website": ""
+     }
+    ]
+   },
+   "original_values": {
+    "title": "Vain otsikko",
+    "start_time": null,
+    "tags": null,
+    "route": null,
+    "organizers": null
+   },
+   "reporter_comment": null,
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Vain otsikko",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Vain otsikko</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Vain otsikko</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Vain otsikko\n    </li>\n    \n    \n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    \n    <ul class=\"data-list\">\n        \n            \n            <li>\n                <strong>title</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    Toinen\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    Vain otsikko\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>start_time</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    10:00\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>tags</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    a\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>route</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    b\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>organizers</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    {&#39;name&#39;: &#39;c&#39;, &#39;email&#39;: &#39;&#39;, &#39;website&#39;: &#39;&#39;}\n                </div>\n                \n            </li>\n        \n    </ul>\n\n\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "reporter details",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": "2026-12-01",
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": "Helsinki",
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "route": [
+     "Keskustori",
+     "Hämeenkatu"
+    ],
+    "organizers": [
+     {
+      "name": "Järjestö Ry",
+      "email": "info@x.fi",
+      "website": "https://x.fi",
+      "organization_id": "abc"
+     }
+    ],
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "reporter_email": " me@example.test ",
+    "reporter_comment": " kommentti <b>&</b> ",
+    "city": "Tampere"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {
+    "city": "Tampere"
+   },
+   "original_values": {
+    "city": "Helsinki"
+   },
+   "reporter_comment": "kommentti <b>&</b>",
+   "reporter_email": "me@example.test",
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    <li>\n        <strong>Päivämäärä</strong>\n        2026-12-01\n    </li>\n    \n    \n    <li>\n        <strong>Kaupunki</strong>\n        Helsinki\n    </li>\n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    \n    <ul class=\"data-list\">\n        \n            \n            <li>\n                <strong>city</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    Tampere\n                </div>\n                \n                <div class=\"change-value change-value--original\">\n                    <span>Nykyinen arvo</span>\n                    Helsinki\n                </div>\n                \n            </li>\n        \n    </ul>\n\n\n\n<h2>Lisäkommentti</h2>\n<p>kommentti &lt;b&gt;&amp;&lt;/b&gt;</p>\n\n\n<div class=\"meta\">\n    \n    <p><strong>Ilmoittajan sähköposti:</strong> me@example.test</p>\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "null stored values",
+   "demo": {
+    "title": "Ilmastomarssi",
+    "date": null,
+    "start_time": "12:00",
+    "end_time": "14:00:00",
+    "city": null,
+    "address": "Mannerheimintie 1",
+    "facebook": "https://facebook.example/e/1",
+    "tags": null,
+    "route": null,
+    "organizers": null,
+    "description": "<p>Alkuperäinen <strong>kuvaus</strong>.</p>"
+   },
+   "form": {
+    "city": "Tampere",
+    "tags": "x",
+    "route": "y",
+    "organizers": "z"
+   },
+   "status": 302,
+   "outcome": "stored",
+   "location": "/demonstration/{demo_id}",
+   "suggested_fields": {
+    "city": "Tampere",
+    "tags": [
+     "x"
+    ],
+    "route": [
+     "y"
+    ],
+    "organizers": [
+     {
+      "name": "z",
+      "email": "",
+      "website": ""
+     }
+    ]
+   },
+   "original_values": {
+    "city": null,
+    "tags": null,
+    "route": null,
+    "organizers": null
+   },
+   "reporter_comment": null,
+   "reporter_email": null,
+   "status_value": "new",
+   "keys": [
+    "_id",
+    "created_at",
+    "demo_id",
+    "ip",
+    "original_values",
+    "reporter_comment",
+    "reporter_email",
+    "status",
+    "suggested_fields",
+    "user_agent"
+   ],
+   "mail_subject": "Uusi ehdotus mielenosoitukselle: Ilmastomarssi",
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi ehdotus: Ilmastomarssi</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Mielenosoituksen päivitys</p>\n            <h1>Uusi ehdotus mielenosoituksen päivittämiseksi</h1>\n            \n<p>\n    Ylläpitoon saapui ehdotus, joka koskee mielenosoitusta <strong>Ilmastomarssi</strong>.\n    Tarkista alla olevat muutokset ja merkitse pyyntö käsitellyksi admin-paneelin ehdotusnäkymässä.\n</p>\n\n<h2>Mielenosoituksen tiedot</h2>\n<ul class=\"data-list\">\n    <li>\n        <strong>Otsikko</strong>\n        Ilmastomarssi\n    </li>\n    \n    \n    \n    <li>\n        <strong>Osoite</strong>\n        Mannerheimintie 1\n    </li>\n    \n</ul>\n\n<h2>Ehdotetut muutokset</h2>\n\n    \n    <ul class=\"data-list\">\n        \n            \n            <li>\n                <strong>city</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    Tampere\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>tags</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    x\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>route</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    y\n                </div>\n                \n            </li>\n        \n            \n            <li>\n                <strong>organizers</strong>\n                <div class=\"change-value change-value--new\">\n                    <span>Ehdotettu arvo</span>\n                    {&#39;name&#39;: &#39;z&#39;, &#39;email&#39;: &#39;&#39;, &#39;website&#39;: &#39;&#39;}\n                </div>\n                \n            </li>\n        \n    </ul>\n\n\n\n\n<div class=\"meta\">\n    \n    <p><strong>IP-osoite:</strong> 203.0.113.7</p>\n    <p><strong>User-Agent:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    \n    <p><strong>Vastaanotettu:</strong> 17.11.2026 10:20 UTC</p>\n    \n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  }
+ ],
+ "org_scenarios": [
+  {
+   "name": "all fields",
+   "org": {
+    "name": "Esimerkki Ry"
+   },
+   "form": [
+    [
+     "name",
+     " Uusi nimi "
+    ],
+    [
+     "description",
+     "Kuvaus <b>&</b>"
+    ],
+    [
+     "website",
+     "https://x.fi"
+    ],
+    [
+     "email",
+     " a@b.fi "
+    ],
+    [
+     "logo",
+     "https://x.fi/l.png"
+    ],
+    [
+     "social_platform[]",
+     "instagram"
+    ],
+    [
+     "social_url[]",
+     "https://i.example/x"
+    ],
+    [
+     "social_platform[]",
+     "facebook"
+    ],
+    [
+     "social_url[]",
+     "https://f.example/x"
+    ]
+   ],
+   "status": 302,
+   "location": "/organization/{org}",
+   "fields": [
+    [
+     "name",
+     "Uusi nimi"
+    ],
+    [
+     "description",
+     "Kuvaus <b>&</b>"
+    ],
+    [
+     "website",
+     "https://x.fi"
+    ],
+    [
+     "email",
+     "a@b.fi"
+    ],
+    [
+     "logo",
+     "https://x.fi/l.png"
+    ],
+    [
+     "social_media_links",
+     {
+      "instagram": "https://i.example/x",
+      "facebook": "https://f.example/x"
+     }
+    ]
+   ],
+   "meta_submitter_email": " a@b.fi ",
+   "suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "suggestion_status": {
+    "state": "pending",
+    "updated_at": null,
+    "updated_by": null,
+    "notes": null
+   },
+   "audit_actions": [
+    "created"
+   ],
+   "audit_user": null,
+   "case_keys": [
+    "_id",
+    "action_logs",
+    "case_history",
+    "created_at",
+    "demo_id",
+    "error_report",
+    "meta",
+    "organization_id",
+    "running_num",
+    "submitter",
+    "submitter_id",
+    "suggestion",
+    "type",
+    "updated_at"
+   ],
+   "case_type": "organization_edit_suggestion",
+   "case_demo_id": null,
+   "case_organization_id": null,
+   "case_submitter_id": null,
+   "case_submitter": null,
+   "case_error_report": {},
+   "case_meta": {
+    "urgency": "high"
+   },
+   "case_action_logs": [],
+   "case_case_history": [],
+   "case_suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
+   "mail_recipients": [
+    "tuki@mielenosoitukset.fi"
+   ],
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi organisaatiotietojen muokkauspyyntö</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Organisaatiotiedot</p>\n            <h1>Uusi muokkauspyyntö organisaatiolle</h1>\n            \n<p>\n    Käyttäjä on lähettänyt ehdotuksen organisaatiolle <strong>Esimerkki Ry</strong>.\n    Tarkista ehdotetut kentät ja hyväksy tai hylkää muutos ylläpitonäkymässä.\n</p>\n\n<h2>Ehdotetut muutokset</h2>\n<ul class=\"data-list\">\n    \n        \n            <li>\n                <strong>name</strong>\n                Uusi nimi\n            </li>\n        \n            <li>\n                <strong>description</strong>\n                Kuvaus &lt;b&gt;&amp;&lt;/b&gt;\n            </li>\n        \n            <li>\n                <strong>website</strong>\n                https://x.fi\n            </li>\n        \n            <li>\n                <strong>email</strong>\n                a@b.fi\n            </li>\n        \n            <li>\n                <strong>logo</strong>\n                https://x.fi/l.png\n            </li>\n        \n            <li>\n                <strong>social_media_links</strong>\n                {&#39;instagram&#39;: &#39;https://i.example/x&#39;, &#39;facebook&#39;: &#39;https://f.example/x&#39;}\n            </li>\n        \n    \n</ul>\n\n<div class=\"btn-group\">\n    <a href=\"https://mielenosoitukset.fi/admin/organization/ORG/suggestion/SUGGESTION\" class=\"btn btn-primary\">Avaa ehdotuksen tarkastelu</a>\n</div>\n\n\n\n<div class=\"meta\">\n    <p><strong>Lähettäjän IP:</strong> 203.0.113.7</p>\n    <p><strong>Selain:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    <p><strong>Lähetetty:</strong> 2026-11-17 10:20 UTC</p>\n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "empty",
+   "org": {
+    "name": "Esimerkki Ry"
+   },
+   "form": [],
+   "status": 302,
+   "location": "/organization/{org}",
+   "fields": [],
+   "meta_submitter_email": null,
+   "suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "suggestion_status": {
+    "state": "pending",
+    "updated_at": null,
+    "updated_by": null,
+    "notes": null
+   },
+   "audit_actions": [
+    "created"
+   ],
+   "audit_user": null,
+   "case_keys": [
+    "_id",
+    "action_logs",
+    "case_history",
+    "created_at",
+    "demo_id",
+    "error_report",
+    "meta",
+    "organization_id",
+    "running_num",
+    "submitter",
+    "submitter_id",
+    "suggestion",
+    "type",
+    "updated_at"
+   ],
+   "case_type": "organization_edit_suggestion",
+   "case_demo_id": null,
+   "case_organization_id": null,
+   "case_submitter_id": null,
+   "case_submitter": null,
+   "case_error_report": {},
+   "case_meta": {
+    "urgency": "high"
+   },
+   "case_action_logs": [],
+   "case_case_history": [],
+   "case_suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
+   "mail_recipients": [
+    "tuki@mielenosoitukset.fi"
+   ],
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi organisaatiotietojen muokkauspyyntö</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Organisaatiotiedot</p>\n            <h1>Uusi muokkauspyyntö organisaatiolle</h1>\n            \n<p>\n    Käyttäjä on lähettänyt ehdotuksen organisaatiolle <strong>Esimerkki Ry</strong>.\n    Tarkista ehdotetut kentät ja hyväksy tai hylkää muutos ylläpitonäkymässä.\n</p>\n\n<h2>Ehdotetut muutokset</h2>\n<ul class=\"data-list\">\n    \n        <li>\n            <strong>Ei kenttämuutoksia</strong>\n            Käyttäjä jätti vain kommentin tai lisätiedon.\n        </li>\n    \n</ul>\n\n<div class=\"btn-group\">\n    <a href=\"https://mielenosoitukset.fi/admin/organization/ORG/suggestion/SUGGESTION\" class=\"btn btn-primary\">Avaa ehdotuksen tarkastelu</a>\n</div>\n\n\n\n<div class=\"meta\">\n    <p><strong>Lähettäjän IP:</strong> 203.0.113.7</p>\n    <p><strong>Selain:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    <p><strong>Lähetetty:</strong> 2026-11-17 10:20 UTC</p>\n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "blank values",
+   "org": {
+    "name": "Esimerkki Ry"
+   },
+   "form": [
+    [
+     "name",
+     "   "
+    ],
+    [
+     "description",
+     ""
+    ],
+    [
+     "social_platform[]",
+     " "
+    ],
+    [
+     "social_url[]",
+     "x"
+    ]
+   ],
+   "status": 302,
+   "location": "/organization/{org}",
+   "fields": [],
+   "meta_submitter_email": null,
+   "suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "suggestion_status": {
+    "state": "pending",
+    "updated_at": null,
+    "updated_by": null,
+    "notes": null
+   },
+   "audit_actions": [
+    "created"
+   ],
+   "audit_user": null,
+   "case_keys": [
+    "_id",
+    "action_logs",
+    "case_history",
+    "created_at",
+    "demo_id",
+    "error_report",
+    "meta",
+    "organization_id",
+    "running_num",
+    "submitter",
+    "submitter_id",
+    "suggestion",
+    "type",
+    "updated_at"
+   ],
+   "case_type": "organization_edit_suggestion",
+   "case_demo_id": null,
+   "case_organization_id": null,
+   "case_submitter_id": null,
+   "case_submitter": null,
+   "case_error_report": {},
+   "case_meta": {
+    "urgency": "high"
+   },
+   "case_action_logs": [],
+   "case_case_history": [],
+   "case_suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
+   "mail_recipients": [
+    "tuki@mielenosoitukset.fi"
+   ],
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi organisaatiotietojen muokkauspyyntö</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Organisaatiotiedot</p>\n            <h1>Uusi muokkauspyyntö organisaatiolle</h1>\n            \n<p>\n    Käyttäjä on lähettänyt ehdotuksen organisaatiolle <strong>Esimerkki Ry</strong>.\n    Tarkista ehdotetut kentät ja hyväksy tai hylkää muutos ylläpitonäkymässä.\n</p>\n\n<h2>Ehdotetut muutokset</h2>\n<ul class=\"data-list\">\n    \n        <li>\n            <strong>Ei kenttämuutoksia</strong>\n            Käyttäjä jätti vain kommentin tai lisätiedon.\n        </li>\n    \n</ul>\n\n<div class=\"btn-group\">\n    <a href=\"https://mielenosoitukset.fi/admin/organization/ORG/suggestion/SUGGESTION\" class=\"btn btn-primary\">Avaa ehdotuksen tarkastelu</a>\n</div>\n\n\n\n<div class=\"meta\">\n    <p><strong>Lähettäjän IP:</strong> 203.0.113.7</p>\n    <p><strong>Selain:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    <p><strong>Lähetetty:</strong> 2026-11-17 10:20 UTC</p>\n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "social pairing",
+   "org": {
+    "name": "Esimerkki Ry"
+   },
+   "form": [
+    [
+     "social_platform[]",
+     "a"
+    ],
+    [
+     "social_platform[]",
+     "b"
+    ],
+    [
+     "social_platform[]",
+     "c"
+    ],
+    [
+     "social_url[]",
+     "1"
+    ],
+    [
+     "social_url[]",
+     ""
+    ]
+   ],
+   "status": 302,
+   "location": "/organization/{org}",
+   "fields": [
+    [
+     "social_media_links",
+     {
+      "a": "1"
+     }
+    ]
+   ],
+   "meta_submitter_email": null,
+   "suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "suggestion_status": {
+    "state": "pending",
+    "updated_at": null,
+    "updated_by": null,
+    "notes": null
+   },
+   "audit_actions": [
+    "created"
+   ],
+   "audit_user": null,
+   "case_keys": [
+    "_id",
+    "action_logs",
+    "case_history",
+    "created_at",
+    "demo_id",
+    "error_report",
+    "meta",
+    "organization_id",
+    "running_num",
+    "submitter",
+    "submitter_id",
+    "suggestion",
+    "type",
+    "updated_at"
+   ],
+   "case_type": "organization_edit_suggestion",
+   "case_demo_id": null,
+   "case_organization_id": null,
+   "case_submitter_id": null,
+   "case_submitter": null,
+   "case_error_report": {},
+   "case_meta": {
+    "urgency": "high"
+   },
+   "case_action_logs": [],
+   "case_case_history": [],
+   "case_suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
+   "mail_recipients": [
+    "tuki@mielenosoitukset.fi"
+   ],
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi organisaatiotietojen muokkauspyyntö</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Organisaatiotiedot</p>\n            <h1>Uusi muokkauspyyntö organisaatiolle</h1>\n            \n<p>\n    Käyttäjä on lähettänyt ehdotuksen organisaatiolle <strong>Esimerkki Ry</strong>.\n    Tarkista ehdotetut kentät ja hyväksy tai hylkää muutos ylläpitonäkymässä.\n</p>\n\n<h2>Ehdotetut muutokset</h2>\n<ul class=\"data-list\">\n    \n        \n            <li>\n                <strong>social_media_links</strong>\n                {&#39;a&#39;: &#39;1&#39;}\n            </li>\n        \n    \n</ul>\n\n<div class=\"btn-group\">\n    <a href=\"https://mielenosoitukset.fi/admin/organization/ORG/suggestion/SUGGESTION\" class=\"btn btn-primary\">Avaa ehdotuksen tarkastelu</a>\n</div>\n\n\n\n<div class=\"meta\">\n    <p><strong>Lähettäjän IP:</strong> 203.0.113.7</p>\n    <p><strong>Selain:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    <p><strong>Lähetetty:</strong> 2026-11-17 10:20 UTC</p>\n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "duplicate platform",
+   "org": {
+    "name": "Esimerkki Ry"
+   },
+   "form": [
+    [
+     "social_platform[]",
+     "x"
+    ],
+    [
+     "social_url[]",
+     "1"
+    ],
+    [
+     "social_platform[]",
+     "x"
+    ],
+    [
+     "social_url[]",
+     "2"
+    ]
+   ],
+   "status": 302,
+   "location": "/organization/{org}",
+   "fields": [
+    [
+     "social_media_links",
+     {
+      "x": "2"
+     }
+    ]
+   ],
+   "meta_submitter_email": null,
+   "suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "suggestion_status": {
+    "state": "pending",
+    "updated_at": null,
+    "updated_by": null,
+    "notes": null
+   },
+   "audit_actions": [
+    "created"
+   ],
+   "audit_user": null,
+   "case_keys": [
+    "_id",
+    "action_logs",
+    "case_history",
+    "created_at",
+    "demo_id",
+    "error_report",
+    "meta",
+    "organization_id",
+    "running_num",
+    "submitter",
+    "submitter_id",
+    "suggestion",
+    "type",
+    "updated_at"
+   ],
+   "case_type": "organization_edit_suggestion",
+   "case_demo_id": null,
+   "case_organization_id": null,
+   "case_submitter_id": null,
+   "case_submitter": null,
+   "case_error_report": {},
+   "case_meta": {
+    "urgency": "high"
+   },
+   "case_action_logs": [],
+   "case_case_history": [],
+   "case_suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
+   "mail_recipients": [
+    "tuki@mielenosoitukset.fi"
+   ],
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi organisaatiotietojen muokkauspyyntö</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Organisaatiotiedot</p>\n            <h1>Uusi muokkauspyyntö organisaatiolle</h1>\n            \n<p>\n    Käyttäjä on lähettänyt ehdotuksen organisaatiolle <strong>Esimerkki Ry</strong>.\n    Tarkista ehdotetut kentät ja hyväksy tai hylkää muutos ylläpitonäkymässä.\n</p>\n\n<h2>Ehdotetut muutokset</h2>\n<ul class=\"data-list\">\n    \n        \n            <li>\n                <strong>social_media_links</strong>\n                {&#39;x&#39;: &#39;2&#39;}\n            </li>\n        \n    \n</ul>\n\n<div class=\"btn-group\">\n    <a href=\"https://mielenosoitukset.fi/admin/organization/ORG/suggestion/SUGGESTION\" class=\"btn btn-primary\">Avaa ehdotuksen tarkastelu</a>\n</div>\n\n\n\n<div class=\"meta\">\n    <p><strong>Lähettäjän IP:</strong> 203.0.113.7</p>\n    <p><strong>Selain:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    <p><strong>Lähetetty:</strong> 2026-11-17 10:20 UTC</p>\n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "repeated scalar",
+   "org": {
+    "name": "Esimerkki Ry"
+   },
+   "form": [
+    [
+     "name",
+     "first"
+    ],
+    [
+     "name",
+     "second"
+    ],
+    [
+     "email",
+     "x@y.fi"
+    ]
+   ],
+   "status": 302,
+   "location": "/organization/{org}",
+   "fields": [
+    [
+     "name",
+     "first"
+    ],
+    [
+     "email",
+     "x@y.fi"
+    ]
+   ],
+   "meta_submitter_email": "x@y.fi",
+   "suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "suggestion_status": {
+    "state": "pending",
+    "updated_at": null,
+    "updated_by": null,
+    "notes": null
+   },
+   "audit_actions": [
+    "created"
+   ],
+   "audit_user": null,
+   "case_keys": [
+    "_id",
+    "action_logs",
+    "case_history",
+    "created_at",
+    "demo_id",
+    "error_report",
+    "meta",
+    "organization_id",
+    "running_num",
+    "submitter",
+    "submitter_id",
+    "suggestion",
+    "type",
+    "updated_at"
+   ],
+   "case_type": "organization_edit_suggestion",
+   "case_demo_id": null,
+   "case_organization_id": null,
+   "case_submitter_id": null,
+   "case_submitter": null,
+   "case_error_report": {},
+   "case_meta": {
+    "urgency": "high"
+   },
+   "case_action_logs": [],
+   "case_case_history": [],
+   "case_suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
+   "mail_recipients": [
+    "tuki@mielenosoitukset.fi"
+   ],
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi organisaatiotietojen muokkauspyyntö</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Organisaatiotiedot</p>\n            <h1>Uusi muokkauspyyntö organisaatiolle</h1>\n            \n<p>\n    Käyttäjä on lähettänyt ehdotuksen organisaatiolle <strong>Esimerkki Ry</strong>.\n    Tarkista ehdotetut kentät ja hyväksy tai hylkää muutos ylläpitonäkymässä.\n</p>\n\n<h2>Ehdotetut muutokset</h2>\n<ul class=\"data-list\">\n    \n        \n            <li>\n                <strong>name</strong>\n                first\n            </li>\n        \n            <li>\n                <strong>email</strong>\n                x@y.fi\n            </li>\n        \n    \n</ul>\n\n<div class=\"btn-group\">\n    <a href=\"https://mielenosoitukset.fi/admin/organization/ORG/suggestion/SUGGESTION\" class=\"btn btn-primary\">Avaa ehdotuksen tarkastelu</a>\n</div>\n\n\n\n<div class=\"meta\">\n    <p><strong>Lähettäjän IP:</strong> 203.0.113.7</p>\n    <p><strong>Selain:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    <p><strong>Lähetetty:</strong> 2026-11-17 10:20 UTC</p>\n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  },
+  {
+   "name": "unicode and quotes",
+   "org": {
+    "name": "Ääkkönen & \"Pojat\" 'Ry'"
+   },
+   "form": [
+    [
+     "name",
+     "Öljy"
+    ],
+    [
+     "description",
+     "it's \"quoted\" + plus"
+    ],
+    [
+     "social_platform[]",
+     "x'y"
+    ],
+    [
+     "social_url[]",
+     "https://x.fi/?a=1&b=2"
+    ]
+   ],
+   "status": 302,
+   "location": "/organization/{org}",
+   "fields": [
+    [
+     "name",
+     "Öljy"
+    ],
+    [
+     "description",
+     "it's \"quoted\" + plus"
+    ],
+    [
+     "social_media_links",
+     {
+      "x'y": "https://x.fi/?a=1&b=2"
+     }
+    ]
+   ],
+   "meta_submitter_email": null,
+   "suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "suggestion_status": {
+    "state": "pending",
+    "updated_at": null,
+    "updated_by": null,
+    "notes": null
+   },
+   "audit_actions": [
+    "created"
+   ],
+   "audit_user": null,
+   "case_keys": [
+    "_id",
+    "action_logs",
+    "case_history",
+    "created_at",
+    "demo_id",
+    "error_report",
+    "meta",
+    "organization_id",
+    "running_num",
+    "submitter",
+    "submitter_id",
+    "suggestion",
+    "type",
+    "updated_at"
+   ],
+   "case_type": "organization_edit_suggestion",
+   "case_demo_id": null,
+   "case_organization_id": null,
+   "case_submitter_id": null,
+   "case_submitter": null,
+   "case_error_report": {},
+   "case_meta": {
+    "urgency": "high"
+   },
+   "case_action_logs": [],
+   "case_case_history": [],
+   "case_suggestion_keys": [
+    "_id",
+    "audit_log",
+    "created_at",
+    "fields",
+    "meta",
+    "organization_id",
+    "status",
+    "timestamp"
+   ],
+   "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Ääkkönen & \"Pojat\" 'Ry'",
+   "mail_recipients": [
+    "tuki@mielenosoitukset.fi"
+   ],
+   "mail_html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Uusi organisaatiotietojen muokkauspyyntö</title>\n    <style>\n        :root {\n            color-scheme: light;\n        }\n        body {\n            margin: 0;\n            padding: 0;\n            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n            background-color: #f5f5fb;\n            color: #1f2937;\n        }\n        .email-wrapper {\n            width: 100%;\n            padding: 32px 16px;\n            box-sizing: border-box;\n        }\n        .email-card {\n            max-width: 640px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border: 1px solid #e5e7eb;\n            border-radius: 16px;\n            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);\n            padding: 32px;\n        }\n        .eyebrow {\n            text-transform: uppercase;\n            letter-spacing: 0.12em;\n            font-size: 11px;\n            color: #64748b;\n            margin: 0 0 8px 0;\n        }\n        h1 {\n            margin: 0 0 16px 0;\n            font-size: 22px;\n            color: #0f172a;\n        }\n        p {\n            margin: 0 0 16px 0;\n            line-height: 1.6;\n            color: #1f2937;\n        }\n        .data-list {\n            list-style: none;\n            padding: 0;\n            margin: 0 0 16px 0;\n        }\n        .data-list li {\n            margin-bottom: 10px;\n            padding: 10px 12px;\n            background-color: #f8fafc;\n            border-radius: 10px;\n            border: 1px solid #e2e8f0;\n        }\n        .data-list strong {\n            display: block;\n            font-size: 13px;\n            letter-spacing: 0.02em;\n            color: #475569;\n            text-transform: uppercase;\n            margin-bottom: 4px;\n        }\n        .change-value {\n            margin-top: 8px;\n            font-size: 14px;\n            line-height: 1.5;\n        }\n        .change-value span {\n            display: block;\n            font-size: 11px;\n            letter-spacing: 0.08em;\n            text-transform: uppercase;\n            color: #94a3b8;\n            margin-bottom: 4px;\n        }\n        .change-value--new {\n            border-left: 3px solid #22c55e;\n            padding-left: 10px;\n        }\n        .change-value--original {\n            border-left: 3px solid #94a3b8;\n            padding-left: 10px;\n            color: #475569;\n        }\n        .btn-group {\n            margin: 12px 0 16px 0;\n        }\n        .btn {\n            display: inline-block;\n            padding: 11px 18px;\n            font-weight: 600;\n            border-radius: 999px;\n            text-decoration: none;\n            font-size: 14px;\n            margin-right: 10px;\n        }\n        .btn-primary {\n            background-color: #2563eb;\n            color: #ffffff !important;\n        }\n        .btn-danger {\n            background-color: #dc2626;\n            color: #ffffff !important;\n        }\n        .btn-muted {\n            background-color: #e2e8f0;\n            color: #1f2937 !important;\n        }\n        .meta {\n            margin-top: 24px;\n            padding-top: 16px;\n            border-top: 1px solid #e5e7eb;\n            font-size: 13px;\n            color: #475569;\n        }\n        .footer {\n            text-align: center;\n            color: #94a3b8;\n            font-size: 12px;\n            margin-top: 16px;\n        }\n        @media (max-width: 600px) {\n            .email-card {\n                padding: 24px;\n            }\n            .btn-group {\n                display: flex;\n                flex-direction: column;\n            }\n            .btn {\n                margin-right: 0;\n                margin-bottom: 10px;\n                text-align: center;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-wrapper\">\n        <div class=\"email-card\">\n            <p class=\"eyebrow\">Organisaatiotiedot</p>\n            <h1>Uusi muokkauspyyntö organisaatiolle</h1>\n            \n<p>\n    Käyttäjä on lähettänyt ehdotuksen organisaatiolle <strong>Ääkkönen &amp; &#34;Pojat&#34; &#39;Ry&#39;</strong>.\n    Tarkista ehdotetut kentät ja hyväksy tai hylkää muutos ylläpitonäkymässä.\n</p>\n\n<h2>Ehdotetut muutokset</h2>\n<ul class=\"data-list\">\n    \n        \n            <li>\n                <strong>name</strong>\n                Öljy\n            </li>\n        \n            <li>\n                <strong>description</strong>\n                it&#39;s &#34;quoted&#34; + plus\n            </li>\n        \n            <li>\n                <strong>social_media_links</strong>\n                {&#34;x&#39;y&#34;: &#39;https://x.fi/?a=1&amp;b=2&#39;}\n            </li>\n        \n    \n</ul>\n\n<div class=\"btn-group\">\n    <a href=\"https://mielenosoitukset.fi/admin/organization/ORG/suggestion/SUGGESTION\" class=\"btn btn-primary\">Avaa ehdotuksen tarkastelu</a>\n</div>\n\n\n\n<div class=\"meta\">\n    <p><strong>Lähettäjän IP:</strong> 203.0.113.7</p>\n    <p><strong>Selain:</strong> Mozilla/5.0 (X11; Linux x86_64) &lt;test&gt; &amp; &#34;quoted&#34; &#39;agent&#39;</p>\n    <p><strong>Lähetetty:</strong> 2026-11-17 10:20 UTC</p>\n</div>\n\n        </div>\n        <p class=\"footer\">Mielenosoitukset.fi ylläpito</p>\n    </div>\n</body>\n</html>"
+  }
+ ]
+}
