@@ -75,6 +75,12 @@ if (container) {
       void import('./DeveloperScreen').then(({ default: DeveloperScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<DeveloperScreen config={props.config} session={props.session} appId={appId} />} />);
       }).catch(error => console.error('Could not start the developer panel', error));
+    } else if (route?.name === 'profile' && props.profile) {
+      const profile = props.profile;
+      const username = route.username;
+      void import('./ProfileScreen').then(({ default: ProfileScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<ProfileScreen config={props.config} session={props.session} username={username} initial={profile} />} />);
+      }).catch(error => console.error('Could not start the profile page', error));
     } else if (route?.name === 'organization-fill' && props.organizationFill) {
       const profile = props.organizationFill;
       void import('./OrganizationFillScreen').then(({ default: OrganizationFillScreen }) => {

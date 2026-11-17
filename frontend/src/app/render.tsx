@@ -37,6 +37,9 @@ import apiDocs from 'virtual:api-docs';
 import StatusScreen from './StatusScreen';
 import CancelLinkScreen from './CancelLinkScreen';
 import DeveloperScreen from './DeveloperScreen';
+import ProfileScreen from './ProfileScreen';
+import { loadProfile, profileTitle } from './profile-route';
+import type { ProfileInitial } from './profile-route';
 import { loadCancelLink, cancelLinkTitle, type CancelLinkState } from './cancel-link';
 import { loadStatus, statusTitle, type ServiceStatus } from './status';
 import { loadSuggestion, suggestionTitle, suggestionLead, type SuggestionDemo } from './suggest-change';
@@ -82,7 +85,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -487,6 +490,27 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
       serverPage={<DeveloperScreen config={config} session={session} appId={route.appId} />} />);
   }
 
+  let profile: ProfileInitial | undefined;
+  if (route.name === 'profile') {
+    // The public part, read without the visitor's cookie. The browser reads again with its own cookie
+    // to learn whether this is the owner or another signed-in visitor.
+    const loaded = await loadProfile(readBase, route.username);
+    if (loaded.status === 'unavailable') {
+      return { status: 503, html: unavailableDocument(), headers: { 'Cache-Control': 'no-store', 'Retry-After': '30', 'X-Robots-Tag': 'noindex' } };
+    }
+    profile = loaded;
+    headers['X-Robots-Tag'] = 'noindex, follow';
+    meta = loaded.status === 'ready'
+      ? { ...meta, title: `${profileTitle(loaded.profile.displayname)} | Mielenosoitukset.fi` }
+      : { ...meta, title: 'Käyttäjäprofiilia ei löytynyt. | Mielenosoitukset.fi' };
+    if (loaded.status === 'not-found') status = 404;
+    extraHead = (assets.profile ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The page itself is server-rendered; this only covers a failed script load.
+    noscript = '<noscript><p class="container-main-content">Tämä sivu toimii parhaiten JavaScriptin kanssa.</p></noscript>';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<ProfileScreen config={config} session={session} username={route.username} initial={profile} />} />);
+  }
+
   if (route.name === 'contact') {
     headers['Cache-Control'] = 'private, no-store';
     // The form uses the shared .detail-button contract.
@@ -779,6 +803,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     ...(organizationFill ? { organizationFill } : {}),
     ...(suggestionDemo ? { suggestionDemo } : {}),
     ...(cancelLink ? { cancelLink } : {}),
+    ...(profile ? { profile } : {}),
     ...(route.name === 'status' ? { serviceStatus } : {}),
     ...(detail ? { detail } : {}), ...(series ? { series } : {}), ...(home ? { home } : {}),
     ...(listing ? { listing } : {}), ...(organization ? { organization } : {}), ...(cities !== undefined ? { cities } : {}),
