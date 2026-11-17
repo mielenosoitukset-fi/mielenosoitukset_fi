@@ -157,7 +157,7 @@ func profileIDs(value any, key string) ([]string, int) {
 func (s mongoProfileStore) User(ctx context.Context, username string) (*profileUser, error) {
 	var doc bson.M
 	err := s.db.Collection("users").FindOne(ctx, bson.M{"username": username}, options.FindOne().SetProjection(bson.M{
-		"username": 1, "displayname": 1, "profile_picture": 1, "bio": 1, "global_admin": 1, "role": 1,
+		"username": 1, "displayname": 1, "profile_picture": 1, "bio": 1, "global_admin": 1,
 		"followers": 1, "following": 1, "followed_organizations": 1, "followed_recurring_demos": 1, "friend_requests": 1,
 	})).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {
@@ -170,17 +170,25 @@ func (s mongoProfileStore) User(ctx context.Context, username string) (*profileU
 	if !ok {
 		return nil, nil
 	}
-	role := stringField(doc, "role")
-	admin, _ := doc["global_admin"].(bool)
 	user := &profileUser{ID: id, Username: stringField(doc, "username"), Displayname: stringField(doc, "displayname"),
 		ProfilePicture: stringField(doc, "profile_picture"), Bio: stringField(doc, "bio"),
-		AdminBadge: admin || role == "global_admin" || role == "god" || role == "superuser"}
+		AdminBadge: profileAdminBadge(doc)}
 	user.Followers, user.FollowersCount = profileIDs(doc["followers"], "")
 	user.Following, user.FollowingCount = profileIDs(doc["following"], "")
 	user.FollowedOrgs, _ = profileIDs(doc["followed_organizations"], "")
 	user.FollowedRecurring, _ = profileIDs(doc["followed_recurring_demos"], "")
 	user.FriendRequests, _ = profileIDs(doc["friend_requests"], "sent_by")
 	return user, nil
+}
+
+// profileAdminBadge decides the public "Järjestelmävalvoja" badge from the stored
+// global_admin flag only. Flask also shows it for national-team members (resolved
+// from memberships and clearances) and, for non-governed accounts, for the roles
+// god, global_admin and superuser. Go does not compute those: it must never reveal
+// a privileged role publicly, and a missing badge is the safe difference.
+func profileAdminBadge(doc bson.M) bool {
+	flag, _ := doc["global_admin"].(bool)
+	return flag
 }
 
 func (s mongoProfileStore) Account(ctx context.Context, id bson.ObjectID) (*profileAccount, error) {

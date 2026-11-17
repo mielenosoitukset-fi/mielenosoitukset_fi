@@ -264,3 +264,22 @@ func TestProfileHelpers(t *testing.T) {
 		t.Fatal(cut)
 	}
 }
+
+func TestProfileAdminBadgeIgnoresRole(t *testing.T) {
+	cases := []struct {
+		name string
+		doc  bson.M
+		want bool
+	}{
+		{"role god", bson.M{"role": "god"}, false},
+		{"role superuser", bson.M{"role": "superuser"}, false},
+		{"role global_admin", bson.M{"role": "global_admin"}, false},
+		{"flag", bson.M{"global_admin": true}, true},
+		{"flag false with role god", bson.M{"global_admin": false, "role": "god"}, false},
+	}
+	for _, c := range cases {
+		if got := profileAdminBadge(c.doc); got != c.want {
+			t.Errorf("%s: badge %v, want %v", c.name, got, c.want)
+		}
+	}
+}

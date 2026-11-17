@@ -30,7 +30,7 @@ redirects to the front page. Suspended, banned or inactive accounts are not hidd
 | --- | --- | --- |
 | Display name (falls back to username) | `users.displayname` | everyone |
 | Profile picture (default `cdn2…/default-pfp.jpg`) | `users.profile_picture` | everyone |
-| "Järjestelmävalvoja" badge | `global_admin` or `role` in `global_admin`, `god`, `superuser` | everyone |
+| "Järjestelmävalvoja" badge | stored `global_admin` flag only (see below) | everyone |
 | Bio | `users.bio` | everyone |
 | Post count and post list | `user.posts` does not exist on the model, so always 0 and the empty state | everyone |
 | Follower and following counts and lists (display name, username, picture, link) | `users.followers`, `users.following` (ids as strings or ObjectIds) | everyone |
@@ -38,6 +38,12 @@ redirects to the front page. Suspended, banned or inactive accounts are not hidd
 | Followed recurring demonstrations (title, date, city, address, link) | `users.followed_recurring_demos` → `recu_demos` | the account itself only |
 | "Muokkaa profiilia" and "Jaa profiilisi" (share text with the profile URL) | none | the account itself only |
 | Follow, friend request, accept, reject buttons | Flask `/users/profile/api/*` | other signed-in visitors; anonymous visitors get a login popup |
+
+Badge difference (security review of #1195): Flask shows the badge for `user.global_admin`,
+which also covers national-team members, governance-managed accounts and, for ordinary
+accounts, the roles `god`, `global_admin` and `superuser`. Go uses only the stored flag
+and never reads the role, so a privileged role is not revealed publicly. National-team
+admins whose access comes from memberships lose the badge until Go resolves team access.
 
 Existing defects found while reading, kept out of this work: the "Poista ystävä" button
 posts to `/users/profile/api/remove_friend/`, which does not exist; the follow and friend
