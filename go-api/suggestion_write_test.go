@@ -178,7 +178,7 @@ func TestParityDemoSuggestionScenarios(t *testing.T) {
 			t.Errorf("%s: status %d", scenario.Name, recorder.Code)
 		}
 		if scenario.Outcome == "rejected" {
-			if len(store.demoDocs) != 0 || len(store.mail) != 0 || recorder.Header().Get("Location") != "https://mielenosoitukset.fi/suggest_change/"+demoID {
+			if len(store.demoDocs) != 0 || len(store.mail) != 0 || recorder.Header().Get("Location") != "https://mielenosoitukset.fi/suggest_change/"+demoID+"?suggestion=empty" {
 				t.Errorf("%s: expected rejection, got %v %q", scenario.Name, store.demoDocs, recorder.Header().Get("Location"))
 			}
 			continue
@@ -188,7 +188,7 @@ func TestParityDemoSuggestionScenarios(t *testing.T) {
 			continue
 		}
 		doc := store.demoDocs[0]
-		if want := strings.ReplaceAll(scenario.Location, "{demo_id}", demoID); recorder.Header().Get("Location") != want {
+		if want := strings.ReplaceAll(scenario.Location, "{demo_id}", demoID) + "?suggestion=sent"; recorder.Header().Get("Location") != want {
 			t.Errorf("%s: location %q want %q", scenario.Name, recorder.Header().Get("Location"), want)
 		}
 		get := func(key string) any { v, _ := documentValue(doc, key); return v }
@@ -246,7 +246,7 @@ func TestParityOrganizationScenarios(t *testing.T) {
 			values[pair[0]] = append(values[pair[0]], pair[1])
 		}
 		recorder := postForm(t, newTestWrites(store), "/organization/"+orgID+"/save_suggestion", values)
-		if recorder.Code != 302 || recorder.Header().Get("Location") != strings.ReplaceAll(scenario.Location, "{org}", orgID) {
+		if recorder.Code != 302 || recorder.Header().Get("Location") != strings.ReplaceAll(scenario.Location, "{org}", orgID)+"?suggestion=saved" {
 			t.Errorf("%s: %d %q", scenario.Name, recorder.Code, recorder.Header().Get("Location"))
 		}
 		if len(store.orgDocs) != 1 || len(store.cases) != 1 || len(store.mail) != 1 {
@@ -349,5 +349,21 @@ func TestDemoSuggestionInsertFailureRedirectsBack(t *testing.T) {
 	r := postForm(t, newTestWrites(store), "/suggest_change/66fa58601102367d5d52887f", map[string][]string{"title": {"y"}})
 	if r.Code != 302 || len(store.mail) != 0 {
 		t.Errorf("got %d, %d mails", r.Code, len(store.mail))
+	}
+}
+
+func TestOverLongDescriptionRedirectsBackWithNotice(t *testing.T) {
+	store := &fakeSuggestionStore{demoFound: true, demo: bson.D{{Key: "title", Value: "x"}}}
+	r := postForm(t, newTestWrites(store), "/suggest_change/66fa58601102367d5d52887f", map[string][]string{"description_markdown": {strings.Repeat("a", suggestionMaxMarkdown+1)}})
+	if r.Code != 302 || r.Header().Get("Location") != "https://mielenosoitukset.fi/suggest_change/66fa58601102367d5d52887f?suggestion=too_long" || len(store.demoDocs) != 0 {
+		t.Errorf("%d %q", r.Code, r.Header().Get("Location"))
+	}
+}
+
+func TestInsertFailureRedirectsBackWithNotice(t *testing.T) {
+	store := &fakeSuggestionStore{demoFound: true, insertFailed: true, demo: bson.D{{Key: "title", Value: "x"}}}
+	r := postForm(t, newTestWrites(store), "/suggest_change/66fa58601102367d5d52887f", map[string][]string{"title": {"y"}})
+	if !strings.HasSuffix(r.Header().Get("Location"), "?suggestion=failed") {
+		t.Errorf("%q", r.Header().Get("Location"))
 	}
 }
