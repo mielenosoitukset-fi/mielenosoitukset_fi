@@ -2,7 +2,9 @@
 Description=Nightly MongoDB backup for mielenosoitukset.fi
 
 [Timer]
-OnCalendar=*-*-* 02:30:00 UTC
+# Monday to Saturday; Sunday has the full dump. 02:30 UTC is 04:30 Helsinki
+# in winter (05:30 in summer), the quietest hours.
+OnCalendar=Mon..Sat *-*-* 02:30:00 UTC
 RandomizedDelaySec=15m
 Persistent=true
 

@@ -47,10 +47,11 @@ The archives therefore live on a different machine from the database.
     prunes its own files.
   - The URI is passed through a mode-0600 temporary config file, never on the
     command line.
-- `mielenosoitukset-mongodb-backup.service` / `.timer`: core dump nightly at
-  02:30 UTC, with `Persistent=true` so a missed run catches up.
+- `mielenosoitukset-mongodb-backup.service` / `.timer`: core dump Monday to
+  Saturday at 02:30 UTC (04:30 Helsinki in winter), with `Persistent=true` so a
+  missed run catches up.
 - `mielenosoitukset-mongodb-backup-full.service` / `.timer`: full dump on
-  Sundays at 03:30 UTC.
+  Sundays at 01:30 UTC (03:30 Helsinki in winter), so it never overlaps a core dump.
 - `mielenosoitukset-backup-failed.service`: the `OnFailure=` hook of every unit
   here. It writes an error-level journal line tagged `mielenosoitukset-backup`
   and e-mails the maintainer through `backup-notify.py` (see Alerts).
@@ -58,6 +59,33 @@ The archives therefore live on a different machine from the database.
 Expected size: the dump is gzip-compressed BSON, typically well under the
 on-disk size. Check the first archive and adjust `KEEP_DAYS` if lc-main's disk
 (about 70 GB free, 868 MB used on 17 November 2026) gets tight.
+
+### Gentle dumps (17 November 2026)
+
+An ad-hoc core dump on 17 November 2026 (09:34-09:43 Helsinki) pulled the data
+from lc-db as fast as the network allowed. lc-db's `ksoftirqd` reached 100 %, ping
+rose to 443 ms with 50 % loss, database reads timed out, the public lockdown gate
+failed closed and the site answered 503. The script is now gentle by default:
+
+- the archive stream passes through `pv` at `BACKUP_RATE_LIMIT` (default `8m`,
+  8 MiB/s of compressed output; `0` turns it off). A slow reader makes TCP
+  back-pressure `mongodump`, which limits what lc-db sends. The cap is on the
+  compressed archive, so wire traffic is somewhat higher for core dumps;
+- `--numParallelCollections=1` (`DUMP_PARALLEL_COLLECTIONS`; mongodump reads 4 at
+  once by default);
+- a second backup never queues behind a running one: it exits with status 3 and
+  the failure mail says so. Core and full dumps run at different times, and
+  manual runs hit the same lock;
+- the script refuses to run unthrottled when `pv` is missing (`apt install pv`;
+  already present on lc-main).
+
+**Do not run `mongodump` by hand against lc-db during the day.** Start a manual
+backup with `systemctl start mielenosoitukset-mongodb-backup.service`, at night.
+Whether 8 MiB/s is gentle enough is **not yet measured**: do one throttled run
+while watching lc-db (`top`, ping) and lower `BACKUP_RATE_LIMIT` if needed.
+Running `mongodump` on lc-db itself and copying the finished archive with
+`rsync --bwlimit` would avoid the network pull entirely; it needs the tools and
+a timer on lc-db and is not built here.
 
 ## Off-site copy (decided by the maintainer on 17 November 2026)
 
@@ -140,8 +168,9 @@ checked strictly) and `backup-recipients.txt` (public key lines only).
 ## Install (production change: needs the maintainer's go-ahead)
 
 The dump timers are already installed (13 November 2026). This section adds the
-off-site copy and the alert mail. Do it **outside the Sunday full-dump window**
-(03:30 UTC, runs for hours) and never restart public services while a full dump
+off-site copy, the alert mail and the gentler dump settings and timer times (copy
+the changed `.service` and `.timer` files, then `systemctl daemon-reload`). Do it **outside the Sunday full-dump window**
+(now 01:30 UTC, runs for hours) and never restart public services while a full dump
 runs. Installing units does not restart anything public.
 
 1. **Homelab, once** (the maintainer; the specifics are kept out of the

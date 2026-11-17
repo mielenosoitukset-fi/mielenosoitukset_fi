@@ -20,6 +20,14 @@
 #   MONGODUMP     mongodump binary    (default mongodump)
 #   MONGORESTORE  mongorestore binary (default mongorestore)
 #   PYTHON        interpreter used to read the YAML config (default python3)
+#   BACKUP_RATE_LIMIT  cap on the dump stream, pv syntax (default 8m = 8 MiB/s of
+#                 the compressed archive; 0 turns it off). A dump that pulls the
+#                 database over the network as fast as it can saturated lc-db's
+#                 network stack (ksoftirqd 100%, packet loss) and made the site
+#                 answer 503 (17 November 2026), so the stream is throttled.
+#   DUMP_PARALLEL_COLLECTIONS  collections read at once (default 1; mongodump's own
+#                 default is 4)
+#   PV            rate limiter binary (default pv)
 set -euo pipefail
 umask 077
 
@@ -31,8 +39,16 @@ exclude="${EXCLUDE_COLLECTIONS-super_audit_logs admin_logs}"
 mongodump="${MONGODUMP:-mongodump}"
 mongorestore="${MONGORESTORE:-mongorestore}"
 python="${PYTHON:-python3}"
+rate_limit="${BACKUP_RATE_LIMIT:-8m}"
+parallel="${DUMP_PARALLEL_COLLECTIONS:-1}"
+pv="${PV:-pv}"
 
 [[ "$keep_days" =~ ^[0-9]+$ && "$keep_days" -ge 1 ]] || { echo "mongodb-backup: KEEP_DAYS must be a positive integer" >&2; exit 2; }
+[[ "$parallel" =~ ^[1-9][0-9]*$ ]] || { echo "mongodb-backup: DUMP_PARALLEL_COLLECTIONS must be a positive integer" >&2; exit 2; }
+[[ "$rate_limit" == 0 || "$rate_limit" =~ ^[1-9][0-9]*[kKmMgG]?$ ]] || { echo "mongodb-backup: BACKUP_RATE_LIMIT must look like 8m, 500k or 0" >&2; exit 2; }
+if [[ "$rate_limit" != 0 ]] && ! command -v "$pv" >/dev/null 2>&1; then
+  echo "mongodb-backup: BACKUP_RATE_LIMIT is set but $pv is not installed (apt install pv), refusing an unthrottled dump" >&2; exit 2
+fi
 [[ "$mode" == core || "$mode" == full ]] || { echo "mongodb-backup: BACKUP_MODE must be core or full" >&2; exit 2; }
 excluded=()
 if [[ "$mode" == core ]]; then
@@ -90,7 +106,8 @@ install -d -m 0700 "$backup_dir"
 # deletes the other's unfinished archive. Held until this process exits.
 if command -v flock >/dev/null 2>&1; then
   exec 9>"$backup_dir/.backup.lock"
-  flock 9
+  # Never queue behind a running dump: two heavy reads in a row hurt the database.
+  flock -n 9 || { echo "mongodb-backup: another backup is running; not starting a second" >&2; exit 3; }
 fi
 # Clear leftovers from runs that were killed before their own cleanup ran.
 find "$backup_dir" -maxdepth 1 -type f -name "*.partial" -print -delete
@@ -99,7 +116,14 @@ target="$backup_dir/${dbname}-${mode}-${stamp}.archive.gz"
 partial="$target.partial"
 
 # No --quiet: on failure mongodump's reason must reach the journal.
-"$mongodump" --config="$work/tools.yaml" --authenticationDatabase="$authdb" --db="$dbname" ${excluded[@]+"${excluded[@]}"} ${compression[@]+"${compression[@]}"} --archive="$partial" --gzip
+dump=("$mongodump" --config="$work/tools.yaml" --authenticationDatabase="$authdb" --db="$dbname" --numParallelCollections="$parallel" ${excluded[@]+"${excluded[@]}"} ${compression[@]+"${compression[@]}"} --gzip)
+if [[ "$rate_limit" == 0 ]]; then
+  "${dump[@]}" --archive="$partial"
+else
+  # The archive goes through pv: a slow reader makes TCP back-pressure the dump,
+  # which limits what lc-db has to send. pipefail makes a mongodump error fatal.
+  "${dump[@]}" --archive | "$pv" -q -L "$rate_limit" > "$partial"
+fi
 [[ -s "$partial" ]] || { echo "mongodb-backup: dump is empty" >&2; exit 1; }
 # --dryRun alone stops before reading collection data, so first prove the whole
 # gzip stream decompresses and its checksum matches.

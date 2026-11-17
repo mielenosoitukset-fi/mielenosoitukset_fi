@@ -4,9 +4,11 @@ import gzip
 import os
 import subprocess
 import sys
+import shutil
 import time
 from pathlib import Path
 
+import pytest
 import yaml
 
 SCRIPT = Path("deploy/backup/mongodb-backup.sh").resolve()
@@ -15,6 +17,7 @@ SECRET = "s3cr3t-pass"
 FAKE_TOOL = """#!/usr/bin/env bash
 # Records its argv, then behaves like mongodump or mongorestore.
 printf '%s\\n' "$@" >> "$ARGV_LOG"
+archive=/dev/stdout
 for arg in "$@"; do
   case "$arg" in
     --config=*) cat "${arg#--config=}" >> "$CONFIG_LOG" ;;
@@ -45,6 +48,7 @@ def _run(tmp_path, uri=f"mongodb://app:{SECRET}@db.example:27017", **env):
         "APP_CONFIG": str(config), "BACKUP_DIR": str(backups), "PYTHON": sys.executable,
         "MONGODUMP": str(tools / "mongodump"), "MONGORESTORE": str(tools / "mongorestore"),
         "ARGV_LOG": str(tmp_path / "argv.log"), "CONFIG_LOG": str(tmp_path / "config.log"),
+        "BACKUP_RATE_LIMIT": "0",
         **env,
     }
     result = subprocess.run(["bash", str(SCRIPT)], env=full_env, capture_output=True, text=True)
@@ -216,3 +220,62 @@ def test_core_run_expires_archives_named_before_modes_existed(tmp_path):
     assert result.returncode == 0, result.stderr
     assert not legacy_old.exists()
     assert legacy_recent.exists()
+
+
+FAKE_PV = """#!/usr/bin/env bash
+printf '%s\\n' "$@" >> "$ARGV_LOG"
+cat
+"""
+
+
+def test_dump_is_throttled_and_reads_one_collection_at_a_time(tmp_path):
+    pv = tmp_path / "pv"
+    pv.write_text(FAKE_PV)
+    pv.chmod(0o755)
+
+    result, backups = _run(tmp_path, BACKUP_RATE_LIMIT="8m", PV=str(pv))
+
+    assert result.returncode == 0, result.stderr
+    argv = (tmp_path / "argv.log").read_text().split()
+    assert "--numParallelCollections=1" in argv
+    assert argv[argv.index("-L") + 1] == "8m"
+    archive = next(backups.glob("*.archive.gz"))
+    assert gzip.decompress(archive.read_bytes()) == b"dump-bytes"
+
+
+def test_a_failing_dump_through_the_throttle_is_still_a_failure(tmp_path):
+    pv = tmp_path / "pv"
+    pv.write_text(FAKE_PV)
+    pv.chmod(0o755)
+
+    result, backups = _run(tmp_path, BACKUP_RATE_LIMIT="8m", PV=str(pv), FAKE_EXIT="1")
+
+    assert result.returncode != 0 and not list(backups.glob("*.archive.gz"))
+
+
+def test_missing_rate_limiter_refuses_to_dump_unthrottled(tmp_path):
+    result, backups = _run(tmp_path, BACKUP_RATE_LIMIT="8m", PV=str(tmp_path / "nope"))
+    assert result.returncode == 2 and "pv" in result.stderr
+    assert not (tmp_path / "argv.log").exists()
+    assert _run(tmp_path, BACKUP_RATE_LIMIT="fast")[0].returncode == 2
+
+
+@pytest.mark.skipif(shutil.which("flock") is None, reason="flock not installed")
+def test_a_second_backup_does_not_queue_behind_a_running_one(tmp_path):
+    backups = tmp_path / "backups"
+    backups.mkdir(mode=0o700)
+    holder = subprocess.Popen(["flock", str(backups / ".backup.lock"), "sleep", "5"])
+    try:
+        time.sleep(0.5)
+        result, _ = _run(tmp_path)
+    finally:
+        holder.kill()
+    assert result.returncode == 3 and "another backup is running" in result.stderr
+    assert not (tmp_path / "argv.log").exists()
+
+
+def test_timers_keep_dumps_in_the_night_and_apart():
+    core = Path("deploy/backup/mielenosoitukset-mongodb-backup.timer").read_text()
+    full = Path("deploy/backup/mielenosoitukset-mongodb-backup-full.timer").read_text()
+    assert "OnCalendar=Mon..Sat *-*-* 02:30:00 UTC" in core
+    assert "OnCalendar=Sun *-*-* 01:30:00 UTC" in full

@@ -306,3 +306,11 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
   address live only on the servers. Losing the private key makes the off-site
   copies unreadable, so the maintainer keeps a second copy. Install and revert:
   [backups.md](backups.md). Not installed until the maintainer says go.
+
+- **Dumps must be gentle on lc-db (2026-11-17).** An ad-hoc core dump made lc-db's
+  network stack saturate (ksoftirqd 100 %, 50 % packet loss) and the site answered
+  503. Dumps now run through `pv` (default 8 MiB/s), read one collection at a time,
+  never start while another backup runs, and sit at 01:30 UTC (Sunday full) and
+  02:30 UTC (Monday to Saturday core). No manual dumps by day. The rate is unmeasured
+  until a throttled run is watched with the maintainer's go. Alternative not built:
+  dump on lc-db and `rsync --bwlimit` the archive. See [backups.md](backups.md).
