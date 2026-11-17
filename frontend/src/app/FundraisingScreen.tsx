@@ -2,6 +2,7 @@ import data from '../../../mielenosoitukset_fi/utils/data/fundraising.json';
 import qrcode from 'qrcode-generator';
 import type { AppConfig } from './config';
 import { fundraisingCopy } from './fundraising-copy';
+import { ReminderLinkPanel } from './FundraisingReminder';
 import { useEffect, useState } from 'react';
 import { activeMobilepayUrl, fundraisingDetails, fundraisingExtras } from './fundraising';
 import type { FundraisingDetails, FundraisingExtras } from './fundraising';
@@ -105,6 +106,8 @@ export function FundraisingPage({ details, extras, config }: { details: Fundrais
       <h1 id="fundraising-title">Auta {'mielen\u00adosoituksia'} löytymään</h1>
       <p className="fundraising-lead">{fundraisingCopy.pageLead}</p>
     </section>
+
+    <ReminderLinkPanel />
 
     {open ? <section className="public-content__card fundraising-donate" id="lahjoita" aria-labelledby="donate-title">
       <h2 id="donate-title">Näin lahjoitat</h2>

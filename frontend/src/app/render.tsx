@@ -43,6 +43,7 @@ import { loadSuggestion, suggestionTitle, suggestionLead, type SuggestionDemo } 
 import { helsinkiToday, loadFundraisingData, fundraisingExtras, withoutAccount } from './fundraising';
 import { fundraisingData as fundraisingBundled } from './FundraisingScreen';
 export { fundraisingDetails, fundraisingExtras, activeMobilepayUrl } from './fundraising';
+export { readReminderLink } from './fundraising-reminder';
 import { BAR_STYLESHEET, barMilestone, dismissScript } from './fundraising-bar';
 export { barPhase, barMilestone, isDismissed, normalizeBar, dismissScript, shortDate } from './fundraising-bar';
 import { campaignPath, loadCampaignPublication } from './campaign-route';
@@ -357,6 +358,11 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     if (fundraisingExtras(fundraisingData ?? fundraisingBundled, today).pre_launch) {
       headers['X-Robots-Tag'] = 'noindex, follow';
       meta = { ...meta, robots: 'noindex, follow' };
+    }
+    // Confirmation and removal links from the reminder mails carry a one-time token: never indexed.
+    if (new URLSearchParams(input.search ?? '').has('muistutus')) {
+      headers['X-Robots-Tag'] = 'noindex, nofollow';
+      meta = { ...meta, robots: 'noindex, nofollow' };
     }
     extraHead = (assets.fundraising ?? '')
       + '<link rel="stylesheet" href="/static/css/public-content.css?v=20261116-fundraising-ux-3">'
