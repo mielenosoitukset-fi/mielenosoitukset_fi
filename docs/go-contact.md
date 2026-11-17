@@ -98,11 +98,21 @@ until the fixtures and Go template are updated together. The queue row has the
 ## Activation (needs the maintainer's go, typed in the activating session)
 
 1. Merge and deploy with everything off (this change).
-2. Read-only check done 17.11.2026 (Helsinki): production has `AUTH_BRIDGE_SCOPES: true`, a `limits` database with a `counters` collection and no contact counters yet. Still to confirm at activation: that
-   the Go API's Mongo user may write to `limits`. Confirm on the server that `AUTH_BRIDGE_SCOPES` is true, that the
-   `limits.counters` collection holds `LIMITER/.../contact/...` keys and that the
-   Go API's Mongo user may write to the `limits` database. If the database name
-   differs, set `CONTACT_LIMITER_DATABASE`.
+2. Mongo access to `limits`. Read-only check 17.11.2026 (Helsinki): production has
+   `AUTH_BRIDGE_SCOPES: true`, a `limits` database with a `counters` collection and
+   no contact counters yet. The Go API uses the same `MONGO_URI` as Flask
+   (`configure_environment.py` copies it), and that user already holds `readWrite`
+   on `limits`, `mielenosoitukset` and `mielenosoitukset_test_1`. So no grant should
+   be needed; confirm with `connectionStatus` before activation. Only if the roles
+   have changed, grant least privilege (the `limits` database only; run as a Mongo
+   admin, part of the maintainer's activation go):
+
+   ```javascript
+   db.getSiblingDB("admin").grantRolesToUser("<go-api-user>", [{ role: "readWrite", db: "limits" }])
+   ```
+
+   Revert: `db.getSiblingDB("admin").revokeRolesFromUser("<go-api-user>", [{ role: "readWrite", db: "limits" }])`.
+   Do not point `CONTACT_LIMITER_DATABASE` elsewhere: that would split the quotas from Flask.
 3. Back up `config.yaml` and `/etc/mielenosoitukset-api/environment`.
 4. Land the React feedback change (above).
 5. `config.yaml`: `CONTACT_GO_ENABLED: true` (optionally `CONTACT_PER_IP_LIMIT`,
