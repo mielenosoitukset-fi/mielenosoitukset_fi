@@ -1,6 +1,6 @@
 # TODO
 
-Everything still to do, in one list. Updated 13 November 2026.
+Everything still to do, in one list. Updated 17 November 2026.
 
 This refresh checks current main, GitHub issue/PR states, the latest coordinator
 conversation and handover, and recorded production evidence. Checked means the
@@ -19,12 +19,11 @@ a dated snapshot: check their live state before acting.
 - [x] **#1029 far-future events:** generation capped (#1064); on 10 November 2026 the cleanup removed 68,642 generated occurrences after 2028-11-10 from three series, backed up on the production host first. Helsinki showed 238 upcoming events after that cleanup.
 - [x] **#984 support replies:** acknowledge queue persistence before recording the queued reply and audit receipt; redact unconfirmed outcomes (DATA-04).
 
-## In flight (13 November snapshot)
+## In flight (17 November snapshot)
 
-- [ ] **Safe sign-out (#1154):** POST with an account-bound token, harmless GET confirmation/prefetch handling, and click-open account menus. Coordinator records auth and visual reviews; finish final-head checks/queue, then verify on production that a plain GET does not sign anyone out. This is in progress, not a new account-migration task.
-- [ ] **Campaign redesign v2.2:** approved mockup build is under way. Deliver the page/date-driven states, revised volunteer form (roles/area, no phone; API/privacy update), party-interest UI, then its backend after #1146. Preserve publication/donation gates; use independent visual review and security/privacy review for data/email work. No implementation PR was open at this refresh.
-- [ ] **Pride banner carriers (#1155):** UI-only form is merged, `volunteer_form=false`, submission stubbed. The Go/storage/mail double-opt-in, unsubscribe, retention and privacy work remains a separate second part using the now-merged #1146, with security/privacy and visual acceptance before activation.
-- [ ] **Fundraising opening reminder (#1146 / FUND-02):** implementation is merged and off by default. Confirm final security/privacy and visual acceptance, then separately approve/provision the unique index and activation. First real bulk send still needs the maintainer's go; optional results-message delivery remains undecided. See [docs/fundraising-reminder.md](docs/fundraising-reminder.md).
+- [ ] **Campaign opening interest form (#1183 UI, #1185 backend):** both merged, off by default. Activation steps (backup, unique index script, mail flag, signup flag with Go deploy, Apache rule, then the `opening_interest_form` flag) are in [docs/campaign-opening-interest.md](docs/campaign-opening-interest.md). The maintainer has said to activate; production changes need their go typed in the target session.
+- [ ] **Fundraising opening reminder mail (#1146 / FUND-02):** signup is live. No real send is due until confirmed addresses exist; the first real bulk send still needs the maintainer's go. Optional results-message delivery remains undecided. See [docs/fundraising-reminder.md](docs/fundraising-reminder.md).
+- [ ] **Fundraising and campaign follow-ups:** remove the unused pre-launch reminder block (`FundraisingReminder.tsx`, `fundraisingIcs`, the Go reminder API for it); the maintainer reviews /keräys and the front page on a phone; campaign copy wording left to the maintainer.
 
 ## Public site in React (UI-06, due January 2027)
 
@@ -140,7 +139,7 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 
 ## Operations
 
-- [ ] **OPS-01 remaining:** off-site copy/encryption ownership, failure alert channel, recovery ownership and evidence from the first weekly full run. Update the obsolete “no backups” status in `docs/backups.md`.
+- [ ] **OPS-01 remaining:** off-site copy and who holds the encryption key, failure alert channel, and evidence from the first weekly full run. `docs/backups.md` status updated 17 November.
   - [x] Nightly core and weekly full backup timers are installed and active; core archives exist (read-only production check, 13 November). This is not proof of restoration.
 - [ ] **OPS-02:** authorized recovery exercises with recorded RPO and RTO.
 - [ ] **OPS-03:** review Web Vitals once there are enough samples.
@@ -183,12 +182,17 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 
 ### Open pull requests to close or decide (CLEAN-03)
 
-- [ ] Close after the security update: #948, #527, #457, #445.
+- [x] Closed 17 November 2026: #948, #527, #457, #445.
 - [x] Closed as already done on main (10 November 2026): #351, #293, #477, #570, #585.
 - [x] Closed as outdated (10 November 2026): #911, #598 (thanked the contributor).
 - [ ] Decide: #440 (flask-limiter 4.0, a major version), #849 (project memory guidance), #617 (preview teardown; are previews still used?), #599 (`Config.reload` path, external contributor), #1011 (submit migration check; most of it is on main).
 
 ## Done recently
+
+- [x] Sign-out is a POST with a token (#1154), live.
+- [x] Campaign page v2.2 (#1161) and volunteer form v2 with roles, no phone number and hashed confirmation token (#1181), live.
+- [x] Pride banner carrier signup (#1155, #1157, #1163, #1182), live.
+- [x] Fundraising: reminder signup (#1146), sticky bar (#1147), one MobilePay button for the active box (#1180), /keräys rebuilt (#1184). The collection is open 16.11.2026–15.2.2027 (#1176).
 
 - [x] Organization repository migration and merge queue (#1148–#1151): live 8/8, ALLGREEN, minimum 1, wait 0; agents arm auto-merge, use `gh stack` for dependencies and dequeue before pushing fixes.
 - [x] #1100 home continuation/Today/Weekend shortcuts; #1115/#1133 cancellation-link React page and active routing.
