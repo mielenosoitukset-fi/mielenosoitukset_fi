@@ -9,6 +9,7 @@ fails until the fixture is regenerated and the Go port is brought along:
     UPDATE_GO_FIXTURES=1 python -m pytest tests/test_go_suggestion_parity.py
 """
 
+import importlib
 import json
 import os
 from datetime import datetime
@@ -167,7 +168,10 @@ def captured_mail(monkeypatch):
 
     # The handlers call the module-level instance, which other tests may have
     # swapped or stubbed, so patch the instance they actually use.
-    monkeypatch.setattr(basic_routes.email_sender, "queue_email", capture, raising=False)
+    # Other tests reload the module, so resolve it at call time, not import time.
+    current = importlib.import_module("mielenosoitukset_fi.basic_routes")
+    monkeypatch.setattr(current.email_sender, "queue_email", capture, raising=False)
+    monkeypatch.setattr(type(current.email_sender), "queue_email", lambda self, *a, **k: capture(*a, **k), raising=False)
     return calls
 
 
