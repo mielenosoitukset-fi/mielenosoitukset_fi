@@ -419,3 +419,78 @@ or `max_days_till`), the home batch and the city event counts. An explicit
 `date_end`, a start/end range or `max_days_till` is used as given. The bound
 exists because recurring series once generated occurrences up to the year 3100
 (#1029); it also keeps listing totals and pagination meaningful.
+
+## Suggestion forms: `POST /organization/<id>/save_suggestion` and `POST /suggest_change/<demo_id>`
+
+Step 2 of the write migration (see `docs/go-write-api-proposal.md`, sections 2 and 3).
+Go handlers exist but ship **dark**: they answer only when the Go environment has
+`SUGGESTIONS_GO_ENABLED=true` and public submissions are configured
+(`PUBLIC_SUBMIT_ORIGIN`, `PUBLIC_SUBMIT_SECRET`). Unset, any other value or a
+missing origin means the requests fall through unchanged. Apache does not route to
+them.
+
+What Go does, matching Flask:
+
+- Same stored documents. Organisation: `org_edit_suggestions` (fields, `meta`
+  with IP, user agent and the untrimmed form email, pending status, `created`
+  audit entry) and a `cases` row of type `organization_edit_suggestion`
+  (running number = highest + 1, from 100001; top-level `organization_id` stays
+  null; the reporter's account id is read through the existing read-only
+  `/api/session` call, as for `/api/submissions`). Demonstration: `demo_suggestions`
+  with the string `demo_id` spelling kept, only changed fields, raw
+  `original_values`. No new schema, index, session or auth change.
+- Same normalisation: tags, route (including Python-literal lists), organizer
+  text, "same clock time" comparison, HTML-to-Markdown comparison of the
+  description and a port of the Python-Markdown (`sane_lists`, `nl2br`) plus
+  allowlist pipeline.
+- Moderator mail: Go inserts the finished HTML into `email_queue` in the existing
+  job shape (`status: pending`, null sender, recipient `tuki@mielenosoitukset.fi`).
+  Flask's worker sends it. Go never sends mail. Like Flask's non-strict
+  `queue_email`, an insert failure is logged and the visitor still sees success.
+- Same redirects: 302 to `/organization/<id>` or `/demonstration/<id>`; missing
+  target and bad demonstration id to `/`; an unchanged form with no comment back to
+  the form URL. A malformed organisation id is a plain 400 (Flask returned a 500).
+- Limits: Flask's shared defaults (10 per second, 3600 per hour per client, using
+  the existing Go rate buckets), the 500,000 byte form size Werkzeug enforces, the
+  outer lockdown gate and a panic check. Added for safety, not in Flask: a
+  same-origin check (`Origin` must match when sent, `Sec-Fetch-Site: cross-site`
+  refused) and a 50,000 byte cap on `description_markdown`.
+
+Known gaps (see the pull request for the open questions):
+
+1. Flask's flash message ("Kiitos! ...") cannot be set by Go. The redirect is
+   identical but the notice is not shown until React reads a query flag.
+2. Case numbers are allocated read-then-write in both Flask and Go, so two
+   writers can pick the same number. Unchanged from Flask; a shared atomic
+   allocator needs a separate approval.
+3. The Markdown port matches Python-Markdown on the fixture corpus and on 6,000
+   random inputs; reference-style edge cases outside that are untested. Output is
+   always escaped and allowlisted.
+
+Parity is checked by `tests/test_go_suggestion_parity.py`, which runs the real Flask
+handlers and writes `go-api/testdata/suggestion_parity.json`; the Go tests
+(`suggestion_parity_test.go`, `suggestion_write_test.go`) replay it. After changing
+the Flask side run `UPDATE_GO_FIXTURES=1 python -m pytest tests/test_go_suggestion_parity.py`
+and update the Go port until `go test` passes. The store test against a real
+MongoDB runs when `REMINDER_TEST_MONGO` is set.
+
+### Activation (needs the maintainer's go)
+
+1. Set `SUGGESTIONS_GO_ENABLED=true` in `/etc/mielenosoitukset-api/environment` and restart
+   the Go service. Public submissions must already be configured.
+2. Decide the flash replacement (gap 1) and ship the React notice first.
+3. Add to `deploy/apache/react-ssr-routing.conf`, using the submission upstream:
+
+   ```apache
+   RewriteCond %{REQUEST_METHOD} "^POST$"
+   RewriteRule "^/organization/[a-fA-F0-9]{24}/save_suggestion$" "http://127.0.0.1:8091%{REQUEST_URI}" [P,L]
+   RewriteCond %{REQUEST_METHOD} "^POST$"
+   RewriteRule "^/suggest_change/[a-fA-F0-9]{24}$" "http://127.0.0.1:8091%{REQUEST_URI}" [P,L]
+   ```
+
+4. Cross-check on a scratch database, then submit one of each and confirm the
+   documents, the case and one queued mail.
+
+**Revert:** remove the two rules and, optionally, unset the variable and restart.
+Flask's handlers are unchanged and write the same documents. Saved suggestions,
+cases and queued mail stay readable; nothing needs replaying.
