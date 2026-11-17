@@ -111,11 +111,14 @@ func newContactRig(t *testing.T) *contactRig {
 	store := newFakeContactStore()
 	answer := defaultAnswer
 	asked := []string{}
+	var askedLock sync.Mutex
 	var nextHit int32
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { atomic.AddInt32(&nextHit, 1); w.WriteHeader(299) })
 	handler := contactHandler(next, config, contactHandlerDeps{
 		store: store,
 		answer: func(_ context.Context, _ *http.Request, token string) (contactAnswer, error) {
+			askedLock.Lock()
+			defer askedLock.Unlock()
 			asked = append(asked, token)
 			return answer, nil
 		},
