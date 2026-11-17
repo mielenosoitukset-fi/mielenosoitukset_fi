@@ -142,14 +142,35 @@ def test_private_discovery_and_public_sitemap_follow_publication(admin_client, c
     assert '/kampanja/' not in client.get('/sitemap.xml').get_data(as_text=True)
 
 
-def test_existing_confirmation_tokens_keep_working_while_private(user_client, client, db):
+def test_existing_confirmation_tokens_keep_working_while_private(user_client, client, db, monkeypatch):
+    from mielenosoitukset_fi.kampanja.routes import email_sender
+
+    queued = []
+    monkeypatch.setattr(email_sender, 'queue_email', lambda **kwargs: queued.append(kwargs))
     assert user_client.post('/kampanja/api/volunteers', json={
         'name': 'Preview', 'email': 'preview@example.test',
     }).status_code == 201
     volunteer = db.volunteers.find_one({'email': 'preview@example.test'})
-    response = client.get('/kampanja/confirm/' + volunteer['confirmation_token'])
+    # Only a hash is stored; the link in the mail carries the token.
+    assert 'confirmation_token' not in volunteer
+    token = queued[0]['context']['confirm_link'].rsplit('/', 1)[1]
+    response = client.get('/kampanja/confirm/' + token)
     assert response.status_code == 200
     assert db.volunteers.find_one({'_id': volunteer['_id']})['confirmed'] is True
+
+
+def test_legacy_plain_confirmation_tokens_still_confirm(client, db):
+    from datetime import timedelta
+    from mielenosoitukset_fi.utils.time_utils import utcnow
+
+    inserted = db.volunteers.insert_one({
+        'name': 'Legacy', 'email': 'legacy@example.test', 'confirmed': False,
+        'confirmation_token': 'legacy-plain-token', 'confirmation_expires': utcnow() + timedelta(hours=1),
+    })
+    assert client.get('/kampanja/confirm/legacy-plain-token').status_code == 200
+    stored = db.volunteers.find_one({'_id': inserted.inserted_id})
+    assert stored['confirmed'] is True and 'confirmation_token' not in stored
+    assert client.get('/kampanja/confirm/legacy-plain-token').status_code == 400
 
 
 def test_publication_write_error_does_not_report_success(admin_client, db, monkeypatch):

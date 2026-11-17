@@ -114,3 +114,7 @@ html,body,#app{height:auto!important;overflow:visible!important;min-height:0!imp
 .kv .kv-lead--small{font-size:1.05rem}
 .kv .kv-more-link{margin-top:.5rem}
 .kx-stickerfig img{max-width:260px}
+.kv-req{color:var(--secondary-orange)}
+.kv-block{display:block}
+.kv-note{margin-top:.5rem}
+.kv-form .btn-primary,.kv-form .btn.btn-primary{margin-top:1rem}
