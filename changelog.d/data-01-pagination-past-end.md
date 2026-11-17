@@ -1,0 +1,1 @@
+- A listing link whose page number is past the last page (for example a bookmarked `?page=9` after events have passed) now shows the last page instead of a false "no results" message.

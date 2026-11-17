@@ -2,6 +2,7 @@ import type { PublicOrganization } from '../components/organization/types';
 import type { SuggestionDemo } from './suggest-change';
 import type { ServiceStatus } from './status';
 import type { CancelLinkState } from './cancel-link';
+import type { ProfileInitial } from './profile-route';
 import type { CardProps } from '../components/listings/DemonstrationCard';
 import { SiteHeader } from '../components/header/SiteHeader';
 import { FundraisingBar } from '../components/fundraising/FundraisingBar';
@@ -63,6 +64,8 @@ export type AppProps = {
   suggestionDemo?: SuggestionDemo;
   serviceStatus?: ServiceStatus | null;
   cancelLink?: CancelLinkState;
+  /** The public part of the profile for the profile route, read on the server. */
+  profile?: ProfileInitial;
 };
 
 function cardProps(config: AppConfig, session: SessionSummary, text: ReturnType<typeof catalog>): CardProps {
@@ -84,7 +87,7 @@ export function App({ config, session, route, path, detail, series, home, listin
   return <>
     {route.name !== 'fundraising' && session.fundraisingBar.enabled
       && <FundraisingBar bar={session.fundraisingBar} fundraisingUrl={config.urls.fundraising} text={text.fundraisingBar} />}
-    <SiteHeader {...headerProps(config, shell, text, path)} hydrating={route.name === 'api-docs' || route.name === 'status' || route.name === 'information' || route.name === 'campaign' || route.name === 'fundraising' || route.name === 'contact' || route.name === 'city-admin' || route.name === 'organization-fill' || route.name === 'suggest-change' || route.name === 'cancel-link' || route.name === 'developer'} />
+    <SiteHeader {...headerProps(config, shell, text, path)} hydrating={route.name === 'api-docs' || route.name === 'status' || route.name === 'information' || route.name === 'campaign' || route.name === 'fundraising' || route.name === 'contact' || route.name === 'city-admin' || route.name === 'organization-fill' || route.name === 'suggest-change' || route.name === 'cancel-link' || route.name === 'developer' || route.name === 'profile'} />
     <main className={`container-main-content ${route.name === 'submit' ? 'submit-workspace' : route.name === 'detail' || route.name === 'series' ? 'public-detail-main' : 'public-layout-wide'}`} id="main-content" tabIndex={-1}>
       {serverPage}
       {route.name === 'god-auth' && <Suspense fallback={<p role="status">Ladataan kirjautumista…</p>}><GodScreen /></Suspense>}
