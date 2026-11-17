@@ -1933,6 +1933,13 @@ def init_routes(app):
                     "message_max": app.config.get("CONTACT_MESSAGE_MAX_LENGTH", 5000),
                 },
             }
+        if (
+            current_app.config.get("AUTH_BRIDGE_SCOPES", False)
+            and request.headers.get("X-Contact-Form-Token") is not None
+        ):
+            payload["contact_token"] = _inspect_contact_form_token(
+                request.headers.get("X-Contact-Form-Token", "")
+            )
         response = jsonify(payload)
         response.headers["Cache-Control"] = "no-store"
         response.headers["Vary"] = "Cookie"
@@ -4054,6 +4061,42 @@ def init_routes(app):
                 remaining.append(entry)
         session["contact_form_tokens"] = remaining
         return matched or {}
+
+    def _inspect_contact_form_token(supplied_token):
+        """Read-only answer for the Go contact handler (docs/go-contact.md).
+
+        Reports whether ``supplied_token`` is outstanding in this session and
+        within its age window, plus the limits Go must apply. It never removes
+        the token or changes the session: Go consumes the MongoDB hash, which is
+        what makes a token single-use. The token travels in a header so it does
+        not appear in access logs or query strings.
+        """
+        max_age = app.config.get("CONTACT_FORM_TOKEN_MAX_AGE_SECONDS", 7200)
+        now = int(time.time())
+        valid = False
+        for entry in session.get("contact_form_tokens", []):
+            candidate = entry.get("token", "") if isinstance(entry, dict) else ""
+            issued_at = entry.get("issued_at", 0) if isinstance(entry, dict) else 0
+            if (
+                supplied_token
+                and candidate
+                and hmac.compare_digest(candidate, supplied_token)
+                and isinstance(issued_at, int)
+                and app.config.get("CONTACT_MIN_FORM_SECONDS", 2) <= now - issued_at <= max_age
+            ):
+                valid = True
+                break
+        return {
+            "valid": valid,
+            "enabled": bool(app.config.get("CONTACT_FORM_ENABLED", True)),
+            "max_age_seconds": max_age,
+            "limits": {
+                "name_max": app.config.get("CONTACT_NAME_MAX_LENGTH", 120),
+                "email_max": app.config.get("CONTACT_EMAIL_MAX_LENGTH", 254),
+                "message_min": app.config.get("CONTACT_MESSAGE_MIN_LENGTH", 10),
+                "message_max": app.config.get("CONTACT_MESSAGE_MAX_LENGTH", 5000),
+            },
+        }
 
     def _consume_contact_form_token(token):
         """Atomically consume a token hash so restored cookies cannot replay it."""

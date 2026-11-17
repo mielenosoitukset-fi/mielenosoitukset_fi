@@ -59,6 +59,15 @@ def configure(source, target):
         # separate switch, off by default, and only with the bridge on.
         if config.get("DEVELOPER_WRITES") is True:
             values["DEVELOPER_WRITES_ENABLED"] = "true"
+        # Go POST /contact (docs/go-contact.md): off by default, and only with
+        # the bridge on, because the one-time token lives in Flask's session.
+        # Quotas and the body bound follow the Flask settings of the same name
+        # so both runtimes enforce the same numbers.
+        if config.get("CONTACT_GO_ENABLED") is True:
+            values["CONTACT_GO_ENABLED"] = "true"
+            for key in ("CONTACT_PER_IP_LIMIT", "CONTACT_GLOBAL_LIMIT", "CONTACT_MAX_REQUEST_BYTES"):
+                if config.get(key) is not None:
+                    values[key] = str(config[key])
     # The fundraising details file (docs/go-fundraising-details.md) used to be
     # added to the environment by hand and was lost at the next deploy. Keep it
     # whenever the file exists; `FUNDRAISING_DETAILS_FILE` in config.yaml

@@ -1,0 +1,16 @@
+{
+ "plain": {
+  "name": "Testi Käyttäjä",
+  "email": "testi@example.test",
+  "subject": "Tuki",
+  "message": "Hei!\n\nTämä on viesti.\näö 😀",
+  "request_id": "0123456789abcdef0123456789abcdef"
+ },
+ "special": {
+  "name": "<b>\"A&B\" 'x'</b>",
+  "email": "a+b@example.test",
+  "subject": "Muu",
+  "message": "<script>alert(1)</script>\n&amp; &lt; \" ' + \t end\r\nline",
+  "request_id": "fedcba9876543210fedcba9876543210"
+ }
+}
