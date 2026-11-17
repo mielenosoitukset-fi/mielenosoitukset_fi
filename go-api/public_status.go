@@ -21,7 +21,9 @@ import (
 //     availabilityGrace (default 15 minutes, PUBLIC_GATE_STALE_SECONDS). After
 //     that the gate fails closed.
 //   - A process that never had a successful answer (restart during a database
-//     outage) stays open, unless the local emergency override says closed.
+//     outage) stays open.
+//   - The local emergency override closes the gate on every failed read, in
+//     every state above.
 //
 // The lockdown lives in the same database, so an outage cannot be used to
 // bypass it: a locked answer is sticky and a new lockdown cannot be written
@@ -38,7 +40,7 @@ func gateStaleWindow() time.Duration {
 // lockdownOverride reports the local emergency override: environment
 // PUBLIC_LOCKDOWN_OVERRIDE=closed, or the file named by
 // PUBLIC_LOCKDOWN_OVERRIDE_FILE (default /etc/mielenosoitukset/lockdown-override)
-// existing. It only matters while no successful read has happened yet.
+// existing. It only applies while status reads fail; a successful read wins.
 var lockdownOverride = func() bool {
 	if os.Getenv("PUBLIC_LOCKDOWN_OVERRIDE") == "closed" {
 		return true
@@ -91,10 +93,10 @@ func publicAvailability(next http.Handler, read func(context.Context) (bool, err
 		unavailable := locked
 		if readErr != nil {
 			switch {
-			case everLocked:
+			case lockdownOverride(), everLocked:
 				unavailable = true
 			case !answered:
-				unavailable = lockdownOverride()
+				unavailable = false
 			default:
 				unavailable = clock().Sub(lastOpen) > availabilityGrace
 			}

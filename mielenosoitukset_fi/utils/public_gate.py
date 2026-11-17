@@ -7,7 +7,7 @@ Same rule as the Go API and the React host (see docs/decisions.md):
 * After a read that said "not locked", a failed read keeps that answer for
   ``PUBLIC_GATE_STALE_SECONDS`` (default 15 minutes), then the gate closes.
 * A process without any successful answer (restart during a database outage)
-  stays open, unless the local emergency override says closed:
+  stays open. The local emergency override closes the gate on every failed read:
   ``PUBLIC_LOCKDOWN_OVERRIDE=closed`` or the file named by
   ``PUBLIC_LOCKDOWN_OVERRIDE_FILE`` (default
   ``/etc/mielenosoitukset/lockdown-override``) exists.
@@ -38,34 +38,42 @@ def lockdown_override():
 
 
 class PublicGate:
+    """``read`` returns True if locked. One read per second, shared by callers."""
+
     def __init__(self, read, clock=time.monotonic, override=lockdown_override):
         self._read, self._clock, self._override = read, clock, override
         self._lock = threading.Lock()
         self._answered = False
         self._ever_locked = False
         self._last_open = 0.0
+        self._checked = float("-inf")
+        self._failed = False
         self.failures = 0
         self._last_log = float("-inf")
 
     def locked(self):
-        """True when public pages must be closed. ``read`` returns True if locked."""
-        try:
-            value = bool(self._read())
-        except Exception as exc:  # timeout, connection error
-            now = self._clock()
-            with self._lock:
-                self.failures += 1
-                if now - self._last_log >= 30:
-                    self._last_log = now
-                    log.error("public gate: lockdown status read failed (%d since start, answered=%s, locked=%s): %s",
-                              self.failures, self._answered, self._ever_locked, exc)
-                if self._ever_locked:
-                    return True
-                if not self._answered:
-                    return self._override()
-                return now - self._last_open > stale_window()
         with self._lock:
-            self._answered = True
-            self._ever_locked = value
-            self._last_open = 0.0 if value else self._clock()
-        return value
+            now = self._clock()
+            if now - self._checked >= 1:
+                try:
+                    value = bool(self._read())
+                except Exception as exc:  # timeout, connection error
+                    self._failed = True
+                    self.failures += 1
+                    if now - self._last_log >= 30:
+                        self._last_log = now
+                        log.error("public gate: lockdown status read failed (%d since start, answered=%s, locked=%s): %s",
+                                  self.failures, self._answered, self._ever_locked, exc)
+                else:
+                    self._failed = False
+                    self._answered = True
+                    self._ever_locked = value
+                    self._last_open = 0.0 if value else now
+                self._checked = self._clock()
+            if not self._failed:
+                return self._ever_locked
+            if self._override() or self._ever_locked:
+                return True
+            if not self._answered:
+                return False
+            return self._clock() - self._last_open > stale_window()

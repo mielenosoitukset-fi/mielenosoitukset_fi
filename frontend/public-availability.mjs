@@ -3,7 +3,7 @@
 // site that was locked. A failed or timed-out read (Go API restarting, database
 // outage) keeps the last explicit "available" answer for 15 minutes
 // (PUBLIC_GATE_STALE_SECONDS), then closes. A process that never had an answer
-// stays open unless the local emergency override says closed
+// stays open. The local emergency override closes the gate on every failed read
 // (PUBLIC_LOCKDOWN_OVERRIDE=closed, or the file PUBLIC_LOCKDOWN_OVERRIDE_FILE,
 // default /etc/mielenosoitukset/lockdown-override, exists). See docs/decisions.md.
 import { existsSync } from 'node:fs';
@@ -42,8 +42,8 @@ export function availabilityReader(apiReadBase, fetcher = fetch, now = Date.now,
           lastLogAt = now();
           log(`public gate: status read failed (${failures} since start, answered=${answered}, locked=${everLocked})`);
         }
-        if (everLocked) available = false;
-        else if (!answered) available = !override();
+        if (override() || everLocked) available = false;
+        else if (!answered) available = true;
         else available = now() - lastOpenAt <= AVAILABILITY_GRACE_MS;
       } else {
         answered = true;

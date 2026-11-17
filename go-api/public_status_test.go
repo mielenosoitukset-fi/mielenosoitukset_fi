@@ -135,3 +135,17 @@ func TestGateRestartDuringOutage(t *testing.T) {
 		t.Fatal("a successful open read wins over the override")
 	}
 }
+
+func TestOverrideClosesAfterOpenAnswerWhenReadFails(t *testing.T) {
+	status, set, advance := gateHarness(t)
+	set(false, nil)
+	if status() != 200 {
+		t.Fatal("open")
+	}
+	set(false, errDown)
+	advance(2 * time.Second)
+	lockdownOverride = func() bool { return true }
+	if status() != 503 {
+		t.Fatal("override must close within the stale window")
+	}
+}

@@ -50,4 +50,11 @@ function harness(override = () => false) {
   g.set({ available: true }); g.advance(2000);
   assert.equal(await g.read(), true);
 }
+{ // override closes after an open answer when the read fails
+  let closed = false;
+  const g = harness(() => closed);
+  assert.equal(await g.read(), true);
+  g.set('fail'); closed = true; g.advance(2000);
+  assert.equal(await g.read(), false);
+}
 console.log('public availability gate: ok');
