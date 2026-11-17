@@ -59,6 +59,10 @@ def configure(source, target):
         # separate switch, off by default, and only with the bridge on.
         if config.get("DEVELOPER_WRITES") is True:
             values["DEVELOPER_WRITES_ENABLED"] = "true"
+        # Account settings reads (docs/account-pages-react.md, step 2): the route
+        # needs the signed-in account, so it exists only with the bridge on.
+        if config.get("ACCOUNT_SETTINGS_READS") is True:
+            values["ACCOUNT_SETTINGS_READS_ENABLED"] = "true"
     # Public profile reads (docs/account-pages-react.md): GET /api/profile/<username>.
     # Its own switch, off by default and independent of the bridge; the own and
     # viewer parts of the answer appear only when the bridge is on as well.
