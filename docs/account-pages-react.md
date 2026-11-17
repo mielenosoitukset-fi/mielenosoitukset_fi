@@ -30,7 +30,7 @@ redirects to the front page. Suspended, banned or inactive accounts are not hidd
 | --- | --- | --- |
 | Display name (falls back to username) | `users.displayname` | everyone |
 | Profile picture (default `cdn2…/default-pfp.jpg`) | `users.profile_picture` | everyone |
-| "Järjestelmävalvoja" badge | stored `global_admin` flag only (see below) | everyone |
+| "Järjestelmävalvoja" badge | stored `global_admin` flag or national-team access (see below) | everyone |
 | Bio | `users.bio` | everyone |
 | Post count and post list | `user.posts` does not exist on the model, so always 0 and the empty state | everyone |
 | Follower and following counts and lists (display name, username, picture, link) | `users.followers`, `users.following` (ids as strings or ObjectIds) | everyone |
@@ -39,14 +39,24 @@ redirects to the front page. Suspended, banned or inactive accounts are not hidd
 | "Muokkaa profiilia" and "Jaa profiilisi" (share text with the profile URL) | none | the account itself only |
 | Follow, friend request, accept, reject buttons | Flask `/users/profile/api/*` | other signed-in visitors; anonymous visitors get a login popup |
 
-Badge difference (security review of #1195): Flask shows the badge for `user.global_admin`,
-which also covers national-team members, governance-managed accounts and, for ordinary
-accounts, the roles `god`, `global_admin` and `superuser`. Go uses only the stored flag
-and never reads the role, so a privileged role is not revealed publicly. National-team
-admins whose access comes from memberships lose the badge until Go resolves team access.
-The reverse also differs: a governance-managed account with the flag set but outside the
-national team shows the badge in Go and not in Flask. Both differences must be closed by a
-read-only team-access lookup (like `utils/system_teams.user_team_access`) before activation.
+Badge (security review of #1195): Flask shows the badge for `user.global_admin`. For a
+governance-managed account that is national-team access only; for other accounts it is the
+stored flag, a role of `god`, `global_admin` or `superuser`, or national-team access. Go
+computes the same, read-only, with one deliberate exception: it never reads `role`, so a
+privileged role is not revealed publicly. The one remaining difference is therefore an
+account that is not governance-managed and has a privileged role but neither the flag nor
+national access: Flask shows the badge, Go does not.
+
+National access follows `utils/system_teams.user_team_access`: `NATIONAL_ADMIN_ORG_ID`
+(passed by `deploy/go-api/configure_environment.py` when `PROFILE_READS` is on; invalid or
+missing means no national access, so the badge falls back to the flag), an existing
+organisation, a `governance_approved` membership, and either `grant_source` of
+`maintainer_bootstrap` or an approved `board_clearances` record (all three paths of
+`clearance_record_approved`, including the god-appointment consent checks, ported as pure
+functions). The account must also be active, not banned, confirmed and not under an
+active security suspension; Flask's `User` model does not test the suspension, so Go is
+slightly stricter there (no badge). Any lookup error fails the profile read like any other
+store error; unrecognised record shapes count as not approved.
 
 Existing defects found while reading, kept out of this work: the "Poista ystävä" button
 posts to `/users/profile/api/remove_friend/`, which does not exist; the follow and friend
