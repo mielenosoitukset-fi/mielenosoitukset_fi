@@ -68,6 +68,14 @@ def configure(source, target):
     # viewer parts of the answer appear only when the bridge is on as well.
     if config.get("PROFILE_READS") is True:
         values["PROFILE_READS_ENABLED"] = "true"
+        # The badge needs the national team organisation, as Flask reads it. Absent
+        # means no national access (the badge then follows the stored flag only).
+        national = config.get("NATIONAL_ADMIN_ORG_ID")
+        if national:
+            national = str(national)
+            if len(national) != 24 or any(c not in "0123456789abcdefABCDEF" for c in national):
+                raise ValueError("Invalid NATIONAL_ADMIN_ORG_ID")
+            values["NATIONAL_ADMIN_ORG_ID"] = national
     # The fundraising details file (docs/go-fundraising-details.md) used to be
     # added to the environment by hand and was lost at the next deploy. Keep it
     # whenever the file exists; `FUNDRAISING_DETAILS_FILE` in config.yaml

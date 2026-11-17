@@ -158,6 +158,7 @@ func (s mongoProfileStore) User(ctx context.Context, username string) (*profileU
 	var doc bson.M
 	err := s.db.Collection("users").FindOne(ctx, bson.M{"username": username}, options.FindOne().SetProjection(bson.M{
 		"username": 1, "displayname": 1, "profile_picture": 1, "bio": 1, "global_admin": 1,
+		"governance_managed": 1, "active": 1, "banned": 1, "confirmed": 1, "security_suspension": 1,
 		"followers": 1, "following": 1, "followed_organizations": 1, "followed_recurring_demos": 1, "friend_requests": 1,
 	})).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {
@@ -170,9 +171,13 @@ func (s mongoProfileStore) User(ctx context.Context, username string) (*profileU
 	if !ok {
 		return nil, nil
 	}
+	national, err := userHasNationalAccess(ctx, s, doc, id)
+	if err != nil {
+		return nil, err
+	}
 	user := &profileUser{ID: id, Username: stringField(doc, "username"), Displayname: stringField(doc, "displayname"),
 		ProfilePicture: stringField(doc, "profile_picture"), Bio: stringField(doc, "bio"),
-		AdminBadge: profileAdminBadge(doc)}
+		AdminBadge: profileAdminBadge(doc, national)}
 	user.Followers, user.FollowersCount = profileIDs(doc["followers"], "")
 	user.Following, user.FollowingCount = profileIDs(doc["following"], "")
 	user.FollowedOrgs, _ = profileIDs(doc["followed_organizations"], "")
@@ -181,14 +186,35 @@ func (s mongoProfileStore) User(ctx context.Context, username string) (*profileU
 	return user, nil
 }
 
-// profileAdminBadge decides the public "Järjestelmävalvoja" badge from the stored
-// global_admin flag only. Flask also shows it for national-team members (resolved
-// from memberships and clearances) and, for non-governed accounts, for the roles
-// god, global_admin and superuser. Go does not compute those: it must never reveal
-// a privileged role publicly, and a missing badge is the safe difference.
-func profileAdminBadge(doc bson.M) bool {
-	flag, _ := doc["global_admin"].(bool)
-	return flag
+func (s mongoProfileStore) OrgExists(ctx context.Context, org bson.ObjectID) (bool, error) {
+	err := s.db.Collection("organizations").FindOne(ctx, bson.M{"_id": org}, options.FindOne().SetProjection(bson.M{"_id": 1})).Err()
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+func (s mongoProfileStore) Memberships(ctx context.Context, user, org bson.ObjectID) ([]bson.M, error) {
+	cursor, err := s.db.Collection("memberships").Find(ctx, bson.M{
+		"user_id": bson.M{"$in": bson.A{user, user.Hex()}}, "organization_id": bson.M{"$in": bson.A{org, org.Hex()}},
+		"governance_approved": true}, options.Find().SetProjection(bson.M{"grant_source": 1}))
+	if err != nil {
+		return nil, err
+	}
+	var rows []bson.M
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (s mongoProfileStore) Clearance(ctx context.Context, userID string) (bson.M, error) {
+	var record bson.M
+	err := s.db.Collection("board_clearances").FindOne(ctx, bson.M{"user_id": userID}).Decode(&record)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+	return record, err
 }
 
 func (s mongoProfileStore) Account(ctx context.Context, id bson.ObjectID) (*profileAccount, error) {
