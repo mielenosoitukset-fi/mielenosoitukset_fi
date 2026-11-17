@@ -1,0 +1,14 @@
+[Unit]
+Description=Check that the off-site MongoDB backup copy is fresh for mielenosoitukset.fi
+OnFailure=mielenosoitukset-backup-failed.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/mielenosoitukset/backup.env
+StateDirectory=mielenosoitukset-backup
+StateDirectoryMode=0700
+ExecStart=/var/www/mielenosoitukset_fi/deploy/backup/offsite-check.sh
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadOnlyPaths=/var/www/mielenosoitukset_fi
