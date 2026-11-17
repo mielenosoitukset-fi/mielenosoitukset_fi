@@ -29,7 +29,7 @@ def test_read_fails_after_open_stays_open_within_window_then_closes():
     assert env.check(gate) is False
     env.t += stale_window() - 20
     assert env.check(gate) is False
-    env.t += 10
+    env.t += 30
     assert env.check(gate) is True
     env.fail = False
     assert env.check(gate) is False
