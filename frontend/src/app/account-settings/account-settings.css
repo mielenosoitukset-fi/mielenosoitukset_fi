@@ -1,14 +1,17 @@
 .account-page { max-width: 960px; }
 .account-page > :not(header) { margin-top: 1.5rem; }
 .account-card { overflow-wrap: anywhere; }
-.account-card :is(h2, h3) { text-align: left; }
+.account-card :is(h2, h3) { margin: 0; text-align: left; }
+.account-card h2 { font-size: 1.3rem; }
 .account-card > * + * { margin-top: 0.75rem; }
 .account-muted { color: var(--product-text-muted); margin: 0; }
 .account-stack > * + * { margin-top: 1rem; }
 
-.account-tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0; padding: 0; list-style: none; border-bottom: 1px solid var(--product-border); }
+.account-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; gap: 0.25rem; margin: 0; padding: 0; list-style: none; border-bottom: 1px solid var(--product-border); }
 .account-tabs a {
   display: inline-flex;
+  flex: none;
+  white-space: nowrap;
   align-items: center;
   min-height: 44px;
   padding: 0 1rem;
@@ -59,7 +62,12 @@
 .account-list li:last-child { border-bottom: 0; }
 
 .account-table-wrap { overflow-x: auto; }
-.account-table { width: 100%; border-collapse: collapse; }
+/* Keep a real table at phone width: it scrolls inside the wrapper instead of stacking. */
+.account-card .account-table-wrap .account-table { display: table; width: 100%; min-width: 34rem; border-collapse: collapse; }
+.account-card .account-table-wrap .account-table thead { display: table-header-group; }
+.account-card .account-table-wrap .account-table tbody { display: table-row-group; }
+.account-card .account-table-wrap .account-table tr { display: table-row; }
+.account-card .account-table-wrap .account-table :is(th, td) { display: table-cell; }
 .account-table th, .account-table td { padding: 0.5rem; border-bottom: 1px solid var(--product-border); text-align: left; vertical-align: top; }
 .account-table__browser { max-width: 24ch; }
 .account-badge { padding: 0.1rem 0.5rem; border: 1px solid var(--product-border); border-radius: 999px; font-size: 0.85rem; font-weight: 650; }

@@ -79,6 +79,8 @@ export const accountCopy = {
   time: 'Aika',
   ip: 'IP-osoite',
   browser: 'Selain',
+  loginOk: 'Onnistui',
+  loginFailed: 'Epäonnistui',
   result: 'Tulos',
   noLogins: 'Ei kirjautumisia',
   tokensTitle: 'API-avaimet',

@@ -124,7 +124,7 @@ function SecurityPanel({ data }: { data: AccountSettingsRead }) {
       {notice('info', copy.securityLater)}
     </section>
     <section className="public-prose-card account-card" aria-labelledby="account-mfa-title">
-      <h3 id="account-mfa-title">{copy.mfaTitle}</h3>
+      <h2 id="account-mfa-title">{copy.mfaTitle}</h2>
       <p className="account-muted">{copy.mfaLead}</p>
       <p><strong>{data.mfa.enabled ? copy.mfaOn : copy.mfaOff}</strong></p>
       {data.mfa.enabled && <ul className="account-list">
@@ -135,7 +135,7 @@ function SecurityPanel({ data }: { data: AccountSettingsRead }) {
       </ul>}
     </section>
     <section className="public-prose-card account-card" aria-labelledby="account-passkeys-title">
-      <h3 id="account-passkeys-title">{copy.passkeysTitle}</h3>
+      <h2 id="account-passkeys-title">{copy.passkeysTitle}</h2>
       <p className="account-muted">{copy.passkeysLead}</p>
       {data.passkeys.length ? <ul className="account-list">
         {data.passkeys.map(key => <li key={key.id}>
@@ -146,7 +146,7 @@ function SecurityPanel({ data }: { data: AccountSettingsRead }) {
       </ul> : <p className="account-muted">{copy.noPasskeys}</p>}
     </section>
     <section className="public-prose-card account-card" aria-labelledby="account-history-title">
-      <h3 id="account-history-title">{copy.historyTitle}</h3>
+      <h2 id="account-history-title">{copy.historyTitle}</h2>
       <div className="account-table-wrap" tabIndex={0} role="region" aria-label={copy.historyTitle}>
         <table className="account-table">
           <thead><tr><th scope="col">{copy.time}</th><th scope="col">{copy.ip}</th><th scope="col">{copy.browser}</th><th scope="col">{copy.result}</th></tr></thead>
@@ -155,7 +155,7 @@ function SecurityPanel({ data }: { data: AccountSettingsRead }) {
               <td>{formatDeveloperDate(login.time)}</td>
               <td>{login.ip}</td>
               <td className="account-table__browser" title={login.ua}>{login.ua.slice(0, 60)}</td>
-              <td><span className={`account-badge account-badge--${login.ok ? 'ok' : 'fail'}`}>{login.ok ? 'OK' : 'FAIL'}</span></td>
+              <td><span className={`account-badge account-badge--${login.ok ? 'ok' : 'fail'}`}>{login.ok ? copy.loginOk : copy.loginFailed}</span></td>
             </tr>) : <tr><td colSpan={4} className="account-muted">{copy.noLogins}</td></tr>}
           </tbody>
         </table>
