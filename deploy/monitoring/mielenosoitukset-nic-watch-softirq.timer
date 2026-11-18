@@ -1,0 +1,10 @@
+[Unit]
+Description=Sample database host softirq load every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target
