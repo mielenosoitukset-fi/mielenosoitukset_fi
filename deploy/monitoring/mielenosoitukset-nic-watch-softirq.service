@@ -1,0 +1,13 @@
+[Unit]
+Description=Check a database host for a saturated network core (softirq)
+
+[Service]
+Type=oneshot
+# NIC_WATCH_URL and NIC_WATCH_LABEL come from the root-only settings file, so no
+# address is stored in the repository. ALERT_EMAIL is set in backup.env.
+EnvironmentFile=-/etc/mielenosoitukset/backup.env
+EnvironmentFile=-/etc/mielenosoitukset/nic-watch.env
+ExecStart=/bin/sh -c 'exec /var/www/mielenosoitukset_fi/deploy/monitoring/nic-watch.py --mode softirq --url "$NIC_WATCH_URL" --label "$NIC_WATCH_LABEL"'
+StateDirectory=mielenosoitukset
+NoNewPrivileges=true
+ProtectSystem=strict

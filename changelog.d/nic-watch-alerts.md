@@ -1,0 +1,1 @@
+- Added optional e-mail alerts for a saturated network core or a network driver fault on the database host. The files are ready; nothing is installed until the maintainer approves. See docs/nic-watch.md.
