@@ -402,6 +402,11 @@ def bark_server(notify):
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_POST(self):
             received.append((self.path, json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
+            if reply.get("redirect"):
+                self.send_response(307)
+                self.send_header("Location", reply["redirect"])
+                self.end_headers()
+                return
             body = json.dumps(reply).encode()
             self.send_response(200)
             self.end_headers()
@@ -459,3 +464,14 @@ def test_bark_refuses_plain_http_and_unreachable_servers(notify, capsys):
     assert module.main(env) == 1  # nothing listens on port 9
     output = capsys.readouterr()
     assert "devkey123" not in output.out + output.err
+
+
+def test_bark_redirect_counts_as_a_failed_push_and_is_not_followed(bark_server, capsys):
+    module, config, url, received, reply = bark_server
+    reply["redirect"] = url + "/elsewhere"
+
+    assert module.main({"BARK_KEY": "devkey123", "BARK_URL": url, "APP_CONFIG": config}) == 1
+
+    assert [path for path, _ in received] == ["/push"]  # the redirect target was never requested
+    output = capsys.readouterr()
+    assert "HTTPError" in output.err and "devkey123" not in output.out + output.err

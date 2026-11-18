@@ -70,6 +70,16 @@ def send(message, mail_config):
     subprocess.run([sendmail, "-t", "-i"], input=message.as_bytes(), check=True, timeout=60)
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A redirect is never followed: the push would carry the key to another URL."""
+
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def send_bark(env, unit):
     """Push through Bark. Raises on any failure; the caller logs only the type."""
     base = (env.get("BARK_URL") or BARK_DEFAULT_URL).strip().rstrip("/")
@@ -81,7 +91,7 @@ def send_bark(env, unit):
         base + "/push", data=json.dumps(payload).encode(), method="POST",
         headers={"Content-Type": "application/json; charset=utf-8"},
     )
-    with urllib.request.urlopen(request, timeout=10) as response:
+    with _OPENER.open(request, timeout=10) as response:
         result = json.load(response)
     if result.get("code") != 200:
         raise RuntimeError("Bark refused the push")
