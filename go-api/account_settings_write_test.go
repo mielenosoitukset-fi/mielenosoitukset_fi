@@ -190,7 +190,7 @@ func TestAccountBioValidation(t *testing.T) {
 		t.Fatal("invalid input wrote")
 	}
 	if w := g.post(`{"bio":"` + strings.Repeat("ä", accountBioMax) + `"}`); w.Code != 200 {
-		t.Fatal("exactly 1000 characters must pass", w.Code)
+		t.Fatal("exactly 5000 characters must pass", w.Code)
 	}
 }
 
@@ -223,5 +223,15 @@ func TestAccountWriteStoreOnlyWritesBio(t *testing.T) {
 		Save(context.Context, bson.ObjectID) error
 	}); ok {
 		t.Fatal("unexpected broad write method")
+	}
+}
+
+func TestCleanBioStripsBidiOverrides(t *testing.T) {
+	got, ok := cleanBio("a\u202Eb\u2066c\u2069d\u202A")
+	if !ok || got != "abcd" {
+		t.Fatalf("got %q, %v", got, ok)
+	}
+	if got, ok := cleanBio("\u202E\u202E"); !ok || got != "" {
+		t.Fatalf("only bidi characters must become empty, got %q, %v", got, ok)
 	}
 }

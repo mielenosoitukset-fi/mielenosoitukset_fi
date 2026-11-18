@@ -25,8 +25,8 @@ import (
 
 const (
 	accountProfilePath = "/api/account/profile"
-	accountBioMax      = 1000
-	accountWriteBody   = 8 << 10
+	accountBioMax      = 5000
+	accountWriteBody   = 40 << 10 // 5000 characters, up to 4 bytes each, plus JSON framing
 )
 
 // accountWriteStore holds every account write. Each call is scoped to the owner.
@@ -69,11 +69,24 @@ func (a *accountWrites) serveProfile(w http.ResponseWriter, r *http.Request, res
 	})).ServeHTTP(w, r)
 }
 
-// cleanBio trims the text and applies the limits; ok is false when it is refused.
-// Flask stores any string; the 1000 character limit and the control character
-// rule are stricter on purpose (docs/decisions.md).
+// stripBidi removes the bidirectional override and isolate characters
+// (U+202A-U+202E, U+2066-U+2069), which can make text on the public profile read
+// in a different order than it was typed.
+func stripBidi(text string) string {
+	return strings.Map(func(c rune) rune {
+		if (c >= 0x202A && c <= 0x202E) || (c >= 0x2066 && c <= 0x2069) {
+			return -1
+		}
+		return c
+	}, text)
+}
+
+// cleanBio strips bidi override characters, trims the text and applies the limits;
+// ok is false when it is refused. Flask stores any string; the 5000 character
+// limit, the bidi stripping and the control character rule are stricter on purpose
+// (docs/decisions.md).
 func cleanBio(raw string) (string, bool) {
-	text := strings.TrimSpace(strings.ReplaceAll(raw, "\r\n", "\n"))
+	text := strings.TrimSpace(strings.ReplaceAll(stripBidi(raw), "\r\n", "\n"))
 	if utf8.RuneCountInString(text) > accountBioMax {
 		return "", false
 	}

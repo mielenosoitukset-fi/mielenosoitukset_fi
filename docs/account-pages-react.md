@@ -182,18 +182,18 @@ Flask still serves every page and endpoint, so no data needs restoring.
   `ACCOUNT_SETTINGS_READS` are on.
 - Guards are the `/developer` ones, run by the same code (`developerWrites.guarded`): signed-in through the bridge
   (401/503), `Sec-Fetch-Site: same-origin`, `Origin` equal to `AUTH_BRIDGE_ORIGIN` when present, `application/json`,
-  body at most 8 KiB, an account-bound HMAC token in `X-CSRF-Token` (403), 20 writes per minute per account (429),
+  body at most 40 KiB (5000 characters of up to 4 bytes), an account-bound HMAC token in `X-CSRF-Token` (403), 20 writes per minute per account (429),
   `Cache-Control: no-store`, `nosniff`. Run one Go instance: the key and the counters are in memory.
 - `GET /api/account/settings` adds `writes: true` and `csrf` only when the write flag is on.
 - Effect: `$set` of `users.bio` for the signed-in account and nothing else; an empty or blank bio stores `null`.
   Answer `{"status":"success","bio":…}`. Audit row in `api_usage` (`profile bio updated`, user, IP, time,
   `source: go-api`); the text is never logged or audited.
-- Limits (decision, stricter than Flask on purpose): the text is trimmed, CRLF becomes LF, at most 1000 Unicode
+- Limits (decision: Flask has no server limit; 5000 is the length the read already returns and the old textarea allowed, so nothing readable becomes unsavable): the text is trimmed, CRLF becomes LF, the bidi override and isolate characters U+202A-202E and U+2066-2069 are removed, at most 5000 Unicode
   characters, no control characters except newline and tab. Flask accepts any length. Longer existing bios stay
   readable (the read cuts at 5000) and can still be saved through Flask or shortened.
-- React: Profiili posts a bio without a new picture to Go with the token and shows a "x / 1000" counter; with a
+- React: Profiili posts a bio without a new picture to Go with the token and shows a "x / 5000" counter and, near the limit, a screen-reader announcement "x merkkiä jäljellä"; with a
   picture chosen it posts both to the unchanged Flask endpoint (S3). Go's 400 text is shown, 429 uses the rate-limit
-  copy, 401 and a bad token say "Istunto vanhentui. Lataa sivu uudelleen.".
+  copy, 401 and a bad token say "Istunto vanhentui. Lataa sivu uudelleen." with a reload button. Messages appear next to the save button.
 - Activation: back up, set `ACCOUNT_SETTINGS_WRITES: true`, deploy, restart the API; uncomment the
   `/api/account/profile` rule only after the settings rules (maintainer's go). Revert: re-comment the rule, remove
   the flag, restart. The React page then falls back to the Flask endpoint with no data to restore.
