@@ -1,0 +1,10 @@
+[Unit]
+Description=Check the kernel log for network driver faults every 5 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,12 @@
+[Unit]
+Description=Check the kernel log for NETDEV WATCHDOG or virtio TX timeout
+
+[Service]
+Type=oneshot
+# Runs on the watched host. The script and backup-notify.py are copied to
+# /opt/mielenosoitukset-monitoring/ (see docs/nic-watch.md).
+EnvironmentFile=-/etc/mielenosoitukset/nic-watch.env
+ExecStart=/bin/sh -c 'exec /opt/mielenosoitukset-monitoring/deploy/monitoring/nic-watch.py --mode kernel --label "$NIC_WATCH_LABEL"'
+StateDirectory=mielenosoitukset
+NoNewPrivileges=true
+ProtectSystem=strict
