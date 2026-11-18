@@ -82,11 +82,8 @@ until the fixtures and Go template are updated together. The queue row has the
 ## Deliberate differences from Flask
 
 - **Feedback.** Flask sets a flash in its session; Go cannot write that session.
-  Go redirects to `/contact?contact=sent|invalid|disabled`. **The React contact
-  screen does not read this yet**, so activation is blocked on a small React
-  change (show the three messages from the query, same copy as the flashes).
-  Until then a visitor would see no confirmation. This is an open question, not
-  a decision: see "Questions" in the pull request.
+  Go redirects to `/contact?contact=sent|invalid|disabled`. The React contact screen shows the matching message from the query
+  (`contact-route.ts`, same copy as the Flask flashes, minus the exclamation mark).
 - **Failed queue insert** answers 503 (JSON). Flask answers success and retries
   in-process on a timer, with no receipt. The token stays consumed: the visitor
   reloads the form for a new one. An ambiguous write can still leave one mail in
