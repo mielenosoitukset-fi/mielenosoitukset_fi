@@ -385,6 +385,8 @@ func TestProfileAccountHidden(t *testing.T) {
 		{"inactive", bson.M{"active": false}, true},
 		{"suspended", bson.M{"security_suspension": bson.M{"active": true}}, true},
 		{"suspension lifted", bson.M{"security_suspension": bson.M{"active": false}}, false},
+		{"suspended as bson.D", bson.M{"security_suspension": bson.D{{Key: "active", Value: true}}}, true},
+		{"suspension lifted as bson.D", bson.M{"security_suspension": bson.D{{Key: "active", Value: false}}}, false},
 		{"suspended and banned", bson.M{"banned": true, "security_suspension": bson.M{"active": true}}, true},
 	}
 	for _, c := range cases {

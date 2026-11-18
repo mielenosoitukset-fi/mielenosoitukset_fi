@@ -229,11 +229,9 @@ func profileAccountHidden(doc bson.M) bool {
 	if active, present := doc["active"].(bool); present && !active {
 		return true
 	}
-	suspension, _ := doc["security_suspension"].(bson.M)
-	if on, _ := suspension["active"].(bool); on {
-		return true
-	}
-	return false
+	// Mongo decodes a nested document into bson.D, so read it through profileKey
+	// (as teamAccountActive does) instead of asserting bson.M.
+	return profileTruthy(profileKey(doc["security_suspension"], "active"))
 }
 
 func (s mongoProfileStore) Account(ctx context.Context, id bson.ObjectID) (*profileAccount, error) {
