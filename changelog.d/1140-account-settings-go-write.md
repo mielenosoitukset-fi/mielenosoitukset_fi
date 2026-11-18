@@ -1,0 +1,1 @@
+- The general account settings (display name, city, language, dark mode) can be saved through the Go API when the account write flag is on; the change notice mail is queued exactly as before. Off by default.

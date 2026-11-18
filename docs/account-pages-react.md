@@ -197,3 +197,38 @@ Flask still serves every page and endpoint, so no data needs restoring.
 - Activation: back up, set `ACCOUNT_SETTINGS_WRITES: true`, deploy, restart the API; uncomment the
   `/api/account/profile` rule only after the settings rules (maintainer's go). Revert: re-comment the rule, remove
   the flag, restart. The React page then falls back to the Flask endpoint with no data to restore.
+
+## 10. Step 3b as built (general settings write)
+
+- Go: `POST /api/account/settings` (`go-api/account_settings_general.go`) with any of `display_name`, `city`,
+  `language`, `dark_mode`; `subscribe_newsletter` stays in Flask. Same flags and guards as the bio write (section 9),
+  no new flag. The path answers GET as before; POST exists only when the write flag is on.
+- Validation (a 400 with a Finnish text): unknown field or `null` value; `display_name` trimmed, 1-40 characters, no
+  control characters, and not a reserved identity name (`admin`, `administrator`, optional leading `@`; Flask's text
+  "Admin-nimitys on varattu palvelun sisäiseen käyttöön."); `city` at most 100 characters and, when not empty, one of
+  the city list's names; `language` only `fi`; `dark_mode` a JSON boolean. Stricter than Flask on purpose: Flask
+  accepts any value and JSON-parses strings (so a display name `"123"` becomes a number there).
+- Effect: reads `user_settings` (a missing document counts as Flask's defaults: all `null`, display name = account's
+  displayname or username), compares old and new per field, and `$set`s only the changed ones with an upsert
+  (`$setOnInsert` carries the other defaults, the shape Flask inserts). A changed display name is also copied to
+  `users.displayname`, as `process_settings_change` does. Nothing changed: no write, no mail, answer
+  `Ei muutoksia asetuksissa.` (Flask also inserts the default document on first access; Go does not).
+- Mail: when something changed and the account has an email, Go inserts the same document Flask's `queue_email`
+  inserts into `email_queue` (subject "Käyttäjäasetusten muutokset", HTML of `auth/settings_changed.html`, `status`
+  pending, `instance_id` of this process). Flask's worker sends it; Go never sends mail. A failed insert is logged
+  without the address and does not fail the write, as in Flask. The greeting uses the stored displayname from before
+  the change (as Flask); where Flask would print "None" for an account without a displayname, Go falls back to the
+  username.
+- Field order: Flask walks a set, so the order in the mail and the answer changes between processes. Go fixes it:
+  city, display_name, language, dark_mode.
+- Parity: `tests/test_go_settings_parity.py` drives the real Flask handler and template and writes
+  `go-api/testdata/settings_parity.json`; `TestSettingsParityWithFlask` replays the cases (answer, byte-exact mail HTML
+  with escaping, None and bool values, stored values). Regenerate with
+  `UPDATE_GO_FIXTURES=1 ../../../.venv/bin/python -m pytest tests/test_go_settings_parity.py`.
+- Audit: `api_usage` row `settings updated` with the changed field names only, never values, `source: go-api`.
+- React: the Yleinen tab posts to the Go route with `X-CSRF-Token` when the read answer carries a token, otherwise to
+  the Flask endpoint; errors are handled like the bio save.
+- Activation: this is the first real mail written by Go, so it needs the maintainer's go. Back up, then it comes live
+  with the write flag (section 9) and the `/api/account/settings` POST rule; watch the first queued mail reach the
+  worker. Revert: remove the write flag and restart; the page falls back to Flask, queued mails are ordinary Flask-shaped
+  documents and need no cleanup.

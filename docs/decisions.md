@@ -334,3 +334,7 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
   `POST /api/account/profile` (behind `ACCOUNT_SETTINGS_WRITES`) trims it, strips bidi override characters, refuses more than 5000 characters
   and control characters other than newline and tab, and stores an empty bio as `null`. The
   Flask path is unchanged. See [account-pages-react.md](account-pages-react.md).
+
+## Account settings in Go
+
+- **General settings written by Go, change mail queued by Go with Flask parity (2026-11-18, coordinator).** `POST /api/account/settings` (behind the account write flag, no new flag) changes display name, city, language and dark mode, copies a changed display name to `users.displayname`, and inserts the same "Käyttäjäasetusten muutokset" mail Flask would into `email_queue`; Flask's worker sends it, Go never does. Parity is pinned by a golden fixture from the real Flask render. The mail's field order is fixed (city, display_name, language, dark_mode) because Flask's is a set. Go is stricter on input (field list, 40/100 character limits, city list, `fi` only). Dark mode is a stored preference only. Activation needs the maintainer's go. See [account-pages-react.md](account-pages-react.md).

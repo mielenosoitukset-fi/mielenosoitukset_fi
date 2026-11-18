@@ -1,0 +1,419 @@
+{
+ "cases": [
+  {
+   "name": "no settings document, full body",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": null,
+   "body": {
+    "display_name": "Uusi nimi",
+    "city": "Helsinki",
+    "language": "fi",
+    "dark_mode": false
+   },
+   "status": 200,
+   "message": "Asetukset päivitetty ja ilmoitus lähetetty.",
+   "changed_fields": {
+    "city": {
+     "new": "Helsinki",
+     "old": null
+    },
+    "dark_mode": {
+     "new": false,
+     "old": null
+    },
+    "display_name": {
+     "new": "Uusi nimi",
+     "old": "Alice Tester"
+    },
+    "language": {
+     "new": "fi",
+     "old": null
+    }
+   },
+   "mail": {
+    "subject": "Käyttäjäasetusten muutokset",
+    "html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Käyttäjäasetusten muutokset</title>\n    <style>\n        body {\n            background: #f4f4f4;\n            color: #333333;\n            margin: 0;\n            padding: 0;\n        }\n        .container {\n            width: 100%;\n            max-width: 600px;\n            padding: 20px;\n            background: #ffffff;\n            margin: 0 auto;\n            border-radius: 8px;\n            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);\n        }\n        .header {\n            text-align: center;\n            padding: 10px 0;\n            background: #0033A0;\n            color: #ffffff;\n            border-radius: 8px 8px 0 0;\n        }\n        .content {\n            margin: 20px;\n        }\n        .changes {\n            padding-left: 1.25rem;\n        }\n        .changes li {\n            margin-bottom: 0.75rem;\n        }\n        .value-label {\n            color: #666666;\n            font-size: 0.9em;\n        }\n        .footer {\n            margin-top: 20px;\n            text-align: center;\n            font-size: 0.9em;\n            color: #888888;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>Käyttäjäasetuksia muutettiin</h1>\n        </div>\n        <div class=\"content\">\n            <p>Hei Alice Tester,</p>\n            <p>Tilisi käyttäjäasetuksia on päivitetty. Muutetut kentät:</p>\n            <ul class=\"changes\">\n                \n                <li>\n                    <strong>city</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> ei asetettu<br>\n                    <span class=\"value-label\">Uusi arvo:</span> Helsinki\n                </li>\n                \n                <li>\n                    <strong>display_name</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> Alice Tester<br>\n                    <span class=\"value-label\">Uusi arvo:</span> Uusi nimi\n                </li>\n                \n                <li>\n                    <strong>language</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> ei asetettu<br>\n                    <span class=\"value-label\">Uusi arvo:</span> fi\n                </li>\n                \n                <li>\n                    <strong>dark_mode</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> ei asetettu<br>\n                    <span class=\"value-label\">Uusi arvo:</span> False\n                </li>\n                \n            </ul>\n            <p>Jos et tehnyt tätä muutosta, ota välittömästi yhteyttä tukeemme.</p>\n            <p>Ystävällisin terveisin,<br>Tiimimme</p>\n        </div>\n        <div class=\"footer\">\n            <p>Tämä on automaattinen viesti, älä vastaa tähän sähköpostiin.</p>\n        </div>\n    </div>\n</body>\n</html>"
+   },
+   "settings_after": {
+    "city": "Helsinki",
+    "dark_mode": false,
+    "display_name": "Uusi nimi",
+    "language": "fi",
+    "subscribe_newsletter": null
+   },
+   "displayname_after": "Uusi nimi"
+  },
+  {
+   "name": "no settings document, empty body",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": null,
+   "body": {},
+   "status": 200,
+   "message": "Ei muutoksia asetuksissa.",
+   "changed_fields": {},
+   "mail": null
+  },
+  {
+   "name": "city only",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "city": "Espoo"
+   },
+   "status": 200,
+   "message": "Asetukset päivitetty ja ilmoitus lähetetty.",
+   "changed_fields": {
+    "city": {
+     "new": "Espoo",
+     "old": "Helsinki"
+    }
+   },
+   "mail": {
+    "subject": "Käyttäjäasetusten muutokset",
+    "html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Käyttäjäasetusten muutokset</title>\n    <style>\n        body {\n            background: #f4f4f4;\n            color: #333333;\n            margin: 0;\n            padding: 0;\n        }\n        .container {\n            width: 100%;\n            max-width: 600px;\n            padding: 20px;\n            background: #ffffff;\n            margin: 0 auto;\n            border-radius: 8px;\n            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);\n        }\n        .header {\n            text-align: center;\n            padding: 10px 0;\n            background: #0033A0;\n            color: #ffffff;\n            border-radius: 8px 8px 0 0;\n        }\n        .content {\n            margin: 20px;\n        }\n        .changes {\n            padding-left: 1.25rem;\n        }\n        .changes li {\n            margin-bottom: 0.75rem;\n        }\n        .value-label {\n            color: #666666;\n            font-size: 0.9em;\n        }\n        .footer {\n            margin-top: 20px;\n            text-align: center;\n            font-size: 0.9em;\n            color: #888888;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>Käyttäjäasetuksia muutettiin</h1>\n        </div>\n        <div class=\"content\">\n            <p>Hei Alice Tester,</p>\n            <p>Tilisi käyttäjäasetuksia on päivitetty. Muutetut kentät:</p>\n            <ul class=\"changes\">\n                \n                <li>\n                    <strong>city</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> Helsinki<br>\n                    <span class=\"value-label\">Uusi arvo:</span> Espoo\n                </li>\n                \n            </ul>\n            <p>Jos et tehnyt tätä muutosta, ota välittömästi yhteyttä tukeemme.</p>\n            <p>Ystävällisin terveisin,<br>Tiimimme</p>\n        </div>\n        <div class=\"footer\">\n            <p>Tämä on automaattinen viesti, älä vastaa tähän sähköpostiin.</p>\n        </div>\n    </div>\n</body>\n</html>"
+   },
+   "settings_after": {
+    "city": "Espoo",
+    "dark_mode": true,
+    "display_name": "Alice",
+    "language": "fi",
+    "subscribe_newsletter": null
+   },
+   "displayname_after": "Alice Tester"
+  },
+  {
+   "name": "nothing changed",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "display_name": "Alice",
+    "city": "Helsinki",
+    "language": "fi",
+    "dark_mode": true
+   },
+   "status": 200,
+   "message": "Ei muutoksia asetuksissa.",
+   "changed_fields": {},
+   "mail": null
+  },
+  {
+   "name": "html special characters",
+   "email": "alice@example.test",
+   "displayname": "A&B <x> \"q\" 'z'",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "display_name": "<b>Ben & \"Jerry's\"</b>"
+   },
+   "status": 200,
+   "message": "Asetukset päivitetty ja ilmoitus lähetetty.",
+   "changed_fields": {
+    "display_name": {
+     "new": "<b>Ben & \"Jerry's\"</b>",
+     "old": "Alice"
+    }
+   },
+   "mail": {
+    "subject": "Käyttäjäasetusten muutokset",
+    "html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Käyttäjäasetusten muutokset</title>\n    <style>\n        body {\n            background: #f4f4f4;\n            color: #333333;\n            margin: 0;\n            padding: 0;\n        }\n        .container {\n            width: 100%;\n            max-width: 600px;\n            padding: 20px;\n            background: #ffffff;\n            margin: 0 auto;\n            border-radius: 8px;\n            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);\n        }\n        .header {\n            text-align: center;\n            padding: 10px 0;\n            background: #0033A0;\n            color: #ffffff;\n            border-radius: 8px 8px 0 0;\n        }\n        .content {\n            margin: 20px;\n        }\n        .changes {\n            padding-left: 1.25rem;\n        }\n        .changes li {\n            margin-bottom: 0.75rem;\n        }\n        .value-label {\n            color: #666666;\n            font-size: 0.9em;\n        }\n        .footer {\n            margin-top: 20px;\n            text-align: center;\n            font-size: 0.9em;\n            color: #888888;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>Käyttäjäasetuksia muutettiin</h1>\n        </div>\n        <div class=\"content\">\n            <p>Hei A&amp;B &lt;x&gt; &#34;q&#34; &#39;z&#39;,</p>\n            <p>Tilisi käyttäjäasetuksia on päivitetty. Muutetut kentät:</p>\n            <ul class=\"changes\">\n                \n                <li>\n                    <strong>display_name</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> Alice<br>\n                    <span class=\"value-label\">Uusi arvo:</span> &lt;b&gt;Ben &amp; &#34;Jerry&#39;s&#34;&lt;/b&gt;\n                </li>\n                \n            </ul>\n            <p>Jos et tehnyt tätä muutosta, ota välittömästi yhteyttä tukeemme.</p>\n            <p>Ystävällisin terveisin,<br>Tiimimme</p>\n        </div>\n        <div class=\"footer\">\n            <p>Tämä on automaattinen viesti, älä vastaa tähän sähköpostiin.</p>\n        </div>\n    </div>\n</body>\n</html>"
+   },
+   "settings_after": {
+    "city": "Helsinki",
+    "dark_mode": true,
+    "display_name": "<b>Ben & \"Jerry's\"</b>",
+    "language": "fi",
+    "subscribe_newsletter": null
+   },
+   "displayname_after": "<b>Ben & \"Jerry's\"</b>"
+  },
+  {
+   "name": "dark mode on and off",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": false,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "dark_mode": true
+   },
+   "status": 200,
+   "message": "Asetukset päivitetty ja ilmoitus lähetetty.",
+   "changed_fields": {
+    "dark_mode": {
+     "new": true,
+     "old": false
+    }
+   },
+   "mail": {
+    "subject": "Käyttäjäasetusten muutokset",
+    "html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Käyttäjäasetusten muutokset</title>\n    <style>\n        body {\n            background: #f4f4f4;\n            color: #333333;\n            margin: 0;\n            padding: 0;\n        }\n        .container {\n            width: 100%;\n            max-width: 600px;\n            padding: 20px;\n            background: #ffffff;\n            margin: 0 auto;\n            border-radius: 8px;\n            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);\n        }\n        .header {\n            text-align: center;\n            padding: 10px 0;\n            background: #0033A0;\n            color: #ffffff;\n            border-radius: 8px 8px 0 0;\n        }\n        .content {\n            margin: 20px;\n        }\n        .changes {\n            padding-left: 1.25rem;\n        }\n        .changes li {\n            margin-bottom: 0.75rem;\n        }\n        .value-label {\n            color: #666666;\n            font-size: 0.9em;\n        }\n        .footer {\n            margin-top: 20px;\n            text-align: center;\n            font-size: 0.9em;\n            color: #888888;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>Käyttäjäasetuksia muutettiin</h1>\n        </div>\n        <div class=\"content\">\n            <p>Hei Alice Tester,</p>\n            <p>Tilisi käyttäjäasetuksia on päivitetty. Muutetut kentät:</p>\n            <ul class=\"changes\">\n                \n                <li>\n                    <strong>dark_mode</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> False<br>\n                    <span class=\"value-label\">Uusi arvo:</span> True\n                </li>\n                \n            </ul>\n            <p>Jos et tehnyt tätä muutosta, ota välittömästi yhteyttä tukeemme.</p>\n            <p>Ystävällisin terveisin,<br>Tiimimme</p>\n        </div>\n        <div class=\"footer\">\n            <p>Tämä on automaattinen viesti, älä vastaa tähän sähköpostiin.</p>\n        </div>\n    </div>\n</body>\n</html>"
+   },
+   "settings_after": {
+    "city": "Helsinki",
+    "dark_mode": true,
+    "display_name": "Alice",
+    "language": "fi",
+    "subscribe_newsletter": null
+   },
+   "displayname_after": "Alice Tester"
+  },
+  {
+   "name": "dark mode from none",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": null,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "dark_mode": false
+   },
+   "status": 200,
+   "message": "Asetukset päivitetty ja ilmoitus lähetetty.",
+   "changed_fields": {
+    "dark_mode": {
+     "new": false,
+     "old": null
+    }
+   },
+   "mail": {
+    "subject": "Käyttäjäasetusten muutokset",
+    "html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Käyttäjäasetusten muutokset</title>\n    <style>\n        body {\n            background: #f4f4f4;\n            color: #333333;\n            margin: 0;\n            padding: 0;\n        }\n        .container {\n            width: 100%;\n            max-width: 600px;\n            padding: 20px;\n            background: #ffffff;\n            margin: 0 auto;\n            border-radius: 8px;\n            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);\n        }\n        .header {\n            text-align: center;\n            padding: 10px 0;\n            background: #0033A0;\n            color: #ffffff;\n            border-radius: 8px 8px 0 0;\n        }\n        .content {\n            margin: 20px;\n        }\n        .changes {\n            padding-left: 1.25rem;\n        }\n        .changes li {\n            margin-bottom: 0.75rem;\n        }\n        .value-label {\n            color: #666666;\n            font-size: 0.9em;\n        }\n        .footer {\n            margin-top: 20px;\n            text-align: center;\n            font-size: 0.9em;\n            color: #888888;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>Käyttäjäasetuksia muutettiin</h1>\n        </div>\n        <div class=\"content\">\n            <p>Hei Alice Tester,</p>\n            <p>Tilisi käyttäjäasetuksia on päivitetty. Muutetut kentät:</p>\n            <ul class=\"changes\">\n                \n                <li>\n                    <strong>dark_mode</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> ei asetettu<br>\n                    <span class=\"value-label\">Uusi arvo:</span> False\n                </li>\n                \n            </ul>\n            <p>Jos et tehnyt tätä muutosta, ota välittömästi yhteyttä tukeemme.</p>\n            <p>Ystävällisin terveisin,<br>Tiimimme</p>\n        </div>\n        <div class=\"footer\">\n            <p>Tämä on automaattinen viesti, älä vastaa tähän sähköpostiin.</p>\n        </div>\n    </div>\n</body>\n</html>"
+   },
+   "settings_after": {
+    "city": "Helsinki",
+    "dark_mode": false,
+    "display_name": "Alice",
+    "language": "fi",
+    "subscribe_newsletter": null
+   },
+   "displayname_after": "Alice Tester"
+  },
+  {
+   "name": "keys missing from the document",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "display_name": "Alice"
+   },
+   "body": {
+    "city": "Tampere",
+    "language": "fi",
+    "dark_mode": true
+   },
+   "status": 200,
+   "message": "Asetukset päivitetty ja ilmoitus lähetetty.",
+   "changed_fields": {
+    "city": {
+     "new": "Tampere",
+     "old": null
+    },
+    "dark_mode": {
+     "new": true,
+     "old": null
+    },
+    "language": {
+     "new": "fi",
+     "old": null
+    }
+   },
+   "mail": {
+    "subject": "Käyttäjäasetusten muutokset",
+    "html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Käyttäjäasetusten muutokset</title>\n    <style>\n        body {\n            background: #f4f4f4;\n            color: #333333;\n            margin: 0;\n            padding: 0;\n        }\n        .container {\n            width: 100%;\n            max-width: 600px;\n            padding: 20px;\n            background: #ffffff;\n            margin: 0 auto;\n            border-radius: 8px;\n            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);\n        }\n        .header {\n            text-align: center;\n            padding: 10px 0;\n            background: #0033A0;\n            color: #ffffff;\n            border-radius: 8px 8px 0 0;\n        }\n        .content {\n            margin: 20px;\n        }\n        .changes {\n            padding-left: 1.25rem;\n        }\n        .changes li {\n            margin-bottom: 0.75rem;\n        }\n        .value-label {\n            color: #666666;\n            font-size: 0.9em;\n        }\n        .footer {\n            margin-top: 20px;\n            text-align: center;\n            font-size: 0.9em;\n            color: #888888;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>Käyttäjäasetuksia muutettiin</h1>\n        </div>\n        <div class=\"content\">\n            <p>Hei Alice Tester,</p>\n            <p>Tilisi käyttäjäasetuksia on päivitetty. Muutetut kentät:</p>\n            <ul class=\"changes\">\n                \n                <li>\n                    <strong>city</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> ei asetettu<br>\n                    <span class=\"value-label\">Uusi arvo:</span> Tampere\n                </li>\n                \n                <li>\n                    <strong>language</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> ei asetettu<br>\n                    <span class=\"value-label\">Uusi arvo:</span> fi\n                </li>\n                \n                <li>\n                    <strong>dark_mode</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> ei asetettu<br>\n                    <span class=\"value-label\">Uusi arvo:</span> True\n                </li>\n                \n            </ul>\n            <p>Jos et tehnyt tätä muutosta, ota välittömästi yhteyttä tukeemme.</p>\n            <p>Ystävällisin terveisin,<br>Tiimimme</p>\n        </div>\n        <div class=\"footer\">\n            <p>Tämä on automaattinen viesti, älä vastaa tähän sähköpostiin.</p>\n        </div>\n    </div>\n</body>\n</html>"
+   },
+   "settings_after": {
+    "city": "Tampere",
+    "dark_mode": true,
+    "display_name": "Alice",
+    "language": "fi"
+   },
+   "displayname_after": "Alice Tester"
+  },
+  {
+   "name": "empty city",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "city": ""
+   },
+   "status": 200,
+   "message": "Asetukset päivitetty ja ilmoitus lähetetty.",
+   "changed_fields": {
+    "city": {
+     "new": "",
+     "old": "Helsinki"
+    }
+   },
+   "mail": {
+    "subject": "Käyttäjäasetusten muutokset",
+    "html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Käyttäjäasetusten muutokset</title>\n    <style>\n        body {\n            background: #f4f4f4;\n            color: #333333;\n            margin: 0;\n            padding: 0;\n        }\n        .container {\n            width: 100%;\n            max-width: 600px;\n            padding: 20px;\n            background: #ffffff;\n            margin: 0 auto;\n            border-radius: 8px;\n            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);\n        }\n        .header {\n            text-align: center;\n            padding: 10px 0;\n            background: #0033A0;\n            color: #ffffff;\n            border-radius: 8px 8px 0 0;\n        }\n        .content {\n            margin: 20px;\n        }\n        .changes {\n            padding-left: 1.25rem;\n        }\n        .changes li {\n            margin-bottom: 0.75rem;\n        }\n        .value-label {\n            color: #666666;\n            font-size: 0.9em;\n        }\n        .footer {\n            margin-top: 20px;\n            text-align: center;\n            font-size: 0.9em;\n            color: #888888;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>Käyttäjäasetuksia muutettiin</h1>\n        </div>\n        <div class=\"content\">\n            <p>Hei Alice Tester,</p>\n            <p>Tilisi käyttäjäasetuksia on päivitetty. Muutetut kentät:</p>\n            <ul class=\"changes\">\n                \n                <li>\n                    <strong>city</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> Helsinki<br>\n                    <span class=\"value-label\">Uusi arvo:</span> \n                </li>\n                \n            </ul>\n            <p>Jos et tehnyt tätä muutosta, ota välittömästi yhteyttä tukeemme.</p>\n            <p>Ystävällisin terveisin,<br>Tiimimme</p>\n        </div>\n        <div class=\"footer\">\n            <p>Tämä on automaattinen viesti, älä vastaa tähän sähköpostiin.</p>\n        </div>\n    </div>\n</body>\n</html>"
+   },
+   "settings_after": {
+    "city": "",
+    "dark_mode": true,
+    "display_name": "Alice",
+    "language": "fi",
+    "subscribe_newsletter": null
+   },
+   "displayname_after": "Alice Tester"
+  },
+  {
+   "name": "unicode",
+   "email": "alice@example.test",
+   "displayname": "Ääkkönen",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Öljy",
+    "language": "fi",
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "display_name": "Åsa Ünal 💖"
+   },
+   "status": 200,
+   "message": "Asetukset päivitetty ja ilmoitus lähetetty.",
+   "changed_fields": {
+    "display_name": {
+     "new": "Åsa Ünal 💖",
+     "old": "Öljy"
+    }
+   },
+   "mail": {
+    "subject": "Käyttäjäasetusten muutokset",
+    "html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Käyttäjäasetusten muutokset</title>\n    <style>\n        body {\n            background: #f4f4f4;\n            color: #333333;\n            margin: 0;\n            padding: 0;\n        }\n        .container {\n            width: 100%;\n            max-width: 600px;\n            padding: 20px;\n            background: #ffffff;\n            margin: 0 auto;\n            border-radius: 8px;\n            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);\n        }\n        .header {\n            text-align: center;\n            padding: 10px 0;\n            background: #0033A0;\n            color: #ffffff;\n            border-radius: 8px 8px 0 0;\n        }\n        .content {\n            margin: 20px;\n        }\n        .changes {\n            padding-left: 1.25rem;\n        }\n        .changes li {\n            margin-bottom: 0.75rem;\n        }\n        .value-label {\n            color: #666666;\n            font-size: 0.9em;\n        }\n        .footer {\n            margin-top: 20px;\n            text-align: center;\n            font-size: 0.9em;\n            color: #888888;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>Käyttäjäasetuksia muutettiin</h1>\n        </div>\n        <div class=\"content\">\n            <p>Hei Ääkkönen,</p>\n            <p>Tilisi käyttäjäasetuksia on päivitetty. Muutetut kentät:</p>\n            <ul class=\"changes\">\n                \n                <li>\n                    <strong>display_name</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> Öljy<br>\n                    <span class=\"value-label\">Uusi arvo:</span> Åsa Ünal 💖\n                </li>\n                \n            </ul>\n            <p>Jos et tehnyt tätä muutosta, ota välittömästi yhteyttä tukeemme.</p>\n            <p>Ystävällisin terveisin,<br>Tiimimme</p>\n        </div>\n        <div class=\"footer\">\n            <p>Tämä on automaattinen viesti, älä vastaa tähän sähköpostiin.</p>\n        </div>\n    </div>\n</body>\n</html>"
+   },
+   "settings_after": {
+    "city": "Helsinki",
+    "dark_mode": true,
+    "display_name": "Åsa Ünal 💖",
+    "language": "fi",
+    "subscribe_newsletter": null
+   },
+   "displayname_after": "Åsa Ünal 💖"
+  },
+  {
+   "name": "reserved name",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "display_name": "Admin"
+   },
+   "status": 400,
+   "message": "Admin-nimitys on varattu palvelun sisäiseen käyttöön.",
+   "changed_fields": {},
+   "mail": null
+  },
+  {
+   "name": "reserved name with at sign and spaces",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "display_name": " @Administrator "
+   },
+   "status": 400,
+   "message": "Admin-nimitys on varattu palvelun sisäiseen käyttöön.",
+   "changed_fields": {},
+   "mail": null
+  },
+  {
+   "name": "all four change",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": null,
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "display_name": "Neljä",
+    "city": "Oulu",
+    "language": "fi",
+    "dark_mode": false
+   },
+   "status": 200,
+   "message": "Asetukset päivitetty ja ilmoitus lähetetty.",
+   "changed_fields": {
+    "city": {
+     "new": "Oulu",
+     "old": "Helsinki"
+    },
+    "dark_mode": {
+     "new": false,
+     "old": true
+    },
+    "display_name": {
+     "new": "Neljä",
+     "old": "Alice"
+    },
+    "language": {
+     "new": "fi",
+     "old": null
+    }
+   },
+   "mail": {
+    "subject": "Käyttäjäasetusten muutokset",
+    "html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Käyttäjäasetusten muutokset</title>\n    <style>\n        body {\n            background: #f4f4f4;\n            color: #333333;\n            margin: 0;\n            padding: 0;\n        }\n        .container {\n            width: 100%;\n            max-width: 600px;\n            padding: 20px;\n            background: #ffffff;\n            margin: 0 auto;\n            border-radius: 8px;\n            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);\n        }\n        .header {\n            text-align: center;\n            padding: 10px 0;\n            background: #0033A0;\n            color: #ffffff;\n            border-radius: 8px 8px 0 0;\n        }\n        .content {\n            margin: 20px;\n        }\n        .changes {\n            padding-left: 1.25rem;\n        }\n        .changes li {\n            margin-bottom: 0.75rem;\n        }\n        .value-label {\n            color: #666666;\n            font-size: 0.9em;\n        }\n        .footer {\n            margin-top: 20px;\n            text-align: center;\n            font-size: 0.9em;\n            color: #888888;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>Käyttäjäasetuksia muutettiin</h1>\n        </div>\n        <div class=\"content\">\n            <p>Hei Alice Tester,</p>\n            <p>Tilisi käyttäjäasetuksia on päivitetty. Muutetut kentät:</p>\n            <ul class=\"changes\">\n                \n                <li>\n                    <strong>city</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> Helsinki<br>\n                    <span class=\"value-label\">Uusi arvo:</span> Oulu\n                </li>\n                \n                <li>\n                    <strong>display_name</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> Alice<br>\n                    <span class=\"value-label\">Uusi arvo:</span> Neljä\n                </li>\n                \n                <li>\n                    <strong>language</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> ei asetettu<br>\n                    <span class=\"value-label\">Uusi arvo:</span> fi\n                </li>\n                \n                <li>\n                    <strong>dark_mode</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> True<br>\n                    <span class=\"value-label\">Uusi arvo:</span> False\n                </li>\n                \n            </ul>\n            <p>Jos et tehnyt tätä muutosta, ota välittömästi yhteyttä tukeemme.</p>\n            <p>Ystävällisin terveisin,<br>Tiimimme</p>\n        </div>\n        <div class=\"footer\">\n            <p>Tämä on automaattinen viesti, älä vastaa tähän sähköpostiin.</p>\n        </div>\n    </div>\n</body>\n</html>"
+   },
+   "settings_after": {
+    "city": "Oulu",
+    "dark_mode": false,
+    "display_name": "Neljä",
+    "language": "fi",
+    "subscribe_newsletter": null
+   },
+   "displayname_after": "Neljä"
+  }
+ ]
+}

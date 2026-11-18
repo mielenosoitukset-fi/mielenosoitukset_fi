@@ -244,18 +244,30 @@ export function bioWriteFailure(status: number, body: unknown, fallback: string)
   return fallback;
 }
 
-/** Save only the bio through Go: same-origin cookie, CSRF header, JSON body. */
-export async function postBioToGo(csrf: string, bio: string, fallback: string, fetcher: typeof fetch = fetch): Promise<FlaskResult> {
+/** POST JSON to a Go account write: same-origin cookie, CSRF header, JSON body. */
+async function postToGo(url: string, csrf: string, payload: unknown, fallback: string, fetcher: typeof fetch): Promise<FlaskResult> {
   try {
-    const response = await fetcher(accountBioWriteApi, { method: 'POST', credentials: 'same-origin', cache: 'no-store',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify({ bio }) });
+    const response = await fetcher(url, { method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify(payload) });
     let body: unknown = null;
     try { body = await response.json(); } catch { /* an empty or non-JSON body is a failure below */ }
-    if (response.ok && isObject(body) && body.status === 'success') return { ok: true, message: '', body };
+    if (response.ok && isObject(body) && body.status === 'success') {
+      return { ok: true, message: typeof body.message === 'string' ? body.message.slice(0, 300) : '', body };
+    }
     return { ok: false, message: bioWriteFailure(response.status, body, fallback) };
   } catch {
     return { ok: false, message: fallback };
   }
+}
+
+/** Save only the bio through Go. */
+export function postBioToGo(csrf: string, bio: string, fallback: string, fetcher: typeof fetch = fetch): Promise<FlaskResult> {
+  return postToGo(accountBioWriteApi, csrf, { bio }, fallback, fetcher);
+}
+
+/** Save the general settings through Go (docs/account-pages-react.md, step 3b). */
+export function postGeneralToGo(csrf: string, payload: ReturnType<typeof generalPayload>, fallback: string, fetcher: typeof fetch = fetch): Promise<FlaskResult> {
+  return postToGo(accountSettingsApi, csrf, payload, fallback, fetcher);
 }
 
 export const profilePayload = (bio: string, base64Image: string | null) => ({ bio, profile_picture: base64Image });
