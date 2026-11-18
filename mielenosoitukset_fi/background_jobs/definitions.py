@@ -31,6 +31,7 @@ from mielenosoitukset_fi.scripts.deliver_fundraising_reminder_confirmations impo
 from mielenosoitukset_fi.scripts.send_fundraising_reminders import main as send_fundraising_reminders
 from mielenosoitukset_fi.scripts.purge_fundraising_reminders import main as purge_fundraising_reminders
 from mielenosoitukset_fi.scripts.purge_campaign_volunteers import main as purge_campaign_volunteers
+from mielenosoitukset_fi.scripts.purge_suggestion_ips import main as purge_suggestion_ips
 from mielenosoitukset_fi.scripts.deliver_pride_banner_confirmations import main as deliver_pride_banner_confirmations
 from mielenosoitukset_fi.scripts.purge_pride_banner_volunteers import main as purge_pride_banner_volunteers
 from mielenosoitukset_fi.scripts.deliver_opening_interest_confirmations import main as deliver_opening_interest_confirmations
@@ -218,6 +219,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         name="Campaign volunteer retention",
         description="Deletes all campaign volunteer signups once 31.5.2027 has passed (from 1.6.2027 00:00 Helsinki). Does nothing before that.",
         func=purge_campaign_volunteers,
+        default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="purge_suggestion_ips",
+        name="Suggestion IP retention",
+        description="Removes the IP address and User-Agent from organisation and demonstration suggestions (and their cases) older than 90 days. Never deletes the suggestions. Does nothing unless SUGGESTION_IP_PURGE_ENABLED is set.",
+        func=purge_suggestion_ips,
         default_trigger=_interval(days=1),
     ),
     JobDefinition(
