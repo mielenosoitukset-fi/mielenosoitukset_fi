@@ -293,19 +293,26 @@ func firstN[T any](items []T, n int) []T {
 }
 
 func (s mongoProfileStore) Summaries(ctx context.Context, ids []string) ([]profileSummary, error) {
-	byID, err := s.docsByID(ctx, "users", ids, bson.M{"username": 1, "displayname": 1, "profile_picture": 1})
+	byID, err := s.docsByID(ctx, "users", ids, bson.M{"username": 1, "displayname": 1, "profile_picture": 1,
+		"banned": 1, "active": 1, "security_suspension": 1})
 	if err != nil {
 		return nil, err
 	}
+	return profileSummariesFrom(ids, byID), nil
+}
+
+// profileSummariesFrom keeps the stored order and drops ids with no document,
+// no username, or an account the public profile hides.
+func profileSummariesFrom(ids []string, byID map[string]bson.M) []profileSummary {
 	out := []profileSummary{}
 	for _, id := range firstN(ids, profileMaxLookups) {
 		doc, ok := byID[id]
-		if !ok || stringField(doc, "username") == "" {
+		if !ok || stringField(doc, "username") == "" || profileAccountHidden(doc) {
 			continue
 		}
 		out = append(out, profileSummaryFor(stringField(doc, "username"), stringField(doc, "displayname"), stringField(doc, "profile_picture")))
 	}
-	return out, nil
+	return out
 }
 
 func profileSummaryFor(username, displayname, picture string) profileSummary {

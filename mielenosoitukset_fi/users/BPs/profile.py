@@ -33,14 +33,15 @@ def _profile_user_summaries(mongo, user_ids):
         doc["_id"]: doc
         for doc in mongo.users.find(
             {"_id": {"$in": object_ids}},
-            {"username": 1, "displayname": 1, "profile_picture": 1},
+            {"username": 1, "displayname": 1, "profile_picture": 1,
+             "banned": 1, "active": 1, "security_suspension": 1},
         )
     }
 
     summaries = []
     for object_id in object_ids:
         doc = users_by_id.get(object_id)
-        if not doc or not doc.get("username"):
+        if not doc or not doc.get("username") or _profile_hidden(doc):
             continue
         summaries.append(
             {
@@ -170,7 +171,7 @@ def api_is_following():
         return {"error": "Username is required"}, 400
 
     user_data = _get_mongo().users.find_one({"username": username})
-    if not user_data:
+    if not user_data or _profile_hidden(user_data):
         return {"error": "User not found"}, 404
 
     user_obj = User.from_db(user_data)
@@ -197,7 +198,7 @@ def api_is_friends():
         return {"error": "Username is required"}, 400
 
     user_data = _get_mongo().users.find_one({"username": username})
-    if not user_data:
+    if not user_data or _profile_hidden(user_data):
         return {"error": "User not found"}, 404
 
     user_obj = User.from_db(user_data)
@@ -225,7 +226,7 @@ def follow_user():
         return {"error": "Username required"}, 400
 
     user_data = _get_mongo().users.find_one({"username": username})
-    if not user_data:
+    if not user_data or _profile_hidden(user_data):
         return {"error": "User not found"}, 404
 
     user_obj = User.from_db(user_data)
@@ -299,7 +300,7 @@ def send_friend_request():
         return {"error": "Username required"}, 400
 
     other_data = _get_mongo().users.find_one({"username": username})
-    if not other_data:
+    if not other_data or _profile_hidden(other_data):
         return {"error": "User not found"}, 404
 
     other = User.from_db(other_data)
@@ -344,7 +345,7 @@ def accept_friend_request():
         return {"error": "Username required"}, 400
 
     other_data = _get_mongo().users.find_one({"username": username})
-    if not other_data:
+    if not other_data or _profile_hidden(other_data):
         return {"error": "User not found"}, 404
 
     other = User.from_db(other_data)
@@ -418,7 +419,7 @@ def friend_state():
         return {"error": "Username required"}, 400
 
     other_data = _get_mongo().users.find_one({"username": username})
-    if not other_data:
+    if not other_data or _profile_hidden(other_data):
         return {"error": "User not found"}, 404
 
     other = User.from_db(other_data)
@@ -457,7 +458,7 @@ def api_friends_list():
     for friend in current_user.friends:
         fid = friend.get("user_id")
         f_data = _get_mongo().users.find_one({"_id": fid})
-        if f_data:
+        if f_data and not _profile_hidden(f_data):
             f_user = User.from_db(f_data)
             friends.append({
                 "username": f_user.username,
@@ -489,7 +490,7 @@ def api_unread_count():
             "read": False
         })
         f_data = mongo.users.find_one({"_id": fid})
-        if f_data:
+        if f_data and not _profile_hidden(f_data):
             f_user = User.from_db(f_data)
             counts[f_user.username] = msgs
     return counts, 200
@@ -514,7 +515,7 @@ def api_messages_with(friend_username):
     """
     mongo = _get_mongo()
     friend_data = mongo.users.find_one({"username": friend_username})
-    if not friend_data:
+    if not friend_data or _profile_hidden(friend_data):
         return {"error": "Friend not found"}, 404
 
     friend = User.from_db(friend_data)
@@ -570,6 +571,24 @@ def api_get_messages():
     mongo = _get_mongo()
     msgs = list(mongo.messages.find(query).sort("created_at", -1))
 
+    # Conversations with banned, deactivated or suspended accounts disappear.
+    other_ids = {
+        msg["recipient_id"] if msg.get("sender_id") == current_user._id else msg.get("sender_id")
+        for msg in msgs
+    }
+    hidden_ids = {
+        doc["_id"]
+        for doc in mongo.users.find(
+            {"_id": {"$in": list(other_ids)}},
+            {"banned": 1, "active": 1, "security_suspension": 1},
+        )
+        if _profile_hidden(doc)
+    }
+    msgs = [
+        msg for msg in msgs
+        if (msg["recipient_id"] if msg.get("sender_id") == current_user._id else msg.get("sender_id")) not in hidden_ids
+    ]
+
     for msg in msgs:
         if msg.get("recipient_id") == current_user._id and not msg.get("read", False):
             mongo.messages.update_one({"_id": msg["_id"]}, {"$set": {"read": True}})
@@ -611,7 +630,7 @@ def send_message():
         return {"error": "Recipient and content required"}, 400
 
     recipient_data = _get_mongo().users.find_one({"username": recipient_name})
-    if not recipient_data:
+    if not recipient_data or _profile_hidden(recipient_data):
         return {"error": "Recipient not found"}, 404
 
     recipient = User.from_db(recipient_data)
