@@ -334,3 +334,11 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
   `POST /api/account/profile` (behind `ACCOUNT_SETTINGS_WRITES`) trims it, strips bidi override characters, refuses more than 5000 characters
   and control characters other than newline and tab, and stores an empty bio as `null`. The
   Flask path is unchanged. See [account-pages-react.md](account-pages-react.md).
+
+- **Backup alerts go to Bark push, e-mail is the fallback (2026-11-18).** The
+  maintainer prefers a Bark push (iOS) over e-mail for ops alerts. `backup-notify.py`
+  tries Bark first (`BARK_KEY`, `BARK_URL` default `https://api.day.app`, HTTPS only,
+  10 s timeout), then e-mail if `ALERT_EMAIL` is set, and exits non-zero when no
+  channel works so the failure is visible. The key lives only in the root-only
+  `backup.env` on the server and is never logged. The push names only the label and
+  the failed check. Setup: [backups.md](backups.md).
