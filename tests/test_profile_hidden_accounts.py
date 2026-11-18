@@ -13,3 +13,42 @@ def test_hidden_accounts():
     assert _profile_hidden({"banned": True}) is True
     assert _profile_hidden({"active": False}) is True
     assert _profile_hidden({"security_suspension": {"active": True}}) is True
+
+
+def _follow_each_other(db, seeded_data):
+    db.users.update_one(
+        {"_id": seeded_data["user_id"]},
+        {"$set": {"followers": [seeded_data["friend_id"]], "following": [seeded_data["friend_id"]]}},
+    )
+
+
+def test_hidden_accounts_leave_the_follower_lists(user_client, db, seeded_data):
+    _follow_each_other(db, seeded_data)
+    assert "Bob Friend" in user_client.get("/users/profile/").get_data(as_text=True)
+
+    db.users.update_one({"_id": seeded_data["friend_id"]}, {"$set": {"banned": True}})
+
+    html = user_client.get("/users/profile/").get_data(as_text=True)
+    assert "Bob Friend" not in html
+    assert "/users/profile/bob" not in html
+
+
+def test_follow_and_friend_endpoints_reject_hidden_accounts(user_client, db, seeded_data):
+    db.users.update_one(
+        {"_id": seeded_data["friend_id"]},
+        {"$set": {"security_suspension": {"active": True}}},
+    )
+
+    for path in (
+        "/users/profile/api/follow/",
+        "/users/profile/api/send_friend_request/",
+        "/users/profile/api/accept_friend_request/",
+    ):
+        response = user_client.post(path, json={"username": "bob"})
+        assert response.status_code == 404, path
+    for path in (
+        "/users/profile/api/is_following/?username=bob",
+        "/users/profile/api/is_friends/?username=bob",
+        "/users/profile/api/friend_state/?username=bob",
+    ):
+        assert user_client.get(path).status_code == 404, path

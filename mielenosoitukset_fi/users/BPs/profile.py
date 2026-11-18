@@ -33,14 +33,15 @@ def _profile_user_summaries(mongo, user_ids):
         doc["_id"]: doc
         for doc in mongo.users.find(
             {"_id": {"$in": object_ids}},
-            {"username": 1, "displayname": 1, "profile_picture": 1},
+            {"username": 1, "displayname": 1, "profile_picture": 1,
+             "banned": 1, "active": 1, "security_suspension": 1},
         )
     }
 
     summaries = []
     for object_id in object_ids:
         doc = users_by_id.get(object_id)
-        if not doc or not doc.get("username"):
+        if not doc or not doc.get("username") or _profile_hidden(doc):
             continue
         summaries.append(
             {
@@ -170,7 +171,7 @@ def api_is_following():
         return {"error": "Username is required"}, 400
 
     user_data = _get_mongo().users.find_one({"username": username})
-    if not user_data:
+    if not user_data or _profile_hidden(user_data):
         return {"error": "User not found"}, 404
 
     user_obj = User.from_db(user_data)
@@ -197,7 +198,7 @@ def api_is_friends():
         return {"error": "Username is required"}, 400
 
     user_data = _get_mongo().users.find_one({"username": username})
-    if not user_data:
+    if not user_data or _profile_hidden(user_data):
         return {"error": "User not found"}, 404
 
     user_obj = User.from_db(user_data)
@@ -225,7 +226,7 @@ def follow_user():
         return {"error": "Username required"}, 400
 
     user_data = _get_mongo().users.find_one({"username": username})
-    if not user_data:
+    if not user_data or _profile_hidden(user_data):
         return {"error": "User not found"}, 404
 
     user_obj = User.from_db(user_data)
@@ -299,7 +300,7 @@ def send_friend_request():
         return {"error": "Username required"}, 400
 
     other_data = _get_mongo().users.find_one({"username": username})
-    if not other_data:
+    if not other_data or _profile_hidden(other_data):
         return {"error": "User not found"}, 404
 
     other = User.from_db(other_data)
@@ -344,7 +345,7 @@ def accept_friend_request():
         return {"error": "Username required"}, 400
 
     other_data = _get_mongo().users.find_one({"username": username})
-    if not other_data:
+    if not other_data or _profile_hidden(other_data):
         return {"error": "User not found"}, 404
 
     other = User.from_db(other_data)
@@ -418,7 +419,7 @@ def friend_state():
         return {"error": "Username required"}, 400
 
     other_data = _get_mongo().users.find_one({"username": username})
-    if not other_data:
+    if not other_data or _profile_hidden(other_data):
         return {"error": "User not found"}, 404
 
     other = User.from_db(other_data)
