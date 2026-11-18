@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	stdhtml "html"
 	"image"
@@ -107,69 +106,97 @@ func cleanSubmissionHTML(value string) string {
 	return output.String()
 }
 
-func validSubmissionFields(r *http.Request) bool {
+// submissionError tells the submitter which check failed. One shared message
+// for every check left people sure they had filled every required field.
+type submissionError struct{ Code, Message string }
+
+func (e submissionError) Error() string { return e.Message }
+
+func missingSubmissionField(label string) error {
+	return submissionError{"SUBMIT_MISSING_FIELDS", "Pakollinen kenttä puuttuu: " + label + "."}
+}
+
+func invalidSubmissionField(message string) error {
+	return submissionError{"SUBMIT_INVALID_FIELD", message}
+}
+
+var submissionRequiredFields = []struct{ key, label string }{
+	{"title", "mielenosoituksen nimi"}, {"date", "päivämäärä"}, {"start_time", "alkamisaika"}, {"type", "tyyppi"},
+	{"city", "kaupunki"}, {"address", "osoite"}, {"submitter_role", "roolisi"}, {"submitter_name", "nimesi"},
+	{"submitter_email", "sähköpostiosoitteesi"},
+}
+
+func validateSubmissionFields(r *http.Request) error {
 	for key, values := range r.MultipartForm.Value {
 		limit := 2000
 		if key == "description" {
 			limit = 100_000
 		}
-		if len(values) != 1 || len(values[0]) > limit {
-			return false
+		if len(values) != 1 {
+			return invalidSubmissionField("Lomakkeessa on sama kenttä useaan kertaan. Päivitä sivu ja yritä uudelleen.")
+		}
+		if len(values[0]) > limit {
+			return invalidSubmissionField(fmt.Sprintf("Kenttä %q on liian pitkä (enintään %d merkkiä).", key, limit))
 		}
 	}
 	get := func(key string) string { return strings.TrimSpace(r.FormValue(key)) }
-	for _, key := range []string{"title", "date", "start_time", "city", "address", "submitter_role", "submitter_name", "submitter_email", "accept_terms"} {
-		if get(key) == "" {
-			return false
+	for _, field := range submissionRequiredFields {
+		if get(field.key) == "" {
+			return missingSubmissionField(field.label)
 		}
+	}
+	if get("accept_terms") == "" {
+		return submissionError{"SUBMIT_MISSING_FIELDS", "Hyväksy käyttöehdot ennen lähettämistä."}
 	}
 	date, err := time.Parse("2006-01-02", get("date"))
 	if err != nil || date.Format("2006-01-02") != get("date") {
-		return false
+		return invalidSubmissionField("Päivämäärä ei kelpaa. Valitse päivä kalenterista.")
 	}
 	for _, key := range []string{"start_time", "end_time"} {
 		if value := get(key); value != "" {
 			if parsed, err := time.Parse("15:04", value); err != nil || parsed.Format("15:04") != value {
-				return false
+				return invalidSubmissionField("Kellonaika ei kelpaa. Käytä muotoa 18:00.")
 			}
 		}
 	}
-	if !submissionEmail(get("submitter_email")) || !submissionTokenPattern.MatchString(get("submission_token")) {
-		return false
+	if !submissionEmail(get("submitter_email")) {
+		return invalidSubmissionField("Sähköpostiosoitteesi ei kelpaa. Tarkista osoite.")
 	}
-	return true
+	if !submissionTokenPattern.MatchString(get("submission_token")) {
+		return invalidSubmissionField("Lomakkeen istunto puuttuu tai on vanhentunut. Päivitä sivu ja yritä uudelleen.")
+	}
+	return nil
 }
 
 func readSubmission(w http.ResponseWriter, r *http.Request, locales map[string]bool) (submissionInput, error) {
-	invalid := errors.New("Tarkista lomakkeen tiedot ja hyväksy käyttöehdot.")
 	r.Body = http.MaxBytesReader(w, r.Body, submissionBodyLimit)
 	if err := r.ParseMultipartForm(1 << 20); err != nil {
-		return submissionInput{}, invalid
+		return submissionInput{}, invalidSubmissionField("Lomakkeen lukeminen epäonnistui. Tarkista, ettei kuva ole yli 8 Mt, ja yritä uudelleen.")
 	}
 	defer r.MultipartForm.RemoveAll()
-	if !validSubmissionFields(r) {
-		return submissionInput{}, invalid
+	if err := validateSubmissionFields(r); err != nil {
+		return submissionInput{}, err
 	}
 	get := func(key string) string { return strings.TrimSpace(r.FormValue(key)) }
 	city, known := cityCatalog[normalizeCityKey(get("city"))]
 	if !known {
-		return submissionInput{}, invalid
+		return submissionInput{}, invalidSubmissionField("Kaupunkia ei löytynyt. Valitse kaupunki listasta.")
 	}
 	locale := get("default_language")
 	if locale == "" {
 		locale = "fi"
 	}
 	if !locales[locale] {
-		return submissionInput{}, invalid
+		return submissionInput{}, invalidSubmissionField("Valittu kieli ei ole käytössä. Valitse kieli listasta.")
 	}
 	types := map[string]string{"paikallaan": "STAY_STILL", "marssi": "MARCH", "muut": "OTHER"}
 	eventType, known := types[get("type")]
 	if !known {
-		return submissionInput{}, invalid
+		return submissionInput{}, invalidSubmissionField("Valitse mielenosoituksen tyyppi listasta.")
 	}
 	organizers, err := submissionOrganizers(r)
 	if err != nil {
-		return submissionInput{}, invalid
+		return submissionInput{}, err
 	}
 	tags := []string{}
 	seen := map[string]bool{}
@@ -181,7 +208,7 @@ func readSubmission(w http.ResponseWriter, r *http.Request, locales map[string]b
 		}
 	}
 	if len(tags) > 50 {
-		return submissionInput{}, invalid
+		return submissionInput{}, invalidSubmissionField("Tunnisteita on liikaa (enintään 50).")
 	}
 	route := bson.A{}
 	if eventType == "MARCH" {
@@ -215,7 +242,7 @@ func readSubmission(w http.ResponseWriter, r *http.Request, locales map[string]b
 }
 
 func readSubmissionImage(r *http.Request) ([]byte, error) {
-	invalid := errors.New("Kuva ei kelpaa. Käytä JPEG-, PNG-, WebP- tai GIF-kuvaa, enintään 8 Mt ja 40 megapikseliä.")
+	invalid := submissionError{"SUBMIT_INVALID_IMAGE", "Kuva ei kelpaa. Käytä JPEG-, PNG-, WebP- tai GIF-kuvaa, enintään 8 Mt ja 40 megapikseliä."}
 	for key, files := range r.MultipartForm.File {
 		if key != "image" || len(files) != 1 {
 			return nil, invalid
@@ -250,7 +277,7 @@ func submissionOrganizers(r *http.Request) (bson.A, error) {
 		}
 	}
 	if len(indices) > 20 {
-		return nil, errors.New("too many organizers")
+		return nil, invalidSubmissionField("Järjestäjiä voi olla enintään 20.")
 	}
 	sort.Ints(indices)
 	rows := bson.A{}
@@ -259,7 +286,7 @@ func submissionOrganizers(r *http.Request) (bson.A, error) {
 			return strings.TrimSpace(r.FormValue(fmt.Sprintf("organizer_%s_%d", field, index)))
 		}
 		if email := get("email"); email != "" && !submissionEmail(email) {
-			return nil, errors.New("invalid organizer email")
+			return nil, invalidSubmissionField(fmt.Sprintf("Järjestäjän %d sähköpostiosoite ei kelpaa. Korjaa se tai jätä kenttä tyhjäksi.", index))
 		}
 		rows = append(rows, bson.M{"_id": bson.NewObjectID(), "name": get("name"), "email": get("email"), "website": safeSubmissionURL(get("website")), "is_private": get("is_private") != "", "show_name_public": get("show_name") != "", "show_email_public": get("show_email") != ""})
 	}
