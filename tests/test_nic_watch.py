@@ -28,3 +28,14 @@ def test_kernel_hit_matches_both_faults():
     assert nic_watch.kernel_hit("WARNING: NETDEV WATCHDOG: eth0 (virtio_net): transmit queue 0 timed out")
     assert nic_watch.kernel_hit("virtio_net virtio0 eth0: TX timeout on queue: 0")
     assert not nic_watch.kernel_hit("eth0: link up")
+
+
+def test_missing_recipient_is_a_failure_so_no_cooldown_starts():
+    assert nic_watch.send_alert(object(), "x", "y", {}) is False
+
+
+def test_url_must_be_plain_http(tmp_path):
+    import pytest
+
+    with pytest.raises(SystemExit):
+        nic_watch.main(["--mode", "softirq", "--url", "file:///etc/passwd", "--state", str(tmp_path / "s.json")], env={})

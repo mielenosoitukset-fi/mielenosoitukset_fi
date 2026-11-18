@@ -95,8 +95,9 @@ def save_state(path, state):
 def send_alert(notify, subject_tail, body, env):
     recipient = (env.get("ALERT_EMAIL") or "").strip()
     if not recipient:
+        # Failure, so the cooldown does not start and the unit shows as failed.
         print("nic-watch: ALERT_EMAIL is not set; no mail sent", file=sys.stderr)
-        return True
+        return False
     host = socket.gethostname()
     mail_config = {}
     try:
@@ -138,6 +139,8 @@ def main(argv=None, env=None, now=None):
     if args.mode == "softirq":
         if not args.url:
             parser.error("--url is required for softirq mode")
+        if not args.url.startswith("http://"):
+            parser.error("--url must start with http://")
         try:
             with urllib.request.urlopen(args.url, timeout=10) as response:
                 current = parse_softirq(response.read().decode("utf-8", "replace"))
