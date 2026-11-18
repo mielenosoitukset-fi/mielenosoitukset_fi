@@ -52,6 +52,17 @@ def _profile_user_summaries(mongo, user_ids):
         )
     return summaries
 
+def _profile_hidden(user_data):
+    """True for banned, deactivated and security-suspended accounts.
+
+    Their public profile answers like a missing user (maintainer decision of
+    18 November 2026); the Go profile read applies the same rule.
+    """
+    if user_data.get("banned") is True or user_data.get("active", True) is False:
+        return True
+    return bool((user_data.get("security_suspension") or {}).get("active"))
+
+
 profile_bp = Blueprint(
     "profile", __name__, template_folder="/users/profile/", url_prefix="/profile"
 )
@@ -81,7 +92,7 @@ def profile(username=None):
 
     mongo = _get_mongo()
     user_data = mongo.users.find_one({"username": username})
-    if user_data:
+    if user_data and not _profile_hidden(user_data):
         user_obj = User.from_db(user_data)
         user_obj.followers_count = len(user_obj.followers)
         user_obj.following_count = len(user_obj.following)

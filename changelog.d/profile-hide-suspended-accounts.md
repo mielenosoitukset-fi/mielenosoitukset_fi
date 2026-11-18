@@ -1,0 +1,1 @@
+- The public profile page of a banned, deactivated or suspended account now shows the same "not found" answer as a profile that does not exist. The rule applies to the existing page and to the new Go profile read.

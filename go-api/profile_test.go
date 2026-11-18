@@ -372,3 +372,24 @@ func mergeState(base, extra bson.M) bson.M {
 	}
 	return base
 }
+
+func TestProfileAccountHidden(t *testing.T) {
+	cases := []struct {
+		name string
+		doc  bson.M
+		want bool
+	}{
+		{"ordinary", bson.M{"active": true, "banned": false}, false},
+		{"no markers", bson.M{}, false},
+		{"banned", bson.M{"banned": true}, true},
+		{"inactive", bson.M{"active": false}, true},
+		{"suspended", bson.M{"security_suspension": bson.M{"active": true}}, true},
+		{"suspension lifted", bson.M{"security_suspension": bson.M{"active": false}}, false},
+		{"suspended and banned", bson.M{"banned": true, "security_suspension": bson.M{"active": true}}, true},
+	}
+	for _, c := range cases {
+		if got := profileAccountHidden(c.doc); got != c.want {
+			t.Errorf("%s: hidden %v, want %v", c.name, got, c.want)
+		}
+	}
+}

@@ -168,7 +168,7 @@ func (s mongoProfileStore) User(ctx context.Context, username string) (*profileU
 		return nil, err
 	}
 	id, ok := doc["_id"].(bson.ObjectID)
-	if !ok {
+	if !ok || profileAccountHidden(doc) {
 		return nil, nil
 	}
 	national, err := userHasNationalAccess(ctx, s, doc, id)
@@ -215,6 +215,25 @@ func (s mongoProfileStore) Clearance(ctx context.Context, userID string) (bson.M
 		return nil, nil
 	}
 	return record, err
+}
+
+// profileAccountHidden reports accounts whose public profile answers "not found",
+// the same answer as for a missing user (maintainer decision, 18 November 2026):
+// suspended, banned and deactivated accounts. No account document is read for
+// deleted or anonymised accounts because the code has no such marker; a deleted
+// account has no document and is already not found.
+func profileAccountHidden(doc bson.M) bool {
+	if banned, _ := doc["banned"].(bool); banned {
+		return true
+	}
+	if active, present := doc["active"].(bool); present && !active {
+		return true
+	}
+	suspension, _ := doc["security_suspension"].(bson.M)
+	if on, _ := suspension["active"].(bool); on {
+		return true
+	}
+	return false
 }
 
 func (s mongoProfileStore) Account(ctx context.Context, id bson.ObjectID) (*profileAccount, error) {
