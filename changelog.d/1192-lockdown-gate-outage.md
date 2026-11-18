@@ -1,0 +1,1 @@
+- The public site no longer shows "Palvelu on tilapäisesti suljettu" when the database is only slow: a failed lockdown status read keeps the last answer for 15 minutes (a real lockdown still applies at once and a failed read never reopens it), and a freshly restarted server stays open unless the emergency override is set. Read failures are logged.
