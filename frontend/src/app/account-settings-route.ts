@@ -8,7 +8,9 @@ export const accountGeneralWriteApi = '/users/auth/api/v2/settings';
 export const accountProfileWriteApi = '/users/auth/api/v2/user_profile';
 /** Go bio write (docs/account-pages-react.md, step 3a); used only when the read answer carries a CSRF token. */
 export const accountBioWriteApi = '/api/account/profile';
-export const accountBioMax = 1000;
+export const accountBioMax = 5000;
+/** Announce the remaining length to screen readers once the text is this close to the limit. */
+export const accountBioWarnAt = 200;
 export const accountDeveloperPath = '/developer';
 export const accountTranslationsUrl = 'https://mielenosoitukset.fi/upcoming/translations/';
 
@@ -103,6 +105,8 @@ export const accountCopy = {
   imageFailed: 'Kuvan lukeminen epäonnistui',
   rateLimited: 'Liian monta pyyntöä. Yritä hetken kuluttua uudelleen.',
   sessionExpired: 'Istunto vanhentui. Lataa sivu uudelleen.',
+  reloadPage: 'Lataa sivu uudelleen',
+  charsLeft: 'merkkiä jäljellä',
 } as const;
 
 export type AccountGeneral = { displayName: string; city: string | null; language: string | null; darkMode: boolean | null };

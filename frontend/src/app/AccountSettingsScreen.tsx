@@ -4,7 +4,7 @@ import type { AppConfig } from './config';
 import type { SessionSummary } from './session';
 import { useSession } from './useSession';
 import {
-  accountBioMax, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
+  accountBioMax, accountBioWarnAt, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
   accountSettingsPath, accountStanding, accountTabs, accountTranslationsUrl, classifyAccountResponse, filterCities,
   generalPayload, nextTabIndex, postBioToGo, postFlaskJson, profilePayload, readAccountSettings, safePicture, tabFromHash,
 } from './account-settings-route';
@@ -16,6 +16,14 @@ import './account-settings/account-settings.css';
 
 type Load = { state: 'loading' } | { state: 'anonymous' } | { state: 'unavailable' } | { state: 'ready'; data: AccountSettingsRead };
 type Message = { kind: 'error' | 'info'; text: string } | null;
+
+/** The save result, shown under the save button; an expired session offers a reload. */
+function SaveMessage({ message }: { message: Message }) {
+  return <div aria-live="polite">{message && notice(message.kind, <>
+    {message.text}
+    {message.text === copy.sessionExpired && <>{' '}<button type="button" className="detail-button" onClick={() => window.location.reload()}>{copy.reloadPage}</button></>}
+  </>)}</div>;
+}
 
 const notice = (kind: 'error' | 'info', children: ReactNode) =>
   <div className={`flash-message flash-message--inline flash-${kind}`} role={kind === 'error' ? 'alert' : 'status'}>
@@ -67,7 +75,7 @@ function CityPicker({ id, value, cities, onChange }: { id: string; value: string
   </div>;
 }
 
-function GeneralPanel({ data, report }: { data: AccountSettingsRead; report: (message: Message) => void }) {
+function GeneralPanel({ data, report, message }: { data: AccountSettingsRead; report: (message: Message) => void; message: Message }) {
   const [displayName, setDisplayName] = useState(data.general.displayName);
   const [city, setCity] = useState(data.general.city ?? '');
   const [darkMode, setDarkMode] = useState(data.general.darkMode === true);
@@ -112,6 +120,7 @@ function GeneralPanel({ data, report }: { data: AccountSettingsRead; report: (me
           {busy ? copy.saving : copy.save}
         </button>
       </div>
+      <SaveMessage message={message} />
     </section>
   </form>;
 }
@@ -172,7 +181,7 @@ function TokensPanel() {
   </section>;
 }
 
-function ProfilePanel({ data, report }: { data: AccountSettingsRead; report: (message: Message) => void }) {
+function ProfilePanel({ data, report, message }: { data: AccountSettingsRead; report: (message: Message) => void; message: Message }) {
   const [bio, setBio] = useState(data.bio ?? '');
   const [picture, setPicture] = useState(data.picture);
   const [busy, setBusy] = useState(false);
@@ -204,9 +213,10 @@ function ProfilePanel({ data, report }: { data: AccountSettingsRead; report: (me
       <p className="account-muted">{copy.profileLead}</p>
       <div className="suggest-change-field">
         <label htmlFor={ids.bio}>{copy.bio}</label>
-        <textarea id={ids.bio} rows={5} value={bio} maxLength={data.csrf ? accountBioMax : 5000} aria-describedby={ids.bioHelp} onChange={event => setBio(event.target.value)} />
+        <textarea id={ids.bio} rows={5} value={bio} maxLength={accountBioMax} aria-describedby={ids.bioHelp} onChange={event => setBio(event.target.value)} />
         <p className="account-muted" id={ids.bioHelp}>{copy.bioHelp}</p>
         {data.csrf && <p className="account-muted" aria-hidden="true">{Array.from(bio).length} / {accountBioMax}</p>}
+        {data.csrf && <p className="sr-only" role="status" aria-live="polite">{accountBioMax - Array.from(bio).length <= accountBioWarnAt ? `${accountBioMax - Array.from(bio).length} ${copy.charsLeft}` : ''}</p>}
       </div>
       <div className="suggest-change-field">
         <label htmlFor={ids.pic}>{copy.picture} <span className="account-muted">({copy.optional})</span></label>
@@ -219,6 +229,7 @@ function ProfilePanel({ data, report }: { data: AccountSettingsRead; report: (me
           {busy ? copy.saving : copy.saveProfile}
         </button>
       </div>
+      <SaveMessage message={message} />
     </section>
   </form>;
 }
@@ -250,7 +261,6 @@ function Tabs({ data }: { data: AccountSettingsRead }) {
     if (focus) tabRefs.current[accountTabs.findIndex(tab => tab.id === id)]?.focus();
   };
   return <>
-    <div aria-live="polite">{message && notice(message.kind, message.text)}</div>
     <ul className="account-tabs" role="tablist" aria-label={copy.tabsLabel}>
       {accountTabs.map((tab, index) => <li key={tab.id} role="presentation">
         <a id={`settings-tab-${tab.id}`} ref={element => { tabRefs.current[index] = element; }} href={`#${tab.panel}`} role="tab"
@@ -266,10 +276,10 @@ function Tabs({ data }: { data: AccountSettingsRead }) {
     </ul>
     {accountTabs.map(tab => <div key={tab.id} id={tab.panel} role="tabpanel" aria-labelledby={`settings-tab-${tab.id}`}
       hidden={active !== tab.id} className="account-panel">
-      {tab.id === 'general' && <GeneralPanel data={data} report={setMessage} />}
+      {tab.id === 'general' && <GeneralPanel data={data} report={setMessage} message={message} />}
       {tab.id === 'security' && <SecurityPanel data={data} />}
       {tab.id === 'tokens' && <TokensPanel />}
-      {tab.id === 'profile' && <ProfilePanel data={data} report={setMessage} />}
+      {tab.id === 'profile' && <ProfilePanel data={data} report={setMessage} message={message} />}
     </div>)}
   </>;
 }
