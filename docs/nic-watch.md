@@ -24,9 +24,20 @@ database host has none), both checks use the local `sendmail`, with `ALERT_EMAIL
 set in `nic-watch.env`; if neither works the unit fails
 and the journal says why.
 
+## Other nightly load on the database VM
+
+The hypervisor's own VM backup job (snapshot mode, all VMs, zstd) starts at 02:30
+Helsinki time and took about 4.5 hours on 18 November 2026: the database VM's
+16 GB image finished around 07:05. It overlaps the nightly database dump
+(03:30), and a VM shutdown is refused while it runs. It reads the disk on the
+hypervisor, not through the VM's network card, so it is not proven to be the
+cause of the stalls; the alerts above show whether a stall coincides with it.
+The job has no bandwidth limit set. Changes to it are a separate decision.
+
 ## Install (on go)
 
-`/etc/mielenosoitukset/nic-watch.env`, mode 0600:
+Before installing, check `python3 -c 'import yaml'` and `command -v sendmail` on the
+watched host. Create `/etc/mielenosoitukset/nic-watch.env` with mode 0600:
 
 ```
 NIC_WATCH_LABEL=lc-db
