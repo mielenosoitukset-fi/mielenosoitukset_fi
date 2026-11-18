@@ -298,6 +298,12 @@ func (s mongoProfileStore) Summaries(ctx context.Context, ids []string) ([]profi
 	if err != nil {
 		return nil, err
 	}
+	return profileSummariesFrom(ids, byID), nil
+}
+
+// profileSummariesFrom keeps the stored order and drops ids with no document,
+// no username, or an account the public profile hides.
+func profileSummariesFrom(ids []string, byID map[string]bson.M) []profileSummary {
 	out := []profileSummary{}
 	for _, id := range firstN(ids, profileMaxLookups) {
 		doc, ok := byID[id]
@@ -306,7 +312,7 @@ func (s mongoProfileStore) Summaries(ctx context.Context, ids []string) ([]profi
 		}
 		out = append(out, profileSummaryFor(stringField(doc, "username"), stringField(doc, "displayname"), stringField(doc, "profile_picture")))
 	}
-	return out, nil
+	return out
 }
 
 func profileSummaryFor(username, displayname, picture string) profileSummary {

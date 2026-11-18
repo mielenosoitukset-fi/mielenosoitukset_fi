@@ -395,3 +395,18 @@ func TestProfileAccountHidden(t *testing.T) {
 		}
 	}
 }
+
+func TestProfileSummariesSkipHiddenAccounts(t *testing.T) {
+	byID := map[string]bson.M{
+		"a": {"username": "maija", "displayname": "Maija"},
+		"b": {"username": "banned", "banned": true},
+		"c": {"username": "inactive", "active": false},
+		"d": {"username": "suspended", "security_suspension": bson.D{{Key: "active", Value: true}}},
+		"e": {"username": ""},
+		"f": {"username": "pekka"},
+	}
+	got := profileSummariesFrom([]string{"a", "b", "c", "d", "e", "missing", "f"}, byID)
+	if len(got) != 2 || got[0].Username != "maija" || got[1].Username != "pekka" {
+		t.Fatalf("got %+v", got)
+	}
+}
