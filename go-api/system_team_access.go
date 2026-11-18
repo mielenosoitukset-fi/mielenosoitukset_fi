@@ -107,6 +107,25 @@ func profileTruthy(value any) bool {
 	return true
 }
 
+// profileVetoed mirrors Python's `not state.get("vetoes")`: a missing or empty
+// value is no veto, and any other non-empty value, including a malformed one that
+// is not a document, counts as a veto.
+func profileVetoed(value any) bool {
+	switch v := value.(type) {
+	case bson.M:
+		return len(v) > 0
+	case map[string]any:
+		return len(v) > 0
+	case bson.D:
+		return len(v) > 0
+	case bson.A:
+		return len(v) > 0
+	case []any:
+		return len(v) > 0
+	}
+	return profileTruthy(value)
+}
+
 func profileValidID(value any) bool {
 	text, ok := value.(string)
 	return ok && profileID(text) != ""
@@ -217,7 +236,7 @@ func godConsentApproved(state, roster any) bool {
 	if method == "unanimous" && phase == "collecting" {
 		chamber, _ := profileKey(state, "chamber").(string)
 		nominating := profileStringSet(profileKey(roster, chamber))
-		if len(nominating) == 0 || profileTruthy(profileKey(state, "vetoes")) && len(profileKeys(profileKey(state, "vetoes"))) > 0 {
+		if len(nominating) == 0 || profileVetoed(profileKey(state, "vetoes")) {
 			return false
 		}
 		for id := range nominating {

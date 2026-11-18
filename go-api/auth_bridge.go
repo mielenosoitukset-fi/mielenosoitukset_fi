@@ -459,7 +459,7 @@ func authBridgeHandler(next http.Handler, config authBridgeConfig, db *mongo.Dat
 		writes = newDeveloperWrites(mongoDeveloperStore{db}, config.Origin)
 	}
 	// Account settings reads (docs/account-pages-react.md) share the bridge and have their own flag.
-	next = accountSettingsReadHandler(next, db, resolver)
+	next = accountSettingsReadHandler(next, db, resolver, config.Origin)
 	return authBridgeHandlerWith(developerHandlerWith(next, mongoDeveloperStore{db}, resolver, writes), resolver)
 }
 

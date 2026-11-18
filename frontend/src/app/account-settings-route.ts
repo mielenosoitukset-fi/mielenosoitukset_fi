@@ -6,6 +6,11 @@ export const accountSettingsPath = '/users/auth/settings';
 export const accountSettingsApi = '/api/account/settings';
 export const accountGeneralWriteApi = '/users/auth/api/v2/settings';
 export const accountProfileWriteApi = '/users/auth/api/v2/user_profile';
+/** Go bio write (docs/account-pages-react.md, step 3a); used only when the read answer carries a CSRF token. */
+export const accountBioWriteApi = '/api/account/profile';
+export const accountBioMax = 5000;
+/** Announce the remaining length to screen readers once the text is this close to the limit. */
+export const accountBioWarnAt = 200;
 export const accountDeveloperPath = '/developer';
 export const accountTranslationsUrl = 'https://mielenosoitukset.fi/upcoming/translations/';
 
@@ -98,6 +103,10 @@ export const accountCopy = {
   profileSaved: 'Profiili päivitetty.',
   profileFailed: 'Profiilin tallennus epäonnistui',
   imageFailed: 'Kuvan lukeminen epäonnistui',
+  rateLimited: 'Liian monta pyyntöä. Yritä hetken kuluttua uudelleen.',
+  sessionExpired: 'Istunto vanhentui. Lataa sivu uudelleen.',
+  reloadPage: 'Lataa sivu uudelleen',
+  charsLeft: 'merkkiä jäljellä',
 } as const;
 
 export type AccountGeneral = { displayName: string; city: string | null; language: string | null; darkMode: boolean | null };
@@ -113,6 +122,8 @@ export type AccountSettingsRead = {
   passkeys: AccountPasskey[];
   logins: AccountLogin[];
   cities: string[];
+  /** Set only when Go has the write routes on; without it the page keeps posting to Flask. */
+  csrf?: string;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -173,6 +184,7 @@ export function readAccountSettings(body: unknown): AccountSettingsRead | null {
   return {
     general: { displayName: general.display_name.slice(0, 100), city, language, darkMode: general.dark_mode as boolean | null },
     bio, picture: safePicture(profile.profile_picture), mfa: { enabled: mfa.enabled, devices }, passkeys, logins, cities,
+    csrf: body.writes === true && typeof body.csrf === 'string' && /^[\w.-]{20,300}$/.test(body.csrf) ? body.csrf : undefined,
   };
 }
 
@@ -220,6 +232,30 @@ export async function postFlaskJson(url: string, payload: unknown, fallback: str
 /** The JSON the Flask settings page posts. A city is sent only when one is chosen. */
 export function generalPayload(values: { displayName: string; city: string; language: string; darkMode: boolean }) {
   return { display_name: values.displayName, ...(values.city ? { city: values.city } : {}), language: values.language, dark_mode: values.darkMode };
+}
+
+/** Finnish message for a failed Go write; Go's own text is shown only for 4xx input errors. */
+export function bioWriteFailure(status: number, body: unknown, fallback: string): string {
+  const raw = isObject(body) ? body : {};
+  const serverText = typeof raw.error === 'string' ? raw.error.slice(0, 200) : '';
+  if (status === 429) return accountCopy.rateLimited;
+  if (status === 401 || (status === 403 && serverText === 'invalid csrf token')) return accountCopy.sessionExpired;
+  if (status >= 400 && status < 500 && serverText && serverText !== 'forbidden') return serverText;
+  return fallback;
+}
+
+/** Save only the bio through Go: same-origin cookie, CSRF header, JSON body. */
+export async function postBioToGo(csrf: string, bio: string, fallback: string, fetcher: typeof fetch = fetch): Promise<FlaskResult> {
+  try {
+    const response = await fetcher(accountBioWriteApi, { method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify({ bio }) });
+    let body: unknown = null;
+    try { body = await response.json(); } catch { /* an empty or non-JSON body is a failure below */ }
+    if (response.ok && isObject(body) && body.status === 'success') return { ok: true, message: '', body };
+    return { ok: false, message: bioWriteFailure(response.status, body, fallback) };
+  } catch {
+    return { ok: false, message: fallback };
+  }
 }
 
 export const profilePayload = (bio: string, base64Image: string | null) => ({ bio, profile_picture: base64Image });
