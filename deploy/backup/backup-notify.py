@@ -2,8 +2,12 @@
 """Alert the maintainer that a backup unit failed (OPS-01, docs/backups.md).
 
 Channels, tried in this order:
-  1. Bark push (iOS) when BARK_KEY is set. BARK_URL is the server base (default
-     https://api.day.app), HTTPS only. The push says only the label and the name
+  1. Bark push (iOS) when a Bark key is set. The key is BARK_KEY, or BARK_DEVICE_KEY
+     as in the server's shared /etc/mielenosoitukset-alerts.env. The server base
+     is BARK_URL or BARK_API_BASE (default https://api.day.app), HTTPS only.
+     BARK_ALERTS_ENABLED=false (or 0, no, off) turns Bark off; BARK_ALERT_GROUP
+     names the Bark group (default "backup"). The push is plain, not encrypted:
+     its content is only the label and the check name. The push says only the label and the name
      of the failed check: no log lines, no host names.
   2. E-mail to ALERT_EMAIL, when Bark is not configured or failed.
 If no channel is configured, or every configured one failed, the script exits 1
@@ -80,13 +84,23 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 _OPENER = urllib.request.build_opener(_NoRedirect)
 
 
+def bark_key(env):
+    return (env.get("BARK_KEY") or env.get("BARK_DEVICE_KEY") or "").strip()
+
+
+def bark_enabled(env):
+    flag = (env.get("BARK_ALERTS_ENABLED") or "true").strip().lower()
+    return bool(bark_key(env)) and flag not in {"0", "false", "no", "off"}
+
+
 def send_bark(env, unit):
     """Push through Bark. Raises on any failure; the caller logs only the type."""
-    base = (env.get("BARK_URL") or BARK_DEFAULT_URL).strip().rstrip("/")
+    base = (env.get("BARK_URL") or env.get("BARK_API_BASE") or BARK_DEFAULT_URL).strip().rstrip("/")
     if urlsplit(base).scheme not in BARK_SCHEMES:
         raise ValueError("BARK_URL must be https")
     label = (env.get("ALERT_LABEL") or "mielenosoitukset.fi").strip()
-    payload = {"device_key": env["BARK_KEY"].strip(), "title": f"{label}: backup problem", "body": unit, "group": "backup"}
+    group = (env.get("BARK_ALERT_GROUP") or "backup").strip()
+    payload = {"device_key": bark_key(env), "title": f"{label}: backup problem", "body": unit, "group": group}
     request = urllib.request.Request(
         base + "/push", data=json.dumps(payload).encode(), method="POST",
         headers={"Content-Type": "application/json; charset=utf-8"},
@@ -114,13 +128,13 @@ def send_email(env, unit, app_config):
 def main(env=None, app_config=APP_CONFIG):
     env = os.environ if env is None else env
     unit = env.get("MONITOR_UNIT") or "a mielenosoitukset backup unit"
-    has_bark = bool((env.get("BARK_KEY") or "").strip())
+    has_bark = bark_enabled(env)
     recipient = (env.get("ALERT_EMAIL") or "").strip()
     if any(char in recipient + unit for char in "\r\n"):
         print("backup-notify: refusing a header with a line break", file=sys.stderr)
         return 1
     if not has_bark and not recipient:
-        print("backup-notify: no alert channel configured (set BARK_KEY or ALERT_EMAIL); alert NOT sent", file=sys.stderr)
+        print("backup-notify: no alert channel configured (set BARK_KEY or ALERT_EMAIL, and check BARK_ALERTS_ENABLED); alert NOT sent", file=sys.stderr)
         return 1
     if has_bark:
         try:

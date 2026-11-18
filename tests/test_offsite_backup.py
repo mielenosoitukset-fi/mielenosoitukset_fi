@@ -475,3 +475,30 @@ def test_bark_redirect_counts_as_a_failed_push_and_is_not_followed(bark_server, 
     assert [path for path, _ in received] == ["/push"]  # the redirect target was never requested
     output = capsys.readouterr()
     assert "HTTPError" in output.err and "devkey123" not in output.out + output.err
+
+
+def test_shared_alerts_env_names_work_as_aliases(bark_server):
+    module, config, url, received, _ = bark_server
+    env = {"BARK_DEVICE_KEY": "sharedkey", "BARK_API_BASE": url, "BARK_ALERT_GROUP": "ops", "BARK_ALERTS_ENABLED": "true",
+           "BARK_ENCRYPTION_KEY": "unused", "APP_CONFIG": config}
+
+    assert module.main(env) == 0
+
+    assert received[0][1]["device_key"] == "sharedkey" and received[0][1]["group"] == "ops"
+    assert "unused" not in json.dumps(received)
+
+
+@pytest.mark.parametrize("flag", ["false", "0", "No", "off"])
+def test_bark_alerts_enabled_flag_turns_bark_off(bark_server, flag, capsys):
+    module, config, url, received, _ = bark_server
+    env = {"BARK_DEVICE_KEY": "sharedkey", "BARK_API_BASE": url, "BARK_ALERTS_ENABLED": flag, "APP_CONFIG": config}
+
+    assert module.main(env) == 1  # nothing else configured: fails visibly
+    assert not received and "NOT sent" in capsys.readouterr().err
+    assert module.main({**env, "ALERT_EMAIL": "maintainer@example.org"}) == 0
+    assert not received and len(FakeSMTP.sent) == 1
+
+
+def test_failed_unit_loads_the_shared_alerts_file_before_backup_env():
+    text = _unit("mielenosoitukset-backup-failed.service")
+    assert text.index("EnvironmentFile=-/etc/mielenosoitukset-alerts.env") < text.index("EnvironmentFile=-/etc/mielenosoitukset/backup.env")

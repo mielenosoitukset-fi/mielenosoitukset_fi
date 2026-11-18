@@ -158,10 +158,14 @@ Disk: encryption needs one archive's worth of free space in
 `backup-notify.py` alerts once for each failed unit: a dump failure, an off-site
 copy failure, or a stale off-site copy. Channels, in order:
 
-1. **Bark push (iOS)** when `BARK_KEY` is set in `/etc/mielenosoitukset/backup.env`.
-   The push says only the label (`ALERT_LABEL`, default `mielenosoitukset.fi`) and the
-   name of the failed check, with no log lines and no host names. `BARK_URL` is the
-   Bark server base (default `https://api.day.app`); it must be HTTPS, the request
+1. **Bark push (iOS)** when a Bark key is set. On lc-main the key is already in
+   `/etc/mielenosoitukset-alerts.env` (`BARK_DEVICE_KEY`, `BARK_API_BASE`,
+   `BARK_ALERT_GROUP`, `BARK_ALERTS_ENABLED`), which the failure unit loads, so
+   **the key is not copied or pasted anywhere**. `BARK_KEY` and `BARK_URL` in
+   `backup.env` are alternative names and override the shared file. The push is plain
+   (not encrypted with `BARK_ENCRYPTION_KEY`), because it says only the label (`ALERT_LABEL`, default `mielenosoitukset.fi`) and the
+   name of the failed check, with no log lines and no host names. `BARK_ALERTS_ENABLED=false`
+   turns Bark off; the server base (default `https://api.day.app`) must be HTTPS, the request
    times out after 10 seconds, and a failure logs only the exception type, never the
    key or URL.
 2. **E-mail** to `ALERT_EMAIL`, when Bark is not configured or failed. It uses the
@@ -174,18 +178,20 @@ non-zero, so `mielenosoitukset-backup-failed.service` itself shows as failed. Th
 stays either way (`journalctl -u mielenosoitukset-backup-failed -n 20`). A stale copy
 alerts every day until fixed.
 
-**Setting the Bark key** (the maintainer does this, the key is never pasted into chat,
-a pull request or a unit file): copy the device key from the Bark app, then on lc-main
-as root
+**Setting the Bark key:** nothing to do on lc-main; the existing shared file is used.
+To use another key for backups only, add `BARK_KEY=<key>` to
+`/etc/mielenosoitukset/backup.env` yourself (mode 0600, never in chat or the
+repository). On another host (for example lc-db for the NIC watcher, #1208) the
+key must exist there. Copy only the four lines that are needed, server to server
+at install time, without printing them:
 
 ```sh
-install -m 0600 /dev/null /etc/mielenosoitukset/backup.env   # only if the file does not exist
-nano /etc/mielenosoitukset/backup.env                         # add a line: BARK_KEY=<key>
-ls -l /etc/mielenosoitukset/backup.env                        # must say -rw------- root root
+ssh lc-main-root "grep -E '^BARK_(DEVICE_KEY|API_BASE|ALERT_GROUP|ALERTS_ENABLED)=' /etc/mielenosoitukset-alerts.env" \
+  | ssh <other host> 'umask 077; cat > /etc/mielenosoitukset-alerts.env'
 ```
 
-systemd reads `KEY=value` lines only, with no quotes. Test with the command in
-install step 5.
+Check on the target with `ls -l` (mode `-rw-------`, root) and count the lines with
+`grep -c . <file>`; never `cat` it. Revert: delete that file there.
 
 ### Server settings file
 
@@ -193,8 +199,9 @@ install step 5.
 reads `KEY=value` lines only: no quotes, no comment after a value.
 
 ```sh
-# Alert channel: a Bark device key, an e-mail address, or both (e-mail is the fallback).
-BARK_KEY=<set by the maintainer>
+# Alert channel. Bark settings normally come from /etc/mielenosoitukset-alerts.env;
+# set these only to override them. E-mail is the fallback.
+# BARK_KEY=<device key>
 # ALERT_EMAIL=<maintainer address>
 # BARK_URL=https://api.day.app
 # ALERT_LABEL=mielenosoitukset.fi
