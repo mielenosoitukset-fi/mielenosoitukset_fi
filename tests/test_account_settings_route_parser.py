@@ -70,6 +70,6 @@ def test_account_settings_parser_rejects_malformed_bodies():
     assert out["goCalls"][0][:3] == ["/api/account/profile", "POST", "a" * 30 + "." + "b" * 10]
     assert json.loads(out["goCalls"][0][3]) == {"bio": "Hei"}
     assert out["go400"] == {"ok": False, "message": "Esittely on liian pitkä"}
-    assert out["go401"] == out["go403"] == "Istunto vanhentui. Lataa sivu uudelleen."
+    assert out["go401"] == out["go403"] == "Istunto vanhentui."
     assert out["go403plain"] == out["go503"] == "fb"
     assert out["go429"] == "Liian monta pyyntöä. Yritä hetken kuluttua uudelleen."

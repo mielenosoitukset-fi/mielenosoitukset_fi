@@ -82,8 +82,11 @@ func parseGeneralSettings(raw map[string]json.RawMessage) (values map[string]any
 			}
 			text = strings.TrimSpace(text)
 			count := utf8.RuneCountInString(text)
-			if count < 1 || count > accountDisplayNameMax || strings.IndexFunc(text, unicode.IsControl) >= 0 {
-				return nil, "Näyttönimen pituus on 1–40 merkkiä, eikä siinä saa olla ohjausmerkkejä."
+			if count < 1 || count > accountDisplayNameMax {
+				return nil, "Näyttönimessä saa olla 1–40 merkkiä."
+			}
+			if strings.IndexFunc(text, unicode.IsControl) >= 0 {
+				return nil, "Näyttönimi sisältää kiellettyjä merkkejä."
 			}
 			values[key] = text
 		case "city":

@@ -104,7 +104,7 @@ export const accountCopy = {
   profileFailed: 'Profiilin tallennus epäonnistui',
   imageFailed: 'Kuvan lukeminen epäonnistui',
   rateLimited: 'Liian monta pyyntöä. Yritä hetken kuluttua uudelleen.',
-  sessionExpired: 'Istunto vanhentui. Lataa sivu uudelleen.',
+  sessionExpired: 'Istunto vanhentui.',
   reloadPage: 'Lataa sivu uudelleen',
   charsLeft: 'merkkiä jäljellä',
 } as const;

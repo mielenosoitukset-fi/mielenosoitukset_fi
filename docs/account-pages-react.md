@@ -193,7 +193,7 @@ Flask still serves every page and endpoint, so no data needs restoring.
   readable (the read cuts at 5000) and can still be saved through Flask or shortened.
 - React: Profiili posts a bio without a new picture to Go with the token and shows a "x / 5000" counter and, near the limit, a screen-reader announcement "x merkkiä jäljellä"; with a
   picture chosen it posts both to the unchanged Flask endpoint (S3). Go's 400 text is shown, 429 uses the rate-limit
-  copy, 401 and a bad token say "Istunto vanhentui. Lataa sivu uudelleen." with a reload button. Messages appear next to the save button.
+  copy, 401 and a bad token say "Istunto vanhentui." with a "Lataa sivu uudelleen" button. Messages appear next to the save button.
 - Activation: back up, set `ACCOUNT_SETTINGS_WRITES: true`, deploy, restart the API; uncomment the
   `/api/account/profile` rule only after the settings rules (maintainer's go). Revert: re-comment the rule, remove
   the flag, restart. The React page then falls back to the Flask endpoint with no data to restore.
