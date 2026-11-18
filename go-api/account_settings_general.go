@@ -44,9 +44,11 @@ type accountSettingsState struct {
 
 var reservedIdentityNames = map[string]bool{"admin": true, "administrator": true}
 
-// isReservedIdentityName is validators.is_reserved_identity_name.
+// isReservedIdentityName is validators.is_reserved_identity_name: strip, casefold
+// (Python's str.casefold, so "adminiſtrator" folds to "administrator"), drop one
+// leading "@" and strip again. Fullwidth letters do not fold to ASCII in either.
 func isReservedIdentityName(value string) bool {
-	text := strings.ToLower(strings.TrimSpace(value))
+	text := contactCasefold(strings.TrimSpace(value))
 	if strings.HasPrefix(text, "@") {
 		text = strings.TrimSpace(text[1:])
 	}
@@ -256,18 +258,19 @@ func (s mongoAccountWriteStore) LoadSettings(ctx context.Context, owner bson.Obj
 }
 
 func (s mongoAccountWriteStore) SaveSettings(ctx context.Context, owner bson.ObjectID, set, onInsert bson.M, displayName *string) error {
+	// users.displayname goes first: the change is computed against user_settings, so
+	// if the second write fails a retry still sees the change and writes both again.
+	if displayName != nil {
+		if _, err := s.db.Collection("users").UpdateOne(ctx, bson.M{"_id": owner}, bson.M{"$set": bson.M{"displayname": *displayName}}); err != nil {
+			return err
+		}
+	}
 	update := bson.M{"$set": set}
 	if len(onInsert) > 0 {
 		update["$setOnInsert"] = onInsert
 	}
-	if _, err := s.db.Collection("user_settings").UpdateOne(ctx, bson.M{"user_id": owner}, update, options.UpdateOne().SetUpsert(true)); err != nil {
-		return err
-	}
-	if displayName != nil {
-		_, err := s.db.Collection("users").UpdateOne(ctx, bson.M{"_id": owner}, bson.M{"$set": bson.M{"displayname": *displayName}})
-		return err
-	}
-	return nil
+	_, err := s.db.Collection("user_settings").UpdateOne(ctx, bson.M{"user_id": owner}, update, options.UpdateOne().SetUpsert(true))
+	return err
 }
 
 func (s mongoAccountWriteStore) QueueMail(ctx context.Context, doc bson.D) error {

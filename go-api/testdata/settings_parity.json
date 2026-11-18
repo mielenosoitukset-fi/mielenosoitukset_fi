@@ -366,6 +366,98 @@
    "mail": null
   },
   {
+   "name": "reserved name upper case",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "display_name": "ADMIN"
+   },
+   "status": 400,
+   "message": "Admin-nimitys on varattu palvelun sisäiseen käyttöön.",
+   "changed_fields": {},
+   "mail": null
+  },
+  {
+   "name": "reserved name at sign and space",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "display_name": "@ Admin"
+   },
+   "status": 400,
+   "message": "Admin-nimitys on varattu palvelun sisäiseen käyttöön.",
+   "changed_fields": {},
+   "mail": null
+  },
+  {
+   "name": "reserved name long s",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "display_name": "adminiſtrator"
+   },
+   "status": 400,
+   "message": "Admin-nimitys on varattu palvelun sisäiseen käyttöön.",
+   "changed_fields": {},
+   "mail": null
+  },
+  {
+   "name": "fullwidth admin is not reserved",
+   "email": "alice@example.test",
+   "displayname": "Alice Tester",
+   "settings": {
+    "city": "Helsinki",
+    "display_name": "Alice",
+    "language": "fi",
+    "dark_mode": true,
+    "subscribe_newsletter": null
+   },
+   "body": {
+    "display_name": "Ａｄｍｉｎ"
+   },
+   "status": 200,
+   "message": "Asetukset päivitetty ja ilmoitus lähetetty.",
+   "changed_fields": {
+    "display_name": {
+     "new": "Ａｄｍｉｎ",
+     "old": "Alice"
+    }
+   },
+   "mail": {
+    "subject": "Käyttäjäasetusten muutokset",
+    "html": "<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Käyttäjäasetusten muutokset</title>\n    <style>\n        body {\n            background: #f4f4f4;\n            color: #333333;\n            margin: 0;\n            padding: 0;\n        }\n        .container {\n            width: 100%;\n            max-width: 600px;\n            padding: 20px;\n            background: #ffffff;\n            margin: 0 auto;\n            border-radius: 8px;\n            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);\n        }\n        .header {\n            text-align: center;\n            padding: 10px 0;\n            background: #0033A0;\n            color: #ffffff;\n            border-radius: 8px 8px 0 0;\n        }\n        .content {\n            margin: 20px;\n        }\n        .changes {\n            padding-left: 1.25rem;\n        }\n        .changes li {\n            margin-bottom: 0.75rem;\n        }\n        .value-label {\n            color: #666666;\n            font-size: 0.9em;\n        }\n        .footer {\n            margin-top: 20px;\n            text-align: center;\n            font-size: 0.9em;\n            color: #888888;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>Käyttäjäasetuksia muutettiin</h1>\n        </div>\n        <div class=\"content\">\n            <p>Hei Alice Tester,</p>\n            <p>Tilisi käyttäjäasetuksia on päivitetty. Muutetut kentät:</p>\n            <ul class=\"changes\">\n                \n                <li>\n                    <strong>display_name</strong><br>\n                    <span class=\"value-label\">Vanha arvo:</span> Alice<br>\n                    <span class=\"value-label\">Uusi arvo:</span> Ａｄｍｉｎ\n                </li>\n                \n            </ul>\n            <p>Jos et tehnyt tätä muutosta, ota välittömästi yhteyttä tukeemme.</p>\n            <p>Ystävällisin terveisin,<br>Tiimimme</p>\n        </div>\n        <div class=\"footer\">\n            <p>Tämä on automaattinen viesti, älä vastaa tähän sähköpostiin.</p>\n        </div>\n    </div>\n</body>\n</html>"
+   },
+   "settings_after": {
+    "city": "Helsinki",
+    "dark_mode": true,
+    "display_name": "Ａｄｍｉｎ",
+    "language": "fi",
+    "subscribe_newsletter": null
+   },
+   "displayname_after": "Ａｄｍｉｎ"
+  },
+  {
    "name": "all four change",
    "email": "alice@example.test",
    "displayname": "Alice Tester",

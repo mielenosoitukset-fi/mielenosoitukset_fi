@@ -45,6 +45,10 @@ SCENARIOS = [
     {"name": "unicode", "displayname": "Ääkkönen", "settings": {**FULL, "display_name": "Öljy"}, "body": {"display_name": "Åsa Ünal 💖"}},
     {"name": "reserved name", "displayname": "Alice Tester", "settings": FULL, "body": {"display_name": "Admin"}},
     {"name": "reserved name with at sign and spaces", "displayname": "Alice Tester", "settings": FULL, "body": {"display_name": " @Administrator "}},
+    {"name": "reserved name upper case", "displayname": "Alice Tester", "settings": FULL, "body": {"display_name": "ADMIN"}},
+    {"name": "reserved name at sign and space", "displayname": "Alice Tester", "settings": FULL, "body": {"display_name": "@ Admin"}},
+    {"name": "reserved name long s", "displayname": "Alice Tester", "settings": FULL, "body": {"display_name": "adminiſtrator"}},
+    {"name": "fullwidth admin is not reserved", "displayname": "Alice Tester", "settings": FULL, "body": {"display_name": "Ａｄｍｉｎ"}},
     {"name": "all four change", "displayname": "Alice Tester", "settings": {**FULL, "language": None},
      "body": {"display_name": "Neljä", "city": "Oulu", "language": "fi", "dark_mode": False}},
 ]

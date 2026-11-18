@@ -116,7 +116,7 @@ func TestSettingsWriteRefusesBadInputAndWritesNothing(t *testing.T) {
 			t.Errorf("%.40q: got %d", body, code)
 		}
 	}
-	for _, name := range []string{"Admin", " @Administrator ", "ADMIN", "@ admin"} {
+	for _, name := range []string{"Admin", " @Administrator ", "ADMIN", "@ admin", "@ Admin", "adminiſtrator", "ADMINIſTRATOR", " @ adminiſtrator "} {
 		code, answer := settingsRig(t, copySettings(nil)).postSettings(`{"display_name":"` + name + `"}`)
 		if code != 400 || answer["error"] != "Admin-nimitys on varattu palvelun sisäiseen käyttöön." {
 			t.Errorf("%q: %d %v", name, code, answer)
