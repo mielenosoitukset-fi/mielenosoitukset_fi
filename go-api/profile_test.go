@@ -265,21 +265,110 @@ func TestProfileHelpers(t *testing.T) {
 	}
 }
 
-func TestProfileAdminBadgeIgnoresRole(t *testing.T) {
+type fakeNational struct {
+	orgExists bool
+	rows      []bson.M
+	record    bson.M
+}
+
+func (f fakeNational) OrgExists(context.Context, bson.ObjectID) (bool, error) {
+	return f.orgExists, nil
+}
+func (f fakeNational) Memberships(context.Context, bson.ObjectID, bson.ObjectID) ([]bson.M, error) {
+	return f.rows, nil
+}
+func (f fakeNational) Clearance(context.Context, string) (bson.M, error) { return f.record, nil }
+
+func TestProfileAdminBadge(t *testing.T) {
+	const org = "333333333333333333333333"
+	user := profileID24(t, otherActor)
+	member := []bson.M{{"grant_source": "board"}}
+	approved := bson.M{"approved": true, "user_id": user.Hex(), "approvals": bson.M{"a": 1, "b": 2}}
+	active := func(extra bson.M) bson.M {
+		doc := bson.M{"confirmed": true}
+		for k, v := range extra {
+			doc[k] = v
+		}
+		return doc
+	}
 	cases := []struct {
 		name string
+		org  string
 		doc  bson.M
+		src  fakeNational
 		want bool
 	}{
-		{"role god", bson.M{"role": "god"}, false},
-		{"role superuser", bson.M{"role": "superuser"}, false},
-		{"role global_admin", bson.M{"role": "global_admin"}, false},
-		{"flag", bson.M{"global_admin": true}, true},
-		{"flag false with role god", bson.M{"global_admin": false, "role": "god"}, false},
+		{"role god alone", org, active(bson.M{"role": "god"}), fakeNational{}, false},
+		{"role superuser alone", org, active(bson.M{"role": "superuser"}), fakeNational{}, false},
+		{"flag", org, active(bson.M{"global_admin": true}), fakeNational{}, true},
+		{"governed flag without team", org, active(bson.M{"global_admin": true, "governance_managed": true}), fakeNational{}, false},
+		{"national approved clearance", org, active(nil), fakeNational{true, member, approved}, true},
+		{"governed national approved", org, active(bson.M{"governance_managed": true}), fakeNational{true, member, approved}, true},
+		{"national without clearance", org, active(nil), fakeNational{true, member, nil}, false},
+		{"national bootstrap", org, active(nil), fakeNational{true, []bson.M{{"grant_source": "maintainer_bootstrap"}}, nil}, true},
+		{"one approver only", org, active(nil), fakeNational{true, member, bson.M{"approved": true, "user_id": user.Hex(), "approvals": bson.M{"a": 1, user.Hex(): 2}}}, false},
+		{"clearance not approved", org, active(nil), fakeNational{true, member, bson.M{"approved": false, "approvals": bson.M{"a": 1, "b": 2}}}, false},
+		{"banned", org, active(bson.M{"banned": true}), fakeNational{true, member, approved}, false},
+		{"unconfirmed", org, bson.M{}, fakeNational{true, member, approved}, false},
+		{"inactive", org, active(bson.M{"active": false}), fakeNational{true, member, approved}, false},
+		{"suspended", org, active(bson.M{"security_suspension": bson.M{"active": true}}), fakeNational{true, member, approved}, false},
+		{"no membership", org, active(nil), fakeNational{true, nil, approved}, false},
+		{"org missing", org, active(nil), fakeNational{false, member, approved}, false},
+		{"invalid org id keeps flag", "nothex", active(bson.M{"global_admin": true}), fakeNational{true, member, approved}, true},
+		{"invalid org id no flag", "nothex", active(nil), fakeNational{true, member, approved}, false},
+		{"unset org id", "", active(nil), fakeNational{true, member, approved}, false},
 	}
 	for _, c := range cases {
-		if got := profileAdminBadge(c.doc); got != c.want {
+		t.Setenv("NATIONAL_ADMIN_ORG_ID", c.org)
+		national, err := userHasNationalAccess(context.Background(), c.src, c.doc, user)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := profileAdminBadge(c.doc, national); got != c.want {
 			t.Errorf("%s: badge %v, want %v", c.name, got, c.want)
 		}
 	}
+}
+
+func TestClearanceRecordApprovedGodPaths(t *testing.T) {
+	roster := bson.M{"board": bson.A{"b1", "b2"}, "gods": bson.A{"g1"}}
+	record := func(state bson.M) bson.M {
+		return bson.M{"approved": true, "user_id": "cand", "team_requests": bson.M{
+			"god":      mergeState(bson.M{"id": "x", "roster": roster, "approved": true, "window_ends_at": nil}, state),
+			"national": bson.M{"approved": true, "id": "x", "source": "god_appointment_consent"}}}
+	}
+	cases := []struct {
+		name  string
+		state bson.M
+		want  bool
+	}{
+		{"unanimous", bson.M{"method": "unanimous", "phase": "collecting", "chamber": "board", "votes": bson.M{"b1": 1, "b2": 1}}, true},
+		{"unanimous missing vote", bson.M{"method": "unanimous", "phase": "collecting", "chamber": "board", "votes": bson.M{"b1": 1}}, false},
+		{"unanimous vetoed", bson.M{"method": "unanimous", "phase": "collecting", "chamber": "board", "votes": bson.M{"b1": 1, "b2": 1}, "vetoes": bson.M{"g1": 1}}, false},
+		{"unanimous vetoed by malformed string", bson.M{"method": "unanimous", "phase": "collecting", "chamber": "board", "votes": bson.M{"b1": 1, "b2": 1}, "vetoes": "g1"}, false},
+		{"unanimous vetoed by malformed list", bson.M{"method": "unanimous", "phase": "collecting", "chamber": "board", "votes": bson.M{"b1": 1, "b2": 1}, "vetoes": bson.A{"g1"}}, false},
+		{"unanimous empty vetoes", bson.M{"method": "unanimous", "phase": "collecting", "chamber": "board", "votes": bson.M{"b1": 1, "b2": 1}, "vetoes": bson.M{}}, true},
+		{"unanimous empty list vetoes", bson.M{"method": "unanimous", "phase": "collecting", "chamber": "board", "votes": bson.M{"b1": 1, "b2": 1}, "vetoes": bson.A{}}, true},
+		{"supermajority", bson.M{"method": "supermajority", "phase": "second_round", "votes": bson.M{"b1": 1, "b2": 1, "g1": 1}}, true},
+		{"supermajority short", bson.M{"method": "supermajority", "phase": "second_round", "votes": bson.M{"b1": 1, "b2": 1}}, false},
+		{"window open", bson.M{"method": "unanimous", "phase": "collecting", "chamber": "board", "votes": bson.M{"b1": 1, "b2": 1}, "window_ends_at": "later"}, false},
+	}
+	for _, c := range cases {
+		if got := clearanceRecordApproved(record(c.state)); got != c.want {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
+		}
+	}
+	emergency := bson.M{"approved": true, "user_id": "cand", "god_appointment_emergency_id": "e1", "team_requests": bson.M{
+		"god_emergency": bson.M{"approved": true, "method": "usb_and_god", "id": "e1", "candidate_id": "cand",
+			"god_user_id": profileID24(t, otherActor).Hex(), "usb_key_id": "k", "god_proof_id": "p", "usb_proof": "u"}}}
+	if !clearanceRecordApproved(emergency) {
+		t.Error("emergency path not approved")
+	}
+}
+
+func mergeState(base, extra bson.M) bson.M {
+	for k, v := range extra {
+		base[k] = v
+	}
+	return base
 }

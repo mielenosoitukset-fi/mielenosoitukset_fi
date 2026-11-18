@@ -41,6 +41,7 @@ export type AppRoute =
   | { name: 'cancel-link'; token: string }
   | { name: 'developer'; appId?: string }
   | { name: 'profile'; username: string }
+  | { name: 'account-settings' }
   | { name: 'detail'; identifier: string }
   | { name: 'series'; parent: string };
 
@@ -110,6 +111,7 @@ export function routeForPath(path: string): AppRoute | null {
   if (path === developerPath || path === `${developerPath}/`) return { name: 'developer' };
   const developerApp = /^\/developer\/apps\/([a-f\d]{24})$/i.exec(path);
   if (developerApp) return { name: 'developer', appId: developerApp[1].toLowerCase() };
+  if (path === '/users/auth/settings' || path === '/users/auth/settings/') return { name: 'account-settings' };
   const profile = PROFILE_PATH.exec(path);
   if (profile) return profile[1] === 'edit' ? null : { name: 'profile', username: profile[1] };
   const cancelLink = /^\/cancel_demonstration\/([A-Za-z0-9_-]{1,128})$/.exec(path);
@@ -150,6 +152,10 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   }
   if (route.name === 'developer') {
     return { title: `${developerCopy.title} | Mielenosoitukset.fi`, description: developerCopy.description,
+      robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'account-settings') {
+    return { title: 'Asetukset | Mielenosoitukset.fi', description: 'Hallinnoi tilisi tietoja, turvallisuutta, profiilia ja API-avaimia yhdessä paikassa.',
       robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'profile') {
