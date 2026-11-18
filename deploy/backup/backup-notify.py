@@ -71,7 +71,11 @@ def send(message, mail_config):
             client.send_message(message)
         return
     sendmail = shutil.which("sendmail") or "/usr/sbin/sendmail"
-    subprocess.run([sendmail, "-t", "-i"], input=message.as_bytes(), check=True, timeout=60)
+    # A minimal environment: sendmail must not inherit the alert keys loaded by systemd.
+    subprocess.run(
+        [sendmail, "-t", "-i"], input=message.as_bytes(), check=True, timeout=60,
+        env={"PATH": "/usr/sbin:/usr/bin:/bin"},
+    )
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):

@@ -186,6 +186,7 @@ key must exist there. Copy only the four lines that are needed, server to server
 at install time, without printing them:
 
 ```sh
+ssh <other host> 'install -m 0600 /dev/null /etc/mielenosoitukset-alerts.env'
 ssh lc-main-root "grep -E '^BARK_(DEVICE_KEY|API_BASE|ALERT_GROUP|ALERTS_ENABLED)=' /etc/mielenosoitukset-alerts.env" \
   | ssh <other host> 'umask 077; cat > /etc/mielenosoitukset-alerts.env'
 ```
