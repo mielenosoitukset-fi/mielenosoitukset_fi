@@ -8,8 +8,9 @@ maintainer says go. Hostnames and addresses live only in
 
 ## Checks
 
-- **softirq** (`nic-watch.py --mode softirq`): reads the database host's
-  node-exporter `/metrics`, once a minute, from a host that can reach it (lc-main).
+- **softirq** (`nic-watch.py --mode softirq`): reads node-exporter's
+  `/metrics` once a minute. It runs on the watched host against
+  `http://127.0.0.1:9100/metrics`, because node-exporter listens on localhost only.
   Alerts when one CPU spent more than 80 % of the last 5 minutes in softirq.
   Nothing alerts until 5 minutes of samples exist.
 - **kernel** (`nic-watch.py --mode kernel`): runs on the watched host every 5
@@ -17,9 +18,10 @@ maintainer says go. Hostnames and addresses live only in
   last 6 minutes of the kernel log.
 
 Both send at most one mail per 6 hours per check, through the SMTP settings and
-`ALERT_EMAIL` the backup alerts already use ([backups.md](backups.md)). The mail
-names the host and the check only. If the watched host has no app config, the
-kernel check falls back to the local `sendmail`; if neither works the unit fails
+`ALERT_EMAIL` the backup alerts use ([backups.md](backups.md)). The mail
+names the host and the check only. If the watched host has no app config (the
+database host has none), both checks use the local `sendmail`, with `ALERT_EMAIL`
+set in `nic-watch.env`; if neither works the unit fails
 and the journal says why.
 
 ## Install (on go)
@@ -28,15 +30,15 @@ and the journal says why.
 
 ```
 NIC_WATCH_LABEL=lc-db
-NIC_WATCH_URL=http://<db-host>:9100/metrics
+NIC_WATCH_URL=http://127.0.0.1:9100/metrics
+ALERT_EMAIL=<maintainer address>
 ```
 
-Copy the four `mielenosoitukset-nic-watch-*` units from `deploy/monitoring/` to
-`/etc/systemd/system/`. On the app host enable `...-softirq.timer`. On the
-database host copy `deploy/monitoring/nic-watch.py` and
+On the watched host copy `deploy/monitoring/nic-watch.py` and
 `deploy/backup/backup-notify.py` to `/opt/mielenosoitukset-monitoring/deploy/...`
-(same relative layout), then enable `...-kernel.timer`. Test with
-`systemctl start mielenosoitukset-nic-watch-softirq.service` and check the journal.
+(same relative layout), copy the four `mielenosoitukset-nic-watch-*` units from
+`deploy/monitoring/` to `/etc/systemd/system/`, then enable both timers. Test with
+`systemctl start mielenosoitukset-nic-watch-softirq.service` and check the journal. The helper needs `python3-yaml` on the watched host.
 
 ## Revert
 
