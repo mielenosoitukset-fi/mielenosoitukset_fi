@@ -52,3 +52,27 @@ def test_follow_and_friend_endpoints_reject_hidden_accounts(user_client, db, see
         "/users/profile/api/friend_state/?username=bob",
     ):
         assert user_client.get(path).status_code == 404, path
+
+
+def test_friend_list_and_messages_skip_hidden_accounts(user_client, db, seeded_data):
+    from mielenosoitukset_fi.utils.time_utils import utcnow
+
+    db.users.update_one(
+        {"_id": seeded_data["user_id"]},
+        {"$set": {"friends": [{"user_id": seeded_data["friend_id"]}]}},
+    )
+    db.messages.insert_one({
+        "sender_id": seeded_data["friend_id"], "recipient_id": seeded_data["user_id"],
+        "content": "hei", "created_at": utcnow(), "read": False,
+    })
+    assert len(user_client.get("/users/profile/api/friends_list/").get_json()["friends"]) == 1
+    assert len(user_client.get("/users/profile/api/messages/").get_json()) >= 1  # the seed already has a message from Bob
+
+    db.users.update_one({"_id": seeded_data["friend_id"]}, {"$set": {"banned": True}})
+
+    assert user_client.get("/users/profile/api/friends_list/").get_json()["friends"] == []
+    assert user_client.get("/users/profile/api/messages/").get_json() == []
+    assert user_client.get("/users/profile/api/messages/unread_count/").get_json() == {}
+    assert user_client.get("/users/profile/api/messages/bob/").status_code == 404
+    response = user_client.post("/users/profile/api/messages/send/", json={"recipient": "bob", "content": "hei"})
+    assert response.status_code == 404
