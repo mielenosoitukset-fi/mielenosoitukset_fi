@@ -337,6 +337,13 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
   and control characters other than newline and tab, and stores an empty bio as `null`. The
   Flask path is unchanged. See [account-pages-react.md](account-pages-react.md).
 
+- **Backup alerts go to Bark push, e-mail is the fallback (2026-11-18).** The
+  maintainer prefers a Bark push (iOS) over e-mail for ops alerts. `backup-notify.py`
+  tries Bark first (`BARK_KEY`, `BARK_URL` default `https://api.day.app`, HTTPS only,
+  10 s timeout), then e-mail if `ALERT_EMAIL` is set, and exits non-zero when no
+  channel works so the failure is visible. The key lives only in the root-only
+  `backup.env` on the server and is never logged. The push names only the label and
+  the failed check. Setup: [backups.md](backups.md).
 - **Suspended, banned and deactivated accounts have no public profile (2026-11-18, maintainer).** The public profile page and the Go profile read answer "not found" for an account with `security_suspension.active`, `banned: true` or `active: false`, the same as for a missing user, so a profile cannot show that an account is suspended. Deleted or anonymised accounts need no rule: the code has no such marker and a deleted account has no document. Unconfirmed accounts stay visible. Flask `profile.py` and `go-api/profile.go` apply the rule; revert by removing the check in both. See [account-pages-react.md](account-pages-react.md).
 ## Lockdown gate when the status read fails
 

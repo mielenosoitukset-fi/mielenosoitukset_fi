@@ -155,14 +155,44 @@ Disk: encryption needs one archive's worth of free space in
 
 ### Alerts
 
-`backup-notify.py` sends one e-mail for each failed unit: a dump failure, an
-off-site copy failure, or a stale off-site copy. It uses the site's own SMTP
-account (the `MAIL:` section of `/var/www/mielenosoitukset_fi/config.yaml`) and
-falls back to the local `sendmail`. The recipient is `ALERT_EMAIL` in
-`/etc/mielenosoitukset/backup.env`, which is not in the repository. The mail
-names only the unit and the host, never log lines. If it cannot be sent, the
-journal line remains (`journalctl -u mielenosoitukset-backup-failed -n 20`).
-A stale copy sends a mail every day until fixed.
+`backup-notify.py` alerts once for each failed unit: a dump failure, an off-site
+copy failure, or a stale off-site copy. Channels, in order:
+
+1. **Bark push (iOS)** when a Bark key is set. On lc-main the key is already in
+   `/etc/mielenosoitukset-alerts.env` (`BARK_DEVICE_KEY`, `BARK_API_BASE`,
+   `BARK_ALERT_GROUP`, `BARK_ALERTS_ENABLED`), which the failure unit loads, so
+   **the key is not copied or pasted anywhere**. `BARK_KEY` and `BARK_URL` in
+   `backup.env` are alternative names and override the shared file. The push is plain
+   (not encrypted with `BARK_ENCRYPTION_KEY`), because it says only the label (`ALERT_LABEL`, default `mielenosoitukset.fi`) and the
+   name of the failed check, with no log lines and no host names. `BARK_ALERTS_ENABLED=false`
+   turns Bark off; the server base (default `https://api.day.app`) must be HTTPS, the request
+   times out after 10 seconds, and a failure logs only the exception type, never the
+   key or URL.
+2. **E-mail** to `ALERT_EMAIL`, when Bark is not configured or failed. It uses the
+   site's SMTP account (the `MAIL:` section of
+   `/var/www/mielenosoitukset_fi/config.yaml`) with the local `sendmail` as a fallback,
+   and names the unit and host only.
+
+If no channel is configured, or every configured one fails, `backup-notify.py` exits
+non-zero, so `mielenosoitukset-backup-failed.service` itself shows as failed. The journal line
+stays either way (`journalctl -u mielenosoitukset-backup-failed -n 20`). A stale copy
+alerts every day until fixed.
+
+**Setting the Bark key:** nothing to do on lc-main; the existing shared file is used.
+To use another key for backups only, add `BARK_KEY=<key>` to
+`/etc/mielenosoitukset/backup.env` yourself (mode 0600, never in chat or the
+repository). On another host (for example lc-db for the NIC watcher, #1208) the
+key must exist there. Copy only the four lines that are needed, server to server
+at install time, without printing them:
+
+```sh
+ssh <other host> 'install -m 0600 /dev/null /etc/mielenosoitukset-alerts.env'
+ssh lc-main-root "grep -E '^BARK_(DEVICE_KEY|API_BASE|ALERT_GROUP|ALERTS_ENABLED)=' /etc/mielenosoitukset-alerts.env" \
+  | ssh <other host> 'umask 077; cat > /etc/mielenosoitukset-alerts.env'
+```
+
+Check on the target with `ls -l` (mode `-rw-------`, root) and count the lines with
+`grep -c . <file>`; never `cat` it. Revert: delete that file there.
 
 ### Server settings file
 
@@ -170,7 +200,12 @@ A stale copy sends a mail every day until fixed.
 reads `KEY=value` lines only: no quotes, no comment after a value.
 
 ```sh
-ALERT_EMAIL=<maintainer address>
+# Alert channel. Bark settings normally come from /etc/mielenosoitukset-alerts.env;
+# set these only to override them. E-mail is the fallback.
+# BARK_KEY=<device key>
+# ALERT_EMAIL=<maintainer address>
+# BARK_URL=https://api.day.app
+# ALERT_LABEL=mielenosoitukset.fi
 # The path is relative to the rrsync directory, which is incoming/.
 OFFSITE_TARGET=<user>@<homelab host>:./
 OFFSITE_PORT=22
@@ -245,7 +280,7 @@ runs. Installing units does not restart anything public.
    MONITOR_UNIT=test.service /var/www/mielenosoitukset_fi/deploy/backup/backup-notify.py
    ```
 
-   Confirm the mail arrives. Then run the housekeeping script on the homelab and
+   Confirm the push (or mail) arrives. Then run the housekeeping script on the homelab and
    check that the first archive is accepted into the vault.
 6. **Prove the key** and the restore: do the OPS-02 restore drill (first real restore
    from the off-site copy, see below) before relying on the off-site copy.

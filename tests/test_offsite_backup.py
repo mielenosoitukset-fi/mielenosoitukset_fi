@@ -333,10 +333,10 @@ def test_alert_mail_goes_through_the_site_smtp_account(notify):
     assert "mongodb://" not in message.get_content()
 
 
-def test_alert_without_recipient_sends_nothing_and_does_not_fail(notify):
+def test_alert_without_any_channel_fails_visibly(notify, capsys):
     module, config = notify
-    assert module.main({"APP_CONFIG": config}) == 0
-    assert not FakeSMTP.sent
+    assert module.main({"APP_CONFIG": config}) == 1
+    assert not FakeSMTP.sent and "NOT sent" in capsys.readouterr().err
 
 
 def test_failed_send_exits_nonzero_without_printing_the_error_text(notify, capsys):
@@ -384,3 +384,121 @@ def test_units_have_run_time_limits_and_the_catch_up_stays_at_night():
     assert "RuntimeMaxSec=3600" in _unit("mielenosoitukset-offsite-copy.service")
     timer = _unit("mielenosoitukset-offsite-copy.timer")
     assert "OnCalendar=*-*-* 01:50:00 UTC" in timer and "Persistent=" not in timer
+
+
+# --- Bark push --------------------------------------------------------------
+
+import http.server
+import json
+import threading
+
+
+@pytest.fixture
+def bark_server(notify):
+    module, config = notify
+    received = []
+    reply = {"code": 200}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            received.append((self.path, json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
+            if reply.get("redirect"):
+                self.send_response(307)
+                self.send_header("Location", reply["redirect"])
+                self.end_headers()
+                return
+            body = json.dumps(reply).encode()
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    module.BARK_SCHEMES = ("https", "http")  # only the tests talk to a plain local server
+    yield module, config, f"http://127.0.0.1:{server.server_port}", received, reply
+    server.shutdown()
+
+
+def test_bark_push_carries_only_label_and_check_name(bark_server):
+    module, config, url, received, _ = bark_server
+    env = {"BARK_KEY": "devkey123", "BARK_URL": url, "ALERT_EMAIL": "maintainer@example.org", "APP_CONFIG": config,
+           "MONITOR_UNIT": "mielenosoitukset-offsite-check.service", "ALERT_LABEL": "site"}
+
+    assert module.main(env) == 0
+
+    path, payload = received[0]
+    assert path == "/push" and payload["device_key"] == "devkey123"
+    assert payload["title"] == "site: backup problem" and payload["body"] == "mielenosoitukset-offsite-check.service"
+    assert not FakeSMTP.sent  # Bark worked, so no mail
+
+
+def test_failed_bark_falls_back_to_email_and_never_logs_the_key(bark_server, capsys):
+    module, config, url, received, reply = bark_server
+    reply.update(code=400)
+    env = {"BARK_KEY": "devkey123", "BARK_URL": url, "ALERT_EMAIL": "maintainer@example.org", "APP_CONFIG": config}
+
+    assert module.main(env) == 0
+
+    assert len(FakeSMTP.sent) == 1
+    output = capsys.readouterr()
+    assert "devkey123" not in output.out + output.err and "RuntimeError" in output.err
+
+
+def test_failed_bark_without_email_exits_nonzero(bark_server, capsys):
+    module, config, url, received, reply = bark_server
+    reply.update(code=400)
+    assert module.main({"BARK_KEY": "devkey123", "BARK_URL": url, "APP_CONFIG": config}) == 1
+    output = capsys.readouterr()
+    assert "devkey123" not in output.out + output.err
+
+
+def test_bark_refuses_plain_http_and_unreachable_servers(notify, capsys):
+    module, config = notify
+    env = {"BARK_KEY": "devkey123", "BARK_URL": "http://127.0.0.1:9", "APP_CONFIG": config}
+    assert module.main(env) == 1
+    assert "ValueError" in capsys.readouterr().err
+    module.BARK_SCHEMES = ("https", "http")
+    assert module.main(env) == 1  # nothing listens on port 9
+    output = capsys.readouterr()
+    assert "devkey123" not in output.out + output.err
+
+
+def test_bark_redirect_counts_as_a_failed_push_and_is_not_followed(bark_server, capsys):
+    module, config, url, received, reply = bark_server
+    reply["redirect"] = url + "/elsewhere"
+
+    assert module.main({"BARK_KEY": "devkey123", "BARK_URL": url, "APP_CONFIG": config}) == 1
+
+    assert [path for path, _ in received] == ["/push"]  # the redirect target was never requested
+    output = capsys.readouterr()
+    assert "HTTPError" in output.err and "devkey123" not in output.out + output.err
+
+
+def test_shared_alerts_env_names_work_as_aliases(bark_server):
+    module, config, url, received, _ = bark_server
+    env = {"BARK_DEVICE_KEY": "sharedkey", "BARK_API_BASE": url, "BARK_ALERT_GROUP": "ops", "BARK_ALERTS_ENABLED": "true",
+           "BARK_ENCRYPTION_KEY": "unused", "APP_CONFIG": config}
+
+    assert module.main(env) == 0
+
+    assert received[0][1]["device_key"] == "sharedkey" and received[0][1]["group"] == "ops"
+    assert "unused" not in json.dumps(received)
+
+
+@pytest.mark.parametrize("flag", ["false", "0", "No", "off"])
+def test_bark_alerts_enabled_flag_turns_bark_off(bark_server, flag, capsys):
+    module, config, url, received, _ = bark_server
+    env = {"BARK_DEVICE_KEY": "sharedkey", "BARK_API_BASE": url, "BARK_ALERTS_ENABLED": flag, "APP_CONFIG": config}
+
+    assert module.main(env) == 1  # nothing else configured: fails visibly
+    assert not received and "NOT sent" in capsys.readouterr().err
+    assert module.main({**env, "ALERT_EMAIL": "maintainer@example.org"}) == 0
+    assert not received and len(FakeSMTP.sent) == 1
+
+
+def test_failed_unit_loads_the_shared_alerts_file_before_backup_env():
+    text = _unit("mielenosoitukset-backup-failed.service")
+    assert text.index("EnvironmentFile=-/etc/mielenosoitukset-alerts.env") < text.index("EnvironmentFile=-/etc/mielenosoitukset/backup.env")
