@@ -372,3 +372,41 @@ func mergeState(base, extra bson.M) bson.M {
 	}
 	return base
 }
+
+func TestProfileAccountHidden(t *testing.T) {
+	cases := []struct {
+		name string
+		doc  bson.M
+		want bool
+	}{
+		{"ordinary", bson.M{"active": true, "banned": false}, false},
+		{"no markers", bson.M{}, false},
+		{"banned", bson.M{"banned": true}, true},
+		{"inactive", bson.M{"active": false}, true},
+		{"suspended", bson.M{"security_suspension": bson.M{"active": true}}, true},
+		{"suspension lifted", bson.M{"security_suspension": bson.M{"active": false}}, false},
+		{"suspended as bson.D", bson.M{"security_suspension": bson.D{{Key: "active", Value: true}}}, true},
+		{"suspension lifted as bson.D", bson.M{"security_suspension": bson.D{{Key: "active", Value: false}}}, false},
+		{"suspended and banned", bson.M{"banned": true, "security_suspension": bson.M{"active": true}}, true},
+	}
+	for _, c := range cases {
+		if got := profileAccountHidden(c.doc); got != c.want {
+			t.Errorf("%s: hidden %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+func TestProfileSummariesSkipHiddenAccounts(t *testing.T) {
+	byID := map[string]bson.M{
+		"a": {"username": "maija", "displayname": "Maija"},
+		"b": {"username": "banned", "banned": true},
+		"c": {"username": "inactive", "active": false},
+		"d": {"username": "suspended", "security_suspension": bson.D{{Key: "active", Value: true}}},
+		"e": {"username": ""},
+		"f": {"username": "pekka"},
+	}
+	got := profileSummariesFrom([]string{"a", "b", "c", "d", "e", "missing", "f"}, byID)
+	if len(got) != 2 || got[0].Username != "maija" || got[1].Username != "pekka" {
+		t.Fatalf("got %+v", got)
+	}
+}
