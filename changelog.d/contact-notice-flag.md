@@ -1,0 +1,1 @@
+- The contact page can now show its confirmation, error and "form unavailable" messages from a `?contact=` flag in the address, so the Go backend can take over sending the form without losing them. Nothing changes for visitors until the Go backend is switched on.

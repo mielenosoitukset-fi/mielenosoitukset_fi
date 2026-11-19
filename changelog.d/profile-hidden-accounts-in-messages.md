@@ -1,0 +1,1 @@
+- Banned, deactivated and suspended accounts no longer appear in a user's friend list or message conversations, and messages cannot be sent to them.
