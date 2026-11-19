@@ -6,6 +6,8 @@ Type=oneshot
 # systemd sets MONITOR_UNIT to the unit that failed. The journal line is written
 # first so it exists even when the mail cannot be sent. The mail goes to
 # ALERT_EMAIL from the root-only settings file (see docs/backups.md).
+# The shared Bark settings come first; backup.env may override them.
+EnvironmentFile=-/etc/mielenosoitukset-alerts.env
 EnvironmentFile=-/etc/mielenosoitukset/backup.env
 ExecStart=/usr/bin/logger -p user.err -t mielenosoitukset-backup "Backup step FAILED (${MONITOR_UNIT}); read its log with journalctl -u ${MONITOR_UNIT}"
 ExecStart=/var/www/mielenosoitukset_fi/deploy/backup/backup-notify.py
