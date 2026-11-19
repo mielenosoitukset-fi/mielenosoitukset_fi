@@ -6,13 +6,15 @@ import './account-settings/account-settings.css';
 
 /**
  * Re-authentication dialog on the native dialog element: focus moves inside, Escape and Peruuta
- * cancel, focus returns to the opener. Errors show inside the dialog. `finish(true)` means the
+ * cancel (`useStepUp` returns focus to the control that started the request). Errors show inside
+ * the dialog. `finish(true)` means the
  * session is elevated and the caller may retry its request.
  */
 export function StepUpDialog({ finish }: { finish: (ok: boolean) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const heading = useId();
   const ids = { password: useId(), totp: useId() };
+  const passwordField = useRef<HTMLInputElement>(null);
   const [methods, setMethods] = useState<StepUpMethods | null>(null);
   const [password, setPassword] = useState('');
   const [totp, setTotp] = useState('');
@@ -20,9 +22,8 @@ export function StepUpDialog({ finish }: { finish: (ok: boolean) => void }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     ref.current?.showModal();
-    return () => { ref.current?.close(); if (trigger?.isConnected) trigger.focus({ preventScroll: true }); };
+    return () => { ref.current?.close(); };
   }, []);
   useEffect(() => {
     let live = true;
@@ -36,7 +37,10 @@ export function StepUpDialog({ finish }: { finish: (ok: boolean) => void }) {
 
   const settle = (result: StepUpResult) => {
     setBusy(false);
-    if (result.ok) { setPassword(''); setTotp(''); finish(true); } else setError(result.message);
+    if (result.ok) { setPassword(''); setTotp(''); finish(true); return; }
+    // A wrong password is never kept in the field: clear it and let the user type again.
+    setPassword(''); setTotp(''); setError(result.message);
+    passwordField.current?.focus();
   };
   const usePasskey = async () => { setBusy(true); setError(''); settle(await stepUpWithPasskey()); };
   const usePassword = async (event: FormEvent) => {
@@ -56,7 +60,7 @@ export function StepUpDialog({ finish }: { finish: (ok: boolean) => void }) {
     {methods && <form className="suggest-change-form" onSubmit={usePassword}>
       <div className="suggest-change-field">
         <label htmlFor={ids.password}>{copy.password}</label>
-        <input id={ids.password} type="password" autoComplete="current-password" placeholder={copy.passwordPlaceholder} required
+        <input id={ids.password} ref={passwordField} type="password" autoComplete="current-password" placeholder={copy.passwordPlaceholder} required
           autoFocus={!methods.passkey} value={password} onChange={event => setPassword(event.target.value)} />
       </div>
       {methods.requiresTotp && <div className="suggest-change-field">
@@ -82,9 +86,21 @@ export function StepUpDialog({ finish }: { finish: (ok: boolean) => void }) {
 export function useStepUp(): { withStepUp: (request: () => Promise<Response>) => Promise<Response | null>; dialog: ReactElement | null } {
   const [open, setOpen] = useState(false);
   const pending = useRef<((ok: boolean) => void) | null>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const finish = useCallback((ok: boolean) => { setOpen(false); pending.current?.(ok); pending.current = null; }, []);
   const ask = useCallback(() => new Promise<boolean>(resolve => { pending.current = resolve; setOpen(true); }), []);
-  const withStepUp = useCallback((request: () => Promise<Response>) => runWithStepUp(request, ask), [ask]);
+  // The opener is captured before the first request: the button that started it is disabled while
+  // it runs and loses focus, so reading document.activeElement later would find nothing.
+  const withStepUp = useCallback(async (request: () => Promise<Response>) => {
+    opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+    try { return await runWithStepUp(request, ask); }
+    finally {
+      const target = opener.current;
+      opener.current = null;
+      // After the caller has re-enabled its controls and React has rendered.
+      requestAnimationFrame(() => { if (target?.isConnected) target.focus({ preventScroll: true }); });
+    }
+  }, [ask]);
   useEffect(() => () => { pending.current?.(false); pending.current = null; }, []);
   return { withStepUp, dialog: open ? <StepUpDialog finish={finish} /> : null };
 }

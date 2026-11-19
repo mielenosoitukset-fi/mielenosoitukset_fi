@@ -251,7 +251,7 @@ Flask still serves every page and endpoint, so no data needs restoring.
 - Client checks: all fields filled, new equals confirm, at least 12 characters. The server stays the authority and
   its messages are shown as returned. Fields are cleared after success; values are never logged or stored.
 - New Finnish strings (the rest are Flask's msgids verbatim): "Vaihdetaan…" (button while busy),
-  "Vahvistetaan…" (step-up button while busy), "Vahvistustapojen haku epäonnistui. Yritä salasanalla." The
+  "Vahvistetaan…" (step-up button while busy), "Vahvistustapoja ei saatu haettua. Yritä salasanalla." The
   Turvallisuus notice now reads "Kaksivaiheisen tunnistuksen ja passkeyjen muuttaminen ei ole vielä tällä sivulla…".
 - Tests: `tests/test_account_stepup.py` (detection, retry and cancel flow, request body, message mapping, base64url).
 - Activation: nothing to activate; ships with the settings page. Revert: revert the pull request.

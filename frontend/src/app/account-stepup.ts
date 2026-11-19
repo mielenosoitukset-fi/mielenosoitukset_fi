@@ -30,7 +30,7 @@ export const stepUpCopy = {
   passkeyFailedTryPassword: 'Passkey-tunnistautuminen epäonnistui. Yritä salasanalla.',
   passwordFailed: 'Virheellinen salasana',
   failed: 'Tunnistautuminen epäonnistui',
-  optionsFailed: 'Vahvistustapojen haku epäonnistui. Yritä salasanalla.',
+  optionsFailed: 'Vahvistustapoja ei saatu haettua. Yritä salasanalla.',
 } as const;
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
