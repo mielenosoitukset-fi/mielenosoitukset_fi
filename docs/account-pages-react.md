@@ -234,3 +234,31 @@ Flask still serves every page and endpoint, so no data needs restoring.
   with the write flag (section 9) and the `/api/account/settings` POST rule; watch the first queued mail reach the
   worker. Revert: remove the write flag and restart; the page falls back to Flask, queued mails are ordinary Flask-shaped
   documents and need no cleanup.
+
+## 13. Legacy escape for the settings page (maintainer-approved route, 19 November 2026)
+
+To switch the React settings page on before password, MFA and passkey changes exist in React, the
+Apache page rule leaves `/users/auth/settings?legacy=1` to Flask (`RewriteCond %{QUERY_STRING}
+"!(^|&)legacy=1(&|$)"`). Flask's `settings()` takes no arguments, so it serves the unchanged
+page for that URL, with no new Flask route. The Security tab shows a notice and a button to
+`/users/auth/settings?legacy=1#tab-security`.
+
+Checked in the code: every form on the Flask settings page is a JavaScript `fetch` of a JSON
+endpoint under `/users/auth/api/v2/*`; none posts a form and redirects back, so no success path
+sends the visitor to `/users/auth/settings` without the query. The only Flask redirects to the
+settings URL are `/users/profile/edit` and the already-satisfied forced-password check, and landing
+on the React page is right for both. The MFA setup, passkey and step-up calls are same-origin JSON
+and WebAuthn on the same host, so the query string does not touch them. The rule claims GET and
+HEAD only; POSTs keep reaching Flask.
+
+Tested on a scratch Apache (macOS `httpd` 2.4.66 on port 18080, stub backends, never on
+production), with the settings rules uncommented: `/users/auth/settings` and `/users/auth/settings/`
+go to the React host; `?legacy=1` and `?a=1&legacy=1&b=2` go to Flask; `?legacy=10`, `?legacy=0` and
+`?notlegacy=1` go to React; POSTs to `/users/auth/settings`, `/users/auth/api/v2/change_password`
+and `/api/account/settings` (until its own rule is on) go to Flask; `GET /api/account/settings` and
+`POST /api/account/profile` go to Go; HEAD works. Found while testing: `POST /api/account/settings`
+(the step 3b write) had no Apache rule; a commented one is added next to the bio rule.
+
+Activation of the settings page, when the maintainer gives the go: the settings-read flag
+(`ACCOUNT_SETTINGS_READS`), the write flags if wanted, then the four lines (read API, page with the
+legacy condition, and the two POST rules). Back up first and revert by re-commenting the lines.

@@ -4,7 +4,7 @@ import type { AppConfig } from './config';
 import type { SessionSummary } from './session';
 import { useSession } from './useSession';
 import {
-  accountBioMax, accountBioWarnAt, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
+  accountBioMax, accountBioWarnAt, accountLegacySecurityPath, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
   accountSettingsPath, accountStanding, accountTabs, accountTranslationsUrl, classifyAccountResponse, filterCities,
   generalPayload, nextTabIndex, postBioToGo, postGeneralToGo, postFlaskJson, profilePayload, readAccountSettings, safePicture, tabFromHash,
 } from './account-settings-route';
@@ -133,6 +133,7 @@ function SecurityPanel({ data }: { data: AccountSettingsRead }) {
       <h2 id="account-security-title">{copy.securityTitle}</h2>
       <p className="account-muted">{copy.securityLead}</p>
       {notice('info', copy.securityLater)}
+      <div className="detail-actions"><a className="detail-button" href={accountLegacySecurityPath}>{copy.securityLegacyLink}</a></div>
     </section>
     <section className="public-prose-card account-card" aria-labelledby="account-mfa-title">
       <h2 id="account-mfa-title">{copy.mfaTitle}</h2>

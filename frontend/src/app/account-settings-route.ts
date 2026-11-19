@@ -12,6 +12,8 @@ export const accountBioMax = 5000;
 /** Announce the remaining length to screen readers once the text is this close to the limit. */
 export const accountBioWarnAt = 200;
 export const accountDeveloperPath = '/developer';
+/** The unchanged Flask settings page; Apache leaves `?legacy=1` to Flask. Password, MFA and passkey changes still live there. */
+export const accountLegacySecurityPath = '/users/auth/settings?legacy=1#tab-security';
 export const accountTranslationsUrl = 'https://mielenosoitukset.fi/upcoming/translations/';
 
 export const accountTabs = [
@@ -69,7 +71,8 @@ export const accountCopy = {
   saveFailed: 'Virhe asetusten tallennuksessa.',
   securityTitle: 'Turvallisuusasetukset',
   securityLead: 'Hallinnoi tilisi turvallisuusasetuksia, kuten kaksivaiheista tunnistautumista (MFA).',
-  securityLater: 'Salasanan, kaksivaiheisen tunnistuksen ja passkeyjen muuttaminen ei ole vielä tällä sivulla. Ne tulevat tähän myöhemmässä vaiheessa.',
+  securityLater: 'Salasanan, kaksivaiheisen tunnistuksen ja passkeyjen muuttaminen tapahtuu toistaiseksi vanhalla asetussivulla.',
+  securityLegacyLink: 'Avaa turvallisuusasetukset',
   mfaTitle: 'Kaksivaiheinen tunnistus (MFA)',
   mfaLead: 'Hallinnoi kaksivaiheista tunnistautumista ja MFA-laitteita.',
   mfaOn: 'MFA on käytössä',
