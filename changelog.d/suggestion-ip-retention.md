@@ -1,0 +1,1 @@
+- The IP address and User-Agent stored with organisation and demonstration suggestions (and the matching case) are now removed after 90 days by a daily job. The suggestions themselves are kept. The job stays off until `SUGGESTION_IP_PURGE_ENABLED` is set.

@@ -158,7 +158,13 @@ func publicSubmissionHandler(next http.Handler, db *mongo.Database, config submi
 		}
 		input, err := readSubmission(w, r, config.Locales)
 		if err != nil {
-			submissionFailure(w, 400, "SUBMIT_MISSING_FIELDS", err.Error())
+			var reason submissionError
+			if !errors.As(err, &reason) {
+				reason = submissionError{"SUBMIT_INVALID_FIELD", "Tarkista lomakkeen tiedot."}
+			}
+			// Log the check that failed, never the submitted values.
+			log.Printf("submission rejected: %s: %s", reason.Code, reason.Message)
+			submissionFailure(w, 400, reason.Code, reason.Message)
 			return
 		}
 		actor, err := submissionActor(ctx, r, config)

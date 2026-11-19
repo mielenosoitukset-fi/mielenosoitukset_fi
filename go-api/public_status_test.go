@@ -10,6 +10,8 @@ import (
 )
 
 func TestPublicGatePrecedesCachedResponsesAndPreservesHealth(t *testing.T) {
+	lockdownOverride = func() bool { return true }
+	defer func() { lockdownOverride = func() bool { return false } }()
 	for _, failed := range []bool{false, true} {
 		calls, served := 0, 0
 		handler := publicAvailability(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -42,52 +44,108 @@ func TestPublicGatePrecedesCachedResponsesAndPreservesHealth(t *testing.T) {
 	}
 }
 
-func TestPublicGateRidesOutBriefReadFailuresButNotLockdowns(t *testing.T) {
-	now := time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
+func gateHarness(t *testing.T) (status func() int, set func(locked bool, err error), advance func(time.Duration)) {
+	now := time.Date(2026, 11, 17, 12, 0, 0, 0, time.UTC)
 	clock = func() time.Time { return now }
-	defer func() { clock = time.Now }()
-	type answer struct {
-		locked bool
-		err    error
-	}
-	var next answer
+	lockdownOverride = func() bool { return false }
+	t.Cleanup(func() { clock = time.Now })
+	var locked bool
+	var err error
 	handler := publicAvailability(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) }),
-		func(context.Context) (bool, error) { return next.locked, next.err })
-	status := func() int {
+		func(context.Context) (bool, error) { return locked, err })
+	status = func() int {
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest("GET", "/api/home", nil))
 		return w.Code
 	}
-	failed := errors.New("database unavailable")
-	next = answer{err: failed}
-	if status() != 503 {
-		t.Fatal("a failed first read must fail closed")
-	}
-	now = now.Add(2 * time.Second)
-	next = answer{}
+	set = func(l bool, e error) { locked, err = l, e }
+	advance = func(d time.Duration) { now = now.Add(d) }
+	return
+}
+
+var errDown = errors.New("database unavailable")
+
+func TestGateStaysOpenWhenReadFailsAfterOpen(t *testing.T) {
+	status, set, advance := gateHarness(t)
+	set(false, nil)
 	if status() != 200 {
-		t.Fatal("an open read opens the site")
+		t.Fatal("open read opens")
 	}
-	now = now.Add(2 * time.Second)
-	next = answer{err: failed}
+	set(false, errDown)
+	advance(2 * time.Second)
 	if status() != 200 {
-		t.Fatal("a failed read within the grace period keeps the last open answer")
+		t.Fatal("failed read keeps the open answer")
 	}
-	now = now.Add(availabilityGrace)
+	advance(availabilityGrace - 10*time.Second)
+	if status() != 200 {
+		t.Fatal("still open inside the window")
+	}
+	advance(time.Minute)
 	if status() != 503 {
-		t.Fatal("a failure outlasting the grace period fails closed")
+		t.Fatal("a failure outlasting the window closes")
 	}
-	now = now.Add(2 * time.Second)
-	next = answer{}
+	set(false, nil)
+	advance(2 * time.Second)
+	if status() != 200 {
+		t.Fatal("recovery reopens")
+	}
+}
+
+func TestGateStaysLockedWhenReadFailsAfterLock(t *testing.T) {
+	status, set, advance := gateHarness(t)
+	set(false, nil)
 	status()
-	now = now.Add(2 * time.Second)
-	next = answer{locked: true}
+	set(true, nil)
+	advance(2 * time.Second)
 	if status() != 503 {
-		t.Fatal("an explicit lockdown applies at once, even within the grace period")
+		t.Fatal("lockdown applies at once")
 	}
-	now = now.Add(2 * time.Second)
-	next = answer{err: failed}
+	set(false, errDown)
+	for i := 0; i < 3; i++ {
+		advance(availabilityGrace)
+		if status() != 503 {
+			t.Fatal("a failed read must not reopen a locked site")
+		}
+	}
+	set(false, nil)
+	advance(2 * time.Second)
+	if status() != 200 {
+		t.Fatal("an explicit open read reopens")
+	}
+}
+
+func TestGateRestartDuringOutage(t *testing.T) {
+	status, set, advance := gateHarness(t)
+	set(false, errDown)
+	if status() != 200 {
+		t.Fatal("no answer yet and no override: stay open")
+	}
+	advance(time.Hour)
+	if status() != 200 {
+		t.Fatal("still open: nothing ever said locked")
+	}
+	lockdownOverride = func() bool { return true }
+	advance(2 * time.Second)
 	if status() != 503 {
-		t.Fatal("a failed read after a lockdown must not reopen the site")
+		t.Fatal("emergency override closes")
+	}
+	set(false, nil)
+	advance(2 * time.Second)
+	if status() != 200 {
+		t.Fatal("a successful open read wins over the override")
+	}
+}
+
+func TestOverrideClosesAfterOpenAnswerWhenReadFails(t *testing.T) {
+	status, set, advance := gateHarness(t)
+	set(false, nil)
+	if status() != 200 {
+		t.Fatal("open")
+	}
+	set(false, errDown)
+	advance(2 * time.Second)
+	lockdownOverride = func() bool { return true }
+	if status() != 503 {
+		t.Fatal("override must close within the stale window")
 	}
 }
