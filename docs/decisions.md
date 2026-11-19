@@ -109,6 +109,14 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
 
 ## Authentication and sessions
 
+- **Isolated Hallinto issuer and browser revocation (2026-11-19).** Approved
+  to build and test with synthetic accounts. Keep the issuer under the
+  existing Flask account origin so sign-in and passkey ceremonies stay there.
+  Bind the Hallinto session to a per-login owner marker so ordinary sign-out
+  revokes that browser and account-wide security changes still apply. Live
+  routes, data provisioning and production activation retain their own
+  approval gates. See [Hallinto owner markers](hallinto-owner-markers.md).
+
 - **Auth bridge: Go and React ask Flask who is signed in (2026-11-12).** The
   maintainer approved starting the move of authentication towards React and Go,
   keeping login on Flask if possible. Chosen after comparing four options: Go asks
