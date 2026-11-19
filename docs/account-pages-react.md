@@ -234,3 +234,70 @@ Flask still serves every page and endpoint, so no data needs restoring.
   with the write flag (section 9) and the `/api/account/settings` POST rule; watch the first queued mail reach the
   worker. Revert: remove the write flag and restart; the page falls back to Flask, queued mails are ordinary Flask-shaped
   documents and need no cleanup.
+
+## 11. Activating the public profile page (runbook, 19 November 2026)
+
+Maintainer said "enable them" for the profile and settings pages on 19 November 2026. This
+runbook is for the profile page only. Nothing here has been run.
+
+State read on production (read-only, 12:53 EET, 19 Nov): the release is `f47467ae`, which contains
+#1195, #1202, #1203, #1204, #1207, #1209 and #1210; the Go API reports the same build sha;
+`config.yaml` has `AUTH_BRIDGE_SCOPES` and `DEVELOPER_WRITES` on and `NATIONAL_ADMIN_ORG_ID`
+and `BOARD_ORG_ID` set; the Go environment has the bridge and developer-write flags and no profile
+or account flags; the live Apache include still has the profile rules commented out.
+
+Steps (each needs the maintainer's go; outside the backup dump windows, which are 02:32 UTC core
+and Sunday 03:34 UTC full, and outside daytime peaks):
+
+1. Backup into a new `/root/profile-activation-backup-<UTC timestamp>/`: `config.yaml`,
+   `/etc/mielenosoitukset-api/environment` and `/etc/apache2/mielenosoitukset-react-ssr.conf`.
+2. Add `PROFILE_READS: true` to `/var/www/mielenosoitukset_fi/config.yaml`.
+3. Regenerate the Go environment from it (`python3 deploy/go-api/configure_environment.py
+   /var/www/mielenosoitukset_fi/config.yaml /etc/mielenosoitukset-api/environment` from the
+   current release) and restart only `mielenosoitukset-api`. Check that the file now has
+   `PROFILE_READS_ENABLED=true` and `NATIONAL_ADMIN_ORG_ID` (names only, never the values),
+   and that `GET http://127.0.0.1:8091/api/profile/<a real username>` answers 200 and a made-up
+   one 404.
+4. Uncomment the five profile lines in the live Apache include (only those; the `/api/account/*`
+   and settings rules stay commented), run `apachectl configtest`, reload Apache.
+5. Verify through the public host: a profile page loads, an unknown username shows the not-found
+   page with status 404, `/users/profile/edit` and `/users/profile/api/follow/` still reach
+   Flask, a banned test account answers 404, and the signed-in own profile shows the owner sections.
+6. Open a small PR that uncomments the same five lines in `deploy/apache/react-ssr-routing.conf`,
+   so a later deploy that installs that file does not undo the activation.
+
+Revert: re-comment the five Apache lines and reload (Flask serves the page again at once); then
+remove `PROFILE_READS` from `config.yaml`, regenerate the environment and restart the API. The
+backup folder from step 1 holds the three files as they were. No data is written by this feature.
+
+Before the go message: the visual states still to capture are the missing-user page at 390,
+390 light, 1440 dark, the other-user view and the share dialog, followed by a visual SHIP.
+
+## 12. Plan: credential and account changes in React (not started)
+
+The settings page stays in Flask (the `/users/auth/settings` Apache rule stays off) until React
+can do everything it does today. Five more pieces are needed, each its own PR, each needing the
+maintainer's approval before it starts, each with an independent security/auth SHIP and, where it
+has UI, a visual SHIP. Order, smallest first:
+
+1. **Password change.** Flask: `POST /users/auth/api/v2/change_password` with `sudo_required`,
+   current password check, strength rule, `password_changes` row, notification mail. The step-up
+   record lives in the Flask session cookie and Go cannot see it, so the safest first version keeps
+   the POST in Flask and gives React the form, the step-up prompt and the error handling. Moving
+   the write to Go would also need Werkzeug-compatible hashing and session invalidation
+   (`mfa_credential_version` follows the password hash), which is a separate approval.
+2. **MFA devices.** Setup (QR and code), rename and revoke. The endpoints are Flask JSON
+   (`/api/v2/mfa`, `mfa_device_rename`, `mfa_device_revoke`); React gets the screens and calls them
+   unchanged. Revoke and rename need step-up.
+3. **Passkeys.** Register, rename, delete under `/users/auth/api/v2/passkeys/*`, plus the WebAuthn
+   browser ceremony and the step-up options. React reuses the existing endpoints; the browser
+   code in `static/js/webauthn.js` is ported.
+4. **Email change.** Not on the page today. It needs a design first: confirmation mail to the new
+   address, a token, a notice to the old address, and the effect on login and `email_canonical`.
+   Propose, then ask.
+5. **Account deletion.** Not on the page today. It needs a design first: what is deleted or
+   anonymised, what happens to memberships, messages and follow lists, and a grace period.
+   Propose, then ask.
+
+Until 1 to 3 exist in React, the settings Apache rule stays off; 4 and 5 are new features and do
+not block activating the page for parity with today's Flask page.
