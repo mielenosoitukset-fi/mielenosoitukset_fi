@@ -18,6 +18,33 @@ type fakeAccountWriteStore struct {
 	audits  []bson.M
 	missing bool
 	err     error
+
+	state     *accountSettingsState
+	saved     []bson.M
+	inserted  []bson.M
+	names     []*string
+	mails     []bson.D
+	mailError error
+}
+
+func (f *fakeAccountWriteStore) LoadSettings(context.Context, bson.ObjectID) (*accountSettingsState, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.state, nil
+}
+
+func (f *fakeAccountWriteStore) SaveSettings(_ context.Context, _ bson.ObjectID, set, onInsert bson.M, name *string) error {
+	f.saved, f.inserted, f.names = append(f.saved, set), append(f.inserted, onInsert), append(f.names, name)
+	return nil
+}
+
+func (f *fakeAccountWriteStore) QueueMail(_ context.Context, doc bson.D) error {
+	if f.mailError != nil {
+		return f.mailError
+	}
+	f.mails = append(f.mails, doc)
+	return nil
 }
 
 func (f *fakeAccountWriteStore) SetBio(_ context.Context, owner bson.ObjectID, bio *string) (bool, error) {
@@ -55,7 +82,11 @@ func newAccountWriteRig(t *testing.T, enabled bool) accountWriteRig {
 }
 
 func (g accountWriteRig) post(body string, headers ...string) *httptest.ResponseRecorder {
-	r := httptest.NewRequest("POST", accountProfilePath, strings.NewReader(body))
+	return g.postTo(accountProfilePath, body, headers...)
+}
+
+func (g accountWriteRig) postTo(path, body string, headers ...string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest("POST", path, strings.NewReader(body))
 	r.Header.Set("Cookie", "session=member")
 	r.Header.Set("Sec-Fetch-Site", "same-origin")
 	r.Header.Set("Origin", "https://example.test")

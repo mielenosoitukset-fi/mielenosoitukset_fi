@@ -34,11 +34,20 @@ type accountWriteStore interface {
 	// SetBio stores bio (nil clears it) and reports whether the account exists.
 	SetBio(ctx context.Context, owner bson.ObjectID, bio *string) (bool, error)
 	Audit(ctx context.Context, doc bson.M) error
+	// LoadSettings returns nil when the account does not exist.
+	LoadSettings(ctx context.Context, owner bson.ObjectID) (*accountSettingsState, error)
+	// SaveSettings upserts user_settings ($set plus onInsert defaults) and, when
+	// displayName is not nil, copies it to users.displayname.
+	SaveSettings(ctx context.Context, owner bson.ObjectID, set, onInsert bson.M, displayName *string) error
+	// QueueMail inserts one finished mail into email_queue; Flask's worker sends it.
+	QueueMail(ctx context.Context, doc bson.D) error
 }
 
 type accountWrites struct {
 	guard *developerWrites // guards only; its store is never used
 	store accountWriteStore
+	// instance is the instance_id on queued mail, as in EmailJob.
+	instance string
 }
 
 func newAccountWrites(store accountWriteStore, origin string) *accountWrites {
@@ -46,10 +55,20 @@ func newAccountWrites(store accountWriteStore, origin string) *accountWrites {
 	if guard == nil {
 		return nil
 	}
-	return &accountWrites{guard: guard, store: store}
+	return &accountWrites{guard: guard, store: store, instance: newInstanceID()}
 }
 
 func (a *accountWrites) serveProfile(w http.ResponseWriter, r *http.Request, resolver *sessionResolver) {
+	a.serve(w, r, resolver, a.updateBio)
+}
+
+// serveSettings is the general settings write (account_settings_general.go).
+func (a *accountWrites) serveSettings(w http.ResponseWriter, r *http.Request, resolver *sessionResolver) {
+	a.serve(w, r, resolver, a.updateGeneral)
+}
+
+func (a *accountWrites) serve(w http.ResponseWriter, r *http.Request, resolver *sessionResolver,
+	update func(context.Context, http.ResponseWriter, *http.Request, bson.ObjectID) error) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Vary", "Cookie")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -65,7 +84,7 @@ func (a *accountWrites) serveProfile(w http.ResponseWriter, r *http.Request, res
 			authDenied(w, http.StatusServiceUnavailable, "session unavailable")
 			return
 		}
-		a.guard.guarded(w, r, owner, func(ctx context.Context) error { return a.updateBio(ctx, w, r, owner) })
+		a.guard.guarded(w, r, owner, func(ctx context.Context) error { return update(ctx, w, r, owner) })
 	})).ServeHTTP(w, r)
 }
 

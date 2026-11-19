@@ -245,6 +245,10 @@ func accountSettingsHandler(next http.Handler, store accountSettingsStore, resol
 			writes.serveProfile(w, r, resolver)
 			return
 		}
+		if writes != nil && r.URL.Path == accountSettingsPath && r.Method == http.MethodPost {
+			writes.serveSettings(w, r, resolver)
+			return
+		}
 		if r.URL.Path != accountSettingsPath {
 			next.ServeHTTP(w, r)
 			return

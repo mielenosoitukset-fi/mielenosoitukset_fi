@@ -337,6 +337,9 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
   and control characters other than newline and tab, and stores an empty bio as `null`. The
   Flask path is unchanged. See [account-pages-react.md](account-pages-react.md).
 
+## Account settings in Go
+
+- **General settings written by Go, change mail queued by Go with Flask parity (2026-11-18, coordinator).** `POST /api/account/settings` (behind the account write flag, no new flag) changes display name, city, language and dark mode, copies a changed display name to `users.displayname`, and inserts the same "Käyttäjäasetusten muutokset" mail Flask would into `email_queue`; Flask's worker sends it, Go never does. Parity is pinned by a golden fixture from the real Flask render. The mail's field order is fixed (city, display_name, language, dark_mode) because Flask's is a set. Go is stricter on input (field list, 40/100 character limits, city list, `fi` only). Dark mode is a stored preference only. Activation needs the maintainer's go. See [account-pages-react.md](account-pages-react.md).
 - **Backup alerts go to Bark push, e-mail is the fallback (2026-11-18).** The
   maintainer prefers a Bark push (iOS) over e-mail for ops alerts. `backup-notify.py`
   tries Bark first (`BARK_KEY`, `BARK_URL` default `https://api.day.app`, HTTPS only,

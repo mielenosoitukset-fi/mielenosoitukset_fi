@@ -6,7 +6,7 @@ import { useSession } from './useSession';
 import {
   accountBioMax, accountBioWarnAt, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
   accountSettingsPath, accountStanding, accountTabs, accountTranslationsUrl, classifyAccountResponse, filterCities,
-  generalPayload, nextTabIndex, postBioToGo, postFlaskJson, profilePayload, readAccountSettings, safePicture, tabFromHash,
+  generalPayload, nextTabIndex, postBioToGo, postGeneralToGo, postFlaskJson, profilePayload, readAccountSettings, safePicture, tabFromHash,
 } from './account-settings-route';
 import type { AccountSettingsRead, AccountTabId } from './account-settings-route';
 import { formatDeveloperDate } from './developer-route';
@@ -86,8 +86,10 @@ function GeneralPanel({ data, report, message }: { data: AccountSettingsRead; re
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     report(null); setBusy(true);
-    const result = await postFlaskJson(accountGeneralWriteApi,
-      generalPayload({ displayName, city, language: 'fi', darkMode }), copy.saveFailed);
+    const payload = generalPayload({ displayName, city, language: 'fi', darkMode });
+    // With the Go write route on (token present) the settings go to Go, which also queues the change mail.
+    const result = data.csrf ? await postGeneralToGo(data.csrf, payload, copy.saveFailed)
+      : await postFlaskJson(accountGeneralWriteApi, payload, copy.saveFailed);
     setBusy(false);
     report({ kind: result.ok ? 'info' : 'error', text: result.message || (result.ok ? '' : copy.saveFailed) });
   };
