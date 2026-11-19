@@ -188,6 +188,18 @@ export function readAccountSettings(body: unknown): AccountSettingsRead | null {
   };
 }
 
+/** Where Flask keeps an account that must change its username and display name first. Go answers 403 with this path. */
+export const accountIdentityChangePath = '/users/auth/forced_identity_change/';
+
+/** True for Go's refusal of a flagged account. The path is the fixed constant above, never taken from the body. */
+export async function isIdentityChangeRefusal(response: Pick<Response, 'status' | 'json'>): Promise<boolean> {
+  if (response.status !== 403) return false;
+  try {
+    const body = await response.json() as { error?: unknown; redirect?: unknown } | null;
+    return !!body && body.error === 'identity change required' && body.redirect === accountIdentityChangePath;
+  } catch { return false; }
+}
+
 export type AccountResponseKind = 'ok' | 'signed-out' | 'unavailable';
 
 /** Only a real 401 means signed out; a Flask 404 page (route not proxied to Go) or any 5xx is unavailable. */
