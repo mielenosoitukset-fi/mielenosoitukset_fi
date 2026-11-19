@@ -118,15 +118,16 @@
     ]
   },
   "background_jobs": {
-    "count": 25,
+    "count": 26,
     "coverage": [
       "jobs",
       "tests/test_urgent_review_delivery.py",
       "integration",
       "tests/test_fundraising_reminder.py",
-      "tests/test_pride_banner_volunteers.py"
+      "tests/test_pride_banner_volunteers.py",
+      "tests/test_purge_suggestion_ips.py"
     ],
-    "sha256": "d3f92bd6cd4ef9b7f2c388019a4bf8579672aa4e175ea863008272fec5234c15"
+    "sha256": "068ee6ed01d834ab510378457cf09c429838150c53b98d8d9f9b9bbc5516152e"
   },
   "routes": {
     "mielenosoitukset_fi/admin/admin_bp.py": {

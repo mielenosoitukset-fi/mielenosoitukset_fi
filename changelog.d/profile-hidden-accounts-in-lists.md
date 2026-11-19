@@ -1,0 +1,1 @@
+- Banned, deactivated and suspended accounts no longer appear in the follower and following lists of a profile, and the follow and friend request actions answer "not found" for them.

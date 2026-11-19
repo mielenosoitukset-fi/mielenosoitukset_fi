@@ -58,6 +58,8 @@ active security suspension; Flask's `User` model does not test the suspension, s
 slightly stricter there (no badge). Any lookup error fails the profile read like any other
 store error; unrecognised record shapes count as not approved.
 
+Banned, deactivated and security-suspended accounts answer 404 (maintainer decision of 18 November 2026), in Go and in Flask. Reviewer note on #1195 about suspended profiles is closed by this.
+
 Existing defects found while reading, kept out of this work: the "Poista ystävä" button
 posts to `/users/profile/api/remove_friend/`, which does not exist; the follow and friend
 JSON endpoints have no CSRF token and rely on `SameSite=Lax`.

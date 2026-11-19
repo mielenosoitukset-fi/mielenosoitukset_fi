@@ -1,0 +1,4 @@
+# decisions.md is an append-only log: when two branches both add entries, keep both.
+# This applies to local merges. GitHub's web and merge-queue merges ignore it, so
+# branches that conflict there still need a merge of main with `git merge origin/main`.
+docs/decisions.md merge=union

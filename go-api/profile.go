@@ -168,7 +168,7 @@ func (s mongoProfileStore) User(ctx context.Context, username string) (*profileU
 		return nil, err
 	}
 	id, ok := doc["_id"].(bson.ObjectID)
-	if !ok {
+	if !ok || profileAccountHidden(doc) {
 		return nil, nil
 	}
 	national, err := userHasNationalAccess(ctx, s, doc, id)
@@ -215,6 +215,23 @@ func (s mongoProfileStore) Clearance(ctx context.Context, userID string) (bson.M
 		return nil, nil
 	}
 	return record, err
+}
+
+// profileAccountHidden reports accounts whose public profile answers "not found",
+// the same answer as for a missing user (maintainer decision, 18 November 2026):
+// suspended, banned and deactivated accounts. No account document is read for
+// deleted or anonymised accounts because the code has no such marker; a deleted
+// account has no document and is already not found.
+func profileAccountHidden(doc bson.M) bool {
+	if banned, _ := doc["banned"].(bool); banned {
+		return true
+	}
+	if active, present := doc["active"].(bool); present && !active {
+		return true
+	}
+	// Mongo decodes a nested document into bson.D, so read it through profileKey
+	// (as teamAccountActive does) instead of asserting bson.M.
+	return profileTruthy(profileKey(doc["security_suspension"], "active"))
 }
 
 func (s mongoProfileStore) Account(ctx context.Context, id bson.ObjectID) (*profileAccount, error) {
@@ -276,19 +293,26 @@ func firstN[T any](items []T, n int) []T {
 }
 
 func (s mongoProfileStore) Summaries(ctx context.Context, ids []string) ([]profileSummary, error) {
-	byID, err := s.docsByID(ctx, "users", ids, bson.M{"username": 1, "displayname": 1, "profile_picture": 1})
+	byID, err := s.docsByID(ctx, "users", ids, bson.M{"username": 1, "displayname": 1, "profile_picture": 1,
+		"banned": 1, "active": 1, "security_suspension": 1})
 	if err != nil {
 		return nil, err
 	}
+	return profileSummariesFrom(ids, byID), nil
+}
+
+// profileSummariesFrom keeps the stored order and drops ids with no document,
+// no username, or an account the public profile hides.
+func profileSummariesFrom(ids []string, byID map[string]bson.M) []profileSummary {
 	out := []profileSummary{}
 	for _, id := range firstN(ids, profileMaxLookups) {
 		doc, ok := byID[id]
-		if !ok || stringField(doc, "username") == "" {
+		if !ok || stringField(doc, "username") == "" || profileAccountHidden(doc) {
 			continue
 		}
 		out = append(out, profileSummaryFor(stringField(doc, "username"), stringField(doc, "displayname"), stringField(doc, "profile_picture")))
 	}
-	return out, nil
+	return out
 }
 
 func profileSummaryFor(username, displayname, picture string) profileSummary {
