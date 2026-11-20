@@ -136,3 +136,31 @@ func TestAuditDescribeSchemaChanges(t *testing.T) {
 		t.Fatalf("aggregate $out: %v", out)
 	}
 }
+
+func TestAuditChangedNothingSkipsUnmodifiedUpdates(t *testing.T) {
+	ok := func(extra bson.M) bson.M {
+		out := bson.M{"ok": true}
+		for k, v := range extra {
+			out[k] = v
+		}
+		return out
+	}
+	cases := []struct {
+		op      string
+		outcome bson.M
+		want    bool
+	}{
+		{"update", ok(bson.M{"n": int64(0)}), true},
+		{"update", ok(bson.M{"n": int64(1), "modified": int64(0)}), true},
+		{"update", ok(bson.M{"n": int64(1), "modified": int64(1)}), false},
+		{"update", ok(bson.M{"n": int64(1), "modified": int64(0), "upserted": bson.A{1}}), false},
+		{"delete", ok(bson.M{"n": int64(0)}), true},
+		{"delete", ok(bson.M{"n": int64(1)}), false},
+		{"update", bson.M{"ok": false, "n": int64(0), "errors": bson.A{11000}}, false},
+	}
+	for i, c := range cases {
+		if got := auditChangedNothing(c.op, c.outcome); got != c.want {
+			t.Errorf("case %d: auditChangedNothing(%q, %v) = %v, want %v", i, c.op, c.outcome, got, c.want)
+		}
+	}
+}

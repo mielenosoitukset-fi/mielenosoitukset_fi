@@ -421,9 +421,12 @@ def test_demo_collection_uses_server_side_filter_and_pagination_contract():
     assert "<style" not in template
     assert "modal-dark" not in template
     assert "filterRows" not in template
-    assert '"priority": {"_sort_priority": 1, "date": 1, "_id": 1}' in route
-    assert '"date_desc": {"date": -1, "_id": -1}' in route
-    assert "filtered_count = mongo.demonstrations.count_documents(filter_query)" in route
+    # Priority order (pending first, then by date) is checked end to end in
+    # test_demo_dashboard_priority_pages_match_one_sorted_list.
+    assert '"priority": [("date", 1), ("_id", 1)]' in route
+    assert '"date_desc": [("date", -1), ("_id", -1)]' in route
+    assert '{"$match": filter_query}' in route
+    assert 'filtered_count = counts.get("filtered", 0)' in route
 
 
 def test_secondary_editors_use_shared_form_primitives():
@@ -450,7 +453,7 @@ def test_submitter_modal_keeps_stable_dom_across_reopens():
         "mielenosoitukset_fi/templates/admin_V2/demonstrations/dashboard.html"
     ).read_text(encoding="utf-8")
     handler = dashboard.split("window.showSubmitterInfoModal = async", 1)[1].split(
-        "// Initial button text update", 1
+        "</script>", 1
     )[0]
 
     assert 'class="modal fade admin-modal" id="submitterInfoModal"' in dashboard

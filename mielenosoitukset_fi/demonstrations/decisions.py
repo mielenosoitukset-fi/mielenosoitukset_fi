@@ -1,6 +1,7 @@
 """Canonical, idempotent approval decisions for demonstrations."""
 
 from dataclasses import dataclass
+from datetime import timedelta
 from uuid import uuid4
 
 from bson import ObjectId
@@ -53,6 +54,8 @@ SUBMITTER_SUBJECTS = {
     "taken_down": "Mielenosoituksesi on poistettu sivustolta",
 }
 TAKE_DOWN_REASON_MAX = 1000
+DEFAULT_UNDO_APPROVAL_MINUTES = 30
+UNDO_APPROVAL_STATE = {"approved": False, "rejected": False, "taken_down": False}
 
 
 class DemoNotPublished(ValueError):
@@ -233,6 +236,10 @@ def _queue_submitter_notification(
     recipient = (submitter or {}).get("submitter_email")
     if not recipient:
         return False
+    if decision == "approved" and _approval_email_still_current(db, demo["_id"]):
+        # An undone approval sends no email, so the submitter's last message
+        # still says "approved". Re-approving must not send it twice.
+        return False
 
     notification_id = f"demo-decision:{decision_meta['id']}"
     try:
@@ -275,6 +282,14 @@ def _queue_submitter_notification(
         {"_id": notification_id}, {"$set": {"queued_at": utcnow()}}
     )
     return True
+
+
+def _approval_email_still_current(db, demo_id) -> bool:
+    latest = db.demo_decision_notifications.find_one(
+        {"demo_id": str(demo_id), "queued_at": {"$exists": True}},
+        sort=[("created_at", -1)],
+    )
+    return bool(latest) and latest.get("decision") == "approved"
 
 
 def apply_demo_decision(
@@ -495,3 +510,157 @@ def preview_demo_decision(db, demo_id, decision: str) -> dict:
         "edit_links_revoked": sum(1 for link in links if link.get("action") == "edit"),
         "leaves_city_queue": bool(demo.get(CITY_ASSIGNMENT_FIELD)),
     }
+
+
+def undo_approval_minutes(value=None) -> int:
+    """Configured undo window in minutes (``DEMO_APPROVAL_UNDO_MINUTES``)."""
+    if value is None:
+        from flask import current_app, has_app_context
+
+        value = current_app.config.get("DEMO_APPROVAL_UNDO_MINUTES") if has_app_context() else None
+        if value is None:
+            from config import Config
+
+            value = getattr(Config, "DEMO_APPROVAL_UNDO_MINUTES", DEFAULT_UNDO_APPROVAL_MINUTES)
+    try:
+        minutes = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_UNDO_APPROVAL_MINUTES
+    return max(minutes, 0)
+
+
+def approval_undo_deadline(demo, minutes=None):
+    """When the current approval stops being undoable, or None if it is not."""
+    if not demo or not demo.get("approved"):
+        return None
+    decision = demo.get("moderation_decision") or {}
+    approved_at = decision.get("at")
+    if decision.get("status") != "approved" or approved_at is None:
+        return None
+    window = undo_approval_minutes(minutes)
+    if window <= 0:
+        return None
+    deadline = approved_at + timedelta(minutes=window)
+    return deadline if deadline > utcnow() else None
+
+
+class UndoWindowClosed(ValueError):
+    """The approval is no longer the current decision or its window has passed."""
+
+
+def undo_demo_approval(db, demo_id, *, actor: dict, source: str, minutes=None) -> DemoDecisionResult:
+    """Return a just-approved demo to pending within the undo window.
+
+    Maintainer decision (20 Nov 2026): a mistaken approval can be undone for a
+    short while. The demo leaves the public site and goes back to the pending
+    queue, its case reopens, and links the approval revoked are restored. No
+    email is sent; if the demo is approved again the submitter is not emailed
+    twice. After the window, use a take-down instead.
+    """
+    demo_oid = _object_id(demo_id)
+    window = undo_approval_minutes(minutes)
+    now = utcnow()
+    if window <= 0:
+        raise UndoWindowClosed("Undoing approvals is turned off")
+    decision_meta = {
+        "id": uuid4().hex,
+        "status": "pending",
+        "at": now,
+        "actor": actor,
+        "source": source,
+        "notify_submitter": False,
+    }
+    before = db.demonstrations.find_one_and_update(
+        {
+            "_id": demo_oid,
+            "approved": True,
+            "moderation_decision.status": "approved",
+            "moderation_decision.at": {"$gt": now - timedelta(minutes=window)},
+        },
+        {"$set": {**UNDO_APPROVAL_STATE, "last_modified": now, "moderation_decision": decision_meta}},
+        return_document=ReturnDocument.BEFORE,
+    )
+    if before is None:
+        if not db.demonstrations.find_one({"_id": demo_oid}, {"_id": 1}):
+            raise LookupError("Demonstration not found")
+        raise UndoWindowClosed("The approval can no longer be undone")
+
+    undone = before.get("moderation_decision") or {}
+    undone_id = undone.get("id")
+    db.demonstrations.update_one(
+        {"_id": demo_oid, "moderation_decision.id": decision_meta["id"]},
+        {"$set": {"moderation_decision.undone_decision_id": undone_id}},
+    )
+    decision_meta["undone_decision_id"] = undone_id
+    current = {**before, **UNDO_APPROVAL_STATE, "last_modified": now, "moderation_decision": decision_meta}
+    actor_name = _actor_label(actor or {})
+
+    cases = db.cases.update_many(
+        {"demo_id": {"$in": [demo_oid, str(demo_oid)]}, "meta.decision_id": undone_id},
+        {
+            "$set": {"meta.closed": False, "meta.decision_id": decision_meta["id"], "updated_at": now},
+            "$unset": {
+                "status": "", "outcome": "", "resolution": "",
+                "meta.closed_at": "", "meta.closed_reason": "",
+                "meta.outcome": "", "meta.resolution": "",
+            },
+            "$push": {
+                "action_logs": {
+                    "timestamp": now,
+                    "admin": actor_name,
+                    "actor": actor,
+                    "action_type": "undo_approval",
+                    "note": (
+                        f"Mielenosoituksen {before.get('title') or 'tuntematon'} ({demo_oid}) "
+                        "hyväksyntä peruttiin. Tapaus avattiin uudelleen."
+                    ),
+                },
+                "case_history": {
+                    "timestamp": now,
+                    "action": "Hyväksyntä peruttu",
+                    "user": actor_name,
+                    "metadata": {
+                        "decision": "pending",
+                        "decision_id": decision_meta["id"],
+                        "undone_decision_id": undone_id,
+                        "source": source,
+                        "actor": actor,
+                    },
+                },
+            },
+        },
+    )
+
+    restored = 0
+    if undone_id:
+        restored = db.magic_links.update_many(
+            {"demo_id": str(demo_oid), "decision_id": undone_id, "revoked": True, "used_at": None},
+            {
+                "$set": {"revoked": False, "restored_at": now, "restored_by": actor_name},
+                "$unset": {"revoked_at": "", "revoked_by": "", "revoked_reason": "", "decision_id": ""},
+            },
+        ).modified_count
+
+    record_demo_change(
+        demo_oid,
+        before,
+        current,
+        action="undo_approval",
+        message="Mielenosoituksen hyväksyntä peruttiin",
+        extra_details={
+            "decision": "pending",
+            "decision_id": decision_meta["id"],
+            "undone_decision_id": undone_id,
+            "source": source,
+            "links_restored": restored,
+        },
+        actor=actor,
+    )
+    return DemoDecisionResult(
+        demo=current,
+        decision_id=decision_meta["id"],
+        changed=True,
+        cases_updated=cases.modified_count,
+        tokens_revoked=0,
+        notification_queued=False,
+    )
