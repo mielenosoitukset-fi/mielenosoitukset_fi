@@ -23,6 +23,9 @@ def _get_db():
     return get_database_manager()
 
 
+MERGE_KEEP_FIELDS = frozenset({"_id", "approved", "rejected"})
+
+
 class Demonstration(BaseModel):
     # Running number and slug fields for user-friendly URLs
     running_number: int = None
@@ -613,8 +616,12 @@ class Demonstration(BaseModel):
 
         other_demo = Demonstration.from_dict(other_demo_data)
 
-        # Update fields with non-None values from the other demonstration
+        # Update fields with non-None values from the other demonstration.
+        # Moderation fields stay as they are: approving or rejecting goes only
+        # through demonstrations.decisions.apply_demo_decision.
         for key, value in other_demo.to_dict().items():
+            if key in MERGE_KEEP_FIELDS:
+                continue
             if key != "_id" and value is not None:
                 setattr(self, key, value)
 
@@ -792,7 +799,7 @@ class Demonstration(BaseModel):
 
             raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
 
-    def save(self):
+    def save(self, *, write_approval=False):
         """Save or update the demonstration in the database.
 
         This method converts the demonstration object to a dictionary and checks if it
@@ -803,8 +810,17 @@ class Demonstration(BaseModel):
         Server-owned moderation metadata must not disappear during normalization
         or content editing. Owning workflows must explicitly unset retired fields.
 
+        ``approved`` is moderation state owned by the decision service. On an
+        existing document it is written only when ``write_approval`` is true,
+        so a stale or merged content snapshot cannot clear an approval that
+        was decided after the model was loaded (issue #1172).
+
         Parameters
         ----------
+        write_approval : bool
+            Persist this model's ``approved`` value on an existing document.
+            Only an authorized caller that deliberately sets approval (the
+            admin edit form) should pass True. Inserts always store it.
 
         Returns
         -------
@@ -831,6 +847,8 @@ class Demonstration(BaseModel):
         # Check if the demonstration already exists in the database
         db = _get_db()
         if db["demonstrations"].find_one({"_id": self._id}):
+            if not write_approval:
+                data.pop("approved", None)
             # Persist modeled fields without deleting server-owned fields that
             # this model does not serialize (moderation identity, rejected, etc.).
             # Approval decisions and their side effects belong to the domain
@@ -1101,3 +1119,9 @@ def is_none(s):
         return True
     
     return False
+
+
+def has_mixed_decisions(demos) -> bool:
+    """True when merging these demos would change the kept demo's decision."""
+    states = {(bool(d.get("approved")), bool(d.get("rejected"))) for d in demos}
+    return len(states) > 1

@@ -92,6 +92,33 @@ if grep -q 'save_suggestion\$" "http://127.0.0.1:8091' "$reviewed"; then
   fi
 fi
 
+# Contact: Go answers a GET to /contact with 405 (Allow: POST) before quotas,
+# tokens or any database work; without the flag the route falls through.
+if grep -q '^RewriteRule "\^/contact\$" "http://127.0.0.1:8091/contact"' "$reviewed"; then
+  # A freshly restarted Go API can take a moment; retry like the page probes.
+  contact_ready() {
+    [[ $(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' \
+      http://127.0.0.1:8091/contact || true) == 405 ]]
+  }
+  if ! retry 5 2 contact_ready; then
+    log "Go contact form is not enabled/ready; keeping the current routing"
+    exit 1
+  fi
+fi
+
+# Campaign volunteers: Go answers a GET to the signup path with 405 (Allow:
+# POST) before any database work; without the flag the route falls through.
+if grep -q '^RewriteRule "\^/kampanja/api/volunteers\$" "http://127.0.0.1:8091/' "$reviewed"; then
+  volunteers_ready() {
+    [[ $(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' \
+      http://127.0.0.1:8091/kampanja/api/volunteers || true) == 405 ]]
+  }
+  if ! retry 5 2 volunteers_ready; then
+    log "Go campaign volunteer signup is not enabled/ready; keeping the current routing"
+    exit 1
+  fi
+fi
+
 install -d -m 0700 "$backup_root"
 backup="$backup_root/mielenosoitukset-react-ssr.conf.$(date -u +%Y%m%dT%H%M%SZ)"
 cp -a "$include" "$backup"

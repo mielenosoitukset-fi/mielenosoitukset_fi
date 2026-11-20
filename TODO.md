@@ -13,7 +13,7 @@ a dated snapshot: check their live state before acting.
 
 ## Now
 
-- [ ] **Email approval is overwritten after success (#1172):** history confirms token approval, later `approved=false` with approval metadata retained, then manual approval. The earlier `.362` timestamp and exact `12:00`/empty-time to `12:00:00`/null transition strongly match a pre-geocode constructor save in the 11:41:50 Flask preview request. Later coordinates and `.628` match a second stale geocode save. **Very likely, not confirmed:** no Mongo write record or request/geocoder correlation proves that request executed both writes. See [final attribution assessment](docs/investigations/email-approval-write-paths-1172.md) and [sanitized history](tests/fixtures/email_approval_overwrite_1172.json). The offline test proves feasibility only. Related historical issue: #515. **Investigation only; fixes deferred by the maintainer.**
+- [x] **Email approval is overwritten after success (#1172):** fixed by #1175 (merged 15 November 2026; issue closed). Detail-page geocoding now saves only coordinates with a compare-and-set on the loaded coordinates, and model loading no longer saves normalization by default, so a slow preview request cannot write back stale `approved=false`. Regression test: `tests/test_demo_approval_get_race.py`. Historical attribution stays "very likely, not proven"; see [the investigation](docs/investigations/email-approval-write-paths-1172.md). Follow-up: generic `Demonstration.save()` no longer writes `approved` on existing documents unless the caller passes `write_approval=True` (only the admin edit form, for approvers), so duplicate merges and MCP updates cannot clear a concurrent approval.
 - [x] **Production virtual environment and security dependencies:** production runs `/opt/mielenosoitukset-fi/venv`; Pillow 13.0.0, PyJWT 2.15.1 and PyMongo 4.19.0 are verified (#1118). The earlier system-Python blocker is resolved; see `docs/production-deployment.md`.
 - [x] **#778 city admins and cases (P0):** fixed and live; issue closed 11 November 2026. All eight active city grants received the case capabilities, tagged `case_access_granted_for: issue-778` for rollback. Broader role/audit acceptance remains SEC-03.
 - [x] **#1029 far-future events:** generation capped (#1064); on 10 November 2026 the cleanup removed 68,642 generated occurrences after 2028-11-10 from three series, backed up on the production host first. Helsinki showed 238 upcoming events after that cleanup.
@@ -32,8 +32,9 @@ Already on the React host: home, listings (all, city, tag, today), detail and se
 Audit, 20 November 2026 (Flask routes rendering a public, non-admin page, checked against `deploy/apache/react-ssr-routing.conf`). Still Flask/Jinja:
 
 - Built in React but not routed: `/users/auth/settings` (password, MFA and passkey controls are in React since #1224/#1227/#1228; activation needs the maintainer's go, see [account-pages-react.md](docs/account-pages-react.md)).
-- Authentication: `/users/auth/login`, `/register`, `/register/next_steps`, `/password_reset_request`, `/password_reset/<token>`, `/forced_pwd_reset/`, `/forced_identity_change/`, `/verify_mfa`, the `/logout` confirmation page.
+- Authentication: `/register`, `/register/next_steps`, `/password_reset/<token>`, `/forced_pwd_reset/`, `/forced_identity_change/`, `/verify_mfa`, the `/logout` confirmation page.
 - `/report`; the write-on-GET token pages (drafts #1231–#1233); `/api/notifications/all`.
+- Moved to React since the audit: `/users/auth/login` (GET only; posts, MFA, passkeys and redirects stay in Flask; signed-in visitors and `?legacy=1` get Flask's page), `/users/auth/password_reset_request`, `/api/notifications/all`, `/users/auth/settings`.
 - Redirects instead of pages: `/users/profile/` now sends a signed-in user to `/users/profile/<username>` (React), `/developer/apps` to `/developer` (React), `/developer/docs` to `/api-docs/`.
 - Out of scope (admin or permission-gated tools): `/users/auth/ui/tokens` (admin-scope tokens), `/demonstration/<id>/some` (VIEW_DEMO, deprecated), `?preview=1`, `/board/*`.
 - Flask error pages (`errors/*.html`) and the panic page `heavy.html` serve only Flask-handled paths; the React host renders its own.
@@ -50,7 +51,7 @@ Audit, 20 November 2026 (Flask routes rendering a public, non-admin page, checke
 - [ ] Retire the Flask templates each migrated page leaves behind as rollback, once its React page has been stable for a while.
 - [ ] **FI-COPY-01: Finnish wording audit, UI first, emails second.** Work through [the source inventory](docs/finnish-copy-inventory.md) and [replacement proposals](docs/finnish-copy-audit.md). Review public and regular-user interfaces; exclude admin. Track each source individually, including shared components, generated messages, interpolation and legacy/fallback templates. Apply wording changes only; leave layouts, styles and functionality unchanged. Review user emails after the UI pass; do not send mail as part of the review.
 - [ ] **FI-COPY-02: Claude pre-merge Finnish check.** Add a workflow in which Claude asks `gpt-6.1-sol`, when available, to review changed Finnish user-facing text before merging. Include regular-user UI and, after FI-COPY-01’s UI pass, user emails; exclude admin. Give the model the surrounding sentence, interpolation/plural examples and terminology rules; request exact replacements with reasons. Record model availability and unresolved findings in the PR; do not mark unavailable-model checks as passed. This is a backlog item, not an installed merge gate.
-- [ ] Final page-by-page review of copy and generic UI patterns (#960, #770, #833).
+- [ ] Final page-by-page review of copy and generic UI patterns (#960, #770). #833 was closed on 20 November 2026 as superseded by the React move. The #770 admin dashboard copy is in #1270.
   - Done (12 November 2026): submit headings without icons, red conflict cancel, one `…` character, no exclamation marks, mielenosoitus instead of tapahtuma in the submit form.
   - Retry buttons (12 November 2026): calendar notices now use `detail-button`. Kept as is with reason: the chat widget's compact buttons, Pride's `button-secondary` and the home page's `home-button`, which belong to their own page styles.
   - Brand name written "Mielenosoitukset.fi" in page texts (#1135). Decision (12 November 2026): the demonstration detail page keeps "tapahtuma" in places, because its catalog must match the Flask msgids (`tests/test_public_detail_copy_parity.py`); changing it needs new msgids and human en/sv translation, to be done when `/demonstration/<id>` leaves Flask.
@@ -65,10 +66,10 @@ Proposal: [Public write API migration contracts, approval questions and rollout 
 Maintainer direction, 10 November 2026: when a page is redesigned or moved to React, its Flask endpoints move to the Go API too, in the same work or later. Still on Flask:
 
 - [ ] `/api/session` and its scopes (`organization_id`, `translation_join`, `contact_form`). *(approval: session)* The read-only Go bridge and scopes were activated and verified 12 November ([auth-bridge.md](docs/auth-bridge.md)); the underlying session endpoint still lives in Flask.
-- [ ] `POST /contact`: rate limits, one-time token, honeypot, validation and email.
+- [x] `POST /contact` (Go, activated 20 November 2026): rate limits, one-time token, honeypot, validation and email.
 - [x] `POST /organization/<id>/save_suggestion` (Go, activated 20 November 2026): stores the suggestion, opens a case and notifies moderators.
 - [x] `POST /suggest_change/<demo_id>` (Go, activated 20 November 2026): compares proposed fields and Markdown, stores a demonstration suggestion, opens a case and notifies moderators; GET/HEAD now belongs to the React host.
-- [ ] `POST /kampanja/api/volunteers` and `/kampanja/confirm/<token>`. Signup is in Go, dark, flag `CAMPAIGN_VOLUNTEERS_GO_ENABLED` ([go-campaign-volunteers.md](docs/go-campaign-volunteers.md)); the confirm route remains.
+- [ ] `POST /kampanja/api/volunteers` and `/kampanja/confirm/<token>`. Signup is in Go and routed there (on by default, flag `CAMPAIGN_VOLUNTEERS_GO_ENABLED`) ([go-campaign-volunteers.md](docs/go-campaign-volunteers.md)); the confirm route remains.
 - [ ] `POST /upcoming/translations/join`. *(approval: permissions)*
 - [x] Analytics event `POST /api/analytics/event`: Go activated 11 November; the Flask-equivalent counter cross-check and POST routing are complete (`SITE_ANALYTICS_ENABLED=true`; `docs/go-public-api.md`). Production routing rechecked 13 November.
 - [ ] Analytics pageview `/api/analytics/pageview`: still Flask; visitor-secret/locale decisions remain prerequisites.
@@ -106,7 +107,7 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 - [ ] **SEC-03:** broader role and audit acceptance after #917/#918/#919.
 - [x] **SEC-04:** token and approval lifecycle: revocation, expiry, replay, idempotent decisions. Inventory and open questions in [docs/token-lifecycle.md](docs/token-lifecycle.md).
 - [ ] **SEC-05:** review incident #912/#913 protections before touching related code.
-- [ ] Harden privileged admin user actions (#547), organization membership and invites (#550, #342), and the organization admin panel (#549).
+- [x] Harden privileged admin user actions (#547), organization membership and invites (#550, #342), and the organization admin panel (#549): done in #918/#919; issues closed 20 November 2026. Broader acceptance stays in SEC-03.
 - [ ] **QA-01:** finish the individual review of authentication and permission tests. QA-01j (#966), QA-01k (#973 via #964) and QA-01m (#1114, superseding #979) are merged. Remaining: other authentication and permission test files, see the roadmap.
 
 ## Data, jobs and integrations
@@ -116,10 +117,11 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 - [ ] **DATA-03:** analytics correctness, access and pagination (#551); `demonstrations` COLLSCAN slow queries; the admin overview rendering 28,604 rows.
 - [ ] **DATA-04:** email queue retries and idempotency, queue/history crash consistency, job leadership and database error handling (#176).
   - [x] #955/#956: bounded failed/abandoned email claims and per-message recovery receipts are implemented. Real SMTP/scheduler acceptance and ambiguous-delivery reconciliation remain open.
+  - [x] Email queue retries: failed sends back off exponentially (1 min doubling to 1 h), stop after 30 attempts as visible `dead` letters (counted under Admin → System status "exhausted"), and a delivered job is never resent when its queue delete fails. Still open: stale in-flight claims (worker killed mid-send) are retried at least once, so a send the server accepted just before the crash can repeat.
   - [x] #984: acknowledged support reply enqueue and correlated case receipt, without strict-mode retries.
   - [x] #771: dedicated outgoing-reply history merged in #977; the issue is closed. Canonical audit references/content retention and queue/history crash consistency remain separate follow-ups.
-- [ ] **DATA-05:** preview images failing (#579), Cloudflare rate limiting on normal use (#580), Socket.IO reconnect storm (#640).
-- [ ] **DATA-06:** module TODO issues (#391–#394) and creating users from invites (#387).
+- [ ] **DATA-05:** preview images failing (#579) and Cloudflare rate limiting on normal use (#580) need a fresh reproduction on the current site. The Socket.IO reconnect storm (#640) is fixed (client backoff with jitter, `mod_remoteip` ahead of `mod_evasive`); closed 20 November 2026.
+- [ ] **DATA-06:** creating users from invites (#387). The module TODO umbrellas #391–#394 were closed on 20 November 2026; their remaining parts are #174, #176, #551, #552 and #553.
   - [x] Settings/configuration issues #196 and #226 are closed as completed; do not list them as new implementation work.
 - [ ] **DATA-07:** multi-day demonstrations as their own duration, separate from recurring series.
 - [x] **CITY-01 dashboard/countdown:** #968 is merged; #967 was closed as implemented/deployed on 11 November.
@@ -187,7 +189,7 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 - [ ] Check that the React listing tests cover what the removed legacy loader tests checked: slow attendance requests surviving append and cancelled on eviction or search; stale search responses ignored; HTTP failure offering retry without erasing appended results; delayed append keeping keyboard focus and not restoring old filter pages.
 - [ ] **CLEAN-02:** consolidate legacy palettes and hero geometry.
 - [ ] **CLEAN-04:** keep a finite exception list for dynamic styles and a CSS cache contract.
-- [ ] Admin dashboard workflow: pagination, previews and clearer edit fields (#552); organization form UI (#178).
+- [ ] Admin demo editor: `slug`/`preview_image` fields and row preview/copy-link actions (#552). Pagination is done, and the organization form UI (#178) was closed as done on 20 November 2026.
 - [ ] Unit tests for remaining routes and functions (#174).
 
 ### Open pull requests to close or decide (CLEAN-03)

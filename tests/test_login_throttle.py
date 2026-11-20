@@ -52,3 +52,40 @@ def test_a_correct_password_below_the_limit_still_signs_in(client, db):
     _wrong(client)
     ok = client.post("/users/auth/2fa_check", data={"username": "alice", "password": "UserPass1!"})
     assert ok.status_code == 200 and ok.get_json()["valid"] is True
+
+
+def test_failures_from_one_address_do_not_lock_the_account_elsewhere(client, db):
+    attacker = {"REMOTE_ADDR": "203.0.113.7"}
+    for _ in range(auth_module.LOGIN_FAILURES_PER_USERNAME):
+        client.post(
+            "/users/auth/2fa_check",
+            data={"username": "alice", "password": "WrongPassword1!"},
+            environ_base=attacker,
+        )
+    assert client.post(
+        "/users/auth/2fa_check",
+        data={"username": "alice", "password": "UserPass1!"},
+        environ_base=attacker,
+    ).status_code == 429
+
+    owner = client.post(
+        "/users/auth/2fa_check",
+        data={"username": "alice", "password": "UserPass1!"},
+        environ_base={"REMOTE_ADDR": "198.51.100.20"},
+    )
+    assert owner.status_code == 200 and owner.get_json()["valid"] is True
+
+
+def test_guessing_spread_over_many_addresses_still_hits_a_ceiling(client, db, monkeypatch):
+    monkeypatch.setattr(auth_module, "LOGIN_FAILURES_PER_USERNAME_ALL_IPS", 3)
+    for octet in range(3):
+        client.post(
+            "/users/auth/2fa_check",
+            data={"username": "alice", "password": "WrongPassword1!"},
+            environ_base={"REMOTE_ADDR": f"203.0.113.{octet + 1}"},
+        )
+    assert client.post(
+        "/users/auth/2fa_check",
+        data={"username": "alice", "password": "UserPass1!"},
+        environ_base={"REMOTE_ADDR": "198.51.100.20"},
+    ).status_code == 429

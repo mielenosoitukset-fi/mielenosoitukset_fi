@@ -157,13 +157,14 @@
       "sha256": "651daec4ff338a32e0ee863fb56c268fe26cafac872b016a53066275b7490b46"
     },
     "mielenosoitukset_fi/admin/admin_demo_bp.py": {
-      "count": 50,
+      "count": 51,
       "coverage": [
         "integration",
         "e2e-admin",
-        "tests/test_urgent_review_route.py"
+        "tests/test_urgent_review_route.py",
+        "tests/test_demo_decision_preview.py"
       ],
-      "sha256": "91a77bb6d223a1f96b61cc07e3997ec5d84c797867f3245470bfd76f01bdfa5e"
+      "sha256": "1fb5b1d9e6598aa9fc9f9289bcb11d80cc803720186c4490f406863b08709889"
     },
     "mielenosoitukset_fi/admin/admin_dev_bp.py": {
       "count": 6,

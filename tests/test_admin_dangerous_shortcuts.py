@@ -49,5 +49,5 @@ def test_demo_list_has_no_dead_delete_helpers_or_inline_titles(admin_client, db,
     db.demonstrations.update_one({"_id": seeded_data["demo_id"]}, {"$set": {"title": "x'); alert(1); ('"}})
     page = admin_client.get("/admin/demo/").get_data(as_text=True)
     assert "updateDeleteButtonTexts" not in page
-    assert "openModal(event, this.dataset.title, this.dataset.id)" in page
+    assert "openModal(event, this.dataset.demoTitle" in page
     assert "openModal(event, '" not in page
