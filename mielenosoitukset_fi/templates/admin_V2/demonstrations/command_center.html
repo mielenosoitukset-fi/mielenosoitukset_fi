@@ -554,10 +554,12 @@
           </button>
           {% endif %}
           {% if permissions.can_edit %}
+          {% if not status_flags.cancelled %}
           <button type="button" class="action-btn btn btn-danger js-command" data-command="cancel" data-requires-reason="true">
             {{ _('Merkitse perutuksi') }}
             <i class="fa-solid fa-ban"></i>
           </button>
+          {% endif %}
           <button type="button" class="action-btn btn btn-outline-secondary js-command" data-command="duplicate">
             {{ _('Kopioi pohjaksi') }}
             <i class="fa-solid fa-copy"></i>
@@ -658,6 +660,8 @@
 
       if (command === "cancel") {
         const reason = prompt("{{ _('Peruuta: anna lyhyt selite (valinnainen)') }}");
+        // prompt() returns null when the admin presses Cancel: do nothing then.
+        if (reason === null) return;
         await runCommand("cancel", {
           payload: reason ? { reason } : {},
           successMessage: "{{ _('Mielenosoitus merkitty perutuksi') }}",

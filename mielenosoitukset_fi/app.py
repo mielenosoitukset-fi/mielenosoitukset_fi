@@ -411,15 +411,19 @@ def create_app(config_overrides=None) -> Flask:
     from bson import ObjectId
 
     # --- Cached admin tasks (avoid re-running heavy queries on every template render) ---
-    _admin_tasks_cache = {"tasks": None, "timestamp": 0}
+    # The task list is filtered by the viewer's permissions, so it is cached
+    # per user: a shared entry would show one admin's scope to another.
+    _admin_tasks_cache = {}
     _ADMIN_TASKS_CACHE_TTL = 30  # seconds
+    _ADMIN_TASKS_CACHE_MAX = 256
 
     def _get_admin_tasks_cached():
         import time as _time
         now = _time.monotonic()
-        cached = _admin_tasks_cache["tasks"]
-        if cached is not None and (now - _admin_tasks_cache["timestamp"]) < _ADMIN_TASKS_CACHE_TTL:
-            return cached
+        cache_key = str(getattr(current_user, "_id", None) or current_user.get_id())
+        entry = _admin_tasks_cache.get(cache_key)
+        if entry is not None and (now - entry["timestamp"]) < _ADMIN_TASKS_CACHE_TTL:
+            return entry["tasks"]
 
         tasks = []
 
@@ -476,8 +480,13 @@ def create_app(config_overrides=None) -> Flask:
         # sort by creation time descending
         tasks.sort(key=lambda x: x.get("created_at", datetime.min), reverse=True)
 
-        _admin_tasks_cache["tasks"] = tasks
-        _admin_tasks_cache["timestamp"] = now
+        if len(_admin_tasks_cache) >= _ADMIN_TASKS_CACHE_MAX:
+            for stale_key, stale in list(_admin_tasks_cache.items()):
+                if (now - stale["timestamp"]) >= _ADMIN_TASKS_CACHE_TTL:
+                    _admin_tasks_cache.pop(stale_key, None)
+            if len(_admin_tasks_cache) >= _ADMIN_TASKS_CACHE_MAX:
+                _admin_tasks_cache.clear()
+        _admin_tasks_cache[cache_key] = {"tasks": tasks, "timestamp": now}
         return tasks
 
     @app.context_processor

@@ -699,40 +699,11 @@
       const submitterModalEl = document.getElementById('submitterInfoModal');
       const submitterModal = bootstrap.Modal.getOrCreateInstance(submitterModalEl);
 
-      // Fast delete mode flag
-      let fastDeleteMode = false;
-
-      function updateDeleteButtonTexts() {
-        document.querySelectorAll('.delete-button').forEach(btn => {
-          const icon = btn.querySelector('i');
-          if (icon) {
-            btn.innerHTML = icon.outerHTML + (fastDeleteMode ? ' Pikapoisto' : ' {{ _("Poista") }}');
-          } else {
-            // fallback if no icon found
-            btn.textContent = fastDeleteMode ? 'Pikapoisto' : '{{ _("Poista") }}';
-          }
-        });
-      }
-
-
-      // Listen Shift key down/up globally
+      // Deleting always asks first (there is no keyboard shortcut that
+      // skips the confirmation).
       document.addEventListener('keydown', e => {
-        if (e.key === 'Shift') {
-          fastDeleteMode = true;
-          updateDeleteButtonTexts();
-          console.log('Fast delete mode enabled.');
-        }
         if (e.key === 'Escape') {
           deleteModal.hide();
-          console.log('Modal closed via Escape.');
-        }
-      });
-
-      document.addEventListener('keyup', e => {
-        if (e.key === 'Shift') {
-          fastDeleteMode = false;
-          updateDeleteButtonTexts();
-          console.log('Fast delete mode disabled.');
         }
       });
       // Helper: Animate then remove the row
@@ -747,37 +718,9 @@
         rowEl.addEventListener('transitionend', removeRow, { once: true });
         window.setTimeout(removeRow, 350);
       }
-      // Open delete modal or fast-delete immediately if shift pressed
+      // Open the delete confirmation
       window.openModal = (event, title, id) => {
         event.preventDefault();
-
-
-
-        // Inside your main script:
-        if (fastDeleteMode) {
-          // Fast delete directly without modal
-          fetch("/admin/demo/delete_demo", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ demo_id: id }),
-            redirect: 'manual'
-          })
-            .then(res => res.json())
-            .then(data => {
-              if (data.status === 'OK') {
-                const row = document.getElementById(`demo-${id}`);
-                animateAndRemoveRow(row);
-                console.log(`Demo ${id} deleted instantly (pikapoisto).`);
-              } else {
-                alert(data.message || '{{ _("Virhe poistettaessa.") }}');
-              }
-            })
-            .catch(() => alert('{{ _("Yhteysvirhe, yritä uudelleen.") }}'));
-
-          return;
-        }
-
-
         // Normal modal open flow
         document.getElementById('demoTitle').textContent = title;
         const confirmDeleteBtn = document.getElementById('confirmDelete');

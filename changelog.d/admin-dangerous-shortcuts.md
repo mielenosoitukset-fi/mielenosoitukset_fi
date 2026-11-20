@@ -1,0 +1,1 @@
+Ylläpito: mielenosoituslistan Shift-pikapoisto on poistettu, joten poisto kysyy aina vahvistuksen. Komentokeskuksen peruutus ei enää peru mielenosoitusta, jos syyn kysely suljetaan, ja Peru-painike piiloutuu jo perutulta mielenosoitukselta. Sivupalkin tehtävämäärät lasketaan nyt jokaiselle ylläpitäjälle erikseen.
