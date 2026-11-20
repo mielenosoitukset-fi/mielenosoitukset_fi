@@ -20,6 +20,7 @@ import jwt
 from PIL import Image, UnidentifiedImageError
 from werkzeug.utils import secure_filename
 
+from mielenosoitukset_fi.utils.audit_trail import set_request_actor
 from mielenosoitukset_fi.utils.admin.organizers import collect_admin_organizers
 from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.api.exceptions import ApiException
@@ -524,6 +525,17 @@ def _authenticate() -> dict[str, Any] | None:
             return entry
     logger.warning("MCP authentication failed - no matching token found")
     return None
+
+
+def _record_mcp_audit_actor(token_entry: dict[str, Any]) -> None:
+    """Attribute this request's database writes to the MCP principal."""
+    record = token_entry.get("token_record") or {}
+    set_request_actor(
+        "mcp",
+        user_id=record.get("user_id") or token_entry.get("user_id"),
+        token_id=record.get("_id"),
+        name=f"{token_entry.get('auth_type') or 'configured'}:{token_entry.get('name') or '?'}",
+    )
 
 
 def _require_scope(token_entry: dict[str, Any], scope: str) -> None:
@@ -1567,6 +1579,7 @@ def handle_admin_mcp():
         if not token_entry:
             logger.warning(f"MCP request unauthorized - ID: {request_id}")
             return _unauthorized_mcp_response(request_id)
+        _record_mcp_audit_actor(token_entry)
         _require_scope(token_entry, "read")
     except PermissionError as exc:
         logger.warning(

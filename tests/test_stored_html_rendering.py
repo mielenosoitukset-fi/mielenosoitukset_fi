@@ -75,3 +75,31 @@ def test_user_table_passes_names_as_data(db, seeded_data, admin_client):
     html = admin_client.get("/admin/user/").get_data(as_text=True)
     assert "openDeleteModal(event, this.dataset.userName" in html
     assert "openDeleteModal(event, 'Bob" not in html
+
+
+def test_safe_href_keeps_web_links_only():
+    from mielenosoitukset_fi.utils.content_formatting import safe_href
+
+    assert safe_href(" https://example.org/x ") == "https://example.org/x"
+    assert safe_href("mailto:a@example.org") == "mailto:a@example.org"
+    for bad in ("javascript:alert(1)", "JaVaScRiPt:alert(1)", "java\tscript:alert(1)",
+                "data:text/html,x", "vbscript:x", None, 5):
+        assert safe_href(bad) == ""
+
+
+def test_case_and_command_center_drop_script_links(db, seeded_data, admin_client):
+    demo_id = seeded_data["pending_demo_id"]
+    demo = db.demonstrations.find_one({"_id": demo_id})
+    organizers = demo.get("organizers") or [{"name": "Järjestäjä"}]
+    for organizer in organizers:
+        organizer["website"] = "javascript:window.__pwn=1"
+    db.demonstrations.update_one(
+        {"_id": demo_id},
+        {"$set": {"facebook": "javascript:window.__pwn=1", "organizers": organizers}},
+    )
+    db.organizations.update_many({}, {"$set": {"website": "javascript:window.__pwn=1"}})
+
+    page = admin_client.get(f"/admin/demo/command-center/{demo_id}").get_data(as_text=True)
+    assert 'href="javascript:' not in page
+    case = admin_client.get(f"/admin/case/{seeded_data['case_id']}/").get_data(as_text=True)
+    assert 'href="javascript:' not in case
