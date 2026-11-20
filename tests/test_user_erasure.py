@@ -191,3 +191,35 @@ def test_admin_delete_runs_erasure(app, db, seeded_data):
     assert db.mfas.count_documents({"user_id": uid}) == 0
     assert db.login_logs.count_documents({"user_id": uid}) == 0
     assert db.login_logs.count_documents({"erased_subject": {"$exists": True}, "ip": "198.51.100.9"}) == 1
+
+
+def test_write_trail_rows_naming_the_account_are_pseudonymised(db, seeded_data):
+    """Rows older than the erasure: found by actor, id, inserted document, filter or update operator."""
+    uid, other = ObjectId(), ObjectId()
+    sid = str(uid)
+    long_ago = utcnow() - datetime.timedelta(days=30)
+    rows = [
+        {"actor": {"kind": "user", "user_id": sid}, "collection": "users", "op": "update",
+         "change": {"$set": {"email": EMAIL}}},
+        {"actor": {"kind": "system"}, "collection": "users", "op": "insert", "doc_ids": [uid],
+         "change": [{"_id": uid, "username": "erase-me", "email": EMAIL}]},
+        {"actor": {"kind": "system"}, "collection": "user_settings", "op": "insert", "doc_ids": [ObjectId()],
+         "change": [{"user_id": uid, "language": "fi"}]},
+        {"actor": {"kind": "user", "user_id": str(other)}, "collection": "notifications", "op": "delete",
+         "filter": {"user_id": uid}},
+        {"actor": {"kind": "user", "user_id": str(other)}, "collection": "demonstrations", "op": "update",
+         "doc_ids": [ObjectId()], "change": {"$addToSet": {"editors": sid}}},
+        {"actor": {"kind": "user", "user_id": str(other)}, "collection": "users", "op": "update",
+         "doc_ids": [other], "change": {"$push": {"friends": {"user_id": uid}}}},
+    ]
+    unrelated = {"actor": {"kind": "user", "user_id": str(other)}, "collection": "users", "op": "update",
+                 "doc_ids": [other], "change": {"$set": {"bio": "hello"}}, "marker": "unrelated"}
+    for row in rows + [unrelated]:
+        db.audit_events.insert_one({**row, "at": long_ago})
+
+    report = erase_user(db, _user(uid), SECRET)
+
+    assert report["pseudonymised"].get("audit_events", 0) >= len(rows)
+    _no_trace(db, "audit_events", uid)
+    kept = db.audit_events.find_one({"marker": "unrelated"})
+    assert kept is not None and "erased_subject" not in kept

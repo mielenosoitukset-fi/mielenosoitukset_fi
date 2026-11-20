@@ -66,8 +66,6 @@ EVIDENCE_COLLECTIONS = (
     ("board_audit_logs", ("user_id", "god_user_id")),
     ("super_audit_logs", ("actor_id", "actor.id", "entity_id", "related_id")),
     ("demo_audit_logs", ("user_id", "actor_id", "actor.id")),
-    # Write audit trail (one row per database write); its own TTL index expires it.
-    ("audit_events", ("actor.user_id", "doc_ids", "upserted")),
 )
 # Old records sometimes carry only the email address.
 EMAIL_FIELDS = (
@@ -176,10 +174,66 @@ def _replacer(user_object_id, fake_id, alias, texts):
     return replace
 
 
+AUDIT_TRAIL = "audit_events"
+UPDATE_OPERATORS = ("$set", "$setOnInsert", "$push", "$addToSet", "$pull", "$pullAll")
+# Fields of other records that hold a person's id: friend lists, demonstration editors.
+LINK_FIELDS = ("editors", "followers", "following", "friends", "friend_requests")
+
+
+def _operator_clause(ids, operator, field):
+    """Match ``change.<operator>.<field>`` (a $-prefixed path, so dot notation can't)."""
+    inner = {"$getField": {"field": {"$literal": operator}, "input": "$change"}}
+    value = {"$cond": [
+        {"$eq": [{"$type": "$change"}, "object"]},
+        {"$cond": [{"$eq": [{"$type": inner}, "object"]}, {"$getField": {"field": field, "input": inner}}, None]},
+        None,
+    ]}
+    # A pushed friend entry is an object that names the person in user_id or sent_by.
+    nested = [
+        {"$cond": [{"$eq": [{"$type": value}, "object"]}, {"$getField": {"field": key, "input": value}}, None]}
+        for key in ("user_id", "sent_by")
+    ]
+    return {"$expr": {"$or": [
+        {"$in": [value, ids]},
+        {"$and": [{"$isArray": value}, {"$gt": [{"$size": {"$setIntersection": [value, ids]}}, 0]}]},
+        *({"$in": [item, ids]} for item in nested),
+    ]}}
+
+
+def _pseudonymise_audit_trail(db, ids, since, replace, alias, now):
+    """The write trail (docs/audit-trail.md) keeps ids in filters and inserted documents,
+    and this erasure's own writes land there too. Match the account's rows by actor,
+    document id, the id fields this module knows, and every row written since the
+    erasure began; keep a row unchanged unless it really names the account."""
+    fields = {"user_id"}
+    for _, id_fields in CREDENTIAL_COLLECTIONS + PERSONAL_COLLECTIONS + EVIDENCE_COLLECTIONS:
+        fields.update(id_fields)
+    match = {"$in": ids}
+    query = {"$or": [
+        {"actor.user_id": match}, {"doc_ids": match}, {"outcome.upserted": match}, {"at": {"$gte": since}},
+        *({f"change.{field}": match} for field in sorted(fields)),
+        *({f"filter.{field}": match} for field in sorted(fields)),
+        *(_operator_clause(ids, operator, field)
+          for operator in UPDATE_OPERATORS
+          for field in sorted({f for f in fields if "." not in f} | set(LINK_FIELDS))),
+    ]}
+    count = 0
+    for record in db[AUDIT_TRAIL].find(query):
+        cleaned = replace(record)
+        if cleaned == record:
+            continue
+        cleaned["erased_subject"] = alias
+        cleaned.setdefault("erased_at", now)
+        db[AUDIT_TRAIL].replace_one({"_id": record["_id"]}, cleaned)
+        count += 1
+    return count
+
+
 def erase_user(db, user_doc, secret, public_key_pem=None, now=None):
     """Apply the decision above to a deleted account. Returns counts; never raises on a
     missing collection. Safe to run again (already pseudonymised records no longer match).
     """
+    started = utcnow() - datetime.timedelta(seconds=1)
     now = now or utcnow()
     user_object_id = user_doc["_id"]
     if not isinstance(user_object_id, ObjectId):
@@ -259,6 +313,11 @@ def erase_user(db, user_doc, secret, public_key_pem=None, now=None):
             upsert=True,
         )
         report["sealed"] = True
+
+    # Last, so the trail rows of the writes above are covered too.
+    count = _pseudonymise_audit_trail(db, ids, started, replace, alias, now)
+    if count:
+        report["pseudonymised"][AUDIT_TRAIL] = count
     return report
 
 
@@ -281,7 +340,7 @@ def purge_expired(db, now=None, days=None, dry_run=False):
     now = now or utcnow()
     cutoff = now - datetime.timedelta(days=days or retention_days())
     audit = {"cases", "city_admin_applications", "security_cases", "admin_logs",
-             "board_audit_logs", "super_audit_logs", "demo_audit_logs", "audit_events"}
+             "board_audit_logs", "super_audit_logs", "demo_audit_logs", AUDIT_TRAIL}
     collections = [name for name, _ in EVIDENCE_COLLECTIONS + PERSONAL_COLLECTIONS if name not in audit]
     counts = {}
     for collection in collections + [SEAL_COLLECTION]:

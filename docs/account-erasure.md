@@ -68,3 +68,8 @@ without the seal they cannot be linked to anyone. Dry run:
 - Database backups still hold the old records until they rotate out (see `backups.md`).
 - Application logs keep the real id of the deleted account in the deletion log line.
 - Free text that names the person in another way (for example a nickname in a message) is not found.
+- The write trail (`audit_events`, see `audit-trail.md`) is matched by actor, document ids, the
+  id fields listed in `user_erasure.py` in filters and inserted documents, the same fields and the
+  friend and editor lists inside `$set`, `$setOnInsert`, `$push`, `$addToSet`, `$pull` and
+  `$pullAll`, and every row written during the erasure itself. A row that names the person
+  only some other way (for example inside `$each`) is not found and expires with the trail's TTL.
