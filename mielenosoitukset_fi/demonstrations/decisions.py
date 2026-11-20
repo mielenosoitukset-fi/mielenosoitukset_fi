@@ -17,12 +17,43 @@ from mielenosoitukset_fi.utils.time_utils import utcnow
 
 
 DECISION_STATES = {
-    "approved": {"approved": True, "rejected": False},
-    "rejected": {"approved": False, "rejected": True},
+    "approved": {"approved": True, "rejected": False, "taken_down": False},
+    "rejected": {"approved": False, "rejected": True, "taken_down": False},
+    # Maintainer decision (20 Nov 2026): an approved demo can be taken down
+    # without deleting it. It leaves every public list (approved is False) and
+    # pending queues (rejected is True); the public URL shows a short notice.
+    "taken_down": {"approved": False, "rejected": True, "taken_down": True},
 }
-DECISION_LABELS = {"approved": "Hyväksytty", "rejected": "Hylätty"}
-DECISION_ACTIONS = {"approved": "approve_demo", "rejected": "reject_demo"}
-DECISION_REASONS = {"approved": "demo_approved", "rejected": "demo_rejected"}
+DECISION_LABELS = {
+    "approved": "Hyväksytty",
+    "rejected": "Hylätty",
+    "taken_down": "Poistettu julkaisusta",
+}
+DECISION_ACTIONS = {
+    "approved": "approve_demo",
+    "rejected": "reject_demo",
+    "taken_down": "take_down_demo",
+}
+DECISION_REASONS = {
+    "approved": "demo_approved",
+    "rejected": "demo_rejected",
+    "taken_down": "demo_taken_down",
+}
+DECISION_MESSAGES = {
+    "approved": "Mielenosoitus hyväksyttiin",
+    "rejected": "Mielenosoitus hylättiin",
+    "taken_down": "Mielenosoitus poistettiin julkaisusta",
+}
+SUBMITTER_SUBJECTS = {
+    "approved": "Mielenosoituksesi on hyväksytty",
+    "rejected": "Mielenosoituksesi on hylätty",
+    "taken_down": "Mielenosoituksesi on poistettu sivustolta",
+}
+TAKE_DOWN_REASON_MAX = 1000
+
+
+class DemoNotPublished(ValueError):
+    """Only an approved (public) demonstration can be taken down."""
 
 # A terminal moderation decision closes every bearer-link family. The token
 # used for the decision is excluded and consumed by its route after success.
@@ -93,6 +124,7 @@ def _close_related_cases(db, demo_id, demo, decision, decision_meta) -> int:
                 "note": (
                     f"Mielenosoitus {demo.get('title') or 'tuntematon'} "
                     f"({demo_id}) sai päätöksen: {label.lower()}."
+                    + (f" Syy: {decision_meta['reason']}" if decision_meta.get("reason") else "")
                 ),
             },
             "case_history": {
@@ -222,15 +254,13 @@ def _queue_submitter_notification(
     }
     if decision == "approved":
         context["url"] = public_url
+    if decision == "taken_down":
+        context["reason"] = decision_meta.get("reason") or ""
 
     try:
         email_sender.queue_email(
             template_name=f"demo_submitter_{decision}.html",
-            subject=(
-                "Mielenosoituksesi on hyväksytty"
-                if decision == "approved"
-                else "Mielenosoituksesi on hylätty"
-            ),
+            subject=SUBMITTER_SUBJECTS[decision],
             recipients=[recipient],
             context=context,
         )
@@ -254,6 +284,7 @@ def apply_demo_decision(
     email_sender,
     public_url: str | None = None,
     used_token_id=None,
+    reason: str | None = None,
 ) -> DemoDecisionResult:
     """Apply one terminal moderation decision and reconcile its side effects.
 
@@ -286,11 +317,34 @@ def apply_demo_decision(
             {"moderation_decision.status": {"$ne": decision}},
         ],
     }
+    extra_fields = {}
+    if decision == "taken_down":
+        reason = (reason or "").strip()
+        if not reason:
+            raise ValueError("A take-down needs a reason")
+        reason = reason[:TAKE_DOWN_REASON_MAX]
+        decision_meta["reason"] = reason
+        extra_fields = {
+            "taken_down_reason": reason,
+            "taken_down_at": now,
+            "taken_down_by": _actor_label(actor or {}),
+        }
+        # Only a public demo can be taken down; anything else is a rejection.
+        transition_filter["approved"] = True
+        existing = db.demonstrations.find_one(
+            {"_id": demo_oid}, {"approved": 1, "moderation_decision.status": 1}
+        )
+        if not existing:
+            raise LookupError("Demonstration not found")
+        already = (existing.get("moderation_decision") or {}).get("status") == "taken_down"
+        if not existing.get("approved") and not already:
+            raise DemoNotPublished("Only an approved demonstration can be taken down")
     before = db.demonstrations.find_one_and_update(
         transition_filter,
         {
             "$set": {
                 **target,
+                **extra_fields,
                 "last_modified": now,
                 "moderation_decision": decision_meta,
             }
@@ -311,6 +365,7 @@ def apply_demo_decision(
         status_changed = (
             before.get("approved") != target["approved"]
             or before.get("rejected") != target["rejected"]
+            or bool(before.get("taken_down")) != target["taken_down"]
         )
         decision_meta["notify_submitter"] = status_changed
         db.demonstrations.update_one(
@@ -326,6 +381,7 @@ def apply_demo_decision(
         current = {
             **before,
             **target,
+            **extra_fields,
             "last_modified": now,
             "moderation_decision": decision_meta,
         }
@@ -352,15 +408,12 @@ def apply_demo_decision(
             before,
             current,
             action=DECISION_ACTIONS[decision],
-            message=(
-                "Mielenosoitus hyväksyttiin"
-                if decision == "approved"
-                else "Mielenosoitus hylättiin"
-            ),
+            message=DECISION_MESSAGES[decision],
             extra_details={
                 "decision": decision,
                 "decision_id": decision_id,
                 "source": source,
+                **({"reason": decision_meta["reason"]} if decision_meta.get("reason") else {}),
             },
             actor=actor,
         )
