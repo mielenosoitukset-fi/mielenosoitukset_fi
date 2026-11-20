@@ -275,7 +275,7 @@
         "tests/test_fundraising_page.py",
         "tests/test_public_session_summary.py"
       ],
-      "sha256": "5d15762ba7f16e29b9cb0a6a094ae7adb1ab1967dad45e535185977089718e42"
+      "sha256": "f202d922ee0328300072b744b1f6a2ef2b6ca2cdf2f3f7e9d345ffabda74021e"
     },
     "mielenosoitukset_fi/developer_bp.py": {
       "count": 9,

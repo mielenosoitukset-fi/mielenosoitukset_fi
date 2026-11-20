@@ -2723,10 +2723,23 @@ def init_routes(app):
         return photo_url
 
 
-    @app.route("/report", methods=["GET", "POST"])
+    def _report_return_target():
+        """Same-site path from the Referer, else the front page (no open redirect)."""
+        referrer = request.referrer or ""
+        parts = urlsplit(referrer)
+        if parts.scheme in ("http", "https") and parts.netloc == request.host and parts.path.startswith("/") \
+                and not parts.path.startswith("//") and "\\" not in parts.path:
+            return parts.path + (f"?{parts.query}" if parts.query else "")
+        return url_for("index")
+
+    @app.route("/report", methods=["POST"])
     def report():
         """
         Handle submission of a new error report.
+
+        POST only: a GET used to store an empty report row, so links, crawlers and
+        prefetchers wrote to the database. Every POST, JSON or form, is validated the
+        same way before anything is stored.
         """
         error = request.form.get("error")  # Description of the error being reported
         _type = request.form.get("type")  # Type of the report (e.g., demonstration)
@@ -2739,15 +2752,24 @@ def init_routes(app):
         except Exception:
             demo_oid = None
 
-        wants_json = request.method == "POST" and request.accept_mimetypes.best == "application/json"
-        if wants_json:
-            if not error or not error.strip() or len(error) > 10000 or _type != "demonstration" or demo_oid is None:
-                return jsonify({"status": "ERROR", "message": _("Täytä ilmoituksen tiedot.")}), 400
-            from mielenosoitukset_fi.utils.react_detail import public_metadata_query
-            if not mongo.demonstrations.find_one(public_metadata_query({"_id": demo_oid}), {"_id": 1}):
-                return jsonify({"status": "ERROR", "message": _("Tapahtumaa ei löydy tai se ei ole julkinen.")}), 404
-            if reporter_email and not valid_email(reporter_email):
-                return jsonify({"status": "ERROR", "message": _("Sähköpostiosoite ei ole kelvollinen.")}), 400
+        # The legacy Flask modal posts with fetch and X-Requested-With; a redirect there would
+        # be followed and read as success, so it gets the JSON status codes too.
+        wants_json = (request.accept_mimetypes.best == "application/json"
+                      or request.headers.get("X-Requested-With") == "XMLHttpRequest")
+
+        def refuse(message, status):
+            if wants_json:
+                return jsonify({"status": "ERROR", "message": message}), status
+            flash_message(message, "error")
+            return redirect(_report_return_target())
+
+        if not error or not error.strip() or len(error) > 10000 or _type != "demonstration" or demo_oid is None:
+            return refuse(_("Täytä ilmoituksen tiedot."), 400)
+        from mielenosoitukset_fi.utils.react_detail import public_metadata_query
+        if not mongo.demonstrations.find_one(public_metadata_query({"_id": demo_oid}), {"_id": 1}):
+            return refuse(_("Tapahtumaa ei löydy tai se ei ole julkinen."), 404)
+        if reporter_email and not valid_email(reporter_email):
+            return refuse(_("Sähköpostiosoite ei ole kelvollinen."), 400)
 
         if _type:
             if _type == "demonstration":
@@ -2809,25 +2831,13 @@ def init_routes(app):
             except Exception as e:
                 logger.exception("Failed to create case from error report: %s", e)
 
-        else:
-            mongo.reports.insert_one(
-                {
-                    "error": error,
-                    "date": datetime.now(),
-                    "user": current_user._id if current_user.is_authenticated else None,
-                    "ip": get_client_ip(),
-                    "reported_cancelled": mark_cancelled,
-                    "reporter_email": reporter_email,
-                }
-            )
-
         if wants_json:
             return jsonify({"status": "OK", "message": _("Virhe ilmoitettu onnistuneesti! Kiitos ilmoituksestasi.")})
 
         flash_message(
             "Virhe ilmoitettu onnistuneesti! Kiitos ilmoituksestasi.", "success"
         )
-        return redirect(request.referrer) # TODO: validate referrer?
+        return redirect(_report_return_target())
 
     @app.route("/demonstrations")
     def demonstrations():
