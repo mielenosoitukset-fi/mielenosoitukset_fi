@@ -8,10 +8,10 @@ export const registerCopy = {
   title: 'Luo uusi tili',
   lead: 'Tilillä voit hallita ilmoituksiasi, seurata niiden käsittelyä ja osallistua organisaatioiden toimintaan.',
   detailsTitle: 'Tilin tiedot',
-  detailsLead: 'Käyttäjänimi näkyy palvelussa. Sähköpostia käytetään tilin vahvistamiseen ja tärkeisiin viesteihin.',
+  detailsLead: 'Käyttäjätunnus näkyy palvelussa. Sähköpostia käytetään tilin vahvistamiseen ja tärkeisiin viesteihin.',
   username: 'Käyttäjätunnus',
   usernamePlaceholder: 'Valitse käyttäjätunnus',
-  usernameHint: '3–30 merkkiä: pieniä kirjaimia, numeroita, alaviivoja ja yhdysmerkkejä.',
+  usernameHint: '3–30 merkkiä: pieniä kirjaimia, numeroita, alaviivoja ja yhdysmerkkejä. Ei kahta alaviivaa tai yhdysmerkkiä peräkkäin, ei alussa eikä lopussa.',
   email: 'Sähköposti',
   emailPlaceholder: 'nimi@esimerkki.fi',
   emailHint: 'Lähetämme vahvistuslinkin tähän osoitteeseen.',
@@ -27,7 +27,7 @@ export const registerCopy = {
   requirements: 'Salasanan vaatimukset',
   reqLength: 'Vähintään 12 merkkiä pitkä',
   reqCategories: 'Vähintään 3 seuraavista: pieni kirjain, iso kirjain, numero, erikoismerkki',
-  reqIdentity: 'Ei sisällä käyttäjätunnusta tai sähköpostia',
+  reqIdentity: 'Ei sisällä käyttäjätunnusta tai sähköpostiosoitetta',
   met: 'täytetty',
   notMet: 'ei täytetty',
   mismatch: 'Salasanat eivät täsmää',
@@ -43,8 +43,8 @@ export const registerCopy = {
   login: 'Kirjaudu sisään',
   terms: 'Luomalla tilin hyväksyt palvelun',
   termsLink: 'käyttöehdot',
-  and: 'ja',
-  privacyLink: 'tietosuojaselosteen',
+  privacyLead: 'Lue myös',
+  privacyLink: 'tietosuojaseloste',
 };
 
 /** Same normalisation as Flask's normalize_username. */
@@ -67,7 +67,7 @@ export type PasswordChecks = { length: boolean; categories: boolean; identity: b
 /** Mirrors Flask's is_strong_password: 12+ characters, 3 of 4 categories, no username or email name. */
 export function passwordChecks(password: string, username: string, email: string): PasswordChecks {
   const length = password.length >= 12;
-  const categories = [/[a-z]/, /[A-Z]/, /\d/, SPECIAL].filter(pattern => pattern.test(password)).length >= 3;
+  const categories = [/[a-z]/, /[A-Z]/, /\p{Nd}/u, SPECIAL].filter(pattern => pattern.test(password)).length >= 3;
   const lower = password.toLowerCase();
   const name = username.trim().toLowerCase();
   const local = email.trim().toLowerCase().split('@', 1)[0];

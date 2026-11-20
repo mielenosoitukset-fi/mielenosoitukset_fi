@@ -52,6 +52,12 @@ export default function RegisterScreen({ config }: { config: AppConfig }) {
   }, [username]);
 
   useEffect(() => { if (error) errorBox.current?.focus(); }, [error]);
+  // A page restored by Back from the cache keeps its state: let the visitor submit again.
+  useEffect(() => {
+    const reset = (event: PageTransitionEvent) => { if (event.persisted) setBusy(false); };
+    window.addEventListener('pageshow', reset);
+    return () => window.removeEventListener('pageshow', reset);
+  }, []);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     // Block only what Flask would refuse anyway; a failed availability check never blocks.
@@ -71,8 +77,9 @@ export default function RegisterScreen({ config }: { config: AppConfig }) {
     setGenerated(true);
   }
 
-  const requirement = (met: boolean, text: string) => <li className={met ? 'register-req register-req--met' : 'register-req'}>
-    <span aria-hidden="true">{met ? '✓' : '•'}</span> {text}<span className="register-sr-only">: {met ? copy.met : copy.notMet}</span></li>;
+  const requirement = (met: boolean, text: string) => <li className={met ? 'register-req register-req--met'
+    : error > 0 ? 'register-req register-req--missing' : 'register-req'}>
+    <span aria-hidden="true">{met ? '✓' : error > 0 ? '✕' : '•'}</span> {text}<span className="register-sr-only">: {met ? copy.met : copy.notMet}</span></li>;
 
   return <article className="public-page-shell information-page auth-page" aria-labelledby="register-title">
     <header className="public-page-header"><div className="public-page-header__content">
@@ -92,9 +99,9 @@ export default function RegisterScreen({ config }: { config: AppConfig }) {
           aria-describedby="register-username-hint register-username-status"
           aria-invalid={usernameState === 'invalid' || usernameState === 'taken' ? true : undefined}
           value={username} onChange={event => setUsername(event.target.value)} />
-        <p className="auth-hint" id="register-username-hint">{copy.usernameHint}</p>
         <p className={`register-status register-status--${usernameState}`} id="register-username-status" aria-live="polite">
           {usernameText[usernameState]}</p>
+        <p className="auth-hint" id="register-username-hint">{copy.usernameHint}</p>
         <label htmlFor="register-email">{copy.email}</label>
         <input type="email" id="register-email" name="email" required maxLength={254} autoComplete="email"
           placeholder={copy.emailPlaceholder} aria-describedby="register-email-hint"
@@ -127,12 +134,12 @@ export default function RegisterScreen({ config }: { config: AppConfig }) {
           aria-invalid={mismatch ? true : undefined} value={confirm} onChange={event => setConfirm(event.target.value)} />
         <p className={`register-status register-status--${mismatch ? 'taken' : 'available'}`} id="register-confirm-status"
           aria-live="polite">{confirm ? (mismatch ? copy.mismatch : copy.match) : ''}</p>
-        {generated && <p className="auth-hint" role="status">{copy.generated}</p>}
+        <p className="auth-hint" role="status">{generated ? copy.generated : ''}</p>
         <div className="detail-actions register-actions">
           <button type="button" className="detail-button" onClick={onGenerate}>{copy.generate}</button>
           <button type="submit" className="detail-button detail-button--primary" disabled={busy} aria-busy={busy}>{copy.submit}</button>
         </div>
-        <p className="auth-hint">{copy.terms} <a href="/terms">{copy.termsLink}</a> {copy.and} <a href="/privacy">{copy.privacyLink}</a>.</p>
+        <p className="auth-hint">{copy.terms} <a href="/terms">{copy.termsLink}</a>. {copy.privacyLead} <a href="/privacy">{copy.privacyLink}</a>.</p>
       </section>
     </form>
     <section className="public-prose-card auth-card auth-card--secondary" aria-label={copy.haveAccount}>
