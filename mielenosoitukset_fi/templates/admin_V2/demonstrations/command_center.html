@@ -1,6 +1,5 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
-{% from 'admin_V2/demonstrations/_decision_modal.html' import demo_decision_modal %}
 
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/demonstrations.css', v='20260914-admin-ui-51') }}">{% endblock %}
 
@@ -287,8 +286,8 @@
                   {% if organizer.email %}
                   <div class="text-muted small">{{ organizer.email }}</div>
                   {% endif %}
-                  {% if organizer.website %}
-                  <div><a href="{{ organizer.website }}" target="_blank" rel="noopener noreferrer">{{ organizer.website }}</a></div>
+                  {% if organizer.website|safe_href %}
+                  <div><a href="{{ organizer.website|safe_href }}" target="_blank" rel="noopener noreferrer">{{ organizer.website }}</a></div>
                   {% endif %}
                 </div>
               </li>
@@ -502,8 +501,8 @@
       <section class="info-card admin-section-card">
         <h3>{{ _('Linkit ja media') }}</h3>
         <div class="media-links">
-          {% if demo.facebook %}
-          <a href="{{ demo.facebook }}" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-facebook"></i> Facebook</a>
+          {% if demo.facebook|safe_href %}
+          <a href="{{ demo.facebook|safe_href }}" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-facebook"></i> Facebook</a>
           {% endif %}
           {% if demo.facebook_import %}
           <div class="mt-2 fb-import-provenance">
@@ -511,8 +510,8 @@
             <strong>{{ _('Tuotu Facebookista') }}</strong>
             <p class="mb-0 text-muted">
               {{ _('Ilmoittaja täytti lomakkeen Facebook-tuonnilla') }}
-              {% if demo.facebook_import.get('url') %}
-              — <a href="{{ demo.facebook_import.get('url') }}" target="_blank" rel="noopener noreferrer">{{ demo.facebook_import.get('url') }}</a>
+              {% if demo.facebook_import.get('url')|safe_href %}
+              — <a href="{{ demo.facebook_import.get('url')|safe_href }}" target="_blank" rel="noopener noreferrer">{{ demo.facebook_import.get('url') }}</a>
               {% endif %}
               {% if demo.facebook_import.get('imported_at') %}
               <small>({{ demo.facebook_import.get('imported_at') }})</small>
@@ -533,7 +532,7 @@
         {% if demo_raw.get('external_links') %}
         <div class="mt-2">
           {% for link in demo_raw.get('external_links') %}
-          <a href="{{ link }}" target="_blank" rel="noopener noreferrer">{{ link }}</a>
+          {% if link|safe_href %}<a href="{{ link|safe_href }}" target="_blank" rel="noopener noreferrer">{{ link }}</a>{% else %}<span>{{ link }}</span>{% endif %}
           {% endfor %}
         </div>
         {% endif %}
@@ -544,15 +543,11 @@
       <div class="action-card admin-section-card">
         <h3>{{ _('Pikatoiminnot') }}</h3>
         <div class="action-grid">
-          {% if permissions.can_accept and not status_flags.approved %}
-          <button type="button" class="action-btn btn btn-success js-command" data-command="approve">
-            {{ _('Hyväksy mielenosoitus') }}
-            <i class="fa-solid fa-check"></i>
-          </button>
-          <button type="button" class="action-btn btn btn-outline-secondary js-command" data-command="reject">
-            {{ _('Hylkää mielenosoitus') }}
-            <i class="fa-solid fa-xmark"></i>
-          </button>
+          {% if decision_url %}
+          <a class="action-btn btn btn-success" href="{{ decision_url }}">
+            {{ _('Käsittele') }}
+            <i class="fa-solid fa-scale-balanced"></i>
+          </a>
           {% endif %}
           {% if permissions.can_edit %}
           {% if not status_flags.cancelled %}
@@ -598,14 +593,11 @@
     </aside>
   </div>
 </div>
-{{ demo_decision_modal() }}
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin_demo_decision.js', v='20261120-decision-1') }}"></script>
 <script>
   const COMMAND_ENDPOINTS = {{ action_endpoints|tojson }};
-  const demoId = {{ demo_id|tojson }};
 
   async function runCommand(actionKey, { payload = {}, successMessage = "{{ _('Toiminto suoritettu') }}", failureMessage = "{{ _('Toiminto epäonnistui') }}", refresh = true } = {}) {
     const config = COMMAND_ENDPOINTS[actionKey];
@@ -678,19 +670,6 @@
           refresh: false,
           successMessage: "{{ _('Esikatselukuvan luonti käynnistetty.') }}",
         });
-        return;
-      }
-
-      if (command === "approve") {
-        if (await window.MosoDemoDecision.confirm(demoId, "approved")) {
-          await runCommand("approve", { successMessage: "{{ _('Hyväksytty!') }}" });
-        }
-        return;
-      }
-      if (command === "reject") {
-        if (await window.MosoDemoDecision.confirm(demoId, "rejected")) {
-          await runCommand("reject", { successMessage: "{{ _('Hylätty!') }}" });
-        }
         return;
       }
 
