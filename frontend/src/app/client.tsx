@@ -79,6 +79,10 @@ if (container) {
       void import('./AccountSettingsScreen').then(({ default: AccountSettingsScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<AccountSettingsScreen config={props.config} session={props.session} />} />);
       }).catch(error => console.error('Could not start the settings page', error));
+    } else if (route?.name === 'password-reset-request') {
+      void import('./PasswordResetRequestScreen').then(({ default: PasswordResetRequestScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<PasswordResetRequestScreen config={props.config} />} />);
+      }).catch(error => console.error('Could not start the password reset page', error));
     } else if (route?.name === 'profile' && props.profile) {
       const profile = props.profile;
       const username = route.username;
