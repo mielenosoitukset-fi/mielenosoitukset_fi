@@ -1024,6 +1024,12 @@ def bulk_update_children(demo_id):
         child_query["_id"] = {"$in": child_ids}
 
     children = mongo.demonstrations.find(child_query)
+    # Approval is never copied as a raw field: approving goes through the one
+    # decision service (case closing, links, audit) like every other path,
+    # and a pending series never un-approves its children.
+    approval_requested = "approved" in requested_fields
+    approve_children = approval_requested and bool(parent.get("approved"))
+    requested_fields = [field for field in requested_fields if field != "approved"]
     update_fields = {}
     for field_group in requested_fields:
         for child_field in CHILD_BULK_FIELD_MAP[field_group]:
@@ -1037,7 +1043,21 @@ def bulk_update_children(demo_id):
 
     updated_ids = []
     updated_count = 0
+    approved_count = 0
+    skipped_count = 0
+    if approve_children:
+        from mielenosoitukset_fi.admin.admin_demo_bp import _apply_demo_decision
     for child in children:
+        if approve_children and not child.get("approved") and not child.get("rejected"):
+            if has_demo_approval_permission(current_user, child):
+                result = _apply_demo_decision(
+                    str(child["_id"]), "approved", source="admin_recurring_bulk"
+                )
+                approved_count += int(result.changed)
+            else:
+                skipped_count += 1
+        if not update_fields:
+            continue
         new_child = deepcopy(child)
         new_child.update(deepcopy(update_fields))
         mongo.demonstrations.update_one(
@@ -1064,11 +1084,29 @@ def bulk_update_children(demo_id):
             {"$addToSet": {"freezed_children": {"$each": updated_ids}}},
         )
 
-    flash_message(
-        "Päivitettiin %(count)s lapsimielenosoitusta.",
-        "success",
-        count=updated_count,
-    )
+    if update_fields:
+        flash_message(
+            "Päivitettiin %(count)s lapsimielenosoitusta.",
+            "success",
+            count=updated_count,
+        )
+    if approve_children:
+        flash_message(
+            "Hyväksyttiin %(count)s lapsimielenosoitusta.",
+            "success",
+            count=approved_count,
+        )
+    if skipped_count:
+        flash_message(
+            "Käyttöoikeutesi eivät riitä hyväksymään %(count)s lapsimielenosoitusta.",
+            "warning",
+            count=skipped_count,
+        )
+    if approval_requested and not approve_children:
+        flash_message(
+            "Sarjaa ei ole hyväksytty, joten lapsimielenosoituksia ei hyväksytty.",
+            "warning",
+        )
     return redirect(url_for("admin_recu_demo.edit_recu_demo", demo_id=demo_id))
 
 
