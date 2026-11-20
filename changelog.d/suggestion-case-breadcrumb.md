@@ -1,0 +1,1 @@
+- Admin: the suggestion review breadcrumb now reads "Hallintapaneeli / Tapaukset / Tapaus #N / Tarkastelu", and the case crumb and back button name the case number and link to it.
