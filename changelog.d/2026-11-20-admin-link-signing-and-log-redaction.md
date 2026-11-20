@@ -1,0 +1,1 @@
+- Admin moderation and edit links are now signed with the site's own secret key, and admin request logs keep only redacted request details. Moderation links sent before the update stop working; request new ones if needed.

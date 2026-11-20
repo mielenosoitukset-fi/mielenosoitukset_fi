@@ -56,7 +56,7 @@ export const accountCopy = {
   cityOpen: 'Avaa paikkakuntavalikko',
   cityChoose: 'Valitse paikkakunta',
   citySearchLabel: 'Hae kaupungeista',
-  citySearch: 'Hae paikkakunta...',
+  citySearch: 'Hae paikkakunta…',
   language: 'Kieli',
   finnish: 'Suomi',
   translationsTitle: 'Käännökset ovat vielä kesken',
@@ -69,11 +69,20 @@ export const accountCopy = {
   saveFailed: 'Virhe asetusten tallennuksessa.',
   securityTitle: 'Turvallisuusasetukset',
   securityLead: 'Hallinnoi tilisi turvallisuusasetuksia, kuten kaksivaiheista tunnistautumista (MFA).',
-  securityLater: 'Salasanan, kaksivaiheisen tunnistuksen ja passkeyjen muuttaminen ei ole vielä tällä sivulla. Ne tulevat tähän myöhemmässä vaiheessa.',
+  passwordTitle: 'Vaihda salasana',
+  passwordCurrent: 'Nykyinen salasana',
+  passwordNew: 'Uusi salasana',
+  passwordConfirm: 'Toista uusi salasana',
+  passwordHelp: 'Käytä vähintään 12 merkkiä ja vähintään kolmea näistä: pieni kirjain, iso kirjain, numero ja erikoismerkki.',
+  passwordRequired: 'Kaikki kentät ovat pakollisia.',
+  passwordMismatch: 'Salasanat eivät täsmää.',
+  passwordWeak: 'Salasana ei täytä vaatimuksia.',
+  passwordFailed: 'Salasanan vaihtaminen epäonnistui',
+  passwordChanging: 'Vaihdetaan…',
   mfaTitle: 'Kaksivaiheinen tunnistus (MFA)',
   mfaLead: 'Hallinnoi kaksivaiheista tunnistautumista ja MFA-laitteita.',
   mfaOn: 'MFA on käytössä',
-  mfaOff: 'MFA ei käytössä',
+  mfaOff: 'MFA ei ole käytössä',
   mfaDevice: 'MFA-laite',
   passkeysTitle: 'Passkeyt',
   passkeysLead: 'Kirjaudu ilman salasanaa puhelimen, tietokoneen tai turva-avaimen tunnistuksella.',
@@ -89,7 +98,7 @@ export const accountCopy = {
   result: 'Tulos',
   noLogins: 'Ei kirjautumisia',
   tokensTitle: 'API-avaimet',
-  tokensLead: 'Luo ja hallitse API-avaimia integraatioita varten. Avaimet näytetään vain kerran, tallenna ne turvallisesti.',
+  tokensLead: 'Luo ja hallitse API-avaimia integraatioita varten. Avaimet näytetään vain kerran. Tallenna ne turvallisesti.',
   tokensPanel: 'Kehittäjäpaneeli (sovellukset)',
   profileTitle: 'Profiili',
   profileLead: 'Päivitä julkisessa profiilissasi näkyvä esittelyteksti ja kuva.',
@@ -280,6 +289,40 @@ export function postBioToGo(csrf: string, bio: string, fallback: string, fetcher
 /** Save the general settings through Go (docs/account-pages-react.md, step 3b). */
 export function postGeneralToGo(csrf: string, payload: ReturnType<typeof generalPayload>, fallback: string, fetcher: typeof fetch = fetch): Promise<FlaskResult> {
   return postToGo(accountSettingsApi, csrf, payload, fallback, fetcher);
+}
+
+export const passwordChangeApi = '/users/auth/api/v2/change_password';
+export const passwordMinLength = 12;
+
+export type PasswordForm = { current: string; next: string; confirm: string };
+
+/** The JSON the Flask page posts: the field names are `current`, `new` and `confirm`. */
+export const passwordPayload = (form: PasswordForm) => ({ current: form.current, new: form.next, confirm: form.confirm });
+
+/**
+ * The checks the browser can make before posting; the server stays the authority. Returns a Finnish message,
+ * the same text Flask would answer, or `null` when the form may be sent.
+ */
+export function passwordFormError(form: PasswordForm): string | null {
+  if (!form.current || !form.next || !form.confirm) return accountCopy.passwordRequired;
+  if (form.next !== form.confirm) return accountCopy.passwordMismatch;
+  if (Array.from(form.next).length < passwordMinLength) return accountCopy.passwordWeak;
+  return null;
+}
+
+/** One password-change request, built fresh so a step-up retry sends it again. Values are never logged or stored. */
+export const passwordRequest = (form: PasswordForm, fetcher: typeof fetch = fetch) => (): Promise<Response> =>
+  fetcher(passwordChangeApi, { method: 'POST', credentials: 'same-origin', cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(passwordPayload(form)) });
+
+/** Maps the answer to a message: Flask's own text as returned, a fallback otherwise. `null` means the user cancelled step-up. */
+export async function readPasswordResult(response: Response | null, fallback: string): Promise<{ ok: boolean; message: string } | null> {
+  if (!response) return null;
+  let body: unknown = null;
+  try { body = await response.json(); } catch { /* HTML or empty answer */ }
+  const raw = isObject(body) ? body : {};
+  const message = typeof raw.message === 'string' && raw.message ? raw.message.slice(0, 300) : fallback;
+  return { ok: response.ok && raw.status === 'success', message };
 }
 
 export const profilePayload = (bio: string, base64Image: string | null) => ({ bio, profile_picture: base64Image });

@@ -251,3 +251,37 @@ same constant path. Writes cannot happen either way: the bridge refuses before a
 Activation note for section 13: nothing extra to switch on; this ships with the Go API. Verify
 after activation with a test account that has `forced_identity_change` set: the settings page
 sends it to the identity-change form, and `/api/account/settings` answers 403.
+
+### Activation record (19 November 2026)
+
+Done with the maintainer's go typed in the session, at about 13:00 EET: backup in
+`/root/profile-activation-backup-20261119T105902Z` (also `/root/profile-activation-backup-latest`:
+`config.yaml`, `api-environment`, `mielenosoitukset-react-ssr.conf`); `PROFILE_READS: true` appended
+to `config.yaml`; the Go environment regenerated (a dry run showed only `NATIONAL_ADMIN_ORG_ID` and
+`PROFILE_READS_ENABLED` added) and `mielenosoitukset-api` restarted; the five profile Apache lines
+uncommented in the live include, `apachectl configtest` OK, Apache reloaded. Verified: the Go
+endpoint answers 200 for a real user (no email, id or role in the body) and 404 for an unknown one;
+through the public host the profile page answers 200 and 404, `/users/profile/edit` still redirects
+through Flask, and `/users/profile/api/follow/` still answers 405 from Flask. This PR makes the repo
+file match the live one.
+
+## Step 4a as built (password change)
+
+- Moved: the "Vaihda salasana" form now lives in the React Turvallisuus tab, above the read-only MFA card
+  (`PasswordCard` in `AccountSettingsScreen.tsx`). Stays in Flask: the write. The form posts JSON
+  `{current, new, confirm}` to the unchanged `POST /users/auth/api/v2/change_password`
+  (`api_change_password`, guarded by `@sudo_required()`). No Go or Flask code changed.
+- Step-up flow (reusable for the MFA and passkey steps): `useStepUp().withStepUp(() => fetch(...))` in
+  `StepUpDialog.tsx`, logic in `account-stepup.ts`. A request answered `403` with JSON `{"error": "step_up_required"}`
+  (what `sudo_required` sends; a plain 403 or a 401 is not step-up) opens a native `<dialog>`. The dialog asks
+  `/users/auth/api/v2/step-up/options`, offers a passkey (options, `navigator.credentials.get`, verify) when the
+  account has one and the browser supports it, and always the password, plus the MFA code when `requires_totp`.
+  On success the original request is sent once more; Peruuta or Escape resolves `null` and nothing is retried.
+  Errors show inside the dialog. The base64url helpers are ported from `static/js/webauthn.js`.
+- Client checks: all fields filled, new equals confirm, at least 12 characters. The server stays the authority and
+  its messages are shown as returned. Fields are cleared after success; values are never logged or stored.
+- New Finnish strings (the rest are Flask's msgids verbatim): "Vaihdetaan…" (button while busy),
+  "Vahvistetaan…" (step-up button while busy), "Vahvistustapoja ei saatu haettua. Yritä salasanalla." The
+  Turvallisuus notice now reads "Kaksivaiheista tunnistusta ja passkeyjä ei voi vielä muuttaa tällä sivulla…".
+- Tests: `tests/test_account_stepup.py` (detection, retry and cancel flow, request body, message mapping, base64url).
+- Activation: nothing to activate; ships with the settings page. Revert: revert the pull request.

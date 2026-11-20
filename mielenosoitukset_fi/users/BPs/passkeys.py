@@ -22,8 +22,13 @@ from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.users.models import User, UserMFA
 from mielenosoitukset_fi.utils import webauthn_utils as webauthn
 from mielenosoitukset_fi.utils.step_up import (
+    clear_step_up_failures,
     create_fresh_step_up_token,
     grant_elevation,
+    record_step_up_failure,
+    release_step_up_attempt,
+    reserve_step_up_attempt,
+    step_up_throttled_response,
     sudo_required,
 )
 from mielenosoitukset_fi.utils.request_ip import get_client_ip
@@ -198,11 +203,20 @@ def passkey_login_verify():
         user_id=user._id,
     )
 
-    safe_next_page = _normalize_post_login_target(data.get("next") or "")
-    if user.forced_pwd_reset:
-        safe_next_page = url_for("users.auth.forced_pwd_reset")
-    if user.forced_identity_change:
-        safe_next_page = url_for("users.auth.forced_identity_change")
+    # The login page stores its normalized ``next`` in the session; an
+    # explicit value from the page script wins. Both are normalized again.
+    stored_next_page = session.pop("next_page", None)
+    safe_next_page = _normalize_post_login_target(
+        data.get("next") or stored_next_page or ""
+    )
+    if user.forced_pwd_reset or user.forced_identity_change:
+        # Keep the target for after the forced step, as password login does.
+        session["next_page"] = safe_next_page
+        safe_next_page = url_for(
+            "users.auth.forced_pwd_reset"
+            if user.forced_pwd_reset
+            else "users.auth.forced_identity_change"
+        )
 
     return jsonify({"status": "success", "redirect": safe_next_page})
 
@@ -268,20 +282,28 @@ def step_up_password():
     if not isinstance(password, str) or not password:
         return jsonify({"status": "error", "message": "Salasana vaaditaan."}), 400
 
+    attempt = reserve_step_up_attempt()
+    if attempt is None:
+        return step_up_throttled_response()
+
     user_doc = _get_user_doc(current_user._id)
     user = User.from_db(user_doc) if user_doc else current_user
     if not user.check_password(password):
+        record_step_up_failure(attempt, "password")
         return jsonify({"status": "error", "message": "Väärä salasana."}), 403
 
     if _user_requires_totp():
         totp_code = data.get("totp_code")
         if not isinstance(totp_code, str) or not totp_code.strip():
+            release_step_up_attempt(attempt)
             return jsonify(
                 {"status": "error", "message": "Syötä myös MFA-koodi.", "error": "totp_required"}
             ), 400
         if not UserMFA(user._id).verify_token(totp_code.strip()):
+            record_step_up_failure(attempt, "totp")
             return jsonify({"status": "error", "message": "Väärä MFA-koodi."}), 403
 
+    clear_step_up_failures()
     grant_elevation("password_totp")
     return jsonify({"status": "success", "message": "Henkilöllisyys vahvistettu."})
 
@@ -444,19 +466,28 @@ def fresh_step_up_password():
     if not isinstance(password, str) or not password:
         return jsonify({"status": "error", "message": _("Salasana vaaditaan.")}), 400
 
+    attempt = reserve_step_up_attempt()
+    if attempt is None:
+        return step_up_throttled_response()
+
     user_doc = _get_user_doc(current_user._id)
     user = User.from_db(user_doc) if user_doc else current_user
     if not user.check_password(password):
+        record_step_up_failure(attempt, "password")
         return jsonify({"status": "error", "message": _("Väärä salasana.")}), 403
 
     if _user_requires_totp():
         totp_code = data.get("totp_code")
         if not isinstance(totp_code, str) or not totp_code.strip():
+            release_step_up_attempt(attempt)
             return jsonify(
                 {"status": "error", "message": _("Syötä myös MFA-koodi."), "error": "totp_required"}
             ), 400
         if not UserMFA(user._id).verify_token(totp_code.strip()):
+            record_step_up_failure(attempt, "totp")
             return jsonify({"status": "error", "message": _("Väärä MFA-koodi.")}), 403
+
+    clear_step_up_failures()
 
     # Clear session binding
     session.pop("fresh_step_up_action", None)

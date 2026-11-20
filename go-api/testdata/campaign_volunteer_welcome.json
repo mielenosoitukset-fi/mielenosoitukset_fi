@@ -1,0 +1,17 @@
+{
+ "plain": {
+  "name": "Aino",
+  "link": "https://mielenosoitukset.fi/kampanja/confirm/AbCdEfGhIjKlMnOpQrStUv",
+  "html": "<p>Hei Aino!</p>\n<p>Kiitos, että ilmoittauduit vapaaehtoiseksi. Vahvista sähköpostisi klikkaamalla alla olevaa linkkiä:</p>\n<p><a href=\"https://mielenosoitukset.fi/kampanja/confirm/AbCdEfGhIjKlMnOpQrStUv\">Vahvista ilmoittautuminen</a></p>\n<p>Linkki on voimassa 24 tuntia.</p>"
+ },
+ "escape": {
+  "name": "<b>\"A\" & 'B'</b>",
+  "link": "https://mielenosoitukset.fi/kampanja/confirm/AbCdEfGhIjKlMnOpQrStUv",
+  "html": "<p>Hei &lt;b&gt;&#34;A&#34; &amp; &#39;B&#39;&lt;/b&gt;!</p>\n<p>Kiitos, että ilmoittauduit vapaaehtoiseksi. Vahvista sähköpostisi klikkaamalla alla olevaa linkkiä:</p>\n<p><a href=\"https://mielenosoitukset.fi/kampanja/confirm/AbCdEfGhIjKlMnOpQrStUv\">Vahvista ilmoittautuminen</a></p>\n<p>Linkki on voimassa 24 tuntia.</p>"
+ },
+ "unicode": {
+  "name": "Äänekoski ✓",
+  "link": "https://mielenosoitukset.fi/kampanja/confirm/AbCdEfGhIjKlMnOpQrStUv",
+  "html": "<p>Hei Äänekoski ✓!</p>\n<p>Kiitos, että ilmoittauduit vapaaehtoiseksi. Vahvista sähköpostisi klikkaamalla alla olevaa linkkiä:</p>\n<p><a href=\"https://mielenosoitukset.fi/kampanja/confirm/AbCdEfGhIjKlMnOpQrStUv\">Vahvista ilmoittautuminen</a></p>\n<p>Linkki on voimassa 24 tuntia.</p>"
+ }
+}
