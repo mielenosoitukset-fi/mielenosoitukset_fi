@@ -1,39 +1,43 @@
 {% extends 'manual_base.html' %}
+{% import 'manuals/_macros.html' as m with context %}
 
-{% block content %}
-<div class="manual-breadcrumb">
-  <i class="fa-solid fa-house me-1"></i> <a href="{{ url_for('admin.manual_page', page='index') }}">Ohje</a> / Hallintapaneeli
-</div>
-
-<section class="manual-section">
-  <h2><i class="fa-solid fa-tachometer-alt me-2"></i>Hallintapaneeli</h2>
-  <p>
-    Hallintapaneeli on <strong>{{ url_for('admin.admin_dashboard') }}</strong>-osoitteessa ja se on
-    kirjautuneiden pääkäyttäjien keskitetty näkymä. Täältä pääset nopeasti kaikkiin hallinnan osioihin
-    ja näet kerralla järjestelmän keskeiset luvut ja tilan.
-  </p>
-
-  <h3>Etusivun näkymä</h3>
+{% block manual_content %}
+<section id="etusivu">
+  <h2>{{ _('Etusivun näkymä') }}</h2>
+  <p>{{ m.open_link('dashboard', 'admin.admin_dashboard', _('Hallintapaneeli')) }} {{ _('on ensimmäinen sivu kirjautumisen jälkeen. Se näyttää palvelun tilannekuvan ja oikotiet niihin työkaluihin, joihin sinulla on oikeus.') }}</p>
   <ul>
-    <li><strong>Tilastokortit</strong> – käyttäjien, mielenosoitusten ja organisaatioiden lukumäärät yhdellä silmäyksellä, päivittyvät automaattisesti taustapollauksella.</li>
-    <li><strong>Kirjautumisvirta</strong> – viimeisimmät kirjautumisyritykset reaaliajassa, jolloin voit huomata epäilyttävän toiminnan heti.</li>
-    <li><strong>Panic mode</strong> – hätäkatkaisin, joka voi tilapäisesti poistaa julkaistut toiminnot käytöstä kriisitilanteessa.</li>
-    <li><strong>Taustatehtävät &amp; ilmoitukset</strong> – käynnissä olevat työt ja tärkeät järjestelmähuomautukset.</li>
-    <li><strong>Pikakäytön painikkeet</strong> – suorat linkit lokiin ja taikamerkkilinkeille (superkäyttäjille).</li>
+    <li>{{ _('Tilastokortit: käyttäjät, organisaatiot, julkaisua odottavat mielenosoitukset, avoimet hallintatapaukset ja kirjautumiset tunnissa. Luvut päivittyvät itsestään.') }}</li>
+    <li>{{ m.ui(_('Kirjautumispäiväkirja')) }}: {{ _('viimeisimmät kirjautumiset. Sen avulla huomaat epätavallisen toiminnan.') }}</li>
+    <li>{{ _('Pikalinkit: tilastot, käyttäjähallinta, lokit ja tämä käyttöohje.') }}</li>
   </ul>
+</section>
 
-  <div class="manual-tip">
-    <i class="fa-solid fa-lightbulb me-2"></i>
-    <strong>Vinkki:</strong> Käytä vasemman reunan valikkoa siirtyäksesi esimerkiksi
-    <a href="{{ url_for('admin.manual_page', page='demos') }}">mielenosoitusten</a> tai
-    <a href="{{ url_for('admin.manual_page', page='users') }}">käyttäjien hallintaan</a>.
-  </div>
+<section id="kaupunkiadmin">
+  <h2>{{ _('Kaupunkiadminin käsittelyjono') }}</h2>
+  <p>{{ _('Kaupunkiadminin etusivu on käsittelyjono. Siinä ovat omien kaupunkiesi odottavat ilmoitukset aikaisimman määräajan mukaan.') }}</p>
+  <ul>
+    <li>{{ m.ui(_('Käsittelyaikaa jäljellä')) }} {{ _('kertoo, kuinka kauan sinulla on aikaa päättää.') }}</li>
+    <li>{{ _('Jos määräaika umpeutuu, ilmoitus siirtyy kansalliselle tiimille. Se näkyy merkinnällä') }} {{ m.ui(_('Siirretty kansalliselle tiimille')) }}.</li>
+    <li>{{ m.ui(_('Käsittele')) }} {{ _('avaa ilmoituksen, jonka voit hyväksyä tai hylätä.') }}</li>
+  </ul>
+</section>
 
-  <h3>Teema &amp; kirjautuminen ulos</h3>
-  <p>
-    Valikon alareunasta voit vaihtaa vaalean/tumman teeman välillä (tallennetaan selaimen muistiin)
-    ja kirjautua ulos. Uloskirjautumista edeltää 5 sekunnin vahvistus, jotta toimintoa ei
-    vahingossa käynnistetä.
-  </p>
+<section id="hatakatkaisin">
+  <h2>{{ _('Hätäkatkaisin (panic mode)') }}</h2>
+  <p>{{ _('Etusivun') }} {{ m.ui(_('Panic Mode')) }}{{ _('-kortti näyttää, onko julkinen sivusto suljettu. Sivuston sulkeminen ja avaaminen tehdään hallinnon turvatoimisivulla:') }} {{ m.ui(_('Sulje julkinen sivusto')) }} {{ _('ja') }} {{ m.ui(_('Avaa julkinen sivusto')) }}. {{ _('Samalla sivulla voi myös keskeyttää yksittäisen käyttäjätilin.') }}</p>
+  <p>{{ _('Jokainen turvatoimi kirjataan perusteluineen päätöshistoriaan, ja jatkopäätökset vaativat hallituksen jäsenten hyväksynnän.') }}</p>
+  {% call m.callout('danger') %}
+  <p>{{ _('Käytä hätäkatkaisinta vain todellisessa hätätilanteessa, esimerkiksi laajan väärinkäytön aikana, ja kerro siitä heti muulle ylläpidolle.') }}</p>
+  {% endcall %}
+</section>
+
+<section id="navigointi">
+  <h2>{{ _('Valikko, teema ja uloskirjautuminen') }}</h2>
+  <ul>
+    <li>{{ _('Vasemman reunan valikko näyttää vain ne näkymät, joihin sinulla on oikeus. Puhelimessa valikko avautuu yläpalkin painikkeesta.') }}</li>
+    <li>{{ _('Valikon alaosan') }} {{ m.ui(_('Ohje tähän näkymään')) }} {{ _('avaa sen näkymän ohjeen, jossa olet.') }}</li>
+    <li>{{ _('Teemapainike vaihtaa vaalean ja tumman tilan. Valinta tallentuu selaimeen.') }}</li>
+    <li>{{ m.ui(_('Kirjaudu ulos')) }} {{ _('pyytää vahvistuksen, jotta et kirjaudu ulos vahingossa.') }}</li>
+  </ul>
 </section>
 {% endblock %}

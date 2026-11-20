@@ -8,7 +8,7 @@ def test_profile_follow_counts_open_public_user_lists(user_client, db, seeded_da
         {"$set": {"followers": [seeded_data["user_id"]], "following": [seeded_data["user_id"]]}},
     )
 
-    response = user_client.get("/users/profile/")
+    response = user_client.get("/users/profile/", follow_redirects=True)
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)

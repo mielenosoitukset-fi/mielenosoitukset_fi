@@ -4,9 +4,9 @@ import type { AppConfig } from './config';
 import type { SessionSummary } from './session';
 import { useSession } from './useSession';
 import {
-  accountBioMax, accountBioWarnAt, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
+  accountBioMax, accountIdentityChangePath, isIdentityChangeRefusal, accountBioWarnAt, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
   accountSettingsPath, accountStanding, accountTabs, accountTranslationsUrl, classifyAccountResponse, filterCities,
-  generalPayload, nextTabIndex, passwordFormError, passwordMinLength, passwordRequest, postBioToGo, postGeneralToGo, postFlaskJson, profilePayload,
+  generalPayload, nextTabIndex, passwordFormError, passwordMinLength, passwordRequest, postBioToGo, postDeletionRequestToGo, postGeneralToGo, accountDeletionReasonMax, postFlaskJson, profilePayload,
   readAccountSettings, readPasswordResult, safePicture, tabFromHash,
 } from './account-settings-route';
 import type { AccountSettingsRead, AccountTabId } from './account-settings-route';
@@ -187,6 +187,51 @@ function PasswordCard() {
   </>;
 }
 
+/** Self-service deletion request: Go opens an admin case; an admin deletes the account. */
+function DeleteAccountCard({ csrf }: { csrf?: string }) {
+  const [reason, setReason] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<Message>(null);
+  const [done, setDone] = useState(false);
+  const ids = { title: useId(), reason: useId(), help: useId(), confirm: useId() };
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!csrf || busy || done) return;
+    if (!confirmed) { setMessage({ kind: 'error', text: copy.deleteNeedsConfirm }); return; }
+    setMessage(null); setBusy(true);
+    const result = await postDeletionRequestToGo(csrf, reason);
+    setBusy(false);
+    if (!result.ok) { setMessage({ kind: 'error', text: result.message }); return; }
+    setDone(true);
+    setMessage({ kind: 'info', text: result.pending ? copy.deletePending : copy.deleteCreated });
+  };
+  return <form className="suggest-change-form" onSubmit={submit}>
+    <section className="public-prose-card account-card" aria-labelledby={ids.title}>
+      <h2 id={ids.title}>{copy.deleteTitle}</h2>
+      <p className="account-muted">{copy.deleteLead} <a href="/privacy">{copy.deletePrivacy}</a>.</p>
+      {csrf ? <>
+        <div className="suggest-change-field">
+          <label htmlFor={ids.reason}>{copy.deleteReason} <span className="account-muted">({copy.optional.toLowerCase()})</span></label>
+          <textarea id={ids.reason} rows={3} value={reason} maxLength={accountDeletionReasonMax} aria-describedby={ids.help}
+            disabled={busy || done} onChange={event => setReason(event.target.value)} />
+          <p className="account-muted" id={ids.help}>{copy.deleteReasonHelp}</p>
+        </div>
+        <label className="account-check" htmlFor={ids.confirm}>
+          <input id={ids.confirm} type="checkbox" checked={confirmed} disabled={busy || done} onChange={event => { setConfirmed(event.target.checked); setMessage(null); }} />
+          <span>{copy.deleteConfirm}</span>
+        </label>
+        <div className="detail-actions">
+          <button type="submit" className="detail-button detail-button--danger" disabled={busy || done} aria-busy={busy}>
+            {busy ? copy.deleteSending : copy.deleteSubmit}
+          </button>
+        </div>
+        <SaveMessage message={message} />
+      </> : <p>{copy.deleteByEmail} <a href="mailto:tuki@mielenosoitukset.fi">tuki@mielenosoitukset.fi</a>.</p>}
+    </section>
+  </form>;
+}
+
 function SecurityPanel({ data }: { data: AccountSettingsRead }) {
   return <div className="account-stack">
     <section className="public-prose-card account-card" aria-labelledby="account-security-title">
@@ -212,6 +257,7 @@ function SecurityPanel({ data }: { data: AccountSettingsRead }) {
         </table>
       </div>
     </section>
+    <DeleteAccountCard csrf={data.csrf} />
   </div>;
 }
 
@@ -335,13 +381,23 @@ export default function AccountSettingsScreen({ config, session: initial }: { co
 
   useEffect(() => {
     if (standing === 'signed-out') { setLoad({ state: 'anonymous' }); return; }
-    if (standing === 'unknown') { setLoad(bridgeFailed ? { state: 'unavailable' } : { state: 'loading' }); return; }
+    if (standing === 'unknown') {
+      setLoad(bridgeFailed ? { state: 'unavailable' } : { state: 'loading' });
+      // A flagged account makes the session read fail; ask the bridge once whether that is the reason.
+      if (bridgeFailed) {
+        fetch(config.urls.authMe, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
+          .then(async response => { if (await isIdentityChangeRefusal(response)) window.location.assign(accountIdentityChangePath); })
+          .catch(() => undefined);
+      }
+      return;
+    }
     const controller = new AbortController();
     setLoad({ state: 'loading' });
     (async () => {
       try {
         const response = await fetch(accountSettingsApi,
           { credentials: 'same-origin', cache: 'no-store', signal: controller.signal, headers: { Accept: 'application/json' } });
+        if (await isIdentityChangeRefusal(response.clone())) { window.location.assign(accountIdentityChangePath); return; }
         const kind = classifyAccountResponse(response.status);
         if (kind === 'signed-out') { setLoad({ state: 'anonymous' }); return; }
         if (kind !== 'ok') throw new Error('unavailable');

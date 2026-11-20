@@ -1,10 +1,13 @@
 [Unit]
 Description=Check that the off-site MongoDB backup copy is fresh for mielenosoitukset.fi
 OnFailure=mielenosoitukset-backup-failed.service
+# Skipped (not failed, so no alert) until the maintainer's public age key is in
+# place; the deploy installs this unit before the off-site target exists.
+ConditionPathExists=/etc/mielenosoitukset/backup-recipients.txt
 
 [Service]
 Type=oneshot
-EnvironmentFile=/etc/mielenosoitukset/backup.env
+EnvironmentFile=-/etc/mielenosoitukset/backup.env
 StateDirectory=mielenosoitukset-backup
 StateDirectoryMode=0700
 ExecStart=/var/www/mielenosoitukset_fi/deploy/backup/offsite-check.sh

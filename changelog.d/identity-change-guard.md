@@ -1,0 +1,1 @@
+- An account that still has to change its username and display name is now sent to that form from the new settings page, and the new account endpoints refuse it, instead of showing a broken page.

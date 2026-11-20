@@ -108,6 +108,7 @@ def _case_type_label(case_type):
         "demo_cancelled": _("Peruttu mielenosoitus"),
         "support_ticket": _("Tukipyyntö"),
         "city_admin_application": _("Kaupunkiadminhakemus"),
+        "account_deletion_request": _("Tilin poistopyyntö"),
     }
     return labels.get(case_type, str(case_type).replace("_", " ").capitalize())
 
@@ -263,6 +264,11 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         title = _("Kaupunkiadminhakemus")
         description = ", ".join(applications.city_names((case_obj.meta or {}).get("city_keys")))
         meta_line = submitter.get("submitter_name") or ""
+    elif case_obj.case_type == "account_deletion_request":
+        title = _("Tilin poistopyyntö")
+        description = ((case_obj.meta or {}).get("reason") or _("Ei perustelua"))[:200]
+        meta_line = ""
+        submitter = {"submitter_name": _account_owner_label(case_obj.submitter_id)}
     else:
         title = _case_type_label(case_obj.case_type)
         description = _("Ei lisätietoja")
@@ -282,6 +288,12 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         "escalated": escalated,
         "status_label": _("Suljettu") if closed else _("Avoin"),
     }
+
+
+def _account_owner_label(submitter_id):
+    """Name the account behind a self-service request; it has no submitter record."""
+    user = mongo.users.find_one({"_id": _safe_objectid(submitter_id)}, {"username": 1}) if submitter_id else None
+    return (user or {}).get("username") or _("Tilin omistaja")
 
 @admin_case_bp.route("/")
 @login_required
@@ -492,6 +504,8 @@ def single_case(case_id):
         or (case.submitter or {}).get("email")
         or _("Ei tiedossa"),
     }
+    if case.case_type == "account_deletion_request":
+        case_data["submitter_label"] = _account_owner_label(case.submitter_id)
 
     # Handle different case types
     if case.case_type == "new_demo" and case.demo_id:
@@ -1164,11 +1178,13 @@ def demo_escalate(case_id):
     if not demo:
         return jsonify({"error": _("Mielenosoitusta ei löytynyt.")}), 404
 
-    # Reset demo status
-    mongo.demonstrations.update_one(
-        {"_id": ObjectId(case.demo_id)},
-        {"$set": {"approved": False, "rejected": False}}
-    )
+    # Escalation only asks a superior to decide. It must not change the
+    # demo's status: approve and reject go through the decision service, and
+    # an already decided demo is not silently returned to the pending queue.
+    if demo.get("approved") or demo.get("rejected"):
+        return jsonify({
+            "error": _("Mielenosoituksesta on jo tehty päätös, joten sitä ei voi eskaloida."),
+        }), 409
 
     # Set meta flag
     timestamp = utcnow()
@@ -1193,7 +1209,7 @@ def demo_escalate(case_id):
         },
     )
 
-    flash_message(_("Mielenosoituksen tila palautettiin. Ylemmän tason käsittelijän on tarkistettava mielenosoitus."), "warning")
+    flash_message(_("Ylemmän tason käsittelijän on tarkistettava mielenosoitus."), "warning")
     return jsonify({"success": True})
 
 @admin_case_bp.route("/<case_id>/deescalate", methods=["POST"])

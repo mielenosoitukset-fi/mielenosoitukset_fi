@@ -34,6 +34,7 @@ from mielenosoitukset_fi.scripts.purge_fundraising_reminders import main as purg
 from mielenosoitukset_fi.scripts.purge_campaign_volunteers import main as purge_campaign_volunteers
 from mielenosoitukset_fi.scripts.purge_suggestion_ips import main as purge_suggestion_ips
 from mielenosoitukset_fi.scripts.purge_erased_accounts import main as purge_erased_accounts
+from mielenosoitukset_fi.scripts.scrub_admin_log_secrets import main as scrub_admin_log_secrets
 from mielenosoitukset_fi.scripts.deliver_pride_banner_confirmations import main as deliver_pride_banner_confirmations
 from mielenosoitukset_fi.scripts.purge_pride_banner_volunteers import main as purge_pride_banner_volunteers
 from mielenosoitukset_fi.scripts.deliver_opening_interest_confirmations import main as deliver_opening_interest_confirmations
@@ -243,6 +244,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         description="Deletes the identity seal and kept non-audit records of accounts deleted more than ERASURE_RETENTION_DAYS (default 730) ago.",
         func=purge_erased_accounts,
         default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="scrub_admin_log_secrets",
+        name="Admin log credential cleanup",
+        description="One-time job: removes stored session cookies, request headers and password hashes from admin request log rows written before 20.11.2026. Keeps the rows. Does nothing after its first finished run.",
+        func=scrub_admin_log_secrets,
+        default_trigger=_interval(hours=1),
     ),
     JobDefinition(
         key="deliver_pride_banner_confirmations",

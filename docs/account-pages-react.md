@@ -235,6 +235,23 @@ Flask still serves every page and endpoint, so no data needs restoring.
   worker. Revert: remove the write flag and restart; the page falls back to Flask, queued mails are ordinary Flask-shaped
   documents and need no cleanup.
 
+## Forced identity change (guard before activating the settings page)
+
+Flask's `enforce_required_identity_change` answers every `/api/` request of an account with
+`forced_identity_change` with 428 and sends other pages to the identity-change form. Before this
+guard the Go bridge turned that 428 into "session unavailable" (503), so the React settings page
+looked broken for such an account and its Go routes failed closed by accident. Now `fetch` in
+`go-api/auth_bridge.go` maps 428 to `errIdentityChangeRequired`, and every bridge-protected route
+(`/api/auth/me`, `/developer`, `/api/account/*`) answers 403 `{"error": "identity change required",
+"redirect": "/users/auth/forced_identity_change/"}`. The redirect is a constant in Go, never copied
+from Flask's answer. The React settings screen follows that 403, from its data read and from a
+one-off probe of `/api/auth/me` when the session read fails, with `window.location.assign` to the
+same constant path. Writes cannot happen either way: the bridge refuses before any handler runs.
+
+Activation note for section 13: nothing extra to switch on; this ships with the Go API. Verify
+after activation with a test account that has `forced_identity_change` set: the settings page
+sends it to the identity-change form, and `/api/account/settings` answers 403.
+
 ### Activation record (19 November 2026)
 
 Done with the maintainer's go typed in the session, at about 13:00 EET: backup in
@@ -268,3 +285,15 @@ file match the live one.
   Turvallisuus notice now reads "Kaksivaiheista tunnistusta ja passkeyjä ei voi vielä muuttaa tällä sivulla…".
 - Tests: `tests/test_account_stepup.py` (detection, retry and cancel flow, request body, message mapping, base64url).
 - Activation: nothing to activate; ships with the settings page. Revert: revert the pull request.
+
+## Activation of the settings page (20 November 2026)
+
+The maintainer gave the go in the project thread on 20 November 2026. Instead of a hand-edited
+`config.yaml`, `configure_environment.py` now turns the Go settings read on by default whenever the
+auth bridge is on (`ACCOUNT_SETTINGS_READS: false` opts out), so the deploy that carries this change
+writes `ACCOUNT_SETTINGS_READS_ENABLED=true` before the routing step activates the two Apache rules.
+The writes (`ACCOUNT_SETTINGS_WRITES`) still need an explicit `ACCOUNT_SETTINGS_READS: true` and are
+not part of this step: the React page posts to the unchanged Flask endpoints until then.
+Prerequisite: #1225 (accounts in the forced identity change are refused by the Go account routes).
+`/users/auth/settings?legacy=1` stays on Flask as a fallback. Revert: re-comment the five lines
+in `react-ssr-routing.conf` and deploy (or reload Apache by hand).
