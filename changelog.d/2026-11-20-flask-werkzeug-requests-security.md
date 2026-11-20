@@ -1,0 +1,1 @@
+- Updated Flask to 3.1.3, Werkzeug to 3.1.9 and Requests to 2.33.0 for known security fixes. Flask now sends `Vary: Cookie` whenever the session is read, so shared caches do not serve one visitor's page to another.
