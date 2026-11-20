@@ -2943,12 +2943,28 @@ def merge_demos():
     # A merge must not unpublish an event that was public under another copy.
     # The kept demo is approved through the same decision service as every
     # other path (audit, case closing), never by copying the flag.
-    if (
-        any(doc.get("approved") for doc in doc_map.values())
-        and not original_primary.get("approved")
-        and not original_primary.get("rejected")
-    ):
-        _apply_demo_decision(primary_id, "approved", source="admin_merge")
+    any_copy_approved = any(doc.get("approved") for doc in doc_map.values())
+    if any_copy_approved and original_primary.get("rejected"):
+        flash_message(
+            _(
+                "Säilytetty mielenosoitus on hylätty, joten se ei näy sivustolla, "
+                "vaikka yhdistetty kopio oli hyväksytty."
+            ),
+            "warning",
+        )
+    elif any_copy_approved and not original_primary.get("approved"):
+        try:
+            _apply_demo_decision(primary_id, "approved", source="admin_merge")
+        except Exception:
+            logger.exception("Merge approval failed for %s", primary_id)
+            flash_message(
+                _(
+                    "Mielenosoitukset yhdistettiin, mutta hyväksyntä epäonnistui. "
+                    "Hyväksy mielenosoitus tapauksessa."
+                ),
+                "warning",
+            )
+            return redirect(url_for("admin_demo.edit_demo", demo_id=primary_id))
 
     flash_message(_("Mielenosoitukset yhdistettiin onnistuneesti."), "success")
     return redirect(url_for("admin_demo.edit_demo", demo_id=primary_id))

@@ -196,3 +196,50 @@ def test_merge_approves_the_kept_demo_through_the_decision_service(admin_client,
     primary = db.demonstrations.find_one({"_id": primary_id})
     assert primary["approved"] is True
     assert primary["moderation_decision"]["source"] == "admin_merge"
+
+
+def test_bulk_child_approval_skips_rejected_children(admin_client, db, seeded_data):
+    parent_id = seeded_data["recu_demo_id"]
+    db.recu_demos.update_one({"_id": parent_id}, {"$set": {"approved": True}})
+    children = _series_children(db, parent_id, count=1)
+    db.demonstrations.update_one({"_id": children[0]}, {"$set": {"approved": False, "rejected": True}})
+
+    admin_client.post(
+        f"/admin/recu_demo/{parent_id}/bulk-update-children",
+        data={"child_ids": [str(children[0])], "fields": ["approved"]},
+    )
+
+    child = db.demonstrations.find_one({"_id": children[0]})
+    assert child["rejected"] is True
+    assert child["approved"] is False
+
+
+def test_model_merge_keeps_the_kept_demos_decision(app, db, seeded_data):
+    from mielenosoitukset_fi.utils.classes.Demonstration import Demonstration
+
+    with app.app_context():
+        base = Demonstration.from_dict(db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]}))
+        base.merge(seeded_data["demo_id"])
+
+    kept = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
+    assert kept["approved"] is False
+
+
+def test_scheduled_merges_skip_groups_with_different_decisions():
+    from mielenosoitukset_fi.utils.classes.Demonstration import has_mixed_decisions
+
+    assert has_mixed_decisions([{"approved": True}, {"approved": False}])
+    assert has_mixed_decisions([{"approved": False, "rejected": True}, {"approved": False}])
+    assert not has_mixed_decisions([{"approved": False}, {"approved": False, "rejected": False}])
+
+
+def test_merge_into_rejected_demo_warns(admin_client, db, seeded_data):
+    primary_id = seeded_data["pending_demo_id"]
+    db.demonstrations.update_one({"_id": primary_id}, {"$set": {"rejected": True}})
+
+    response = admin_client.post("/admin/demo/merge", data={
+        "demo_ids": [str(primary_id), str(seeded_data["demo_id"])], "primary_demo_id": str(primary_id),
+    }, follow_redirects=True)
+
+    assert "Säilytetty mielenosoitus on hylätty" in response.get_data(as_text=True)
+    assert db.demonstrations.find_one({"_id": primary_id})["approved"] is False

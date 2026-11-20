@@ -1016,7 +1016,7 @@ def bulk_update_children(demo_id):
     if approve_children:
         from mielenosoitukset_fi.admin.admin_demo_bp import _apply_demo_decision
     for child in children:
-        if approve_children and not child.get("approved"):
+        if approve_children and not child.get("approved") and not child.get("rejected"):
             if has_demo_approval_permission(current_user, child):
                 result = _apply_demo_decision(
                     str(child["_id"]), "approved", source="admin_recurring_bulk"
