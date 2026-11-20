@@ -288,7 +288,9 @@
             <div class="detail-item"><strong>{{ _('Liittyvä mielenosoitus') }}</strong><span>{{ demo.title or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Ehdotuksen tila') }}</strong><span>{{ demo_suggestion.status_label }}</span></div>
             <div class="detail-item"><strong>{{ _('Vastaanotettu') }}</strong><span>{% if demo_suggestion.created_at %}{{ demo_suggestion.created_at|datetimeformat("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</span></div>
+            {% if demo_suggestion.can_edit_demo %}
             <div class="detail-item"><strong>{{ _('Ilmoittajan sähköposti') }}</strong><span>{{ demo_suggestion.reporter_email or '-' }}</span></div>
+            {% endif %}
           </div>
           <div class="detail-item">
             <strong>{{ _('Ehdotetut kentät') }}</strong>
@@ -300,9 +302,13 @@
             <div class="note-box">{{ demo_suggestion.comment }}</div>
           </div>
           {% endif %}
+          {% if demo_suggestion.can_edit_demo %}
           <div class="admin-row-actions">
             <a class="btn btn-primary" href="{{ url_for('admin_demo.suggestion_view', suggestion_id=demo_suggestion.id) }}"><i class="fa-solid fa-code-compare me-1" aria-hidden="true"></i>{{ _('Käsittele ehdotus') }}</a>
           </div>
+          {% else %}
+          <div class="muted">{{ _('Ehdotuksen käsittely ja ilmoittajan tiedot vaativat oikeuden muokata tätä mielenosoitusta.') }}</div>
+          {% endif %}
           {% else %}
           <div class="empty-state">{{ _('Ehdotusta ei löytynyt. Se on ehkä poistettu.') }}</div>
           {% endif %}

@@ -17,6 +17,7 @@ from mielenosoitukset_fi.utils.admin.demonstration import collect_tags
 from mielenosoitukset_fi.utils.database import DEMO_FILTER, stringify_object_ids
 from mielenosoitukset_fi.utils.flashing import flash_message
 from mielenosoitukset_fi.utils.variables import CITY_LIST
+from mielenosoitukset_fi.utils.cities import normalize_city_key
 from mielenosoitukset_fi.utils.wrappers import admin_required, permission_required
 from .utils import mongo, log_admin_action_V2, AdminActParser, _ADMIN_TEMPLATE_FOLDER
 from mielenosoitukset_fi.utils.demo_cancellation import cancel_demo
@@ -193,6 +194,25 @@ def _suggestion_for_case(case_obj, projection=None):
     return mongo.demo_suggestions.find_one({"_id": _safe_objectid(suggestion_id)}, projection)
 
 
+def _can_edit_suggested_demo(demo_doc):
+    """Suggestion details (reporter e-mail, comment) follow demo edit rights.
+
+    Before suggestions became cases only EDIT_DEMO holders saw them, so an
+    admin with case rights but no edit right for the demo's city sees the
+    case without those details.
+    """
+    if current_user.has_full_permissions() or "EDIT_DEMO" in (current_user.global_permissions or []):
+        return True
+    if not demo_doc:
+        return False
+    city_key = demo_doc.get("city_key") or normalize_city_key(demo_doc.get("city") or "")
+    return bool(city_key) and city_key in current_user.scoped_city_keys_for("EDIT_DEMO")
+
+
+def _hide_suggestion_reporter(case_obj):
+    case_obj.submitter = {}
+
+
 def _build_case_row(case_obj, demo_doc=None, org_doc=None):
     submitter = case_obj.submitter or {}
     urgency = (case_obj.meta or {}).get("urgency")
@@ -289,7 +309,7 @@ def cases():
         if case.case_type in {"new_demo", "demo_cancellation_request", "demo_cancelled", "demo_error_report", "demo_edit_suggestion"} and case.demo_id:
             demo_doc = mongo.demonstrations.find_one(
                 {"_id": _safe_objectid(case.demo_id)},
-                {"approved": 1, "accepted": 1, "rejected": 1, "cancelled": 1, "title": 1, "date": 1, "city": 1, "address": 1},
+                {"approved": 1, "accepted": 1, "rejected": 1, "cancelled": 1, "title": 1, "date": 1, "city": 1, "city_key": 1, "address": 1},
             )
         if case.case_type == "organization_edit_suggestion" and case.organization_id:
             org_doc = mongo.organizations.find_one({"_id": _safe_objectid(case.organization_id)}, {"name": 1, "updated_at": 1})
@@ -313,6 +333,8 @@ def cases():
         if case.meta and case.meta.get("superior_needed"):
             escalated_count += 1
 
+        if case.case_type == "demo_edit_suggestion" and not _can_edit_suggested_demo(demo_doc):
+            _hide_suggestion_reporter(case)
         case_rows.append(_build_case_row(case, demo_doc=demo_doc, org_doc=org_doc))
 
     always_emailed = global_case_permission(current_user, "VIEW_CASE")
@@ -489,12 +511,17 @@ def single_case(case_id):
         case_data["demo"] = _stringify_demo(demo)
         suggestion = _suggestion_for_case(case) or {}
         status = suggestion.get("status") or "new"
+        can_edit_demo = _can_edit_suggested_demo(demo)
+        if not can_edit_demo:
+            _hide_suggestion_reporter(case)
+            case_data["submitter_label"] = _("Ei tiedossa")
         case_data["demo_suggestion"] = {
+            "can_edit_demo": can_edit_demo,
             "found": bool(suggestion),
             "id": str(suggestion.get("_id") or ""),
             "fields": sorted((suggestion.get("suggested_fields") or {}).keys()),
-            "comment": suggestion.get("reporter_comment") or "",
-            "reporter_email": suggestion.get("reporter_email") or "",
+            "comment": (suggestion.get("reporter_comment") or "") if can_edit_demo else "",
+            "reporter_email": (suggestion.get("reporter_email") or "") if can_edit_demo else "",
             "created_at": suggestion.get("created_at"),
             "status": status,
             "status_label": {

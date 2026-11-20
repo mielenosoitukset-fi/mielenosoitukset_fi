@@ -260,3 +260,21 @@ def test_broken_suggestion_is_skipped_once(db, seeded_data):
     assert db.demo_suggestions.find_one({"_id": broken})["case_skipped"] == "invalid_demo_id"
     assert db.cases.find_one({"_id": broken}) is None
     assert db.cases.find_one({"_id": seeded_data["suggestion_id"]})["type"] == "demo_edit_suggestion"
+
+
+def test_reporter_details_need_demo_edit_right(app, db, seeded_data):
+    db.demonstrations.update_one({"_id": seeded_data["demo_id"]}, {"$set": {"city": "Helsinki", "city_key": "helsinki"}})
+    db.demo_suggestions.update_one({"_id": seeded_data["suggestion_id"]}, {"$set": {
+        "reporter_email": "secret-reporter@example.test", "reporter_comment": "Salainen kommentti"}})
+    _run(db, {"DEMO_SUGGESTION_CASES_ENABLED": "1"})
+    case_url = f"/admin/case/{seeded_data['suggestion_id']}/"
+    viewer = _create_scoped_admin(db, ["helsinki"], ["LIST_CASES", "VIEW_CASE"])
+    editor = _create_scoped_admin(db, ["helsinki"], ["LIST_CASES", "VIEW_CASE", "EDIT_DEMO"])
+    for path in (case_url, "/admin/case/"):
+        hidden = _client_for_user(app, viewer).get(path).get_data(as_text=True)
+        assert "secret-reporter@example.test" not in hidden and "Salainen kommentti" not in hidden
+        shown = _client_for_user(app, editor).get(path).get_data(as_text=True)
+        assert "secret-reporter@example.test" in shown
+    assert "Käsittele ehdotus" not in _client_for_user(app, viewer).get(case_url).get_data(as_text=True)
+    assert "Salainen kommentti" in _client_for_user(app, editor).get(case_url).get_data(as_text=True)
+
