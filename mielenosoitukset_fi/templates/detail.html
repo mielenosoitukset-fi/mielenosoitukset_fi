@@ -43,7 +43,7 @@
     </h2>
     <div class="event-description__content{% if not collapsible %} event-description__content--classic{% endif %}"
          id="demo-description">
-      {{ demo['description']|safe }}
+      {{ demo['description']|stored_html }}
     </div>
     {% if collapsible %}
     <p class="event-description__preview"
