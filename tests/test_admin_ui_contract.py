@@ -450,7 +450,7 @@ def test_submitter_modal_keeps_stable_dom_across_reopens():
         "mielenosoitukset_fi/templates/admin_V2/demonstrations/dashboard.html"
     ).read_text(encoding="utf-8")
     handler = dashboard.split("window.showSubmitterInfoModal = async", 1)[1].split(
-        "// Initial button text update", 1
+        "</script>", 1
     )[0]
 
     assert 'class="modal fade admin-modal" id="submitterInfoModal"' in dashboard
