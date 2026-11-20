@@ -18,6 +18,7 @@ from mielenosoitukset_fi.utils.database import DEMO_FILTER, stringify_object_ids
 from mielenosoitukset_fi.utils.flashing import flash_message
 from mielenosoitukset_fi.utils.variables import CITY_LIST
 from mielenosoitukset_fi.utils.cities import normalize_city_key
+from mielenosoitukset_fi.utils import case_reasons
 from mielenosoitukset_fi.utils.wrappers import admin_required, permission_required
 from .utils import mongo, log_admin_action_V2, AdminActParser, _ADMIN_TEMPLATE_FOLDER
 from mielenosoitukset_fi.utils.demo_cancellation import cancel_demo
@@ -618,6 +619,8 @@ def single_case(case_id):
         case_data=case_data,
         can_edit_case=can_access_case(current_user, "EDIT_CASE", case._id),
         global_case_controls=global_case_permission(current_user, "EDIT_CASE"),
+        reject_reasons=case_reasons.choices(case_reasons.REJECT_KEYS),
+        close_reasons=case_reasons.choices(case_reasons.CLOSE_KEYS),
     )
 
 
@@ -871,27 +874,28 @@ def close_case(case_id):
     if not case:
         return jsonify({"success": False, "error": "Tapausta ei löydy."}), 404
 
-    reason = (request.json.get("reason") or "").strip()
     if case.meta.get("closed", False):
         return jsonify({"success": False, "error": "Tapaus on jo suljettu."}), 400
-    if not reason:
-        return jsonify({"success": False, "error": "Syytä ei annettu."}), 400
+    try:
+        metadata, schema = case_reasons.parse_reason(
+            request.get_json(silent=True), case_reasons.CLOSE_KEYS, mongo, case_id=case._id,
+            can_view_case=lambda other_id: can_access_case(current_user, "VIEW_CASE", other_id),
+        )
+    except case_reasons.ReasonError as error:
+        return jsonify({"success": False, "error": str(error)}), 400
 
     case._add_history_entry({
         "timestamp": utcnow(),
         "action": "Tapaus suljettu",
         "user": current_user.username,
         "mech_action": "close_case",
-        "metadata": {
-            "reason": reason,
-            "permitted_by": current_user.username
-        },
-        "meta_schema": {"reason": "string", "permitted_by": "string"}
+        "metadata": {**metadata, "permitted_by": current_user.username},
+        "meta_schema": {**schema, "permitted_by": "string"},
     })
 
     mongo.cases.update_one(
         {"_id": ObjectId(case_id)},
-        {"$set": {"meta.closed": True, "updated_at": utcnow()}}
+        {"$set": {"meta.closed": True, "meta.closed_reason": metadata["reason"], "updated_at": utcnow()}}
     )
 
     flash_message(_("Tapaus suljettu."), "success")
@@ -928,7 +932,7 @@ def reopen_case(case_id):
 
     mongo.cases.update_one(
         {"_id": ObjectId(case_id)},
-        {"$set": {"meta.closed": False, "updated_at": utcnow()}}
+        {"$set": {"meta.closed": False, "updated_at": utcnow()}, "$unset": {"meta.closed_reason": ""}}
     )
 
     flash_message(_("Tapaus avattu uudelleen."), "success")
@@ -1043,27 +1047,38 @@ def demo_action(case_id):
         response_status = "accepted"
 
     elif data["action"] == "reject":
-        reason = data.get("reason", "").strip()
-        if not reason:
-            return jsonify({"error": _("Anna hylkäyksen perustelu.")}), 400
+        try:
+            metadata, schema = case_reasons.parse_reason(
+                data, case_reasons.REJECT_KEYS, mongo, demo_id=case.demo_id,
+            )
+        except case_reasons.ReasonError as error:
+            return jsonify({"error": str(error)}), 400
 
         reject_demo(case.demo_id)
         response_status = "rejected"
-
-        if reason:
-            mongo.cases.update_one(
-                {"_id": ObjectId(case_id)},
-                {
-                    "$push": {
-                        "action_logs": {
-                            "user": current_user.username,
-                            "action_type": "reject_reason",
-                            "reason": reason,
-                            "timestamp": utcnow(),
-                        }
-                    }
+        now = utcnow()
+        mongo.cases.update_one(
+            {"_id": case._id},
+            {
+                "$push": {
+                    "action_logs": {
+                        "user": current_user.username,
+                        "action_type": "reject_reason",
+                        "reason": metadata["reason"],
+                        "timestamp": now,
+                    },
+                    "case_history": {
+                        "timestamp": now,
+                        "action": "Mielenosoitus hylätty",
+                        "user": current_user.username,
+                        "mech_action": "reject_demo",
+                        "metadata": metadata,
+                        "meta_schema": schema,
+                    },
                 },
-            )
+                "$set": {"updated_at": now},
+            },
+        )
 
     else:
         return jsonify({"error": _("Tuntematon toiminto.")}), 400

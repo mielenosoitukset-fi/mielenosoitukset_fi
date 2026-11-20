@@ -540,6 +540,11 @@
               {% if event.metadata and event.metadata.reason %}
               <div>{{ event.metadata.reason }}</div>
               {% endif %}
+              {% if event.metadata and event.metadata.duplicate_of_case_id %}
+              <div><a href="{{ url_for('admin_case.single_case', case_id=event.metadata.duplicate_of_case_id) }}">{{ _('Avaa alkuperäinen tapaus') }}{% if event.metadata.duplicate_of_case_num %} #{{ event.metadata.duplicate_of_case_num }}{% endif %}</a></div>
+              {% elif event.metadata and event.metadata.duplicate_of_demo_id %}
+              <div><a href="{{ url_for('admin_demo.demo_command_center', demo_id=event.metadata.duplicate_of_demo_id) }}">{{ _('Avaa alkuperäinen mielenosoitus') }}</a></div>
+              {% endif %}
             </div>
             {% endfor %}
           </div>
@@ -557,8 +562,122 @@
 <script>
   const caseId = "{{ case._id }}";
 
+  const rejectReasons = {{ reject_reasons|tojson }};
+  const closeReasons = {{ close_reasons|tojson }};
+
+  // One dialog for rejecting a demonstration and closing a case: a fixed reason,
+  // the original for a duplicate, and a note (required for "Muu syy").
+  function reasonDialog({ title, confirmText, reasons, duplicateOf }) {
+    const options = reasons.map(([key, label]) => {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = label;
+      return option.outerHTML;
+    }).join("");
+    const duplicateField = duplicateOf === "demo"
+      ? `<label class="form-label" for="reason-dup-search">{{ _('Alkuperäinen mielenosoitus') }}</label>
+         <input id="reason-dup-search" class="form-control" type="search" autocomplete="off" placeholder="{{ _('Hae otsikolla...') }}">
+         <select id="reason-dup" class="form-select mt-2" size="4" aria-label="{{ _('Hakutulokset') }}" hidden></select>`
+      : `<label class="form-label" for="reason-dup">{{ _('Alkuperäisen tapauksen numero') }}</label>
+         <input id="reason-dup" class="form-control" type="text" inputmode="numeric" placeholder="{{ _('esim. #100123') }}">`;
+    return Swal.fire({
+      title,
+      html: `<div class="text-start admin-stack">
+          <div><label class="form-label" for="reason-key">{{ _('Syy') }}</label>
+          <select id="reason-key" class="form-select">${options}</select></div>
+          <div id="reason-dup-wrap" hidden>${duplicateField}</div>
+          <div><label class="form-label" for="reason-note" id="reason-note-label">{{ _('Lisätieto (valinnainen)') }}</label>
+          <textarea id="reason-note" class="form-control" rows="3" maxlength="1000" placeholder="{{ _('Kirjoita lyhyt perustelu...') }}"></textarea></div>
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      cancelButtonText: "{{ _('Peruuta') }}",
+      didOpen: () => {
+        const key = document.getElementById("reason-key");
+        const sync = () => {
+          document.getElementById("reason-dup-wrap").hidden = key.value !== "duplicate";
+          document.getElementById("reason-note-label").textContent = key.value === "other"
+            ? "{{ _('Kerro syy (pakollinen)') }}" : "{{ _('Lisätieto (valinnainen)') }}";
+        };
+        key.addEventListener("change", sync);
+        sync();
+        const search = document.getElementById("reason-dup-search");
+        if (!search) return;
+        let timer;
+        search.addEventListener("input", () => {
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            const q = search.value.trim();
+            const results = document.getElementById("reason-dup");
+            if (!q) { results.replaceChildren(); results.hidden = true; return; }
+            fetch(`/admin/case/demo_search/?q=${encodeURIComponent(q)}`)
+              .then((res) => res.json())
+              .then((demos) => {
+                results.replaceChildren(...demos.map((demo) => {
+                  const option = document.createElement("option");
+                  option.value = demo.id;
+                  option.textContent = demo.city ? `${demo.title} (${demo.city})` : demo.title;
+                  return option;
+                }));
+                // Preselect the first match so a single result counts as chosen.
+                results.hidden = demos.length === 0;
+                if (demos.length) results.selectedIndex = 0;
+              })
+              .catch(() => { results.replaceChildren(); results.hidden = true; });
+          }, 250);
+        });
+      },
+      preConfirm: () => {
+        const reasonKey = document.getElementById("reason-key").value;
+        const note = document.getElementById("reason-note").value.trim();
+        const duplicate = document.getElementById("reason-dup");
+        const duplicateValue = duplicate ? duplicate.value.trim() : "";
+        if (reasonKey === "other" && !note) {
+          Swal.showValidationMessage("{{ _('Kirjoita perustelu.') }}");
+          return false;
+        }
+        if (reasonKey === "duplicate" && !duplicateValue) {
+          Swal.showValidationMessage(duplicateOf === "demo"
+            ? "{{ _('Valitse alkuperäinen mielenosoitus.') }}"
+            : "{{ _('Anna alkuperäisen tapauksen numero.') }}");
+          return false;
+        }
+        return { reason_key: reasonKey, note, duplicate_of: reasonKey === "duplicate" ? duplicateValue : "" };
+      },
+    });
+  }
+
+  function closeCase() {
+    reasonDialog({
+      title: "{{ _('Sulje tapaus') }}",
+      confirmText: "{{ _('Sulje') }}",
+      reasons: closeReasons,
+      duplicateOf: "case",
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+      fetch(`/admin/case/${caseId}/close/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(result.value),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            location.reload();
+            return;
+          }
+          Swal.fire("{{ _('Virhe') }}", data.error || "{{ _('Tapausta ei voitu päivittää.') }}", "error");
+        })
+        .catch(() => Swal.fire("{{ _('Virhe') }}", "{{ _('Tapahtui odottamaton virhe.') }}", "error"));
+    });
+  }
+
   function promptCaseAction(action) {
-    const title = action === "close" ? "{{ _('Sulje tapaus') }}" : "{{ _('Avaa tapaus uudelleen') }}";
+    if (action === "close") {
+      closeCase();
+      return;
+    }
+    const title = "{{ _('Avaa tapaus uudelleen') }}";
     Swal.fire({
       title,
       input: "textarea",
@@ -592,11 +711,11 @@
     });
   }
 
-  function sendDemoAction(action, reason = "") {
+  function sendDemoAction(action, details = {}) {
     fetch(`/admin/case/${caseId}/demo_action`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, reason }),
+      body: JSON.stringify({ action, ...details }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -610,20 +729,11 @@
   }
 
   function rejectDemo() {
-    Swal.fire({
+    reasonDialog({
       title: "{{ _('Hylkää mielenosoitus') }}",
-      input: "textarea",
-      inputLabel: "{{ _('Syy hylkäykselle') }}",
-      inputPlaceholder: "{{ _('Kirjoita perustelu hylkäykselle...') }}",
-      showCancelButton: true,
-      confirmButtonText: "{{ _('Hylkää') }}",
-      cancelButtonText: "{{ _('Peruuta') }}",
-      preConfirm: (reason) => {
-        if (!reason || !reason.trim()) {
-          Swal.showValidationMessage("{{ _('Syy on pakollinen.') }}");
-        }
-        return reason;
-      },
+      confirmText: "{{ _('Hylkää') }}",
+      reasons: rejectReasons,
+      duplicateOf: "demo",
     }).then((result) => {
       if (result.isConfirmed) {
         sendDemoAction("reject", result.value);
