@@ -77,11 +77,15 @@ export function MfaCard({ initial }: { initial: Mfa }) {
     if (event.key === 'Escape' && !busy) { event.preventDefault(); close(); }
   };
 
-  const begin = async () => {
+  const begin = async (event: MouseEvent<HTMLButtonElement>) => {
+    const button = event.currentTarget;
     setMessage(null); setBusy(true);
     let start: MfaStart | null = null; let failure: string = text.startFailed;
     try {
-      const result = await readMfaResult(await mfaStartRequest(), text.startFailed);
+      // Flask asks for step-up before a new device can be added; a cancelled step-up ends here quietly.
+      const response = await withStepUp(() => mfaStartRequest(), button);
+      if (!response) { setBusy(false); return; }
+      const result = await readMfaResult(response, text.startFailed);
       if (result) { start = readMfaStart(result.body); if (!start) failure = result.ok ? text.startFailed : result.message; }
     } catch { /* the fallback stands */ }
     setBusy(false);
