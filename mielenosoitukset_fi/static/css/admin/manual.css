@@ -203,7 +203,7 @@
   line-height: 1.65;
 }
 
-.manual-article :is(ul, ol):not(.manual-steps) > li + li {
+.manual-article :is(ul, ol):not(.manual-steps, .manual-task-grid, .manual-card-grid, .manual-news) > li + li {
   margin-top: .25rem;
 }
 
@@ -502,6 +502,33 @@
 
 .manual-table {
   font-size: .9rem;
+}
+
+.manual-table :is(th, td) {
+  text-align: left;
+  vertical-align: top;
+}
+
+/* The role comparison has six columns; on wide screens they share the
+   width and wrap instead of hiding the last column behind a scroll. */
+@media (min-width: 992px) {
+  .manual-table--roles {
+    table-layout: fixed;
+    width: 100%;
+    font-size: .82rem;
+  }
+
+  .manual-table--roles :is(th, td) {
+    padding: .45rem .5rem;
+  }
+
+  .manual-table--roles td {
+    overflow-wrap: anywhere;
+  }
+
+  .manual-table--roles :is(th, td):first-child {
+    width: 28%;
+  }
 }
 
 @media (max-width: 991.98px) {

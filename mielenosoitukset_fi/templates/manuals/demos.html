@@ -22,6 +22,14 @@
     <li>{{ m.ui(_('Hylkää')) }} {{ _('listalla piilottaa mielenosoituksen, mutta ei kysy syytä.') }}</li>
     <li>{{ m.ui(_('Suosittele')) }} {{ _('nostaa mielenosoituksen etusivulle.') }} {{ m.ui(_('Poista suositus')) }} {{ _('poistaa sen sieltä.') }}</li>
   </ul>
+  <h3>{{ _('Mitä päätös tekee') }}</h3>
+  <p>{{ _('Hyväksyminen ja hylkääminen toimivat samoin, teitpä päätöksen listalta, komentokeskuksesta, tapauksen sivulta tai sähköpostin linkistä:') }}</p>
+  <ul>
+    <li>{{ _('ilmoittaja saa sähköpostin päätöksestä') }}</li>
+    <li>{{ _('mielenosoitukseen liittyvät avoimet tapaukset sulkeutuvat') }}</li>
+    <li>{{ _('käyttämättömät esikatselu-, hyväksymis-, hylkäämis- ja muokkauslinkit mitätöidään') }}</li>
+    <li>{{ _('kaupunkiadminin käsittelyjonon määräaika poistuu') }}</li>
+  </ul>
   {% call m.callout('tip') %}
   <p>{{ _('Kaupunkiadminin etusivulla on oma käsittelyjono. Katso') }} <a href="{{ manual_url('dashboard', 'kaupunkiadmin') }}">{{ _('kaupunkiadminin käsittelyjono') }}</a>.</p>
   {% endcall %}
@@ -55,7 +63,7 @@
     {% call m.step() %}<p>{{ _('Lähetä linkki vain järjestäjälle, jonka tiedät oikeaksi.') }}</p>{% endcall %}
   {% endcall %}
   {% call m.callout('warning') %}
-  <p>{{ _('Linkin saanut voi muokata mielenosoitusta koko voimassaoloajan, eikä aikaa voi pidentää. Jos linkki joutuu vääriin käsiin, avaa mielenosoituksen muokkauslomake ja mitätöi linkki sen muokkauslinkkien listasta. Voit mitätöidä yhden tai kaikki linkit kerralla.') }}</p>
+  <p>{{ _('Linkin saanut voi muokata mielenosoitusta koko voimassaoloajan, eikä aikaa voi pidentää. Jos linkki joutuu vääriin käsiin, avaa mielenosoituksen muokkauslomake ja mitätöi linkki sen muokkauslinkkien listasta. Voit mitätöidä yhden tai kaikki linkit kerralla. Hyväksyminen ja hylkääminen mitätöivät käyttämättömät linkit itsestään, joten luo linkki vasta päätöksen jälkeen.') }}</p>
   {% endcall %}
 </section>
 

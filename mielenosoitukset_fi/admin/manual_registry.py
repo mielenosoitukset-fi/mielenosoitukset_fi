@@ -368,7 +368,8 @@ def search_index():
 def tasks_for(user):
     """The common tasks, the ones the user can do first."""
     rows = [
-        {"title": title, "url": page_url(page, anchor), "page": PAGES[page]["title"],
+        {"title": title, "url": page_url(page, anchor),
+         "page": PAGES[PAGES[page].get("parent") or page]["title"],
          "icon": PAGES[page]["icon"], "allowed": can_open(user, access)}
         for page, anchor, title, access in TASKS
     ]
