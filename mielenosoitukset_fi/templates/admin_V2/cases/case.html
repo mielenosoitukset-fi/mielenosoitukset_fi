@@ -577,7 +577,7 @@
     const duplicateField = duplicateOf === "demo"
       ? `<label class="form-label" for="reason-dup-search">{{ _('Alkuperäinen mielenosoitus') }}</label>
          <input id="reason-dup-search" class="form-control" type="search" autocomplete="off" placeholder="{{ _('Hae otsikolla...') }}">
-         <select id="reason-dup" class="form-select mt-2" size="4" aria-label="{{ _('Hakutulokset') }}"></select>`
+         <select id="reason-dup" class="form-select mt-2" size="4" aria-label="{{ _('Hakutulokset') }}" hidden></select>`
       : `<label class="form-label" for="reason-dup">{{ _('Alkuperäisen tapauksen numero') }}</label>
          <input id="reason-dup" class="form-control" type="text" inputmode="numeric" placeholder="{{ _('esim. #100123') }}">`;
     return Swal.fire({
@@ -609,7 +609,7 @@
           timer = setTimeout(() => {
             const q = search.value.trim();
             const results = document.getElementById("reason-dup");
-            if (!q) { results.replaceChildren(); return; }
+            if (!q) { results.replaceChildren(); results.hidden = true; return; }
             fetch(`/admin/case/demo_search/?q=${encodeURIComponent(q)}`)
               .then((res) => res.json())
               .then((demos) => {
@@ -619,8 +619,11 @@
                   option.textContent = demo.city ? `${demo.title} (${demo.city})` : demo.title;
                   return option;
                 }));
+                // Preselect the first match so a single result counts as chosen.
+                results.hidden = demos.length === 0;
+                if (demos.length) results.selectedIndex = 0;
               })
-              .catch(() => results.replaceChildren());
+              .catch(() => { results.replaceChildren(); results.hidden = true; });
           }, 250);
         });
       },
@@ -630,7 +633,7 @@
         const duplicate = document.getElementById("reason-dup");
         const duplicateValue = duplicate ? duplicate.value.trim() : "";
         if (reasonKey === "other" && !note) {
-          Swal.showValidationMessage("{{ _('Syy on pakollinen.') }}");
+          Swal.showValidationMessage("{{ _('Kirjoita perustelu.') }}");
           return false;
         }
         if (reasonKey === "duplicate" && !duplicateValue) {
@@ -674,7 +677,7 @@
       closeCase();
       return;
     }
-    const title = action === "close" ? "{{ _('Sulje tapaus') }}" : "{{ _('Avaa tapaus uudelleen') }}";
+    const title = "{{ _('Avaa tapaus uudelleen') }}";
     Swal.fire({
       title,
       input: "textarea",
