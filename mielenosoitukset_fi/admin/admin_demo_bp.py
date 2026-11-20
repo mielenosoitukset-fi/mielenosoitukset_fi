@@ -76,6 +76,7 @@ from mielenosoitukset_fi.utils.database import stringify_object_ids
 
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from mielenosoitukset_fi.demonstrations.audit import (
+    meaningful_history_query,
     record_demo_change,
     log_demo_audit_entry,
     save_demo_history,
@@ -775,7 +776,7 @@ def demo_edit_history(demo_id):
 
     if not flush_rollback_history(mongo, demo_data["_id"]):
         abort(503)
-    history_query = {"demo_id": str(demo_data["_id"])}
+    history_query = meaningful_history_query(demo_data["_id"])
     page, per_page = parse_admin_pagination(request.args)
     total_count = mongo.demo_edit_history.count_documents(history_query)
     pagination = build_admin_pagination(

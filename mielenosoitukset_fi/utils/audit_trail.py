@@ -445,10 +445,19 @@ def _outcome(command_name: str, reply: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _changed_nothing(op: str, outcome: Dict[str, Any]) -> bool:
-    """Polling claims and no-op deletes that matched nothing are not edits."""
+    """Writes that matched nothing, or matched but changed nothing, are not edits.
+
+    An update that sets every field to the value it already has reports
+    ``nModified == 0``; MongoDB did not touch the document, so there is
+    nothing to trace.
+    """
     if not outcome.get("ok", True) or outcome.get("errors"):
         return False
-    if op in ("update", "delete") and outcome.get("n") == 0 and not outcome.get("upserted"):
+    if outcome.get("upserted"):
+        return False
+    if op in ("update", "delete") and outcome.get("n") == 0:
+        return True
+    if op == "update" and outcome.get("modified") == 0:
         return True
     return False
 

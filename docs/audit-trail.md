@@ -34,7 +34,9 @@ that was written:
 | `duration_ms` | driver time |
 
 Writes that matched nothing (polling claims, a delete of something already
-gone) are not events. Failed writes are.
+gone) are not events, and neither are updates that matched a document but
+changed nothing (`nModified: 0`, every field already had the value). Failed
+writes are events.
 
 ### Never logged
 
