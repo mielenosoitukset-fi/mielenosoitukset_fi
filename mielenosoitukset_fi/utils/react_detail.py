@@ -254,6 +254,8 @@ def preview_state_label(demo):
         return _("Peruttu")
     if demo.get("hide") is True:
         return _("Piilotettu")
+    if demo.get("taken_down") is True:
+        return _("Poistettu julkaisusta")
     if demo.get("rejected") is True:
         return _("Hylätty")
     if demo.get("approved") is True:

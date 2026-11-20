@@ -123,6 +123,7 @@ def test_submitted_markup_cannot_break_out_of_props(admin_client, db, seeded_dat
 @pytest.mark.parametrize("update, label", [
     ({"approved": True}, "Julkaistu"), ({"rejected": True}, "Hylätty"),
     ({"approved": True, "hide": True}, "Piilotettu"), ({"cancelled": True}, "Peruttu"),
+    ({"approved": True, "taken_down": True}, "Poistettu julkaisusta"),
 ])
 def test_status_bar_names_the_review_state(admin_client, db, seeded_data, update, label):
     db.demonstrations.update_one({"_id": seeded_data["pending_demo_id"]}, {"$set": update})
