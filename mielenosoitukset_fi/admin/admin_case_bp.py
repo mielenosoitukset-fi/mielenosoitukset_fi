@@ -29,8 +29,6 @@ from mielenosoitukset_fi.emailer.EmailSender import EmailSender
 from mielenosoitukset_fi.utils.logger import logger
 
 # --- init ---
-SECRET_KEY = "your_secret_key"
-serializer = URLSafeTimedSerializer(SECRET_KEY)
 email_sender = EmailSender()
 
 admin_case_bp = Blueprint("admin_case", __name__, url_prefix="/admin/case")
