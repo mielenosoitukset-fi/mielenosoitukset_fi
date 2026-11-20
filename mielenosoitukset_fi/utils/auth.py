@@ -28,11 +28,13 @@ from typing import Tuple, Optional
 
 from mielenosoitukset_fi.utils.time_utils import utcnow
 import datetime
+import hashlib
+import hmac
 import jwt
 from flask import current_app
 
 
-def _generate_token(data, expiration):
+def _generate_token(data, expiration, key=None):
     """
     Generate a token using the provided data and expiration time.
 
@@ -56,12 +58,12 @@ def _generate_token(data, expiration):
             "iat": utcnow(),
             "exp": utcnow() + datetime.timedelta(seconds=expiration),
         },
-        current_app.config["SECRET_KEY"],
+        key if key is not None else current_app.config["SECRET_KEY"],
         algorithm="HS256",
     )
 
 
-def _verify_token(token: str) -> Tuple[Optional[dict], int]:
+def _verify_token(token: str, key=None) -> Tuple[Optional[dict], int]:
     """
     Verify the provided token.
 
@@ -94,7 +96,7 @@ def _verify_token(token: str) -> Tuple[Optional[dict], int]:
     """
     try:
         data = jwt.decode(
-            token, current_app.config["SECRET_KEY"], algorithms=["HS256"], leeway=10
+            token, key if key is not None else current_app.config["SECRET_KEY"], algorithms=["HS256"], leeway=10
         )
         return data, 1
 
@@ -154,6 +156,33 @@ def verify_reset_token(token: str) -> Optional[str]:
     return None
 
 
+CONFIRMATION_KEY_LABEL = b"moso-email-confirmation-token-v1"
+# Links signed with SECRET_KEY itself were mailed for one hour each. After this date the
+# fallback stops by itself, whether or not anyone removes it; delete both afterwards.
+CONFIRMATION_LEGACY_KEY_UNTIL = datetime.datetime(2027, 1, 31, tzinfo=datetime.timezone.utc)
+
+
+def derive_confirmation_key(secret) -> str:
+    """HMAC-SHA256 of the fixed label under ``secret``, as hex.
+
+    Rotating ``SECRET_KEY`` changes this value, so the key held by the Go API
+    (``EMAIL_CONFIRM_JWT_KEY``) must be derived again and Go restarted, or Go will
+    refuse every new confirmation link. ``scripts/write_confirmation_key.py`` does it.
+    """
+    secret = secret.encode() if isinstance(secret, str) else secret
+    return hmac.new(secret, CONFIRMATION_KEY_LABEL, hashlib.sha256).hexdigest()
+
+
+def confirmation_signing_key() -> str:
+    """Key for e-mail confirmation tokens, derived from ``SECRET_KEY``.
+
+    A service that only verifies confirmation links (the Go API) can hold this value
+    without being able to forge sessions or password reset tokens, which use
+    ``SECRET_KEY`` itself.
+    """
+    return derive_confirmation_key(current_app.config["SECRET_KEY"])
+
+
 def generate_confirmation_token(email: str) -> str:
     """
     Generate an account confirmation token for the given email address.
@@ -169,7 +198,17 @@ def generate_confirmation_token(email: str) -> str:
         The generated JWT token.
     """
     # Use 3600 seconds (1 hour) for expiration, as _generate_token expects seconds (int)
-    return _generate_token({"email": email, "purpose": "email_confirmation"}, 3600)
+    return _generate_token(
+        {"email": email, "purpose": "email_confirmation"}, 3600,
+        key=confirmation_signing_key(),
+    )
+
+
+def _legacy_confirmation_key_allowed() -> bool:
+    now = utcnow()
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=datetime.timezone.utc)
+    return now < CONFIRMATION_LEGACY_KEY_UNTIL
 
 
 def verify_confirmation_token(token: str) -> Optional[str]:
@@ -186,7 +225,11 @@ def verify_confirmation_token(token: str) -> Optional[str]:
     Optional[str]
         The email address associated with the token if the token is valid, otherwise None.
     """
-    data, status = _verify_token(token)
+    data, status = _verify_token(token, key=confirmation_signing_key())
+    if status != 1 and _legacy_confirmation_key_allowed():
+        # Links mailed before the derived key existed are signed with SECRET_KEY and
+        # stay valid for their hour; the fallback ends at CONFIRMATION_LEGACY_KEY_UNTIL.
+        data, status = _verify_token(token)
     if status == 1 and data and isinstance(data, dict) and _purpose_allows(data, "email_confirmation"):
         return data.get("email")
     return None
