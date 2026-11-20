@@ -22,6 +22,7 @@
   height: 5rem;
   place-items: center;
   overflow: hidden;
+  border: 1px solid var(--product-border);
   border-radius: 12px;
   background: var(--product-surface);
   color: var(--product-text-muted);
