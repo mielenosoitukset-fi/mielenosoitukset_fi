@@ -5,6 +5,9 @@ import type { Page } from '../components/listings/types';
 export type CalendarMonth = { year: number; month: number; city?: string };
 /** total sums the day counts (a multi-day demonstration counts on each day it runs); demonstrations counts each one once. */
 export type CalendarData = CalendarMonth & { total: number; demonstrations?: number; days: { date: string; count: number }[] };
+/** Whether a listed demonstration runs on day (a multi-day one runs from date to end_date). */
+export const runsOn = (event: { date?: string; end_date?: string | null }, day: string) =>
+  typeof event.date === 'string' && event.date <= day && (event.end_date && event.end_date > event.date ? event.end_date : event.date) >= day;
 /** How many demonstrations the period holds, each counted once. */
 export const calendarDemonstrations = (data: CalendarData) => data.demonstrations ?? data.total;
 export type CalendarBootstrap = CalendarMonth & { data: CalendarData | null; day: number; page: number; events?: Page | null };

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { adjacentMonth, calendarDemonstrations, calendarPlace, currentMonth, dateForDay, monthName, monthPath } from './calendar';
+import { adjacentMonth, calendarDemonstrations, calendarPlace, runsOn, currentMonth, dateForDay, monthName, monthPath } from './calendar';
 import type { CalendarBootstrap } from './calendar';
 import type { AppConfig } from './config';
 import type { SessionSummary } from './session';
@@ -41,7 +41,7 @@ export default function CalendarScreen({ calendar, config, session }: {
       .then(async response => {
         if (!response.ok) throw new Error('Calendar day unavailable');
         const result: unknown = await response.json();
-        if (!validListingPage(result) || result.results.some(event => event.date !== date)) throw new Error('Invalid calendar day');
+        if (!validListingPage(result) || result.results.some(event => !runsOn(event, date))) throw new Error('Invalid calendar day');
         if (!controller.signal.aborted) setEvents(result);
       }).catch(() => { if (!disposed) setFailed(true); })
       .finally(() => clearTimeout(timer));
