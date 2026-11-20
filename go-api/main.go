@@ -261,6 +261,7 @@ func main() {
 	}
 	handler = authBridgeHandler(handler, authConfig, client.Database(database))
 	handler = contactHandlerFromEnv(handler, client.Database(database), authConfig)
+	handler = campaignVolunteerHandlerFromEnv(handler, client.Database(database), authConfig)
 	handler = suggestionHandler(handler, client.Database(database), submissionConfig, suggestionsEnabledFromEnv())
 	handler = profileReadHandler(handler, client.Database(database), authConfig)
 	handler = analyticsEventHandler(handler, analyticsEnabledFromEnv(), incrementAnalyticsEvent(client.Database(database)))
