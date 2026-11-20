@@ -266,6 +266,8 @@ def create_app(config_overrides=None) -> Flask:
     from markupsafe import Markup
     from mielenosoitukset_fi.utils.content_formatting import sanitize_stored_html
     app.jinja_env.filters["stored_html"] = lambda value: Markup(sanitize_stored_html(value))
+    from mielenosoitukset_fi.utils.content_formatting import safe_href
+    app.jinja_env.filters["safe_href"] = safe_href
     app.register_blueprint(board_bp)
 
     if app.config.get("ENABLE_CHAT", True):

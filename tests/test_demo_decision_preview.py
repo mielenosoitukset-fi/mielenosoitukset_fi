@@ -102,14 +102,20 @@ def test_preview_rejects_unknown_decision_and_missing_demo(admin_client):
     assert missing.status_code in {403, 404}
 
 
-def test_decision_buttons_open_the_shared_confirm(admin_client, seeded_data):
+def test_list_and_command_center_link_to_the_case_instead_of_deciding(admin_client, db, seeded_data):
+    """Maintainer decision (20 Nov 2026): new submissions are decided only in the case."""
     demo_id = seeded_data["pending_demo_id"]
+    case = db.cases.find_one({"type": "new_demo", "demo_id": demo_id})
+    assert case is not None
+    case_id = case["_id"]
     dashboard = admin_client.get("/admin/demo/").get_data(as_text=True)
     command_center = admin_client.get(
         f"/admin/demo/command-center/{demo_id}"
     ).get_data(as_text=True)
 
     for html in (dashboard, command_center):
-        assert "data-demo-decision-modal" in html
-        assert "admin_demo_decision.js" in html
-        assert "MosoDemoDecision.confirm" in html
+        assert "MosoDemoDecision.confirm" not in html
+        assert "data-demo-decision-modal" not in html
+        assert f"/admin/case/{case_id}" in html
+    assert 'data-command="approve"' not in command_center
+    assert 'data-command="reject"' not in command_center

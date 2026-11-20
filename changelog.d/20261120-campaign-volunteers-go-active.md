@@ -1,0 +1,1 @@
+- Campaign volunteer signups are now handled by the Go API. The form, limits and welcome mail stay the same.

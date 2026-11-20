@@ -1,5 +1,5 @@
 # blueprints/notification_bp.py
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, jsonify, render_template, request
 from flask_login import login_required, current_user
 
 from mielenosoitukset_fi.utils.notifications import (
@@ -18,7 +18,10 @@ def list_notifications():
     JSON API: return serialized notifications for current user.
     Used by header dropdown JS.
     """
-    raw = fetch_notifications(current_user.id)
+    # The React "all notifications" page asks for ?limit=50; the header menu keeps the default 20.
+    limit = request.args.get("limit", default=20, type=int) or 20
+    limit = max(1, min(limit, 50))
+    raw = fetch_notifications(current_user.id, limit=limit)
     data = [serialize_notification(n) for n in raw]
     return jsonify(data)
 
