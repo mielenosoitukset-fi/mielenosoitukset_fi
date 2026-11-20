@@ -54,6 +54,10 @@ def _case_document(suggestion):
         # Keep the suggestion's own time so the case list stays in order.
         created_at=suggestion.get("created_at"),
         _id=suggestion["_id"],
+        case_history=[{
+            "timestamp": utcnow(), "action": "Tapaus avattu muutosehdotuksesta", "user": "system",
+            "mech_action": "created", "metadata": {}, "meta_schema": {},
+        }],
     )
     return case.to_dict()
 

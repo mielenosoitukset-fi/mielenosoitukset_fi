@@ -224,14 +224,12 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         description = (case_obj.error_report or {}).get("error") or _("Ei lisätietoja")
         meta_line = (demo_doc or {}).get("title") or _("Demoa ei löytynyt")
     elif case_obj.case_type == "demo_edit_suggestion":
-        title = _("Muutosehdotus")
-        description = (demo_doc or {}).get("title") or _("Liittyvää mielenosoitusta ei löytynyt")
+        title = (demo_doc or {}).get("title") or _("Liittyvää mielenosoitusta ei löytynyt")
         fields = (case_obj.meta or {}).get("fields") or []
-        meta_line = " · ".join(
-            part
-            for part in [(demo_doc or {}).get("city"), ", ".join(fields) if fields else _("Kommentti")]
-            if part
+        description = (
+            _("Ehdotetut kentät") + ": " + ", ".join(fields) if fields else _("Ei kenttämuutoksia")
         )
+        meta_line = " · ".join(part for part in [(demo_doc or {}).get("city"), (demo_doc or {}).get("date")] if part)
     elif case_obj.case_type == "organization_edit_suggestion":
         title = (org_doc or {}).get("name") or _("Organisaation muutospyyntö")
         description = _("Organisaation tiedoista ehdotetaan muutoksia.")
