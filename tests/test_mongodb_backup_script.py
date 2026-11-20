@@ -222,8 +222,9 @@ def test_core_run_expires_archives_named_before_modes_existed(tmp_path):
     assert legacy_recent.exists()
 
 
+# pv runs beside mongodump in one pipeline, so it logs to its own file: a shared log interleaves their lines.
 FAKE_PV = """#!/usr/bin/env bash
-printf '%s\\n' "$@" >> "$ARGV_LOG"
+printf '%s\\n' "$@" >> "$ARGV_LOG.pv"
 cat
 """
 
@@ -237,8 +238,9 @@ def test_dump_is_throttled_and_reads_one_collection_at_a_time(tmp_path):
 
     assert result.returncode == 0, result.stderr
     argv = (tmp_path / "argv.log").read_text().split()
+    pv_argv = (tmp_path / "argv.log.pv").read_text().split()
     assert "--numParallelCollections=1" in argv
-    assert argv[argv.index("-L") + 1] == "8m"
+    assert pv_argv[pv_argv.index("-L") + 1] == "8m"
     archive = next(backups.glob("*.archive.gz"))
     assert gzip.decompress(archive.read_bytes()) == b"dump-bytes"
 
