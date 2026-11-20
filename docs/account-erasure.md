@@ -11,7 +11,7 @@ delete succeed. A refused or conflicting delete changes nothing.
 | --- | --- | --- | --- |
 | Sign-in and settings | `user_settings`, `mfas`, `mfa_login_challenges`, `magic_links`, `api_tokens` | deleted | deleted |
 | Personal records | `password_changes`, `demo_reminders`, `demo_attending`, `notifications`, `memberships`, `api_token_requests`, `developer_apps`, `developer_scope_requests`, `admin_scope_grants`, `board_clearances` | deleted | kept, pseudonymised |
-| Abuse evidence and audit | `login_logs`, `messages`, `reports`, `malicious_reports`, `demo_submission_errors`, `submitters`, `demo_suggestions`, `cases`, `city_admin_applications`, `security_cases`, `admin_logs`, `board_audit_logs`, `super_audit_logs`, `demo_audit_logs` | kept, pseudonymised | kept, pseudonymised |
+| Abuse evidence and audit | `login_logs`, `messages`, `reports`, `malicious_reports`, `demo_submission_errors`, `submitters`, `demo_suggestions`, `cases`, `city_admin_applications`, `security_cases`, `admin_logs`, `board_audit_logs`, `super_audit_logs`, `demo_audit_logs`, `audit_events` | kept, pseudonymised | kept, pseudonymised |
 
 Privileged means `role` other than `user`, `global_admin`, or any `global_permissions`.
 The account is also removed from other users' friend, request and follower lists and

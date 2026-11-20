@@ -66,6 +66,8 @@ EVIDENCE_COLLECTIONS = (
     ("board_audit_logs", ("user_id", "god_user_id")),
     ("super_audit_logs", ("actor_id", "actor.id", "entity_id", "related_id")),
     ("demo_audit_logs", ("user_id", "actor_id", "actor.id")),
+    # Write audit trail (one row per database write); its own TTL index expires it.
+    ("audit_events", ("actor.user_id", "doc_ids", "upserted")),
 )
 # Old records sometimes carry only the email address.
 EMAIL_FIELDS = (
@@ -279,7 +281,7 @@ def purge_expired(db, now=None, days=None, dry_run=False):
     now = now or utcnow()
     cutoff = now - datetime.timedelta(days=days or retention_days())
     audit = {"cases", "city_admin_applications", "security_cases", "admin_logs",
-             "board_audit_logs", "super_audit_logs", "demo_audit_logs"}
+             "board_audit_logs", "super_audit_logs", "demo_audit_logs", "audit_events"}
     collections = [name for name, _ in EVIDENCE_COLLECTIONS + PERSONAL_COLLECTIONS if name not in audit]
     counts = {}
     for collection in collections + [SEAL_COLLECTION]:

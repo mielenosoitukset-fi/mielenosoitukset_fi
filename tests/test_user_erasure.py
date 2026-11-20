@@ -52,6 +52,8 @@ def _seed(db, uid, friend_id, demo_id):
     db.cases.insert_one({"submitter_id": uid, "meta": {"submitter_name": NAME}})
     db.board_audit_logs.insert_one({"user_id": sid, "action": "x"})
     db.admin_logs.insert_one({"actor": {"id": sid, "username": "erase-me", "email": EMAIL}, "ip": "198.51.100.7"})
+    db.audit_events.insert_one({"actor": {"user_id": sid}, "collection": "users", "doc_ids": [sid],
+                                "change": {"$set": {"email": EMAIL, "displayname": NAME}}})
     db.users.update_one({"_id": friend_id}, {"$push": {"friend_requests": {"sent_by": uid}}, "$addToSet": {"followers": sid}})
     db.demonstrations.update_one({"_id": demo_id}, {"$addToSet": {"editors": sid}})
 
@@ -90,7 +92,8 @@ def test_ordinary_account_deletes_personal_data_and_pseudonymises_evidence(db, s
     report_doc = db.malicious_reports.find_one({"erased_subject": alias})
     assert report_doc["user_email"] == alias and report_doc["ip"] == "198.51.100.7"
     assert db.cases.find_one({"erased_subject": alias})["meta"]["submitter_name"] == alias
-    for collection in ("login_logs", "messages", "malicious_reports", "cases", "board_audit_logs", "admin_logs"):
+    for collection in ("login_logs", "messages", "malicious_reports", "cases", "board_audit_logs", "admin_logs",
+                       "audit_events"):
         _no_trace(db, collection, uid)
 
     assert db.users.count_documents({"followers": str(uid)}) == 0
