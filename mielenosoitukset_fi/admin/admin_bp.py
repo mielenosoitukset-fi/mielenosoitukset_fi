@@ -1116,25 +1116,26 @@ def _calculate_dashboard_snapshot() -> dict:
     active_orgs = mongo.organizations.count_documents({"archived": {"$ne": True}})
     cases_open = mongo.cases.count_documents({"$or": [{"meta.closed": {"$ne": True}}, {"meta": {"$exists": False}}]})
 
-    upcoming_demos = demos_coll.count_documents({"cancelled": {"$ne": True}, "hide": {"$ne": True}})
-    pending_demos = demos_coll.count_documents(
-        {"approved": {"$ne": True}, "hide": {"$ne": True}, **NOT_ESCALATED_ASSIGNMENT_CLAUSE}
-    )
+    # Every number on the dashboard has one plain meaning (maintainer, 20 Nov
+    # 2026): "published" is what the public site shows, "waiting" is what
+    # nobody has decided yet (not approved, not rejected, not cancelled).
+    from mielenosoitukset_fi.utils.database import DEMO_FILTER
+
+    not_past = {"$or": [{"in_past": {"$exists": False}}, {"in_past": False}]}
+    published_upcoming = demos_coll.count_documents({**DEMO_FILTER, "$and": DEMO_FILTER["$and"] + [not_past]})
+    published_total = demos_coll.count_documents(DEMO_FILTER)
+    undecided = {
+        "approved": {"$ne": True},
+        "rejected": {"$ne": True},
+        "cancelled": {"$ne": True},
+        "hide": {"$ne": True},
+    }
+    waiting_demos = demos_coll.count_documents(undecided)
     city_pending = demos_coll.count_documents(
-        {
-            "approved": {"$ne": True},
-            "hide": {"$ne": True},
-            CITY_ASSIGNMENT_FIELD: {"$exists": True},
-            "city_assignment.escalated": {"$ne": True},
-        }
+        {**undecided, CITY_ASSIGNMENT_FIELD: {"$exists": True}, "city_assignment.escalated": {"$ne": True}}
     )
     escalated_pending = demos_coll.count_documents(
-        {
-            "approved": {"$ne": True},
-            "hide": {"$ne": True},
-            CITY_ASSIGNMENT_FIELD: {"$exists": True},
-            "city_assignment.escalated": True,
-        }
+        {**undecided, CITY_ASSIGNMENT_FIELD: {"$exists": True}, "city_assignment.escalated": True}
     )
 
     logins_last_hour = login_coll.count_documents({"timestamp": {"$gte": last_hour}})
@@ -1155,7 +1156,13 @@ def _calculate_dashboard_snapshot() -> dict:
             "admins": admin_users,
         },
         "organizations": {"active": active_orgs},
-        "demos": {"live": upcoming_demos, "pending": pending_demos, "city_pending": city_pending, "escalated_pending": escalated_pending},
+        "demos": {
+            "published_upcoming": published_upcoming,
+            "published_total": published_total,
+            "waiting": waiting_demos,
+            "city_pending": city_pending,
+            "escalated_pending": escalated_pending,
+        },
         "cases": {"open": cases_open},
         "logins": {
             "last_hour": logins_last_hour,

@@ -35,44 +35,63 @@
         </div>
       </header>
 
+      {# Every number says what it counts; cards that lead somewhere are links. #}
       <div class="stat-grid">
+        <a class="stat-card stat-card--link" href="{{ url_for('admin_case.cases') }}">
+          <div class="stat-label">{{ _('Odottaa käsittelyä') }}</div>
+          <div class="stat-value" id="stat-demos-waiting">—</div>
+          <div class="stat-sub stat-sub--list">
+            <span>{{ _('Uusia mielenosoituksia, joita ei ole hyväksytty eikä hylätty.') }}</span>
+            <span>{{ _('Kaupunkien ylläpitäjillä') }}: <strong id="stat-demos-city">—</strong></span>
+            <span>{{ _('Eskaloitu valtakunnalliselle') }}: <strong id="stat-demos-escalated">—</strong></span>
+            <span class="stat-link">{{ _('Käsittele tapauksissa') }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+          </div>
+        </a>
+        <a class="stat-card stat-card--link" href="{{ url_for('admin_case.cases') }}">
+          <div class="stat-label">{{ _('Avoimet tapaukset') }}</div>
+          <div class="stat-value" id="stat-cases-open">—</div>
+          <div class="stat-sub stat-sub--list">
+            <span>{{ _('Kaikki avoimet: uudet mielenosoitukset, ilmoitukset, ehdotukset ja hakemukset.') }}</span>
+            <span class="stat-link">{{ _('Avaa tapaukset') }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+          </div>
+        </a>
+        <a class="stat-card stat-card--link" href="{{ url_for('admin_demo.demo_control', approved='approved', show_past='false') }}">
+          <div class="stat-label">{{ _('Julkaistut tulevat') }}</div>
+          <div class="stat-value" id="stat-demos-upcoming">—</div>
+          <div class="stat-sub stat-sub--list">
+            <span>{{ _('Näkyvät sivustolla nyt, eivät ole vielä menneet.') }}</span>
+            <span>{{ _('Julkaistuja kaikkiaan, myös menneet') }}: <strong id="stat-demos-published">—</strong></span>
+            <span class="stat-link">{{ _('Avaa lista') }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+          </div>
+        </a>
         <div class="stat-card">
-          <div class="stat-label">{{ _('Käyttäjiä') }}</div>
+          <div class="stat-label">{{ _('Käyttäjätilit') }}</div>
           <div class="stat-value" id="stat-users-total">—</div>
-          <div class="stat-sub">
-            <span>{{ _('Vahvistettu') }}: <strong id="stat-users-confirmed">—</strong></span>
-            <span>{{ _('Kesken') }}: <strong id="stat-users-pending">—</strong></span>
+          <div class="stat-sub stat-sub--list">
+            <span>{{ _('Sähköposti vahvistettu') }}: <strong id="stat-users-confirmed">—</strong></span>
+            <span>{{ _('Sähköposti vahvistamatta') }}: <strong id="stat-users-pending">—</strong></span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">{{ _('Ylläpitäjiä') }}</div>
+          <div class="stat-label">{{ _('Ylläpitäjät') }}</div>
           <div class="stat-value" id="stat-users-admins">—</div>
+          <div class="stat-sub stat-sub--list">
+            <span>{{ _('Tilit, joilla on ylläpitäjän tai moderaattorin rooli.') }}</span>
+          </div>
         </div>
         <div class="stat-card">
           <div class="stat-label">{{ _('Organisaatiot') }}</div>
           <div class="stat-value" id="stat-orgs-active">—</div>
-          <div class="stat-sub">
-            <span>{{ _('Aktiivisia toimijoita') }}</span>
+          <div class="stat-sub stat-sub--list">
+            <span>{{ _('Kaikki paitsi arkistoidut.') }}</span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">{{ _('Tapahtumat') }}</div>
-          <div class="stat-value" id="stat-demos-live">—</div>
-          <div class="stat-sub">
-            <span>{{ _('Valmiina julkaisuun') }}: <strong id="stat-demos-pending">—</strong></span>
-            <span>{{ _('Näkyvissä sivustolla') }}</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">{{ _('Avoimet tapaukset') }}</div>
-          <div class="stat-value" id="stat-cases-open">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">{{ _('Kirjautumisia (viime tunti)') }}</div>
+          <div class="stat-label">{{ _('Kirjautumisyrityksiä, viime tunti') }}</div>
           <div class="stat-value" id="stat-logins-hour">—</div>
-          <div class="stat-sub">
-            <span>{{ _('Onnistumisprosentti') }}: <strong id="stat-logins-success">—</strong></span>
-            <span>{{ _('24h yhteensä') }}: <strong id="stat-logins-day">—</strong></span>
+          <div class="stat-sub stat-sub--list">
+            <span>{{ _('Onnistui') }}: <strong id="stat-logins-success">—</strong></span>
+            <span>{{ _('Yrityksiä viimeisen 24 tunnin aikana') }}: <strong id="stat-logins-day">—</strong></span>
           </div>
         </div>
       </div>
@@ -262,8 +281,11 @@
       usersPending: document.getElementById('stat-users-pending'),
       admins: document.getElementById('stat-users-admins'),
       orgs: document.getElementById('stat-orgs-active'),
-      demosLive: document.getElementById('stat-demos-live'),
-      demosPending: document.getElementById('stat-demos-pending'),
+      demosWaiting: document.getElementById('stat-demos-waiting'),
+      demosCity: document.getElementById('stat-demos-city'),
+      demosEscalated: document.getElementById('stat-demos-escalated'),
+      demosUpcoming: document.getElementById('stat-demos-upcoming'),
+      demosPublished: document.getElementById('stat-demos-published'),
       casesOpen: document.getElementById('stat-cases-open'),
       loginsHour: document.getElementById('stat-logins-hour'),
       loginsDay: document.getElementById('stat-logins-day'),
@@ -319,8 +341,11 @@
       elements.usersPending.textContent = numberFormat.format(users.pending || 0);
       elements.admins.textContent = numberFormat.format(users.admins || 0);
       elements.orgs.textContent = numberFormat.format((data.organizations || {}).active || 0);
-      elements.demosLive.textContent = numberFormat.format(demos.live || 0);
-      elements.demosPending.textContent = numberFormat.format(demos.pending || 0);
+      elements.demosWaiting.textContent = numberFormat.format(demos.waiting || 0);
+      elements.demosCity.textContent = numberFormat.format(demos.city_pending || 0);
+      elements.demosEscalated.textContent = numberFormat.format(demos.escalated_pending || 0);
+      elements.demosUpcoming.textContent = numberFormat.format(demos.published_upcoming || 0);
+      elements.demosPublished.textContent = numberFormat.format(demos.published_total || 0);
       elements.casesOpen.textContent = numberFormat.format(cases.open || 0);
       elements.loginsHour.textContent = numberFormat.format(logins.last_hour || 0);
       elements.loginsDay.textContent = numberFormat.format(logins.last_day || 0);
