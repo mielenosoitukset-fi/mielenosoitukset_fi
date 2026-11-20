@@ -4448,9 +4448,13 @@ def init_routes(app):
         )
 
         messages = get_flashed_messages(with_categories=True)
-        flash_message_data = [
-            {"category": category, "message": message} for category, message in messages
-        ]
+        # Several protected requests before a page that reads flashes (React pages read
+        # them only here) each queue the same notice; show each one once.
+        flash_message_data = []
+        for category, message in messages:
+            item = {"category": category, "message": message}
+            if item not in flash_message_data:
+                flash_message_data.append(item)
         response = jsonify(messages=flash_message_data)
         response.headers["Cache-Control"] = "no-store"
         response.headers["Vary"] = "Cookie"

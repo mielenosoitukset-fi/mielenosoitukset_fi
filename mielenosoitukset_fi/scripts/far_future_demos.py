@@ -33,7 +33,7 @@ from datetime import date, datetime
 
 from bson import ObjectId, json_util
 from dateutil.relativedelta import relativedelta
-from pymongo import MongoClient
+from mielenosoitukset_fi.utils.audit_trail import mongo_client
 
 from config import Config
 
@@ -118,7 +118,7 @@ def main(argv: list[str] | None = None, db=None, today: date | None = None, out=
     today = today or date.today()
     cutoff = (today + relativedelta(years=args.years)).isoformat()
     if db is None:
-        db = MongoClient(Config.MONGO_URI)[Config.MONGO_DBNAME]
+        db = mongo_client(Config.MONGO_URI)[Config.MONGO_DBNAME]
     candidates = find_candidates(db, cutoff)
     report(candidates, cutoff, out)
 

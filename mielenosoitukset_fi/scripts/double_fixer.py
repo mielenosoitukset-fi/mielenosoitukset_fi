@@ -1,8 +1,8 @@
-from pymongo import MongoClient
+from mielenosoitukset_fi.utils.audit_trail import mongo_client
 from config import Config
 
 # Establish connection to MongoDB
-client = MongoClient(Config.MONGO_URI)
+client = mongo_client(Config.MONGO_URI)
 db = client["mielenosoitukset"]
 collection = db["demonstrations"]
 

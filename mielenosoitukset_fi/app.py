@@ -176,6 +176,9 @@ def create_app(config_overrides=None) -> Flask:
     login_manager.login_view = (
         "users.auth.login"  # Redirect to login view if not authenticated
     )
+    # Flask-Login's default is English ("Please log in to access this page.").
+    login_manager.login_message = "Kirjaudu sisään nähdäksesi tämän sivun."
+    login_manager.login_message_category = "info"
     
     login_manager.anonymous_user = AnonymousUser
 
@@ -249,10 +252,8 @@ def create_app(config_overrides=None) -> Flask:
     app.register_blueprint(user_bp, url_prefix="/users/")
     app.register_blueprint(api_bp, url_prefix="/api/")
     app.register_blueprint(mcp_admin_bp)
-    # The opt-in issuer is only configured through isolated test overrides.
-    if app.testing and app.config.get("HALLINTO_OIDC"):
-        from mielenosoitukset_fi.users.hallinto_issuer import register_hallinto_issuer
-        register_hallinto_issuer(app, mongo, app.config["HALLINTO_OIDC"])
+    from mielenosoitukset_fi.users.hallinto_issuer_config import configure_hallinto_issuer
+    configure_hallinto_issuer(app, mongo)
     app.register_blueprint(developer_bp, url_prefix="/developer")
     
     

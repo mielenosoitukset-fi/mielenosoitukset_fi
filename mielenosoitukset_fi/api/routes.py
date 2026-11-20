@@ -2,6 +2,7 @@ from copy import deepcopy
 from flask import current_app, jsonify, redirect, request, Blueprint, url_for, session
 import re
 from bson.objectid import ObjectId
+from mielenosoitukset_fi.utils.audit_trail import set_request_actor
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from datetime import datetime, timedelta
 from flask_caching import Cache
@@ -70,6 +71,8 @@ def token_required(required_scopes=None, auto_renew=True):
 
             token = auth_header.split(" ", 1)[1] if auth_header.startswith("Bearer ") else auth_header
             token_record = check_token(token)
+            set_request_actor("api_token", user_id=token_record.get("user_id"),
+                              token_id=token_record.get("_id"))
 
             # Auto-renew short-lived tokens if needed
             if auto_renew and token_record.get("type") == "short" and token_renewal_needed(token_record):
