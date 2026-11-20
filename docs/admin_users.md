@@ -26,3 +26,7 @@ Developer notes
 - The edit page is `templates/admin_V2/user/edit.html`.
 - Deletion uses the shared `static/js/deleteModal.js` which expects the confirm button to have id `confirmDelete` and sets `data-type` to `user`.
 
+
+## What deleting a user removes
+
+See [account-erasure.md](account-erasure.md): sign-in data is deleted, personal records are deleted (kept for privileged accounts), abuse evidence and audit records are kept pseudonymised, and the identity is sealed with an offline key.

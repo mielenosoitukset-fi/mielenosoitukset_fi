@@ -136,6 +136,9 @@ class Config:
             "GEOCODE_API_KEY",
             "66df12ce96495339674278ivnc82595",
         )
+        # Public key (PEM) that seals a deleted account's identity; the private key is
+        # kept offline. Unset: no seal is stored. See docs/account-erasure.md.
+        cls.ERASURE_SEAL_PUBLIC_KEY = config.get("ERASURE_SEAL_PUBLIC_KEY", "")
         cls.UI_TRANSLATION_SYNC_ENABLED = config.get("UI_TRANSLATION_SYNC_ENABLED", False)
         cls.UI_TRANSLATION_SYNC_REPO_PATH = config.get("UI_TRANSLATION_SYNC_REPO_PATH", "")
         cls.UI_TRANSLATION_SYNC_BASE_BRANCH = config.get("UI_TRANSLATION_SYNC_BASE_BRANCH", "main")
