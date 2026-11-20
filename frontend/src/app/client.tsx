@@ -80,6 +80,11 @@ if (container) {
       void import('./EmailConfirmScreen').then(({ default: EmailConfirmScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<EmailConfirmScreen token={token} loginUrl={props.config.urls.login} />} />);
       }).catch(error => console.error('Could not start the e-mail confirmation page', error));
+    } else if (route?.name === 'org-invite') {
+      const organizationId = props.orgInvite?.organizationId ?? null;
+      void import('./OrgInviteScreen').then(({ default: OrgInviteScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<OrgInviteScreen organizationId={organizationId} loginUrl={props.config.urls.login} />} />);
+      }).catch(error => console.error('Could not start the invitation page', error));
     } else if (route?.name === 'developer') {
       const appId = route.appId;
       void import('./DeveloperScreen').then(({ default: DeveloperScreen }) => {

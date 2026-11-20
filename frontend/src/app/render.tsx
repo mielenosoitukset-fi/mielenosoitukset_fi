@@ -38,6 +38,7 @@ import StatusScreen from './StatusScreen';
 import CancelLinkScreen from './CancelLinkScreen';
 import VolunteerConfirmScreen from './VolunteerConfirmScreen';
 import EmailConfirmScreen from './EmailConfirmScreen';
+import OrgInviteScreen from './OrgInviteScreen';
 import DeveloperScreen from './DeveloperScreen';
 import ProfileScreen from './ProfileScreen';
 import AccountSettingsScreen from './AccountSettingsScreen';
@@ -46,6 +47,7 @@ import { loadProfile, profileTitle } from './profile-route';
 import type { ProfileInitial } from './profile-route';
 import { volunteerConfirmCopy } from './volunteer-confirm';
 import { emailConfirmCopy } from './email-confirm';
+import { orgInviteCopy, orgInviteIdPattern } from './org-invite';
 import { loadCancelLink, cancelLinkTitle, type CancelLinkState } from './cancel-link';
 import { loadStatus, statusTitle, type ServiceStatus } from './status';
 import { loadSuggestion, suggestionTitle, suggestionLead, type SuggestionDemo } from './suggest-change';
@@ -91,7 +93,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; developer?: string; profile?: string; accountSettings?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -520,6 +522,21 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
       serverPage={<EmailConfirmScreen token={route.token} loginUrl={config.urls.login} />} />);
   }
 
+  let orgInvite: { organizationId: string | null } | undefined;
+  if (route.name === 'org-invite') {
+    // Per-account page: never cached or indexed. The invitation is read in the browser from Go,
+    // with the visitor's own session, so the server renders only the shell and the id from the link.
+    const raw = new URLSearchParams(input.search ?? '').get('organization_id');
+    orgInvite = { organizationId: raw && orgInviteIdPattern.test(raw) ? raw : raw ? 'invalid' : null };
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.orgInvite ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${orgInviteCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<OrgInviteScreen organizationId={orgInvite.organizationId} loginUrl={config.urls.login} />} />);
+  }
+
   if (route.name === 'account-settings') {
     // Per-account page: never cached or indexed. The data loads in the browser from the Go read route.
     headers['Cache-Control'] = 'private, no-store';
@@ -843,6 +860,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     ...(organizationFill ? { organizationFill } : {}),
     ...(suggestionDemo ? { suggestionDemo } : {}),
     ...(cancelLink ? { cancelLink } : {}),
+    ...(orgInvite ? { orgInvite } : {}),
     ...(profile ? { profile } : {}),
     ...(route.name === 'status' ? { serviceStatus } : {}),
     ...(detail ? { detail } : {}), ...(series ? { series } : {}), ...(home ? { home } : {}),

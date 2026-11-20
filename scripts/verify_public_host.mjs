@@ -978,6 +978,40 @@ try {
   assert(apacheRouting.includes('#RewriteRule "^/api/account/confirm-email$" "http://127.0.0.1:8091$0" [P,L]'));
   console.log('PASS: e-mail confirmation page is read-only, noindex, no referrer, and unrouted');
 
+  // Organization invitation: the shell is rendered, the invitation is read in the browser, nothing joins on GET.
+  const inviteOrg = 'abcdefabcdefabcdefabcdef';
+  const inviteFetch = globalThis.fetch;
+  let inviteRequests = 0;
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes('/invitation')) { inviteRequests++; throw new Error('The page must not call the invitation routes on GET'); }
+    return inviteFetch(url, options);
+  };
+  try {
+    const invite = await detailPage({ path: '/users/orgs/accept_invite', search: `?organization_id=${inviteOrg}` });
+    assert.equal(invite.status, 200);
+    const inviteBody = invite.html.split('<body>')[1].split('<script type="application/json"')[0];
+    for (const text of ['Liity organisaatioon', 'Ladataan kutsua']) assert(inviteBody.includes(text), text);
+    assert(!inviteBody.includes('<form') && !inviteBody.includes('Liityit organisaatioon'), 'No form, and a GET never claims a join');
+    assert.match(invite.html, /<meta name="robots" content="noindex, nofollow" \/>/);
+    assert(!/rel="canonical"/.test(invite.html));
+    const inviteHeaders = Object.fromEntries(Object.entries(invite.headers ?? {}).map(([key, value]) => [key.toLowerCase(), value]));
+    assert.equal(inviteHeaders['x-robots-tag'], 'noindex, nofollow');
+    assert.equal(inviteHeaders['cache-control'], 'private, no-store');
+    assert.equal(inviteHeaders['referrer-policy'], 'no-referrer');
+    assert.equal(bootstrap(invite.html).orgInvite.organizationId, inviteOrg);
+    const noId = await detailPage({ path: '/users/orgs/accept_invite' });
+    assert(noId.html.includes('Organisaation tunnus puuttuu.') && bootstrap(noId.html).orgInvite.organizationId === null);
+    const badId = await detailPage({ path: '/users/orgs/accept_invite', search: '?organization_id=%3Cscript%3E' });
+    assert(badId.html.includes('Organisaatiota ei löytynyt.') && !badId.html.includes('<script>alert'));
+    assert.equal(inviteRequests, 0, 'Rendering the page made no invitation request');
+    assert.equal((await detailPage({ path: '/users/orgs/accept_invite/' })).status, 404);
+  } finally {
+    globalThis.fetch = inviteFetch;
+  }
+  assert(!/^RewriteRule .*accept_invite/m.test(apacheRouting) && !/^RewriteRule .*\/invitation/m.test(apacheRouting), 'The invitation routes stay unrouted until the maintainer activates them');
+  assert(apacheRouting.includes('#RewriteRule "^/users/orgs/accept_invite$" "http://127.0.0.1:8090$0" [P,L]'));
+  console.log('PASS: invitation page renders a shell only, noindex, no referrer, and unrouted');
+
   // Developer panel: the shell is server-rendered, the data is read in the browser from Go.
   const developerAppId = 'a'.repeat(24);
   for (const [path, next] of [['/developer', '%2Fdeveloper'], [`/developer/apps/${developerAppId}`, `%2Fdeveloper%2Fapps%2F${developerAppId}`]]) {

@@ -197,8 +197,8 @@ Volunteer confirmation `/kampanja/confirm/<token>` now has a dark React page plu
 E-mail confirmation `/users/auth/confirm_email/<token>` is built the same way and also dark
 ([email-confirm-react.md](email-confirm-react.md)).
 
-Not migrated yet: `/orgs/accept_invite`. Its GET is itself the write (it joins the
-organization) and needs a signed-in account; see TODO.md.
+The organization invitation `/users/orgs/accept_invite` is built the same way, dark, with a read
+and a POST behind the visitor's session ([org-invite-react.md](org-invite-react.md)).
 
 Rollout order was Go, host, then the two Apache lines. Removing them restores the
 Flask page; no data or session change.

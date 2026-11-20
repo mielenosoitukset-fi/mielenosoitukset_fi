@@ -81,6 +81,7 @@ function assetTags(manifest) {
     cancelLink: routeAssets('src/app/CancelLinkScreen.tsx'),
     volunteerConfirm: routeAssets('src/app/VolunteerConfirmScreen.tsx'),
     emailConfirm: routeAssets('src/app/EmailConfirmScreen.tsx'),
+    orgInvite: routeAssets('src/app/OrgInviteScreen.tsx'),
     developer: routeAssets('src/app/DeveloperScreen.tsx'),
     profile: routeAssets('src/app/ProfileScreen.tsx'),
     accountSettings: routeAssets('src/app/AccountSettingsScreen.tsx'),

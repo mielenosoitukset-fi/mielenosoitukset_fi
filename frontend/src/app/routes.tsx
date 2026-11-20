@@ -10,6 +10,7 @@ import { cityAdminCopy, cityAdminPath } from './city-admin-route';
 import { developerCopy, developerPath } from './developer-route';
 import { volunteerConfirmCopy } from './volunteer-confirm';
 import { emailConfirmCopy } from './email-confirm';
+import { orgInviteCopy } from './org-invite';
 import type { InformationPage } from './information';
 
 /**
@@ -43,6 +44,7 @@ export type AppRoute =
   | { name: 'cancel-link'; token: string }
   | { name: 'volunteer-confirm'; token: string }
   | { name: 'email-confirm'; token: string }
+  | { name: 'org-invite' }
   | { name: 'developer'; appId?: string }
   | { name: 'profile'; username: string }
   | { name: 'account-settings' }
@@ -122,6 +124,7 @@ export function routeForPath(path: string): AppRoute | null {
   if (cancelLink) return { name: 'cancel-link', token: cancelLink[1] };
   const volunteerConfirm = /^\/kampanja\/confirm\/([A-Za-z0-9_-]{1,128})$/.exec(path);
   if (volunteerConfirm) return { name: 'volunteer-confirm', token: volunteerConfirm[1] };
+  if (path === '/users/orgs/accept_invite') return { name: 'org-invite' };
   const emailConfirm = /^\/users\/auth\/confirm_email\/([A-Za-z0-9_.-]{5,3100})$/.exec(path);
   if (emailConfirm) return { name: 'email-confirm', token: emailConfirm[1] };
   const organization = /^\/organization\/([a-f\d]{24})$/i.exec(path);
@@ -168,6 +171,10 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   }
   if (route.name === 'email-confirm') {
     return { title: `${emailConfirmCopy.title} | Mielenosoitukset.fi`, description: emailConfirmCopy.title,
+      robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'org-invite') {
+    return { title: `${orgInviteCopy.title} | Mielenosoitukset.fi`, description: orgInviteCopy.title,
       robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'account-settings') {
