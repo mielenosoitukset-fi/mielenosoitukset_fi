@@ -51,7 +51,7 @@ Already on the React host: home, listings (all, city, tag, today), detail and se
 
 Proposal: [Public write API migration contracts, approval questions and rollout order](docs/go-write-api-proposal.md).
 
-- [ ] Status checks omitted from `/api/status`: Flask's configured cache `set("_status_ping", True, timeout=5)` and initialized S3 client's `list_buckets()`. Go has no equivalent Flask-owned cache/storage client; do not call Flask during rendering or substitute Go response-cache health. Migrate their ownership before restoring these checks.
+- [ ] Status checks omitted from `/api/status`: Flask's configured cache `set("_status_ping", True, timeout=5)` and initialized S3 client's `list_buckets()`. Go has no equivalent Flask-owned cache/storage client; do not call Flask during rendering or substitute Go response-cache health. Migrate their ownership before restoring these checks; Go-owned clients for both are built, off by default (`STATUS_CACHE_REDIS_URL`, `STATUS_S3_*`; see [docs/go-public-api.md](docs/go-public-api.md)). Open: confirm production Flask's `CACHE_TYPE`, set the values in the Go environment, and visually review `/status` with the extra rows.
 
 Maintainer direction, 10 November 2026: when a page is redesigned or moved to React, its Flask endpoints move to the Go API too, in the same work or later. Still on Flask:
 
