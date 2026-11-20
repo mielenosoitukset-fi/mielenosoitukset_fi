@@ -1,0 +1,1 @@
+- Admin case and command center pages only link Facebook, organizer and organization addresses that are web or e-mail links.
