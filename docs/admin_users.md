@@ -29,12 +29,4 @@ Developer notes
 
 ## What deleting a user removes
 
-After the fresh step-up and the `users` delete succeed, `admin/user_erasure.py`
-removes the account's direct personal-data records (settings, login and password
-logs, reminders, attendance, own reports, notifications, messages, memberships,
-MFA, magic links, API and developer records, scope grants, board clearances,
-submitter rows, suggestions) and its links in other users' friend/follower lists
-and demonstration editor lists. Kept on purpose: demonstrations the user
-submitted, moderation `cases` and `city_admin_applications`, `malicious_reports`,
-`security_cases` and the audit logs; their user id no longer resolves. The removed
-counts are written to the application log, never the records themselves.
+See [account-erasure.md](account-erasure.md): sign-in data is deleted, personal records are deleted (kept for privileged accounts), abuse evidence and audit records are kept pseudonymised, and the identity is sealed with an offline key.
