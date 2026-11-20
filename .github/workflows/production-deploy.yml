@@ -161,6 +161,9 @@ jobs:
     env:
       PRODUCTION_SSH_HOST: ${{ vars.PRODUCTION_SSH_HOST }}
       PRODUCTION_SSH_USER: ${{ vars.PRODUCTION_SSH_USER }}
+      # Optional. Unset means plain `ssh user@host` on port 22, as before.
+      PRODUCTION_SSH_PORT: ${{ vars.PRODUCTION_SSH_PORT }}
+      PRODUCTION_SSH_JUMP: ${{ vars.PRODUCTION_SSH_JUMP }}
       SSH_OPTIONS: -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=5
       ACTIVATE_ROUTING: ${{ github.event_name == 'push' || inputs.routing }}
 
@@ -173,6 +176,10 @@ jobs:
           set -euo pipefail
           test -n "$PRODUCTION_SSH_HOST"
           test -n "$PRODUCTION_SSH_USER"
+          if [[ -n "$PRODUCTION_SSH_PORT" && ! "$PRODUCTION_SSH_PORT" =~ ^[0-9]+$ ]]; then
+            echo "PRODUCTION_SSH_PORT must be a number" >&2
+            exit 1
+          fi
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -194,7 +201,15 @@ jobs:
           set -euo pipefail
           command=deploy
           if [[ "$ACTIVATE_ROUTING" == true ]]; then command=deploy-routing; fi
-          ssh $SSH_OPTIONS "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST" \
+          # shellcheck disable=SC2206
+          ssh_args=($SSH_OPTIONS)
+          if [[ -n "$PRODUCTION_SSH_PORT" ]]; then
+            ssh_args+=(-p "$PRODUCTION_SSH_PORT")
+          fi
+          if [[ -n "$PRODUCTION_SSH_JUMP" ]]; then
+            ssh_args+=(-J "$PRODUCTION_SSH_JUMP")
+          fi
+          ssh "${ssh_args[@]}" "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST" \
             "$command $GITHUB_SHA"
           # The SSH command verifies every service it started and the exact
           # build SHA before returning success.

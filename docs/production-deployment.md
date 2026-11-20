@@ -335,3 +335,42 @@ Backwards compatibility must cover the graceful Flask overlap and Flask â†’ Go â
 React deployment order. This pipeline does not make the three services or MongoDB
 one atomic transaction. A migration needing a particular intermediate application
 version must use an approved bridge instead of relying on every PR becoming live.
+
+## Deploying to moso-prod through a jump host (stopgap)
+
+Since 20 Nov 2026 the site runs on moso-prod, the VM behind hypervisor
+lc-moso-01 (65.109.65.236). Its sshd listens on tcp/2222 and the firewall admits
+it only from lc-main (95.216.45.27). GitHub runners cannot reach it directly, so
+the deploy job hops through lc-main with `ssh -J`. Port 22 on 65.109.65.236 is
+the hypervisor: never point the workflow, a known_hosts entry or a scan at it.
+
+The job adds `-p $PRODUCTION_SSH_PORT` and `-J $PRODUCTION_SSH_JUMP` only when
+those variables are non-empty, so leaving them unset keeps the old behaviour.
+
+`PRODUCTION_SSH_KNOWN_HOSTS` must contain both host keys. The jump host is
+looked up under its plain address; the target is looked up as
+`[host]:port` because the port is not 22. Do not use `ssh-keyscan` on
+65.109.65.236; use the fingerprint the migration notes recorded
+(SHA256:BnYr2vOE1EpNZ6L/hXLaAbEPK7YxbsQCO0cCQuY0ZXo).
+
+```text
+95.216.45.27 <lc-main ed25519 public key, e.g. from /etc/ssh/ssh_host_ed25519_key.pub on lc-main>
+[65.109.65.236]:2222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlVX+3AKN3rmTtfCs5nxBJm23V45iIFd/bQoVtbAZOD
+```
+
+The maintainer sets, before merging (merging runs the first deploy):
+
+```sh
+gh variable set PRODUCTION_SSH_HOST --env production --body 65.109.65.236
+gh variable set PRODUCTION_SSH_PORT --env production --body 2222
+gh variable set PRODUCTION_SSH_JUMP --env production --body root@95.216.45.27   # user of the jump account on lc-main
+gh secret set PRODUCTION_SSH_KNOWN_HOSTS --env production < known_hosts.moso   # the two lines above
+```
+
+`PRODUCTION_SSH_USER` stays as is unless the moso-prod account differs. The
+GitHub Actions public key needs the forced-command `authorized_keys` entry on
+moso-prod and an account on lc-main allowed to forward to 65.109.65.236:2222
+(`-J` uses a direct-tcpip forward, so `restrict` there must be
+`permitopen="65.109.65.236:2222"` rather than no forwarding). Roll back by
+restoring `PRODUCTION_SSH_HOST` to 95.216.45.27 and deleting the port and jump
+variables. Long term, replace the hop with WireGuard or a self-hosted runner.
