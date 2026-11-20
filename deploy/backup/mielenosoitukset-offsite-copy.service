@@ -3,10 +3,13 @@ Description=Encrypt and copy the newest MongoDB backups off-site for mielenosoit
 After=network-online.target
 Wants=network-online.target
 OnFailure=mielenosoitukset-backup-failed.service
+# Skipped (not failed, so no alert) until the maintainer's public age key is in
+# place; the deploy installs this unit before the off-site target exists.
+ConditionPathExists=/etc/mielenosoitukset/backup-recipients.txt
 
 [Service]
 Type=oneshot
-EnvironmentFile=/etc/mielenosoitukset/backup.env
+EnvironmentFile=-/etc/mielenosoitukset/backup.env
 StateDirectory=mielenosoitukset-backup
 StateDirectoryMode=0700
 ExecStart=/var/www/mielenosoitukset_fi/deploy/backup/offsite-copy.sh

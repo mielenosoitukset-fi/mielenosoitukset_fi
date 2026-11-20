@@ -1,7 +1,10 @@
 # Contact form in Go: `POST /contact`
 
-Status: implemented and shipped dark on 17 November 2026. Nothing routes to it,
-the flag is off, and Flask still handles every real request. Spec:
+Status: activated by pull request on 20 November 2026 with the maintainer's go:
+`configure_environment.py` writes `CONTACT_GO_ENABLED=true` whenever the auth bridge
+is on (`CONTACT_GO_ENABLED: false` in `config.yaml` opts out), Apache sends `POST
+/contact` to Go, and `release_routing.sh` keeps the previous include unless Go answers
+`GET /contact` with 405. Shipped dark on 17 November 2026. Spec:
 [go-write-api-proposal.md](go-write-api-proposal.md) section 1. Approved default
 (maintainer, 17.11.2026): exact Flask parity, shipped off, activation per API only
 with the maintainer's go.

@@ -1,0 +1,1 @@
+- `/users/profile/` now takes a signed-in user to their own `/users/profile/<username>` page, which the React app serves, and `/developer/apps` goes to the React `/developer` overview, which lists the apps and has the create form. The old Flask pages are no longer shown.

@@ -71,6 +71,11 @@ def deployment(tmp_path):
         "[[ ${FAIL_PUBLIC:-0} != 1 ]]\n"
     )
     public.chmod(0o755)
+    (seed / "deploy/backup").mkdir()
+    backup_units = seed / "deploy/backup/install_units.sh"
+    backup_units.write_text(
+        "#!/usr/bin/env bash\nprintf 'backup-units\\n' >> \"$EVENTS\"\n[[ ${FAIL_BACKUP_UNITS:-0} != 1 ]]\n")
+    backup_units.chmod(0o755)
     routing = seed / "deploy/release_routing.sh"
     routing.write_text("#!/usr/bin/env bash\nprintf 'routing\\n' >> \"$EVENTS\"\n")
     routing.chmod(0o755)
@@ -144,12 +149,21 @@ def test_one_routing_transaction_orders_public_and_records_receipt(deployment, r
     events = deployment.read_events()
     assert events.count("systemctl reload") == 1
     assert events.index("provision") < events.index("systemctl reload")
+    assert events.index("systemctl reload") < events.index("backup-units") < events.index("public")
     if routing:
         assert events.index("public") < events.index("routing")
     else:
         assert 'routing' not in events
     receipt = json.loads(deployment.receipt.read_text())
     assert receipt["commit"] == deployment.target and receipt["routing"] is routing
+
+
+def test_backup_unit_failure_warns_without_failing_the_release(deployment):
+    result = deployment.run(FAIL_BACKUP_UNITS=1)
+    assert result.returncode == 0, result.stderr
+    assert "::warning::backup units were not updated" in result.stdout
+    assert "public" in deployment.read_events()
+    assert json.loads(deployment.receipt.read_text())["commit"] == deployment.target
 
 
 def test_new_main_during_public_stage_does_not_abort_original_transaction(deployment):
@@ -166,7 +180,7 @@ def test_migration_failure_blocks_provision_reload_public_and_receipt(deployment
     assert (deployment.root / "managed").exists()
     assert not deployment.receipt.exists()
     assert not any(event in deployment.read_events() for event in
-                   ("provision", "systemctl reload", "public", "routing"))
+                   ("provision", "systemctl reload", "backup-units", "public", "routing"))
 
 
 def test_deployment_hold_blocks_effects(deployment):
@@ -197,7 +211,7 @@ def test_repeat_verified_sha_has_no_reload_or_dependency_effects(deployment):
     assert "Already verified" in second.stdout
     assert deployment.read_events().count("verify_health_sha.py") == 3
     assert not any(event in deployment.read_events() for event in
-                   ("install_dependencies.py", "provision", "systemctl reload", "public"))
+                   ("install_dependencies.py", "provision", "systemctl reload", "backup-units", "public"))
 
 
 def test_stale_requested_target_fails_before_effects(deployment):

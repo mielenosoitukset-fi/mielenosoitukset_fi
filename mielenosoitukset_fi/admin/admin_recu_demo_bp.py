@@ -331,11 +331,23 @@ def preview_recurrence_dates():
         break_dates,
         limit=12,
     )
+    cancels_children = notifies_attendees = 0
+    series_id = request.args.get("demo_id")
+    if (
+        series_id
+        and ObjectId.is_valid(series_id)
+        and current_user.has_permission("EDIT_RECURRING_DEMO")
+    ):
+        cancels_children, notifies_attendees = _break_date_cancellation_preview(
+            ObjectId(series_id), break_dates
+        )
     return jsonify(
         {
             "dates": [value.isoformat() for value in dates],
             "has_more": has_more,
             "excluded_break_dates": excluded_count,
+            "cancels_children": cancels_children,
+            "notifies_attendees": notifies_attendees,
         }
     )
 
@@ -393,22 +405,42 @@ def _cancel_recurring_children(parent_id, child_query, reason, action, message):
     return matched_count, cancelled_count
 
 
-def _cancel_children_for_break_dates(parent_id, break_dates):
-    """Mark already-created children on break dates as cancelled."""
-    if not break_dates:
-        return 0, 0
+def _break_date_child_query(parent_id, break_dates):
+    """Children that saving these break dates would cancel (frozen ones are kept)."""
     parent = mongo.recu_demos.find_one({"_id": parent_id}) or {}
     frozen_ids = {str(child_id) for child_id in parent.get("freezed_children", [])}
     frozen_object_ids = [
         ObjectId(child_id) for child_id in frozen_ids if ObjectId.is_valid(child_id)
     ]
+    return {
+        "parent": parent_id,
+        "date": {"$in": list(break_dates)},
+        "_id": {"$nin": frozen_object_ids},
+    }
+
+
+def _break_date_cancellation_preview(parent_id, break_dates):
+    """Count children a save would cancel and the attendees who would be notified."""
+    if not break_dates:
+        return 0, 0
+    query = _break_date_child_query(parent_id, break_dates)
+    query["cancelled"] = {"$ne": True}
+    child_ids = [doc["_id"] for doc in mongo.demonstrations.find(query, {"_id": 1})]
+    if not child_ids:
+        return 0, 0
+    attendees = mongo.demo_attending.count_documents(
+        {"demo_id": {"$in": child_ids}, "attending": True}
+    )
+    return len(child_ids), attendees
+
+
+def _cancel_children_for_break_dates(parent_id, break_dates):
+    """Mark already-created children on break dates as cancelled."""
+    if not break_dates:
+        return 0, 0
     return _cancel_recurring_children(
         parent_id,
-        {
-            "parent": parent_id,
-            "date": {"$in": break_dates},
-            "_id": {"$nin": frozen_object_ids},
-        },
+        _break_date_child_query(parent_id, break_dates),
         "Toistuvan mielenosoituksen taukopäivä",
         "cancel_recurring_child_break",
         "Lapsimielenosoitus peruttiin sarjan taukopäivän vuoksi",

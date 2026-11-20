@@ -510,6 +510,14 @@ MongoDB runs when `REMINDER_TEST_MONGO` is set.
 
 ### Activation (needs the maintainer's go)
 
+Done by pull request on 20 November 2026 with the maintainer's go: `configure_environment.py` writes
+`SUGGESTIONS_GO_ENABLED=true` whenever public submissions are on (`SUGGESTIONS_GO: false` in
+`config.yaml` opts out), the two POST rules are live in `react-ssr-routing.conf`, and
+`release_routing.sh` refuses the include unless a cross-site POST to the Go route answers 403
+(so a missing flag keeps Flask in charge). The React notice (gap 1) shipped earlier. The manual
+steps below are kept for reference.
+
+
 1. Set `SUGGESTIONS_GO_ENABLED=true` in `/etc/mielenosoitukset-api/environment` and restart
    the Go service. Public submissions must already be configured.
 2. Ship the React notice (gap 1) first.
