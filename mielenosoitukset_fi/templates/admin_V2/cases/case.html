@@ -468,6 +468,31 @@
         </div>
       </section>
 
+      {% if case_data.notified_at %}
+      <section class="admin-section-card">
+        <div class="admin-section-card__header">
+          <div class="admin-section-card__title"><h2>{{ _('Ilmoitetut ylläpitäjät') }}</h2></div>
+        </div>
+        <div class="admin-section-card__body admin-stack">
+          {% if case_data.notified_users %}
+          <div class="log-list">
+            {% for notified in case_data.notified_users %}
+            <div class="log-entry">
+              <div class="log-entry-header">
+                <strong>{{ notified.username or _('Tuntematon käyttäjä') }}</strong>
+                <span class="muted">{{ _('Sähköposti ja ilmoitus') if notified.emailed else _('Vain ilmoitus') }}</span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state">{{ _('Kenelläkään ei ollut oikeutta nähdä tapausta, kun se avattiin.') }}</div>
+          {% endif %}
+          <div class="muted">{{ _('Ilmoitettu') }}: {{ case_data.notified_at|datetimeformat("%d.%m.%Y %H:%M") }}</div>
+        </div>
+      </section>
+      {% endif %}
+
       <section class="admin-section-card">
         <div class="admin-section-card__header">
           <div class="admin-section-card__title"><h2>{{ _('Toimintaloki') }}</h2></div>

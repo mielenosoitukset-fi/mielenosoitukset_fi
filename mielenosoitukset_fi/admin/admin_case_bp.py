@@ -24,6 +24,7 @@ from mielenosoitukset_fi.utils.case_access import (
     case_scope_query, can_access_case, global_case_permission,
 )
 from mielenosoitukset_fi.utils import city_admin_applications as applications
+from mielenosoitukset_fi.utils import case_notifications
 
 from mielenosoitukset_fi.emailer.EmailSender import EmailSender
 from mielenosoitukset_fi.utils.logger import logger
@@ -314,14 +315,38 @@ def cases():
 
         case_rows.append(_build_case_row(case, demo_doc=demo_doc, org_doc=org_doc))
 
+    always_emailed = global_case_permission(current_user, "VIEW_CASE")
+    user_doc = mongo.users.find_one({"_id": _safe_objectid(current_user.id)}, {"case_notice_emails": 1}) or {}
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}cases/all.html",
         case_rows=case_rows,
+        case_email_always=always_emailed,
+        case_emails_enabled=case_notifications.is_enabled() and case_notifications.emails_enabled(),
+        case_email_opt_in=user_doc.get("case_notice_emails") is True,
         open_count=open_count,
         closed_count=closed_count,
         escalated_count=escalated_count,
         auto_closed=auto_closed,
     )
+
+@admin_case_bp.route("/email_notices/", methods=["POST"])
+@login_required
+@case_permission("LIST_CASES", allow_city=True)
+def email_notices():
+    """Let an admin with city-scoped case rights opt in or out of case e-mails.
+
+    Admins with case rights everywhere always get them (maintainer decision
+    20 Nov 2026), so the choice only matters for city-scoped admins.
+    """
+    enabled = request.form.get("enabled") == "1"
+    mongo.users.update_one({"_id": _safe_objectid(current_user.id)}, {"$set": {"case_notice_emails": enabled}})
+    flash_message(
+        _("Saat jatkossa sähköpostin uusista tapauksista.") if enabled
+        else _("Et saa enää sähköpostia uusista tapauksista."),
+        "success",
+    )
+    return redirect(url_for("admin_case.cases"))
+
 
 @admin_case_bp.route("/demo_search/", methods=["GET"])
 @login_required
@@ -557,6 +582,10 @@ def single_case(case_id):
                 "user_id": str(application.get("user_id") or ""),
                 "decision_statuses": [(key, applications.STATUS_LABELS[key]) for key in applications.DECISION_STATUSES],
             }
+
+    notice_doc = mongo.cases.find_one({"_id": case._id}, {"notified_users": 1, "notified_at": 1}) or {}
+    case_data["notified_users"] = notice_doc.get("notified_users") or []
+    case_data["notified_at"] = notice_doc.get("notified_at")
 
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}cases/case.html",

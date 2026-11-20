@@ -45,6 +45,7 @@ def test_open_suggestion_becomes_one_case(db, seeded_data):
     assert case["type"] == "demo_edit_suggestion"
     assert str(case["demo_id"]) == str(seeded_data["demo_id"])
     assert case["meta"]["fields"] == ["title"]
+    assert case["running_num"] > db.cases.find_one({"_id": seeded_data["case_id"]})["running_num"]
     assert case["submitter"] == {"submitter_email": "rep@example.test"}
     assert "ip" not in str(case) and "203.0.113.9" not in str(case)
     assert db.demo_suggestions.find_one({"_id": suggestion_id})["case_id"] == suggestion_id
@@ -166,3 +167,87 @@ def test_job_is_registered():
     assert JOB_DEFINITION_MAP["deliver_case_notices"].func is deliver_case_notices.main
     assert demo_suggestion_cases.is_enabled({}) is False
     assert case_notifications.is_enabled({"CASE_NOTIFICATIONS_ENABLED": "true"}) is True
+
+
+class FakeSender:
+    """Records queued mails instead of writing the email queue."""
+
+    def __init__(self):
+        self.sent = []
+
+    def queue_email(self, **kwargs):
+        self.sent.append(kwargs)
+
+
+EMAILS_ON = {**ON, "CASE_NOTIFICATION_EMAILS_ENABLED": "1"}
+
+
+def _helsinki_admins(db, seeded_data):
+    db.demonstrations.update_one({"_id": seeded_data["demo_id"]}, {"$set": {"city": "Helsinki", "city_key": "helsinki"}})
+    opted_in = _create_scoped_admin(db, ["helsinki"], ["LIST_CASES", "VIEW_CASE"])
+    db.users.update_one({"_id": opted_in}, {"$set": {"case_notice_emails": True}})
+    not_opted = _create_scoped_admin(db, ["helsinki"], ["LIST_CASES", "VIEW_CASE"])
+    return opted_in, not_opted
+
+
+def test_emails_need_their_own_switch(db, seeded_data):
+    _helsinki_admins(db, seeded_data)
+    sender = FakeSender()
+    deliver_case_notices.main(db=db, environ=ON, email_sender=sender)
+    assert sender.sent == []
+    assert db.email_queue.count_documents({}) == 0
+
+
+def test_global_admins_always_mailed_city_admins_opt_in(app, db, seeded_data):
+    opted_in, not_opted = _helsinki_admins(db, seeded_data)
+    sender = FakeSender()
+    deliver_case_notices.main(db=db, environ=EMAILS_ON, email_sender=sender)
+    case_id = seeded_data["suggestion_id"]
+    mails = [m for m in sender.sent if f"/admin/case/{case_id}/" in m["context"]["case_link"]]
+    recipients = sorted(r for m in mails for r in m["recipients"])
+    admin_email = db.users.find_one({"_id": seeded_data["admin_id"]})["email"]
+    opted_email = db.users.find_one({"_id": opted_in})["email"]
+    assert recipients == sorted([admin_email, opted_email])
+    assert all(len(m["recipients"]) == 1 for m in mails)
+    assert mails[0]["context"]["type_label"] == "Muutosehdotus"
+    assert mails[0]["template_name"] == "admin_case_notification.html"
+
+    # The case records who was told and who was mailed, and shows it.
+    rows = {row["user_id"]: row["emailed"] for row in db.cases.find_one({"_id": case_id})["notified_users"]}
+    assert rows[seeded_data["admin_id"]] is True and rows[opted_in] is True and rows[not_opted] is False
+    page = _client_for_user(app, seeded_data["admin_id"]).get(f"/admin/case/{case_id}/").get_data(as_text=True)
+    assert "Ilmoitetut ylläpitäjät" in page and "Vain ilmoitus" in page
+
+    # A rerun does not mail again.
+    db.cases.update_one({"_id": case_id}, {"$unset": {"notified_at": ""}})
+    deliver_case_notices.main(db=db, environ=EMAILS_ON, email_sender=sender)
+    assert len([m for m in sender.sent if f"/admin/case/{case_id}/" in m["context"]["case_link"]]) == 2
+    rows = {row["user_id"]: row["emailed"] for row in db.cases.find_one({"_id": case_id})["notified_users"]}
+    assert rows[opted_in] is True
+
+
+def test_email_template_renders():
+    # A bare Jinja environment: constructing EmailSender would reset the test database manager.
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+    env = Environment(loader=FileSystemLoader("mielenosoitukset_fi/templates/emails"), autoescape=select_autoescape(["html"]))
+    html = env.get_template("admin_case_notification.html").render(
+        running_num=100123, type_label="Muutosehdotus", demo_title="Testi",
+        case_link="https://mielenosoitukset.fi/admin/case/abc/",
+    )
+    assert "#100123" in html and "https://mielenosoitukset.fi/admin/case/abc/" in html and "Testi" in html
+
+
+def test_city_admin_toggles_case_emails(app, db, seeded_data, monkeypatch):
+    monkeypatch.setenv("CASE_NOTIFICATIONS_ENABLED", "1")
+    monkeypatch.setenv("CASE_NOTIFICATION_EMAILS_ENABLED", "1")
+    city = _create_scoped_admin(db, ["helsinki"], ["LIST_CASES", "VIEW_CASE"])
+    client = _client_for_user(app, city)
+    assert "Tilaa sähköpostit uusista tapauksista" in client.get("/admin/case/").get_data(as_text=True)
+    assert client.post("/admin/case/email_notices/", data={"enabled": "1"}).status_code == 302
+    assert db.users.find_one({"_id": city})["case_notice_emails"] is True
+    assert "Lopeta sähköpostit uusista tapauksista" in client.get("/admin/case/").get_data(as_text=True)
+    client.post("/admin/case/email_notices/", data={"enabled": "0"})
+    assert db.users.find_one({"_id": city})["case_notice_emails"] is False
+    # Global admins are always mailed and get no toggle.
+    admin_page = _client_for_user(app, seeded_data["admin_id"]).get("/admin/case/").get_data(as_text=True)
+    assert "sähköpostit uusista tapauksista" not in admin_page

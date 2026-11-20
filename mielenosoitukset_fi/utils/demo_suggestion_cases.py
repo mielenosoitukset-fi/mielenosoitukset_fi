@@ -41,9 +41,16 @@ def _open_without_case():
     }
 
 
-def _case_document(suggestion):
+def _next_running_num(db):
+    """Number from the same database the job writes to."""
+    last = db.cases.find_one({"running_num": {"$type": "number"}}, {"running_num": 1}, sort=[("running_num", -1)])
+    return (last["running_num"] + 1) if last else Case.STARTING_NUM
+
+
+def _case_document(db, suggestion):
     reporter_email = suggestion.get("reporter_email")
     case = Case(
+        running_num=_next_running_num(db),
         case_type=CASE_TYPE,
         demo_id=suggestion.get("demo_id"),
         submitter={"submitter_email": reporter_email} if reporter_email else {},
@@ -71,7 +78,7 @@ def deliver_pending(db, limit=100):
         case_id = suggestion["_id"]
         try:
             if not db.cases.find_one({"_id": case_id}, {"_id": 1}):
-                db.cases.update_one({"_id": case_id}, {"$setOnInsert": _case_document(suggestion)}, upsert=True)
+                db.cases.update_one({"_id": case_id}, {"$setOnInsert": _case_document(db, suggestion)}, upsert=True)
             db.demo_suggestions.update_one({"_id": case_id}, {"$set": {"case_id": case_id}})
             delivered += 1
         except Exception:
