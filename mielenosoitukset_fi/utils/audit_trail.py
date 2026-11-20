@@ -97,6 +97,8 @@ SECRET_COLLECTIONS = frozenset(
         "demo_submission_tokens",
         "contact_form_tokens",
         "hallinto_sessions",
+        "hallinto_oidc_codes",
+        "hallinto_login_markers",
         "oauth_authorization_codes",
         "erasure_identity_seals",
     }

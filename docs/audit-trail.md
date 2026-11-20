@@ -47,7 +47,8 @@ hashes, JWTs or Fernet tokens, and every non-id value of the credential collecti
 `magic_links`, `mfas`, `mfa_login_challenges`, `user_passkeys`,
 `passkey_challenges`, `fresh_step_up_tokens`, `used_password_change_tokens`,
 `demo_cancellation_tokens`, `demo_submission_tokens`, `contact_form_tokens`,
-`hallinto_sessions`, `oauth_authorization_codes`, `erasure_identity_seals`).
+`hallinto_sessions`, `oauth_authorization_codes`, `erasure_identity_seals`,
+`hallinto_oidc_codes`, `hallinto_login_markers`).
 Long strings are cut at 300 characters, lists at 50 items. Both services run
 the same redaction vectors (`go-api/testdata/audit_redaction.json`).
 
