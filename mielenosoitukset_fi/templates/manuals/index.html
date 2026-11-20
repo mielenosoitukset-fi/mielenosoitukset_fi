@@ -1,102 +1,62 @@
 {% extends 'manual_base.html' %}
+{% import 'manuals/_macros.html' as m with context %}
 
-{% block content %}
-<div class="manual-breadcrumb">
-  <i class="fa-solid fa-house me-1"></i> Ohje / Etusivu
-</div>
-
-<section class="manual-section">
-  <h2>Tervetuloa ohjeeseen</h2>
-  <p>
-    Tämä käyttöohje auttaa sinua käyttämään hallintapaneelin keskeisiä toimintoja: mielenosoitusten,
-    käyttäjien ja organisaatioiden hallintaa sekä tilastoja, tietoturvaa ja ylläpitoa.
-  </p>
+{% block manual_content %}
+<section id="tehtavat">
+  <h2>{{ _('Yleisimmät tehtävät') }}</h2>
+  <p>{{ _('Jokainen tehtävä on kirjoitettu vaihe vaiheelta. Voit merkitä vaiheet tehdyiksi, ja selain muistaa, mihin jäit.') }}</p>
+  <ul class="manual-task-grid">
+    {% for task in manual_tasks %}
+    <li>
+      <a class="manual-task-link" href="{{ task.url }}">
+        <i class="fas {{ task.icon }}" aria-hidden="true"></i>
+        <div><strong>{{ task.title }}</strong><span>{{ task.page }}{% if not task.allowed %} · {{ _('ei käytössäsi') }}{% endif %}</span></div>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% call m.callout('tip') %}
+  <p>{{ _('Paina') }} <kbd>/</kbd> {{ _('millä tahansa ohjesivulla, niin pääset hakuun. Hallintapaneelin sivupalkin') }} {{ m.ui(_('Ohje tähän näkymään')) }} {{ _('-linkki avaa juuri sen näkymän ohjeen, jossa olet.') }}</p>
+  {% endcall %}
 </section>
 
-<section class="manual-section">
-  <h2>Sisältö</h2>
-  <div class="row g-3">
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title"><i class="fa-solid fa-tachometer-alt me-2"></i>Hallintapaneeli</h5>
-          <p class="card-text">Yleiskatsaus dashboardista ja sen toiminnoista.</p>
-          <a href="{{ url_for('admin.manual_page', page='dashboard') }}" class="btn btn-outline-primary">Lue <i class="fa-solid fa-arrow-right ms-1"></i></a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title"><i class="fa-solid fa-flag me-2"></i>Mielenosoitukset</h5>
-          <p class="card-text">Listaus, hyväksyminen, muokkaus ja taikamerkkilinkit.</p>
-          <a href="{{ url_for('admin.manual_page', page='demos') }}" class="btn btn-outline-primary">Lue <i class="fa-solid fa-arrow-right ms-1"></i></a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title"><i class="fa-solid fa-repeat me-2"></i>Toistuvat mielenosoitukset</h5>
-          <p class="card-text">Toistuvien mielenosoitusten ja massatoimintojen hallinta.</p>
-          <a href="{{ url_for('admin.manual_page', page='recurring') }}" class="btn btn-outline-primary">Lue <i class="fa-solid fa-arrow-right ms-1"></i></a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title"><i class="fa-solid fa-building me-2"></i>Organisaatiot</h5>
-          <p class="card-text">Organisaatioiden, jäsenten ja kutsujen hallinta.</p>
-          <a href="{{ url_for('admin.manual_page', page='organizations') }}" class="btn btn-outline-primary">Lue <i class="fa-solid fa-arrow-right ms-1"></i></a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title"><i class="fa-solid fa-users me-2"></i>Käyttäjät</h5>
-          <p class="card-text">Käyttäjien lisääminen, muokkaus, roolit ja oikeudet.</p>
-          <a href="{{ url_for('admin.manual_page', page='users') }}" class="btn btn-outline-primary">Lue <i class="fa-solid fa-arrow-right ms-1"></i></a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title"><i class="fa-solid fa-chart-line me-2"></i>Tilastot &amp; analytiikka</h5>
-          <p class="card-text">Tilastot, analytiikka ja reaaliaikainen seuranta.</p>
-          <a href="{{ url_for('admin.manual_page', page='stats') }}" class="btn btn-outline-primary">Lue <i class="fa-solid fa-arrow-right ms-1"></i></a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title"><i class="fa-solid fa-lock me-2"></i>Tietoturva &amp; oikeudet</h5>
-          <p class="card-text">Roolimalli, turvaluokitus, magic linkit ja lokit.</p>
-          <a href="{{ url_for('admin.manual_page', page='security') }}" class="btn btn-outline-primary">Lue <i class="fa-solid fa-arrow-right ms-1"></i></a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title"><i class="fa-solid fa-tools me-2"></i>Ylläpito &amp; tuki</h5>
-          <p class="card-text">Lokit, taustatehtävät, järjestelmän tila ja kehittäjät.</p>
-          <a href="{{ url_for('admin.manual_page', page='support') }}" class="btn btn-outline-primary">Lue <i class="fa-solid fa-arrow-right ms-1"></i></a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title"><i class="fa-solid fa-question-circle me-2"></i>FAQ</h5>
-          <p class="card-text">Vastauksia yleisimpiin kysymyksiin.</p>
-          <a href="{{ url_for('admin.manual_page', page='faq') }}" class="btn btn-outline-primary">Lue <i class="fa-solid fa-arrow-right ms-1"></i></a>
-        </div>
-      </div>
-    </div>
-  </div>
+<section id="uutta">
+  <h2>{{ _('Uutta hallintapaneelissa') }}</h2>
+  <ul class="manual-news">
+    <li>
+      <time datetime="2026-11-20">20.11.2026</time>
+      <div><strong>{{ _('Hylkäämisen ja sulkemisen syyt.') }}</strong> {{ _('Kun hylkäät mielenosoituksen tai suljet tapauksen, valitset syyn listasta. Kaksoiskappale linkitetään alkuperäiseen.') }} <a href="{{ manual_url('cases', 'syyt') }}">{{ _('Lue lisää') }}</a></div>
+    </li>
+    <li>
+      <time datetime="2026-11-20">20.11.2026</time>
+      <div><strong>{{ _('Muutosehdotukset ovat nyt tapauksia.') }}</strong> {{ _('Ehdotukset näkyvät Tapaukset-listalla, ja uudesta tapauksesta tulee ilmoitus kelloon ja sähköpostiin.') }} <a href="{{ manual_url('cases', 'ilmoitukset') }}">{{ _('Lue lisää') }}</a></div>
+    </li>
+    <li>
+      <time datetime="2026-11-20">20.11.2026</time>
+      <div><strong>{{ _('Kirjautuminen palauttaa samaan näkymään.') }}</strong> {{ _('Jos istunto vanhenee, kirjautuminen vie takaisin sivulle, jolla olit.') }} <a href="{{ manual_url('account', 'kirjautuminen') }}">{{ _('Lue lisää') }}</a></div>
+    </li>
+    <li>
+      <time datetime="2026-11-20">20.11.2026</time>
+      <div><strong>{{ _('Kaksivaiheinen tunnistus ja passkeyt uusissa asetuksissa.') }}</strong> {{ _('Laitteen lisääminen, nimeäminen ja poistaminen kysyvät ensin henkilöllisyyden vahvistuksen.') }} <a href="{{ manual_url('account') }}">{{ _('Lue lisää') }}</a></div>
+    </li>
+  </ul>
+</section>
+
+<section id="tyokalut">
+  <h2>{{ _('Sinun työkalusi') }}</h2>
+  <p>{{ _('Näet hallintapaneelissa vain ne näkymät, joihin sinulla on oikeus. Alla ensin ne, joita voit käyttää.') }}</p>
+  {% set pages = manual_groups | map(attribute='items') | sum(start=[]) | rejectattr('slug', 'equalto', 'index') | list %}
+  {% set mine = pages | selectattr('access') | list %}
+  <ul class="manual-card-grid">
+    {% for item in mine if manual_can_open(item.access) %}
+    <li><a class="manual-card" href="{{ manual_url(item.slug) }}"><i class="fas {{ item.icon }}" aria-hidden="true"></i><div><strong>{{ item.title }}</strong><span>{{ item.summary }}</span></div></a></li>
+    {% endfor %}
+  </ul>
+  <h3>{{ _('Muut ohjeet') }}</h3>
+  <ul class="manual-card-grid">
+    {% for item in pages if not item.access or not manual_can_open(item.access) %}
+    <li><a class="manual-card manual-card--muted" href="{{ manual_url(item.slug) }}"><i class="fas {{ item.icon }}" aria-hidden="true"></i><div><strong>{{ item.title }}</strong><span>{{ item.summary }}</span></div></a></li>
+    {% endfor %}
+  </ul>
 </section>
 {% endblock %}

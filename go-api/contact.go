@@ -1,10 +1,9 @@
 package main
 
-// POST /contact: the support contact form, moved from Flask to Go and shipped
-// dark (docs/go-contact.md). The route exists only when CONTACT_GO_ENABLED=true
-// and the read-only auth bridge is on; otherwise requests fall through exactly
-// as before. Apache is not changed here: the browser keeps posting to Flask
-// until an operator adds the routing rule from the document.
+// POST /contact: the support contact form, moved from Flask to Go
+// (docs/go-contact.md). The route exists only when CONTACT_GO_ENABLED=true and
+// the read-only auth bridge is on; otherwise requests fall through exactly as
+// before. Apache routes the POST here since 20 November 2026.
 //
 // Parity with Flask's handler (mielenosoitukset_fi/basic_routes.py, contact):
 //   - the same Flask-Limiter counters (database "limits", collection

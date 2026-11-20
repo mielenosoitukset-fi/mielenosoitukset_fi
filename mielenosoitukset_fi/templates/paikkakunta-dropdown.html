@@ -10,7 +10,7 @@
         aria-label="{{ _('Hae paikkakuntaa') }}" />
       <!-- List of cities -->
       {% for city in city_list %}
-      <a href="#" role="option" aria-selected="false" onclick="selectCity('{{ city }}'); return false;" {% if demo is
+      <a href="#" role="option" aria-selected="false" data-city="{{ city }}" onclick="selectCity(this.dataset.city); return false;" {% if demo is
         defined and demo.city==city %} class="selected" {% endif %}>
         {{ city }}
       </a>

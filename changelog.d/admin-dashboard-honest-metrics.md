@@ -1,0 +1,1 @@
+- Admin dashboard: removed filler sub-labels and the two made-up percentage bars (open cases against a fixed 50, pending against live events), clarified the card labels and quick-action texts, and show login-feed and "Päivitetty" times in Helsinki time with the date (#770).

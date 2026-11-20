@@ -87,9 +87,10 @@ def profile(username=None):
     """
     if username is None:
         if current_user.is_authenticated:
-            username = current_user.username
-        else:
-            return abort(404)
+            # The public profile page is served by the React host under the
+            # username path; send the signed-in user there.
+            return redirect(url_for("users.profile.profile", username=current_user.username))
+        return abort(404)
 
     mongo = _get_mongo()
     user_data = mongo.users.find_one({"username": username})

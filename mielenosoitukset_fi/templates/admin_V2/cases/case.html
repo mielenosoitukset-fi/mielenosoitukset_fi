@@ -67,7 +67,7 @@
           <div class="detail-item">
             <strong>{{ _('Viesti') }}</strong>
             {% if support_ticket.html_message %}
-            <div class="description-box">{{ support_ticket.html_message|safe }}</div>
+            <div class="description-box">{{ support_ticket.html_message|stored_html }}</div>
             {% else %}
             <div class="note-box">{{ support_ticket.message or _('(ei viestia)') }}</div>
             {% endif %}
@@ -241,7 +241,7 @@
               <i class="fa-solid fa-xmark me-1"></i>{{ _('Hylkää mielenosoitus') }}
             </button>
 {% endif %}
-            {% if not case.meta.superior_needed %}
+            {% if not case.meta.superior_needed and not demo.approved and not demo.rejected %}
 {% if global_case_controls %}
             <button class="btn btn-secondary" type="button" onclick="escalateDemo()">
               <i class="fa-solid fa-arrow-up-right-dots me-1"></i>{{ _('Eskaloi esihenkilölle') }}
@@ -366,6 +366,13 @@
           {% else %}
           <div class="empty-state">{{ _('Hakemusta ei löytynyt.') }}</div>
           {% endif %}
+          {% elif case.case_type == "account_deletion_request" %}
+          <div class="detail-grid">
+            <div class="detail-item"><strong>{{ _('Pyytäjä') }}</strong><span>{% if case.submitter_id %}<a href="{{ url_for('admin_user.edit_user', user_id=case.submitter_id) }}">{{ case_data.submitter_label }}</a>{% else %}-{% endif %}</span></div>
+            <div class="detail-item"><strong>{{ _('Vastaanotettu') }}</strong><span>{% if case.created_at %}{{ case.created_at|datetimeformat("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</span></div>
+          </div>
+          <div class="detail-item"><strong>{{ _('Syy') }}</strong><div class="note-box">{{ (case.meta or {}).get('reason') or _('Ei ilmoitettu') }}</div></div>
+          <p class="muted"><a href="{{ url_for('admin_user.user_control') }}">{{ _('Poista tili käyttäjälistan poistotoiminnolla.') }}</a> {{ _('Kirjautumistiedot poistetaan, ja väärinkäytösten selvittämiseen tarvittavat tiedot säilytetään peitenimellä. Sulje tapaus poiston jälkeen.') }}</p>
           {% else %}
           <div class="empty-state">{{ _('Tälle tapaukselle ei ole vielä omaa tarkempaa esitystapaa.') }}</div>
           {% endif %}
@@ -831,8 +838,16 @@
         el.className = "admin-link-result";
         el.tabIndex = 0;
         const label = item.title || item.name || "";
-        const extra = item.city ? ` <span class="muted">(${item.city})</span>` : (item.cancelled ? ` <span class="muted">(${item.cancelled ? '{{ _('peruttu') }}' : ''})</span>` : "");
-        el.innerHTML = `<strong>${label}</strong>${extra}`;
+        const extraText = item.city ? item.city : (item.cancelled ? "{{ _('peruttu') }}" : "");
+        const strong = document.createElement("strong");
+        strong.textContent = label;
+        el.appendChild(strong);
+        if (extraText) {
+          const extra = document.createElement("span");
+          extra.className = "muted";
+          extra.textContent = ` (${extraText})`;
+          el.append(" ", extra);
+        }
         el.addEventListener("click", () => {
           selected = item;
           hiddenInput.value = item.id;

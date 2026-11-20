@@ -71,6 +71,55 @@ MFA_PENDING_LOGIN_TTL_SECONDS = 5 * 60
 MFA_PENDING_LOGIN_MAX_ATTEMPTS = 5
 
 
+LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60
+# Failures for one username from one address. Counting per address keeps a
+# stranger from locking an account out of every network with a few guesses.
+LOGIN_FAILURES_PER_USERNAME = 10
+LOGIN_FAILURES_PER_IP = 30
+# Failures for one username from all addresses together: a ceiling for
+# guessing spread across many addresses, out of reach of a single client.
+LOGIN_FAILURES_PER_USERNAME_ALL_IPS = 100
+LOGIN_THROTTLED_MESSAGE = "Liian monta epäonnistunutta kirjautumisyritystä. Yritä uudelleen 15 minuutin kuluttua."
+
+
+def _login_failure_keys(username, ip):
+    """Hashed per-window keys, so no username or IP address is stored in clear."""
+    bucket = int(utcnow().timestamp()) // LOGIN_FAILURE_WINDOW_SECONDS
+    keys = {}
+    user = (username or "").casefold()
+    for kind, identity, limit in (
+        ("user-ip", f"{user}\n{ip}" if user and ip else "", LOGIN_FAILURES_PER_USERNAME),
+        ("ip", ip or "", LOGIN_FAILURES_PER_IP),
+        ("user", user, LOGIN_FAILURES_PER_USERNAME_ALL_IPS),
+    ):
+        if identity:
+            keys["login-limit:" + _pending_mfa_digest(f"{kind}:{identity}:{bucket}")] = limit
+    return keys
+
+
+def _login_throttled(username, ip):
+    """True when this username or IP address used up its failed password checks."""
+    keys = _login_failure_keys(username, ip)
+    for row in _pending_mfa_collection().find({"_id": {"$in": list(keys)}}, {"attempts": 1}):
+        if row.get("attempts", 0) >= keys[row["_id"]]:
+            return True
+    return False
+
+
+def _record_login_failure(username, ip):
+    """Count a failed password check for the username and the IP address."""
+    collection = _pending_mfa_collection()
+    now = utcnow()
+    expires_at = now + timedelta(seconds=2 * LOGIN_FAILURE_WINDOW_SECONDS)
+    for key in _login_failure_keys(username, ip):
+        collection.update_one(
+            {"_id": key},
+            {"$inc": {"attempts": 1}, "$setOnInsert": {"kind": "login_rate_limit", "expires_at": expires_at}},
+            upsert=True,
+        )
+    collection.delete_many({"kind": "login_rate_limit", "expires_at": {"$lt": now}})
+
+
 def _pending_mfa_collection():
     """Resolve challenges through the active database, including in tests."""
     return _get_mongo()["mfa_login_challenges"]
@@ -821,9 +870,21 @@ def mfa_check():
     try:
         _clear_pending_mfa_login()
         username = normalize_username(request.form.get("username"))
-        user = _find_user_by_username(username)
-        user = User.from_db(user)
+        user_ip = get_client_ip()
+        user_agent = request.headers.get("User-Agent", "")
+        if _login_throttled(username, user_ip):
+            log_login_attempt(username, False, user_ip, user_agent=user_agent, reason="Rate limited")
+            return jsonify({"enabled": False, "valid": False, "throttled": True}), 429
+        user_doc = _find_user_by_username(username)
+        if not user_doc:
+            _record_login_failure(username, user_ip)
+            log_login_attempt(username, False, user_ip, user_agent=user_agent, reason="User not found")
+            return jsonify({"enabled": False, "valid": False})
+        user = User.from_db(user_doc)
         if not user.check_password(request.form.get("password")):
+            _record_login_failure(username, user_ip)
+            log_login_attempt(username, False, user_ip, user_agent=user_agent,
+                              reason="Invalid password", user_id=user.id)
             return jsonify({"enabled": False, "valid": False})
 
         if not user.is_active:
@@ -908,7 +969,8 @@ def login():
         return response
     # A GET starts a new sign-in, so only its own ``next`` counts; an older
     # stored target must not leak into it. A POST may fall back to the target
-    # saved when its login page was shown.
+    # saved when its login page was shown (only the legacy Flask page stores
+    # one; the React page always posts an explicit ``next``).
     next_page = request.args.get("next")
     if not next_page and request.method == "POST":
         next_page = session.get("next_page")
@@ -953,7 +1015,9 @@ def login():
                     user_id=user._id,
                 )
                 flash_message("Väärä MFA-koodi.", "error")
-                return redirect(url_for("users.auth.login", next=safe_next_page))
+                # mfa=1 only tells the page to show the code step again; the
+                # server-held proof decides whether a code is still accepted.
+                return redirect(url_for("users.auth.login", next=safe_next_page, mfa=1))
             user = _consume_pending_mfa_login(user)
             if not user:
                 _clear_pending_mfa_login()
@@ -965,8 +1029,14 @@ def login():
                 flash_message("Anna sekä käyttäjänimi että salasana.", "warning")
                 return redirect(url_for("users.auth.login", next=safe_next_page))
 
+            if _login_throttled(username, user_ip):
+                flash_message(LOGIN_THROTTLED_MESSAGE, "error")
+                log_login_attempt(username, False, user_ip, user_agent=user_agent, reason="Rate limited")
+                return redirect(url_for("users.auth.login", next=safe_next_page))
+
             user_doc = _find_user_by_username(username)
             if not user_doc:
+                _record_login_failure(username, user_ip)
                 flash_message(f"Käyttäjänimellä '{username}' ei löytynyt käyttäjiä.", "error")
                 log_login_attempt(username, False, user_ip, user_agent=user_agent, reason="User not found")
                 return redirect(url_for("users.auth.login", next=safe_next_page))
@@ -976,6 +1046,7 @@ def login():
                 _clear_pending_mfa_login()
                 return redirect("/auth/god")
             if not user.check_password(password):
+                _record_login_failure(username, user_ip)
                 flash_message("Käyttäjänimi tai salasana on väärin.", "error")
                 log_login_attempt(username, False, user_ip, user_agent=user_agent, reason="Invalid password", user_id=user.id)
                 return redirect(url_for("users.auth.login", next=safe_next_page))
@@ -1003,7 +1074,7 @@ def login():
             if user.mfa_enabled and not mfa_code:
                 _clear_pending_mfa_login()
                 _set_pending_mfa_login(user)
-                return redirect(url_for("users.auth.login", next=safe_next_page))
+                return redirect(url_for("users.auth.login", next=safe_next_page, mfa=1))
             if user.mfa_enabled and not meow(user):
                 log_login_attempt(username, success=False, ip=user_ip, user_agent=user_agent, reason="MFA failed", user_id=user._id)
                 return redirect(url_for("users.auth.login", next=safe_next_page))

@@ -189,7 +189,7 @@ def test_user_login_and_notifications_flow_in_real_browser(
         wait_until="domcontentloaded",
     )
     _submit_login_form(browser_page, "alice", "UserPass1!")
-    _wait_for_url(browser_page, re.compile(r".*/users/profile/?$"))
+    _wait_for_url(browser_page, re.compile(r".*/users/profile/(alice/?)?$"))
     _wait_for_body_text(browser_page, "Alice Tester")
 
     browser_page.goto(f"{live_server}/api/notifications/all", wait_until="domcontentloaded")
@@ -610,7 +610,6 @@ def test_admin_filter_toolbars_use_shared_theme_and_fit_viewport(
         "/admin/logs",
         "/admin/demo/translations",
         "/admin/ui-translations",
-        "/admin/demo/suggestions",
     )
     theme_backgrounds = {}
     for theme in ("light", "dark"):

@@ -1,0 +1,1 @@
+- Failed emails now retry with growing waits (1 minute, doubling up to 1 hour) instead of every minute. After 30 attempts a message becomes a dead letter that stays in the queue and shows in Admin → System status, and a message the mail server already accepted is never sent twice because of a database error afterwards.

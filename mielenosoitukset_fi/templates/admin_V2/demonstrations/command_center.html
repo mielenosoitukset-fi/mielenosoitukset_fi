@@ -237,7 +237,7 @@
       <section class="info-card admin-section-card">
         <h3>{{ _('Sisältö ja tagit') }}</h3>
         {% if demo.description %}
-        <div class="mb-3">{{ demo.description|safe }}</div>
+        <div class="mb-3">{{ demo.description|stored_html }}</div>
         {% else %}
         <p class="text-muted">{{ _('Ei kuvausta.') }}</p>
         {% endif %}

@@ -335,7 +335,7 @@
                 {# Delete #}
                 {% if current_user.has_permission("DELETE_DEMO") %}
                     <li><button class="dropdown-item text-danger" type="button"
-                                onclick="openModal(event, '{{ demo.title }}', '{{ demo._id }}')">
+                                data-demo-title="{{ demo.title }}" onclick="openModal(event, this.dataset.demoTitle, '{{ demo._id }}')">
                         <i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}
                     </button></li>
                 {% else %}
@@ -496,7 +496,7 @@
                 {# Delete #}
                 {% if current_user.has_permission("DELETE_DEMO") %}
                     <li><button class="dropdown-item text-danger" type="button"
-                                onclick="openModal(event, '{{ demo.title }}', '{{ demo._id }}')">
+                                data-demo-title="{{ demo.title }}" onclick="openModal(event, this.dataset.demoTitle, '{{ demo._id }}')">
                         <i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}
                     </button></li>
                 {% else %}

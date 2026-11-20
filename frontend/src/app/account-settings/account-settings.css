@@ -27,6 +27,8 @@
 
 .account-check { display: flex; align-items: center; gap: 0.5rem; min-height: 44px; }
 .account-card .account-check input { width: 1.25rem; height: 1.25rem; flex: none; }
+.account-card .account-check input:focus-visible { outline: 3px solid var(--product-primary); outline-offset: 2px; }
+.account-card textarea:disabled { background: var(--product-surface-muted); color: var(--product-text-muted); cursor: not-allowed; }
 
 .account-city { position: relative; }
 .account-city__trigger {
