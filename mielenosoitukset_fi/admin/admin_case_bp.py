@@ -1080,6 +1080,22 @@ def demo_action(case_id):
             },
         )
 
+    elif data["action"] == "take_down":
+        from mielenosoitukset_fi.admin.admin_demo_bp import _apply_demo_decision
+        from mielenosoitukset_fi.demonstrations.decisions import DemoNotPublished
+        from mielenosoitukset_fi.utils.demo_takedown import can_take_down_demo
+
+        if not can_take_down_demo(current_user, demo):
+            return jsonify({"error": _("Käyttöoikeutesi eivät riitä poistamaan mielenosoitusta julkaisusta.")}), 403
+        reason = str(data.get("reason") or "").strip()
+        if not reason:
+            return jsonify({"error": _("Kirjoita syy. Se näytetään mielenosoituksen sivulla ja lähetetään ilmoittajalle.")}), 400
+        try:
+            _apply_demo_decision(case.demo_id, "taken_down", source="case_take_down", reason=reason)
+        except DemoNotPublished:
+            return jsonify({"error": _("Vain julkaistun mielenosoituksen voi poistaa julkaisusta.")}), 409
+        response_status = "taken_down"
+
     else:
         return jsonify({"error": _("Tuntematon toiminto.")}), 400
     flash_message(_("Mielenosoituksen tila päivitettiin."), "success")

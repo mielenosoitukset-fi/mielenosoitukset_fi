@@ -92,3 +92,18 @@ def test_hidden_or_unknown_demo_gets_no_notice(admin_client, client, db, seeded_
     db.demonstrations.update_one({"_id": demo_id}, {"$set": {"hide": True}})
     assert client.get("/demonstration/pending-demonstration").status_code != 410
     assert client.get(f"/demonstration/{ObjectId()}").status_code != 410
+
+
+def test_case_page_action_takes_down_with_reason(admin_client, db, seeded_data):
+    demo_id = seeded_data["pending_demo_id"]
+    _approve(admin_client, demo_id)
+    case = db.cases.find_one({"type": "new_demo", "demo_id": demo_id})
+    url = f"/admin/case/{case['_id']}/demo_action"
+
+    assert admin_client.post(url, json={"action": "take_down"}).status_code == 400
+    response = admin_client.post(url, json={"action": "take_down", "reason": "Vaarallinen kokoontumispaikka."})
+
+    assert response.status_code == 200, response.get_json()
+    demo = db.demonstrations.find_one({"_id": demo_id})
+    assert demo["taken_down"] is True
+    assert demo["moderation_decision"]["source"] == "case_take_down"
