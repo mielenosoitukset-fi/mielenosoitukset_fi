@@ -82,6 +82,7 @@ function assetTags(manifest) {
     developer: routeAssets('src/app/DeveloperScreen.tsx'),
     profile: routeAssets('src/app/ProfileScreen.tsx'),
     accountSettings: routeAssets('src/app/AccountSettingsScreen.tsx'),
+    passwordResetRequest: routeAssets('src/app/PasswordResetRequestScreen.tsx'),
     head: [...css].map((file) => `<link rel="stylesheet" href="/app-assets/${file}">`)
       .concat([...modules].filter((file) => file.endsWith('.js'))
         .map((file) => `<link rel="modulepreload" href="/app-assets/${file}">`)).join('\n'),

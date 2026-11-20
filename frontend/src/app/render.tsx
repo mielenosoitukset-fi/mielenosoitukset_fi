@@ -39,6 +39,7 @@ import CancelLinkScreen from './CancelLinkScreen';
 import DeveloperScreen from './DeveloperScreen';
 import ProfileScreen from './ProfileScreen';
 import AccountSettingsScreen from './AccountSettingsScreen';
+import PasswordResetRequestScreen from './PasswordResetRequestScreen';
 import { accountCopy } from './account-settings-route';
 import { loadProfile, profileTitle } from './profile-route';
 import type { ProfileInitial } from './profile-route';
@@ -87,7 +88,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; accountSettings?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -500,6 +501,18 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = `<noscript><p class="container-main-content">${accountCopy.noscript}</p></noscript>`;
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<AccountSettingsScreen config={config} session={session} />} />);
+  }
+
+  if (route.name === 'password-reset-request') {
+    // Same for every visitor, but the shared header shows the session: never cache.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.passwordResetRequest ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<PasswordResetRequestScreen config={config} />} />);
   }
 
   let profile: ProfileInitial | undefined;
