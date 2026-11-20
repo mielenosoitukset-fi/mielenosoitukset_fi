@@ -39,7 +39,8 @@ def test_notifications_route_helpers():
 def test_routing_claims_only_the_notifications_page():
     routing = (ROOT / "deploy/apache/react-ssr-routing.conf").read_text(encoding="utf-8")
     assert 'RewriteRule "^/api/notifications/all$" "http://127.0.0.1:8090$0" [P,L]' in routing
-    assert "^/api/notifications/$" not in routing and "notifications/mark-read" not in routing
+    rules = "\n".join(line for line in routing.splitlines() if not line.lstrip().startswith("#"))
+    assert "^/api/notifications/$" not in rules and "notifications/mark-read" not in rules
 
 
 def test_notification_list_limit_is_capped(user_client):
