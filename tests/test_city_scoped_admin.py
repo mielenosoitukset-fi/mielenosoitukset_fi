@@ -366,7 +366,7 @@ def test_city_scoped_admin_suggestions_show_empty_state_outside_scope(app, db, s
     assert "Ei ehdotuksia" in page
 
 
-def test_city_scoped_admin_dashboard_shows_accept_action_for_scoped_demo(
+def test_city_scoped_admin_dashboard_links_scoped_demo_to_review_page(
     app, db, seeded_data
 ):
     scoped_user_id = _create_scoped_admin(
@@ -380,7 +380,8 @@ def test_city_scoped_admin_dashboard_shows_accept_action_for_scoped_demo(
 
     assert response.status_code == 200
     page = response.get_data(as_text=True)
-    assert "onclick=\"acceptDemo(" in page
+    assert "acceptDemo(" not in page
+    assert "/review" in page and "Käsittele" in page
 
 
 def test_dashboard_hides_edit_link_quick_action_without_scoped_permission(

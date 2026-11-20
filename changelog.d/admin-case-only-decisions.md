@@ -1,0 +1,1 @@
+- Admin: new demonstrations are decided only in their case. The demonstration list and the command center no longer have their own approve and reject buttons; "Käsittele" opens the case (city admins without case controls get the review page).
