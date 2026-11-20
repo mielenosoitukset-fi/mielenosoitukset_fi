@@ -112,28 +112,57 @@ def _step_up_failures():
     return DatabaseManager.get_instance().get_db()[STEP_UP_FAILURE_COLLECTION]
 
 
-def step_up_attempts_exhausted() -> bool:
-    """True when the current user has used up the password step-up attempts."""
-    since = utcnow() - timedelta(seconds=STEP_UP_FAILURE_WINDOW_SECONDS)
-    count = _step_up_failures().count_documents(
-        {"user_id": ObjectId(str(current_user._id)), "created_at": {"$gte": since}},
-        limit=STEP_UP_MAX_FAILURES,
+STEP_UP_FAILURE_TTL_SECONDS = 24 * 60 * 60
+
+
+def ensure_step_up_failure_indexes(db) -> None:
+    """Lookup index for the window count, and a TTL so old rows go away."""
+    collection = db[STEP_UP_FAILURE_COLLECTION]
+    collection.create_index(
+        [("user_id", 1), ("created_at", 1)], name="step_up_failures_window"
     )
-    return count >= STEP_UP_MAX_FAILURES
+    collection.create_index(
+        "created_at",
+        expireAfterSeconds=STEP_UP_FAILURE_TTL_SECONDS,
+        name="step_up_failures_ttl",
+    )
 
 
-def record_step_up_failure(reason: str) -> None:
-    """Store one failed password step-up for the current user."""
+def reserve_step_up_attempt() -> Optional[ObjectId]:
+    """Count this attempt before checking anything; None when the limit is used up.
+
+    The row is written first and the window counted after, so parallel
+    requests cannot all pass the check before any failure is recorded: of any
+    burst, the request that counts last sees every row that passed before it.
+    Refused rows are removed again, so a burst does not extend the wait. The
+    caller marks the row as a failure, releases it, or clears all on success.
+    """
     from mielenosoitukset_fi.utils.request_ip import get_client_ip
 
-    _step_up_failures().insert_one(
-        {
-            "user_id": ObjectId(str(current_user._id)),
-            "reason": reason,
-            "ip": get_client_ip(),
-            "created_at": utcnow(),
-        }
+    user_id = ObjectId(str(current_user._id))
+    now = utcnow()
+    collection = _step_up_failures()
+    row_id = collection.insert_one(
+        {"user_id": user_id, "reason": "pending", "ip": get_client_ip(), "created_at": now}
+    ).inserted_id
+    since = now - timedelta(seconds=STEP_UP_FAILURE_WINDOW_SECONDS)
+    used = collection.count_documents(
+        {"user_id": user_id, "created_at": {"$gte": since}}
     )
+    if used > STEP_UP_MAX_FAILURES:
+        collection.delete_one({"_id": row_id})
+        return None
+    return row_id
+
+
+def record_step_up_failure(row_id: ObjectId, reason: str) -> None:
+    """Keep the reserved attempt as a failure."""
+    _step_up_failures().update_one({"_id": row_id}, {"$set": {"reason": reason}})
+
+
+def release_step_up_attempt(row_id: ObjectId) -> None:
+    """Drop a reserved attempt that was neither a failure nor a success."""
+    _step_up_failures().delete_one({"_id": row_id})
 
 
 def clear_step_up_failures() -> None:

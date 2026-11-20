@@ -368,3 +368,40 @@ def test_wrong_totp_counts_toward_the_step_up_limit(wapp, db):
     assert r.status_code == 403
     failures = list(db[step_up.STEP_UP_FAILURE_COLLECTION].find({"user_id": user_id}))
     assert [row["reason"] for row in failures] == ["totp"]
+
+
+def test_parallel_step_up_attempts_cannot_pass_the_limit(wapp, db, monkeypatch):
+    """Each attempt is counted before the password check, so a burst gets at most the limit."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    user_id = _create_user(db, "throttle-burst")
+    checked = []
+    barrier = threading.Barrier(step_up.STEP_UP_MAX_FAILURES + 3)
+    original = User.check_password
+
+    def slow_check(self, password):
+        checked.append(password)
+        return original(self, password)
+
+    monkeypatch.setattr(User, "check_password", slow_check)
+
+    def attempt(_index):
+        client = _client_for_user(wapp, user_id)
+        barrier.wait(timeout=10)
+        return client.post("/users/auth/api/v2/step-up/password", json={"password": "nope"}).status_code
+
+    with ThreadPoolExecutor(max_workers=step_up.STEP_UP_MAX_FAILURES + 3) as pool:
+        codes = list(pool.map(attempt, range(step_up.STEP_UP_MAX_FAILURES + 3)))
+
+    assert len(checked) <= step_up.STEP_UP_MAX_FAILURES
+    assert codes.count(403) == len(checked)
+    assert codes.count(429) == len(codes) - len(checked)
+    assert db[step_up.STEP_UP_FAILURE_COLLECTION].count_documents({"user_id": user_id}) <= step_up.STEP_UP_MAX_FAILURES
+
+
+def test_step_up_failure_indexes(db):
+    step_up.ensure_step_up_failure_indexes(db)
+    indexes = db[step_up.STEP_UP_FAILURE_COLLECTION].index_information()
+    assert indexes["step_up_failures_window"]["key"] == [("user_id", 1), ("created_at", 1)]
+    assert indexes["step_up_failures_ttl"]["expireAfterSeconds"] == step_up.STEP_UP_FAILURE_TTL_SECONDS
