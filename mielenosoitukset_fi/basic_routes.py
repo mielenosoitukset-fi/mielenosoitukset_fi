@@ -2728,7 +2728,7 @@ def init_routes(app):
         referrer = request.referrer or ""
         parts = urlsplit(referrer)
         if parts.scheme in ("http", "https") and parts.netloc == request.host and parts.path.startswith("/") \
-                and not parts.path.startswith("//"):
+                and not parts.path.startswith("//") and "\\" not in parts.path:
             return parts.path + (f"?{parts.query}" if parts.query else "")
         return url_for("index")
 
@@ -2752,7 +2752,10 @@ def init_routes(app):
         except Exception:
             demo_oid = None
 
-        wants_json = request.accept_mimetypes.best == "application/json"
+        # The legacy Flask modal posts with fetch and X-Requested-With; a redirect there would
+        # be followed and read as success, so it gets the JSON status codes too.
+        wants_json = (request.accept_mimetypes.best == "application/json"
+                      or request.headers.get("X-Requested-With") == "XMLHttpRequest")
 
         def refuse(message, status):
             if wants_json:

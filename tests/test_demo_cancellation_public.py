@@ -65,3 +65,11 @@ def test_report_form_post_is_validated_and_redirects_only_on_site(client, db, se
                      headers={"Referer": "http://localhost/demonstration/x?a=1"})
     assert ok.status_code == 302 and ok.headers["Location"] == "/demonstration/x?a=1"
     assert db.reports.count_documents({}) == before + 1
+
+
+def test_report_from_the_flask_modal_gets_a_status_not_a_redirect(client, db, seeded_data):
+    before = db.reports.count_documents({})
+    refused = client.post("/report", data={"type": "demonstration", "demo_id": str(seeded_data["demo_id"]), "error": " "},
+                          headers={"X-Requested-With": "XMLHttpRequest"})
+    assert refused.status_code == 400
+    assert db.reports.count_documents({}) == before
