@@ -84,7 +84,7 @@ def _live_marker(db, markers, reference: str, subject: str) -> dict | None:
 # Hallinto links group memberships to accounts. Only admins signed in to
 # Hallinto may search, and they see only a name, username and status.
 _ACCOUNT_LOOKUP_ROLES = {"admin", "global_admin"}
-_ACCOUNT_FIELDS = {"username": 1, "displayname": 1, "active": 1, "confirmed": 1, "security_suspension": 1}
+_ACCOUNT_FIELDS = {"username": 1, "displayname": 1, "active": 1, "confirmed": 1, "banned": 1, "security_suspension": 1}
 _ACCOUNT_ID = re.compile(r"[0-9a-f]{24}\Z")
 _ACCOUNT_SEARCH_LIMIT = 10
 _ACCOUNT_LOOKUP_LIMIT = 100
@@ -96,7 +96,8 @@ def _account_view(doc: dict) -> dict:
         "sub": str(doc["_id"]),
         "username": doc.get("username", ""),
         "name": doc.get("displayname") or doc.get("username", ""),
-        "active": bool(doc.get("active", True) and doc.get("confirmed", False) and not suspended),
+        "active": bool(doc.get("active", True) and doc.get("confirmed", False)
+                       and not doc.get("banned") and not suspended),
     }
 
 
