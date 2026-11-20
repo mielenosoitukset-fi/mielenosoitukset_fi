@@ -26,3 +26,15 @@ Developer notes
 - The edit page is `templates/admin_V2/user/edit.html`.
 - Deletion uses the shared `static/js/deleteModal.js` which expects the confirm button to have id `confirmDelete` and sets `data-type` to `user`.
 
+
+## What deleting a user removes
+
+After the fresh step-up and the `users` delete succeed, `admin/user_erasure.py`
+removes the account's direct personal-data records (settings, login and password
+logs, reminders, attendance, own reports, notifications, messages, memberships,
+MFA, magic links, API and developer records, scope grants, board clearances,
+submitter rows, suggestions) and its links in other users' friend/follower lists
+and demonstration editor lists. Kept on purpose: demonstrations the user
+submitted, moderation `cases` and `city_admin_applications`, `malicious_reports`,
+`security_cases` and the audit logs; their user id no longer resolves. The removed
+counts are written to the application log, never the records themselves.

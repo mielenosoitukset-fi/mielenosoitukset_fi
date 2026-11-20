@@ -33,6 +33,7 @@ from mielenosoitukset_fi.utils.flashing import flash_message
 
 from .utils import get_org_name, mongo, _ADMIN_TEMPLATE_FOLDER
 from .board_compliance import has_board_clearance
+from .user_erasure import erase_user_personal_data
 from .user_history import (
     FIELDS, PENDING_HISTORY, MAX_PENDING_HISTORY, commit_history_change,
     flush_user_history, history_event, history_query, present_history, user_snapshot,
@@ -1018,6 +1019,14 @@ def delete_user():
         if json_mode:
             return jsonify({"status": "ERROR", "message": _("Käyttäjää muutettiin samanaikaisesti. Tämä poistoyritys ei onnistunut. Vahvista henkilöllisyytesi ennen uutta yritystä.")}), 409
         abort(409)
+
+    # Personal data that only exists because of this account goes with it (#596).
+    try:
+        erased = erase_user_personal_data(mongo, user_data)
+    except Exception:
+        current_app.logger.exception("User %s deleted but personal-data cleanup failed", target_user._id)
+    else:
+        current_app.logger.info("User %s deleted; personal records removed: %s", target_user._id, erased)
 
     success_message = "Käyttäjä poistettu onnistuneesti."
     if json_mode:
