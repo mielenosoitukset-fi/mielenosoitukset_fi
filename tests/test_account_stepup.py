@@ -9,7 +9,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = """
 import { isStepUpRequired, needsStepUp, readStepUpMethods, passwordStepUpPayload, runWithStepUp, base64UrlToBuffer, bufferToBase64Url,
-  decodePublicKeyOptions, stepUpWithPassword, stepUpWithPasskey } from './frontend/src/app/account-stepup.ts';
+  decodePublicKeyOptions, stepUpWithPassword, stepUpWithPasskey, restoreFocusWhenEnabled } from './frontend/src/app/account-stepup.ts';
 import { passwordFormError, passwordPayload, passwordRequest, readPasswordResult } from './frontend/src/app/account-settings-route.ts';
 const res = (status, body) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
 const calls = [];
@@ -29,6 +29,21 @@ const opts = decodePublicKeyOptions({ challenge: 'AQID', allowCredentials: [{ id
 const pw = { current: 'old-password-1', next: 'Abcdef123456!', confirm: 'Abcdef123456!' };
 await passwordRequest(pw, scripted([res(200, {})]))();
 const pwCall = calls.slice();
+const frames = [];
+const schedule = (callback) => frames.push(callback);
+const runFrames = (n) => { for (let i = 0; i < n && frames.length; i++) frames.shift()(); };
+const button = { isConnected: true, disabled: true, focused: 0, focus() { this.focused++; } };
+restoreFocusWhenEnabled(button, schedule);
+runFrames(1); const afterOneFrame = button.focused;
+runFrames(2); const whileDisabled = button.focused;
+button.disabled = false; runFrames(1);
+const focusOut = { enabled: afterOneFrame, whileDisabled, after: button.focused, pending: frames.length };
+const gone = { isConnected: false, disabled: false, focused: 0, focus() { this.focused++; } };
+restoreFocusWhenEnabled(gone, schedule); runFrames(1);
+const stuck = { isConnected: true, disabled: true, focused: 0, focus() { this.focused++; } };
+restoreFocusWhenEnabled(stuck, schedule, 3); runFrames(10);
+restoreFocusWhenEnabled(null, schedule);
+const focusEdge = { gone: gone.focused, stuck: stuck.focused, pending: frames.length };
 const out = {
   detect: [isStepUpRequired(403, stepUp), isStepUpRequired(403, { error: 'other' }), isStepUpRequired(401, stepUp), isStepUpRequired(403, null), isStepUpRequired(403, [stepUp])],
   needs: [await needsStepUp(res(403, stepUp)), await needsStepUp(res(403, 'html')), await needsStepUp(res(200, stepUp))],
@@ -48,6 +63,7 @@ const out = {
   result: [await readPasswordResult(res(200, { status: 'success', message: 'Salasana vaihdettu.' }), 'fb'), await readPasswordResult(res(400, { status: 'error', message: 'Nykyinen salasana on väärä.' }), 'fb'),
     await readPasswordResult(res(500, 'html'), 'fb'), await readPasswordResult(null, 'fb')],
   calls: pwCall,
+  focusOut, focusEdge,
 };
 console.log(JSON.stringify(out));
 """
@@ -83,3 +99,14 @@ def test_stepup_and_password_helpers():
     url, method, ctype, body = out["calls"][0]
     assert (url, method, ctype) == ("/users/auth/api/v2/change_password", "POST", "application/json")
     assert json.loads(body) == out["body"]
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node is required")
+def test_focus_returns_only_after_the_button_is_enabled():
+    result = subprocess.run(["node", "--experimental-strip-types", "--input-type=module", "-e", SCRIPT],
+                            cwd=ROOT, capture_output=True, text=True, check=True)
+    out = json.loads(result.stdout.strip().splitlines()[-1])
+    # Disabled for the first frames: no focus (a focus() on a disabled button is a no-op); enabled: focus once.
+    assert out["focusOut"] == {"enabled": 0, "whileDisabled": 0, "after": 1, "pending": 0}
+    # A control that left the page, a control that never re-enables (gives up) and no control: nothing is focused or left pending.
+    assert out["focusEdge"] == {"gone": 0, "stuck": 0, "pending": 0}

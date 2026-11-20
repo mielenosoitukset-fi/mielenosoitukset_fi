@@ -169,3 +169,22 @@ export async function stepUpWithPasskey(
     return { ok: false, message: serverMessage(verifyBody, stepUpCopy.passkeyFailed) };
   } catch { return { ok: false, message: stepUpCopy.passkeyFailedTryPassword }; }
 }
+
+type Focusable = { isConnected: boolean; disabled?: boolean; focus: (options?: FocusOptions) => void };
+
+/**
+ * Returns focus to the control that started a request. That control is disabled while the request
+ * runs and the caller re-enables it in a later render, so one frame is not enough: wait, frame by
+ * frame, until it is enabled (at most `maxFrames`), then focus it. A control that left the page is skipped.
+ * `schedule` is injectable for tests.
+ */
+export function restoreFocusWhenEnabled(target: Focusable | null, schedule: (callback: () => void) => void = callback => { requestAnimationFrame(callback); }, maxFrames = 60): void {
+  if (!target) return;
+  let frames = 0;
+  const tick = () => {
+    if (!target.isConnected) return;
+    if (!target.disabled) { target.focus({ preventScroll: true }); return; }
+    if (++frames < maxFrames) schedule(tick);
+  };
+  schedule(tick);
+}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
-import { fetchStepUpMethods, runWithStepUp, stepUpCopy as copy, stepUpWithPasskey, stepUpWithPassword } from './account-stepup';
+import { fetchStepUpMethods, restoreFocusWhenEnabled, runWithStepUp, stepUpCopy as copy, stepUpWithPasskey, stepUpWithPassword } from './account-stepup';
 import type { StepUpMethods, StepUpResult } from './account-stepup';
 import './account-settings/account-settings.css';
 
@@ -97,8 +97,8 @@ export function useStepUp(): { withStepUp: (request: () => Promise<Response>) =>
     finally {
       const target = opener.current;
       opener.current = null;
-      // After the caller has re-enabled its controls and React has rendered.
-      requestAnimationFrame(() => { if (target?.isConnected) target.focus({ preventScroll: true }); });
+      // The caller re-enables its button in a later render: wait for that before focusing.
+      restoreFocusWhenEnabled(target);
     }
   }, [ask]);
   useEffect(() => () => { pending.current?.(false); pending.current = null; }, []);
