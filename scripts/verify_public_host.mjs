@@ -959,7 +959,7 @@ try {
     assert.match(servicePage.html, /name="robots" content="noindex, follow"/);
     assert.match(servicePage.html, /rel="canonical" href="https:\/\/example.test\/status"/);
     const statusBody = servicePage.html.split('id="app"')[1].split('id="app-bootstrap"')[0].replace(/<!-- -->/g, '');
-    for (const copy of ['Palvelun tila', 'Kaikki palvelut toimivat', 'Tietokanta', 'Yhteys kunnossa',
+    for (const copy of ['Palvelun tila', 'Tila tarkistetaan aina, kun avaat sivun.', 'Tarkistetut palvelut toimivat', 'Tietokanta', 'Yhteys kunnossa',
       '10.11.2026 12:00:00 UTC', 'Viive 1 ms', 'Välimuistin ja tiedostovaraston tilaa ei tarkisteta.']) {
       assert(statusBody.includes(copy), copy);
     }
@@ -970,7 +970,7 @@ try {
       services: [{ name: 'Tietokanta', status: 'err', message: 'Ei vastaa' }] };
     const failedProbe = await detailPage({ path: '/status' });
     assert.equal(failedProbe.status, 200);
-    assert.match(failedProbe.html, /Jokin palvelu ei vastaa/);
+    assert.match(failedProbe.html, /Jokin tarkistettu palvelu ei vastaa/);
     assert.match(failedProbe.html, /Ei vastaa/);
     // Go adds cache and storage rows only where their checks are configured.
     const cacheRow = { name: 'Välimuisti', status: 'ok', message: 'Yhteys kunnossa' };
@@ -990,7 +990,7 @@ try {
     }
     statusReply = { ...healthyStatus, overall_ok: false,
       services: [healthyStatus.services[0], { ...storageRow, status: 'err', message: 'Ei vastaa' }] };
-    assert.match((await detailPage({ path: '/status' })).html, /Jokin palvelu ei vastaa/);
+    assert.match((await detailPage({ path: '/status' })).html, /Jokin tarkistettu palvelu ei vastaa/);
     for (const services of [
       [cacheRow],
       [healthyStatus.services[0], storageRow, cacheRow],

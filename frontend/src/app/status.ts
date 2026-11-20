@@ -1,5 +1,5 @@
 export const statusTitle = 'Palvelun tila';
-export const statusLead = 'Mielenosoitukset.fi — reaaliaikainen tila';
+export const statusLead = 'Tila tarkistetaan aina, kun avaat sivun.';
 export const statusUnavailable = 'Palvelun tilaa ei voitu hakea.';
 
 // The database row is always there. Go adds the cache and file storage rows, in
