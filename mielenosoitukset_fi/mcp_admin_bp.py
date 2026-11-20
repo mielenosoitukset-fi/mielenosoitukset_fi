@@ -1368,7 +1368,7 @@ def oauth_authorize():
 
     if request.method == "GET":
         if not getattr(current_user, "is_authenticated", False):
-            return redirect(url_for("users.auth.login", next=request.url))
+            return redirect(url_for("users.auth.login", next=request.full_path.rstrip("?")))
         if not _is_mcp_admin_user(current_user):
             return "Admin MCP access requires full global authority.", 403
 
@@ -1409,7 +1409,7 @@ def oauth_authorize():
         )
 
     if not getattr(current_user, "is_authenticated", False):
-        return redirect(url_for("users.auth.login", next=request.url))
+        return redirect(url_for("users.auth.login", next=request.full_path.rstrip("?")))
     if not _is_mcp_admin_user(current_user):
         return "Admin MCP access requires full global authority.", 403
 
