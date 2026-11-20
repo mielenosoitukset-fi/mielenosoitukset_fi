@@ -68,7 +68,7 @@ func TestOrganizationHTTPContract(t *testing.T) {
 		source := &fakeOrganizationStore{organizationErr: tc.err,
 			profile: organizationProfile{Name: "Yhteinen Helsinki", Socials: map[string]string{}}}
 		w := httptest.NewRecorder()
-		(&API{source}).handler().ServeHTTP(w, httptest.NewRequest("GET", tc.path, nil))
+		(&API{store: source}).handler().ServeHTTP(w, httptest.NewRequest("GET", tc.path, nil))
 		if w.Code != tc.status || source.loads.Load() != tc.calls || strings.Contains(w.Body.String(), "secret") {
 			t.Fatalf("%s: status=%d calls=%d body=%s", tc.path, w.Code, source.loads.Load(), w.Body.String())
 		}
@@ -92,7 +92,7 @@ func TestOrganizationHTTPContract(t *testing.T) {
 		request := httptest.NewRequest("GET", "/api/organizations/"+id.Hex(), nil)
 		request.Header.Set("Cookie", cookie)
 		w := httptest.NewRecorder()
-		(&API{cache}).handler().ServeHTTP(w, request)
+		(&API{store: cache}).handler().ServeHTTP(w, request)
 		if w.Code != 200 || (body != "" && body != w.Body.String()) {
 			t.Fatalf("cookie changed public response: %d %s", w.Code, w.Body.String())
 		}

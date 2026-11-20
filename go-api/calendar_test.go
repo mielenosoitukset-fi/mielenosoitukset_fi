@@ -52,7 +52,7 @@ func TestCalendarCacheAndHTTP(t *testing.T) {
 		t.Fatal("same month did not coalesce")
 	}
 	cache, _ := testResponseCache(t)
-	handler := publicResponseCache((&API{store}).handler(), cache)
+	handler := publicResponseCache((&API{store: store}).handler(), cache)
 	request := func(method, path, tag string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, path, nil)
 		r.Header.Set("If-None-Match", tag)

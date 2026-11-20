@@ -1,7 +1,8 @@
-import { statusTitle, statusLead, statusUnavailable, type ServiceStatus } from './status';
+import { statusTitle, statusLead, statusUnavailable, uncheckedServicesNote, type ServiceStatus } from './status';
 import './status.css';
 
 export default function StatusScreen({ status }: { status: ServiceStatus | null }) {
+  const note = uncheckedServicesNote(status);
   return <article className="public-page-shell service-status" aria-labelledby="status-title">
     <header className="service-status-header">
       <h1 id="status-title">{statusTitle}</h1><p>{statusLead}</p>
@@ -15,7 +16,7 @@ export default function StatusScreen({ status }: { status: ServiceStatus | null 
       </div>)}</dl>
       <p className="service-status-meta">Päivitetty: {status.updated_at} · Viive {status.latency_ms} ms</p>
     </>}
-    <p>Välimuistin ja tiedostovaraston tilaa ei tarkisteta.</p>
+    {note && <p>{note}</p>}
     <a className="detail-button" href="/demonstrations">Kaikki mielenosoitukset</a>
   </article>;
 }

@@ -119,3 +119,25 @@ def test_admin_log_payload_redacts_credentials_for_display():
     assert "top-secret-password" not in form_data
     assert "top-secret-csrf" not in form_data
     assert form_data.count("[REDACTED]") == 2
+
+
+def test_admin_request_log_never_stores_cookies_headers_or_password_hash(
+    admin_client, db, seeded_data
+):
+    db.admin_logs.delete_many({})
+    admin_client.get(
+        "/admin/dashboard",
+        headers={"Authorization": "Bearer request-log-secret"},
+    )
+    rows = list(db.admin_logs.find({"request.path": "/admin/dashboard"}))
+    assert rows, "the admin request should still be logged"
+    stored = repr(rows)
+    session_cookie = admin_client.get_cookie("session")
+    assert session_cookie is not None
+    assert session_cookie.value not in stored
+    assert "request-log-secret" not in stored
+    assert "password_hash" not in stored
+    assert "environ" not in stored
+    row = rows[0]
+    assert row["request"]["method"] == "GET"
+    assert row["user"]["_id"] == seeded_data["admin_id"]
