@@ -83,9 +83,12 @@ fi
 # Contact: Go answers a GET to /contact with 405 (Allow: POST) before quotas,
 # tokens or any database work; without the flag the route falls through.
 if grep -q '^RewriteRule "\^/contact\$" "http://127.0.0.1:8091/contact"' "$reviewed"; then
-  contact_status=$(curl --silent --show-error --max-time 5 --output /dev/null \
-    --write-out '%{http_code}' http://127.0.0.1:8091/contact)
-  if [[ $contact_status != 405 ]]; then
+  # A freshly restarted Go API can take a moment; retry like the page probes.
+  contact_ready() {
+    [[ $(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' \
+      http://127.0.0.1:8091/contact || true) == 405 ]]
+  }
+  if ! retry 5 2 contact_ready; then
     log "Go contact form is not enabled/ready; keeping the current routing"
     exit 1
   fi
