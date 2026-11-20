@@ -157,18 +157,30 @@ def verify_reset_token(token: str) -> Optional[str]:
 
 
 CONFIRMATION_KEY_LABEL = b"moso-email-confirmation-token-v1"
+# Links signed with SECRET_KEY itself were mailed for one hour each. After this date the
+# fallback stops by itself, whether or not anyone removes it; delete both afterwards.
+CONFIRMATION_LEGACY_KEY_UNTIL = datetime.datetime(2027, 1, 31, tzinfo=datetime.timezone.utc)
+
+
+def derive_confirmation_key(secret) -> str:
+    """HMAC-SHA256 of the fixed label under ``secret``, as hex.
+
+    Rotating ``SECRET_KEY`` changes this value, so the key held by the Go API
+    (``EMAIL_CONFIRM_JWT_KEY``) must be derived again and Go restarted, or Go will
+    refuse every new confirmation link. ``scripts/write_confirmation_key.py`` does it.
+    """
+    secret = secret.encode() if isinstance(secret, str) else secret
+    return hmac.new(secret, CONFIRMATION_KEY_LABEL, hashlib.sha256).hexdigest()
 
 
 def confirmation_signing_key() -> str:
     """Key for e-mail confirmation tokens, derived from ``SECRET_KEY``.
 
-    HMAC-SHA256 of a fixed label under ``SECRET_KEY``, as hex. A service that only
-    verifies confirmation links (the Go API) can hold this value without being able
-    to forge sessions or password reset tokens, which use ``SECRET_KEY`` itself.
+    A service that only verifies confirmation links (the Go API) can hold this value
+    without being able to forge sessions or password reset tokens, which use
+    ``SECRET_KEY`` itself.
     """
-    secret = current_app.config["SECRET_KEY"]
-    secret = secret.encode() if isinstance(secret, str) else secret
-    return hmac.new(secret, CONFIRMATION_KEY_LABEL, hashlib.sha256).hexdigest()
+    return derive_confirmation_key(current_app.config["SECRET_KEY"])
 
 
 def generate_confirmation_token(email: str) -> str:
@@ -192,6 +204,13 @@ def generate_confirmation_token(email: str) -> str:
     )
 
 
+def _legacy_confirmation_key_allowed() -> bool:
+    now = utcnow()
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=datetime.timezone.utc)
+    return now < CONFIRMATION_LEGACY_KEY_UNTIL
+
+
 def verify_confirmation_token(token: str) -> Optional[str]:
     """
     Verify the confirmation token.
@@ -207,10 +226,9 @@ def verify_confirmation_token(token: str) -> Optional[str]:
         The email address associated with the token if the token is valid, otherwise None.
     """
     data, status = _verify_token(token, key=confirmation_signing_key())
-    if status != 1:
+    if status != 1 and _legacy_confirmation_key_allowed():
         # Links mailed before the derived key existed are signed with SECRET_KEY and
-        # stay valid for their hour. Remove this fallback an hour after the first
-        # deploy that signs with the derived key (docs/token-lifecycle.md).
+        # stay valid for their hour; the fallback ends at CONFIRMATION_LEGACY_KEY_UNTIL.
         data, status = _verify_token(token)
     if status == 1 and data and isinstance(data, dict) and _purpose_allows(data, "email_confirmation"):
         return data.get("email")

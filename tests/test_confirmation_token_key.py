@@ -68,3 +68,63 @@ def test_confirmation_verifier_still_refuses_what_it_refused(app):
         # alg none is never accepted.
         unsigned = jwt.encode({"email": "a@example.test", "purpose": "email_confirmation"}, None, algorithm="none")
         assert verify_confirmation_token(unsigned) is None
+
+
+def test_legacy_key_fallback_stops_after_the_cutoff(app, monkeypatch):
+    from mielenosoitukset_fi.utils import auth
+
+    with app.app_context():
+        old = auth._generate_token({"email": "a@example.test", "purpose": "email_confirmation"}, 3600)
+        assert auth.verify_confirmation_token(old) == "a@example.test"
+        after = auth.CONFIRMATION_LEGACY_KEY_UNTIL + timedelta(seconds=1)
+        monkeypatch.setattr(auth, "utcnow", lambda: after)
+        # The derived-key token (exp is real time, so check only the fallback decision).
+        assert auth._legacy_confirmation_key_allowed() is False
+        assert auth.verify_confirmation_token(old) is None
+        monkeypatch.setattr(auth, "utcnow", lambda: auth.CONFIRMATION_LEGACY_KEY_UNTIL - timedelta(seconds=1))
+        assert auth._legacy_confirmation_key_allowed() is True
+
+
+def test_derivation_accepts_bytes_and_str_secrets():
+    from mielenosoitukset_fi.utils.auth import derive_confirmation_key
+
+    assert derive_confirmation_key("k" * 40) == derive_confirmation_key(b"k" * 40) == _derive("k" * 40)
+    assert derive_confirmation_key("a" * 40) != derive_confirmation_key("b" * 40)
+
+
+def test_write_confirmation_key_script(tmp_path, capsys):
+    import os
+    import stat
+    import sys
+
+    sys.path.insert(0, "scripts")
+    import write_confirmation_key as script
+
+    secret = "s3cret-" + "x" * 40
+    config = tmp_path / "config.yaml"
+    config.write_text(f"SECRET_KEY: {secret}\nOTHER: 1\n")
+    env = tmp_path / "environment"
+    env.write_text("KEEP=1\nEMAIL_CONFIRM_JWT_KEY=old\nALSO=2")
+    os.chmod(env, 0o644)
+    script.write_key(str(config), str(env))
+    text = env.read_text()
+    assert text == f"KEEP=1\nALSO=2\nEMAIL_CONFIRM_JWT_KEY={_derive(secret)}\n"
+    assert secret not in text
+    assert stat.S_IMODE(os.stat(env).st_mode) == 0o600
+    # A missing target file is created, private.
+    fresh = tmp_path / "new-environment"
+    script.write_key(str(config), str(fresh))
+    assert fresh.read_text() == f"EMAIL_CONFIRM_JWT_KEY={_derive(secret)}\n" and stat.S_IMODE(os.stat(fresh).st_mode) == 0o600
+    # A weak or missing secret writes nothing.
+    config.write_text("SECRET_KEY: short\n")
+    import pytest as _pytest
+    with _pytest.raises(SystemExit):
+        script.write_key(str(config), str(tmp_path / "never"))
+    assert not (tmp_path / "never").exists()
+    # The script's own output never contains the key.
+    capsys.readouterr()
+    config.write_text(f"SECRET_KEY: {secret}\n")
+    sys.argv = ["write_confirmation_key.py", "--config", str(config), "--env-file", str(env)]
+    script.main()
+    out = capsys.readouterr()
+    assert out.out.strip() == "written" and _derive(secret) not in out.out + out.err

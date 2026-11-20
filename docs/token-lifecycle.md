@@ -71,8 +71,25 @@ reset tokens. Flask accepts both for the one-hour overlap: tokens signed with th
 the old `SECRET_KEY` ones, with the same purpose rule as before.
 
 - Nothing else changes: same claims, same one hour lifetime, same `/users/auth/confirm_email/<token>` URL.
-- After one hour from the first deploy, delete the fallback (the second `_verify_token(token)` call in
-  `verify_confirmation_token`). It is harmless to leave.
+- The fallback stops by itself at `CONFIRMATION_LEGACY_KEY_UNTIL` (31 January 2027, UTC), long after the
+  last old link has expired. Delete the constant and the fallback afterwards; leaving them is harmless.
+- **Rotating `SECRET_KEY` changes the derived key.** The key held by Go (`EMAIL_CONFIRM_JWT_KEY`) must then be
+  derived again with the script below and Go restarted, or Go refuses new confirmation links.
 - Revert: restore `generate_confirmation_token` to sign with `SECRET_KEY` and keep the dual verify;
   links already mailed with the derived key then fail for their remaining hour at most.
 - Not changed here: the Go route and its `EMAIL_CONFIRM_JWT_KEY` stay unset until this is live and reviewed.
+
+### Writing the derived key to the Go environment (operator, on the Flask host)
+
+Only the derived key goes to Go, never `SECRET_KEY`. This runs once at activation of the Go route
+(`docs/email-confirm-react.md`), as a user who can read `config.yaml` and write the Go environment file:
+
+```bash
+sudo python3 scripts/write_confirmation_key.py
+```
+
+The key is computed inside the script from `config.yaml`, so it never appears on a command line, in the
+shell history or in the output (the script prints only `written`). It replaces any existing
+`EMAIL_CONFIRM_JWT_KEY` line in `/etc/mielenosoitukset-api/environment`, keeps every other line, and leaves the
+file at mode 600 through a private temporary file and an atomic replace. Restart the Go API afterwards.
+`--config` and `--env-file` override the default paths. Covered by `tests/test_confirmation_token_key.py`.
