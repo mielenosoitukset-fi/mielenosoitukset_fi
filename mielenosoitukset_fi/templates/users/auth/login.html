@@ -123,7 +123,7 @@
 </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/webauthn.js', v='20261003-conditional-passkey-1') }}"></script>
+<script src="{{ url_for('static', filename='js/webauthn.js', v='20261120-passkey-next-1') }}"></script>
 <script>
 const loginMessages = {
   unsupportedPasskey: {{ _('Selaimesi ei tue passkey-kirjautumista.')|tojson }},
@@ -134,6 +134,7 @@ const loginMessages = {
   showPassword: {{ _('Näytä salasana')|tojson }},
   hidePassword: {{ _('Piilota salasana')|tojson }}
 };
+const loginNext = {{ next|tojson }};
 const loginForm = document.getElementById('login-form');
 const loginContainer = document.getElementById('login-cont');
 const twoFaContainer = document.getElementById('2fa');
@@ -233,7 +234,7 @@ passkeyButton.addEventListener('click', async function () {
   passkeyButton.disabled = true;
   hideMessage('error-message');
   try {
-    const redirect = await signInWithPasskey(document.getElementById('username').value.trim());
+    const redirect = await signInWithPasskey(document.getElementById('username').value.trim(), { next: loginNext });
     completePasskeyLogin(redirect);
   } catch (error) {
     if (error.name !== 'NotAllowedError' && error.name !== 'AbortError') setMessage('error-message', error.message, 'error');
@@ -247,7 +248,7 @@ async function startConditionalPasskey() {
   try {
     if (!await PublicKeyCredential.isConditionalMediationAvailable()) return;
     conditionalPasskeyController = new AbortController();
-    const redirect = await signInWithPasskey('', { mediation: 'conditional', signal: conditionalPasskeyController.signal });
+    const redirect = await signInWithPasskey('', { mediation: 'conditional', signal: conditionalPasskeyController.signal, next: loginNext });
     completePasskeyLogin(redirect);
   } catch (error) {
     if (error.name !== 'NotAllowedError' && error.name !== 'AbortError') console.warn('Conditional passkey sign-in unavailable', error);

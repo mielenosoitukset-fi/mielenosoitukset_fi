@@ -851,6 +851,9 @@ def mfa_check():
 from urllib.parse import unquote, urlparse
 
 
+_POST_LOGIN_PAGES_UNDER_API = frozenset({"/api/admin/mcp/oauth/authorize"})
+
+
 def _normalize_post_login_target(target: str | None) -> str:
     # Require an unambiguous origin-relative URL. Do not repair backslashes or
     # controls: browsers and URL parsers can interpret those differently.
@@ -874,6 +877,10 @@ def _normalize_post_login_target(target: str | None) -> str:
         return url_for("index")
 
     # Post-login redirects should land on human-facing pages, not raw APIs.
+    # The MCP OAuth consent page lives under /api/ but is an HTML page that
+    # sends signed-out admins here first.
+    if path in _POST_LOGIN_PAGES_UNDER_API:
+        return candidate
     if path in {"/api", "/users/auth/api"} or path.startswith(("/api/", "/users/auth/api/")):
         return url_for("index")
 
@@ -898,8 +905,13 @@ def login():
         response = current_app.make_response(handle_action(_get_mongo(), request.get_json(silent=True)))
         response.headers["Cache-Control"] = "no-store"
         return response
-    # Get the next page from GET param or from session fallback
-    next_page = request.args.get("next") or session.get("next_page") or ""
+    # A GET starts a new sign-in, so only its own ``next`` counts; an older
+    # stored target must not leak into it. A POST may fall back to the target
+    # saved when its login page was shown.
+    next_page = request.args.get("next")
+    if not next_page and request.method == "POST":
+        next_page = session.get("next_page")
+    next_page = next_page or ""
     safe_next_page = _normalize_post_login_target(next_page)
 
     # Save the safe next page to session in case of POST failures

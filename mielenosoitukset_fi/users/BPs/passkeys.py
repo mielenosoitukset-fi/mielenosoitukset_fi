@@ -203,11 +203,20 @@ def passkey_login_verify():
         user_id=user._id,
     )
 
-    safe_next_page = _normalize_post_login_target(data.get("next") or "")
-    if user.forced_pwd_reset:
-        safe_next_page = url_for("users.auth.forced_pwd_reset")
-    if user.forced_identity_change:
-        safe_next_page = url_for("users.auth.forced_identity_change")
+    # The login page stores its normalized ``next`` in the session; an
+    # explicit value from the page script wins. Both are normalized again.
+    stored_next_page = session.pop("next_page", None)
+    safe_next_page = _normalize_post_login_target(
+        data.get("next") or stored_next_page or ""
+    )
+    if user.forced_pwd_reset or user.forced_identity_change:
+        # Keep the target for after the forced step, as password login does.
+        session["next_page"] = safe_next_page
+        safe_next_page = url_for(
+            "users.auth.forced_pwd_reset"
+            if user.forced_pwd_reset
+            else "users.auth.forced_identity_change"
+        )
 
     return jsonify({"status": "success", "redirect": safe_next_page})
 
