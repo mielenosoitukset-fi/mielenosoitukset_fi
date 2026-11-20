@@ -76,3 +76,18 @@ def test_org_invite_request_helpers():
     assert out["acceptCalls"] == 8
     assert out["acceptInit"] == [f"/api/organizations/{org}/invitation/accept", "POST", "same-origin", "tok", "{}"]
     assert out["login"] == "/users/auth/login?next=%2Fusers%2Forgs%2Faccept_invite%3Forganization_id%3D" + org
+
+
+COPY_SCRIPT = """
+import { orgInviteCopy as c } from './frontend/src/app/org-invite.ts';
+console.log(JSON.stringify([c.wrongAccount, c.logout, c.retry, c.reload]));
+"""
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node is required")
+def test_wrong_account_and_retry_copy():
+    result = subprocess.run(["node", "--experimental-strip-types", "--input-type=module", "-e", COPY_SCRIPT],
+                            cwd=ROOT, capture_output=True, text=True, check=True)
+    out = json.loads(result.stdout.strip().splitlines()[-1])
+    # One short sentence (docs/finnish-style.md), then the actions.
+    assert out == ["Olet ehkä kirjautunut eri tilillä kuin se, jolle kutsu lähetettiin.", "Kirjaudu ulos", "Yritä uudelleen", "Lataa sivu uudelleen"]

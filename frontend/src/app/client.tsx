@@ -83,7 +83,7 @@ if (container) {
     } else if (route?.name === 'org-invite') {
       const organizationId = props.orgInvite?.organizationId ?? null;
       void import('./OrgInviteScreen').then(({ default: OrgInviteScreen }) => {
-        hydrateRoot(container, <Root {...props} serverPage={<OrgInviteScreen organizationId={organizationId} loginUrl={props.config.urls.login} />} />);
+        hydrateRoot(container, <Root {...props} serverPage={<OrgInviteScreen organizationId={organizationId} loginUrl={props.config.urls.login} logoutUrl={props.config.urls.logout} />} />);
       }).catch(error => console.error('Could not start the invitation page', error));
     } else if (route?.name === 'developer') {
       const appId = route.appId;

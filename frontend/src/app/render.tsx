@@ -534,7 +534,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     extraHead = (assets.orgInvite ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
     noscript = `<noscript><p class="container-main-content">${orgInviteCopy.noscript}</p></noscript>`;
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
-      serverPage={<OrgInviteScreen organizationId={orgInvite.organizationId} loginUrl={config.urls.login} />} />);
+      serverPage={<OrgInviteScreen organizationId={orgInvite.organizationId} loginUrl={config.urls.login} logoutUrl={config.urls.logout} />} />);
   }
 
   if (route.name === 'account-settings') {
