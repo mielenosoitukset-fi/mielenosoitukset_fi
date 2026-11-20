@@ -13,6 +13,8 @@ reviewed and applied.
 """
 import os
 
+from bson import ObjectId
+
 from mielenosoitukset_fi.utils.classes import Case
 from mielenosoitukset_fi.utils.logger import logger
 from mielenosoitukset_fi.utils.time_utils import utcnow
@@ -37,6 +39,8 @@ def _open_without_case():
                 {"status": {"$exists": False}},
             ]},
             {"$or": [{"case_id": {"$exists": False}}, {"case_id": None}]},
+            # A broken suggestion is skipped for good, so it cannot block newer ones.
+            {"case_skipped": {"$exists": False}},
         ]
     }
 
@@ -73,9 +77,11 @@ def deliver_pending(db, limit=100):
     """Create a case for each open suggestion that has none yet."""
     delivered = 0
     for suggestion in db.demo_suggestions.find(_open_without_case()).sort("created_at", 1).limit(limit):
-        if not suggestion.get("demo_id"):
-            continue
         case_id = suggestion["_id"]
+        if not ObjectId.is_valid(str(suggestion.get("demo_id") or "")):
+            db.demo_suggestions.update_one({"_id": case_id}, {"$set": {"case_skipped": "invalid_demo_id"}})
+            logger.warning("Demo suggestion %s has no valid demo_id; no case opened", case_id)
+            continue
         try:
             if not db.cases.find_one({"_id": case_id}, {"_id": 1}):
                 db.cases.update_one({"_id": case_id}, {"$setOnInsert": _case_document(db, suggestion)}, upsert=True)

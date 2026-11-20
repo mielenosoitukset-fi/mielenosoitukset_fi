@@ -251,3 +251,12 @@ def test_city_admin_toggles_case_emails(app, db, seeded_data, monkeypatch):
     # Global admins are always mailed and get no toggle.
     admin_page = _client_for_user(app, seeded_data["admin_id"]).get("/admin/case/").get_data(as_text=True)
     assert "sähköpostit uusista tapauksista" not in admin_page
+
+
+def test_broken_suggestion_is_skipped_once(db, seeded_data):
+    broken = ObjectId()
+    db.demo_suggestions.insert_one({"_id": broken, "demo_id": "not-an-id", "status": "new", "created_at": utcnow() - timedelta(days=1)})
+    assert _run(db, {"DEMO_SUGGESTION_CASES_ENABLED": "1"})["opened"] == 1
+    assert db.demo_suggestions.find_one({"_id": broken})["case_skipped"] == "invalid_demo_id"
+    assert db.cases.find_one({"_id": broken}) is None
+    assert db.cases.find_one({"_id": seeded_data["suggestion_id"]})["type"] == "demo_edit_suggestion"

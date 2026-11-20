@@ -216,15 +216,22 @@ def deliver_pending(db, now=None, limit=100, email_sender=None):
 
 
 def notice_visible(db, doc, user_id, user_cache):
-    """Inbox read check: the case is still open and the reader may still view it."""
+    """Inbox read check: the case is still open and the reader may still view it.
+
+    The reader's case scope is resolved once per inbox read (``user_cache``),
+    not once per notice, because the inbox is read on every page render.
+    """
     from mielenosoitukset_fi.users.models import User
 
     case_id = (doc.get("payload") or {}).get("case_id")
-    case = db.cases.find_one({"_id": case_id}, {"meta.closed": 1}) if case_id is not None else None
-    if not case or (case.get("meta") or {}).get("closed"):
+    if case_id is None:
         return False
-    if "user" not in user_cache:
+    if "scope" not in user_cache:
         user_doc = db.users.find_one({"_id": ObjectId(user_id)})
-        user_cache["user"] = User.from_db(user_doc) if user_doc and active_account(user_doc) else None
-    user = user_cache["user"]
-    return bool(user) and _can_view(db, user, case_id)
+        user = User.from_db(user_doc) if user_doc and active_account(user_doc) else None
+        user_cache["scope"] = case_scope_query(user, "VIEW_CASE") if user else None
+    scope = user_cache["scope"]
+    if scope is None:
+        return False
+    query = {"$and": [scope, {"_id": case_id, "meta.closed": {"$ne": True}}]}
+    return db.cases.find_one(query, {"_id": 1}) is not None
