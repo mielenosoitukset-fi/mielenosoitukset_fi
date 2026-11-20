@@ -96,6 +96,10 @@ No new schema, index or collection. Needs: the Go API user can write `volunteers
    ```
 
    Reload Apache. The React form posts same-origin, so nothing else changes.
+7. Check that Go sees the real visitor address, not Apache's or Cloudflare's: otherwise every visitor shares one key and the limit of
+   5 per hour blocks everyone. Sign up once with a scratch address through `https://mielenosoitukset.fi`, then check that the newest
+   `volunteer_signup_attempts` key starting with `ip:` equals `ip:` plus the SHA-256 of your own public address in lower case (for
+   example `printf %s "$MY_IP" | sha256sum`). If it does not match, remove the Apache rule again. Delete the test rows afterwards.
 
 ## Revert
 
