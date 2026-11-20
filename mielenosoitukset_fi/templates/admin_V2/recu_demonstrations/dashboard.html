@@ -102,7 +102,7 @@
 
             {% if current_user.has_permission("DELETE_RECURRING_DEMO") %}
             <button type="button" class="btn btn-sm btn-outline-danger"
-              onclick="openModal(event, '{{ demo.title }}', '{{ demo._id }}', 'recu')">
+              data-demo-title="{{ demo.title }}" onclick="openModal(event, this.dataset.demoTitle, '{{ demo._id }}', 'recu')">
               <i class="fas fa-trash-alt"></i> {{ _('Poista') }}
             </button>
             {% else %}

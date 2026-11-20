@@ -331,11 +331,23 @@ def preview_recurrence_dates():
         break_dates,
         limit=12,
     )
+    cancels_children = notifies_attendees = 0
+    series_id = request.args.get("demo_id")
+    if (
+        series_id
+        and ObjectId.is_valid(series_id)
+        and current_user.has_permission("EDIT_RECURRING_DEMO")
+    ):
+        cancels_children, notifies_attendees = _break_date_cancellation_preview(
+            ObjectId(series_id), break_dates
+        )
     return jsonify(
         {
             "dates": [value.isoformat() for value in dates],
             "has_more": has_more,
             "excluded_break_dates": excluded_count,
+            "cancels_children": cancels_children,
+            "notifies_attendees": notifies_attendees,
         }
     )
 
@@ -393,22 +405,42 @@ def _cancel_recurring_children(parent_id, child_query, reason, action, message):
     return matched_count, cancelled_count
 
 
-def _cancel_children_for_break_dates(parent_id, break_dates):
-    """Mark already-created children on break dates as cancelled."""
-    if not break_dates:
-        return 0, 0
+def _break_date_child_query(parent_id, break_dates):
+    """Children that saving these break dates would cancel (frozen ones are kept)."""
     parent = mongo.recu_demos.find_one({"_id": parent_id}) or {}
     frozen_ids = {str(child_id) for child_id in parent.get("freezed_children", [])}
     frozen_object_ids = [
         ObjectId(child_id) for child_id in frozen_ids if ObjectId.is_valid(child_id)
     ]
+    return {
+        "parent": parent_id,
+        "date": {"$in": list(break_dates)},
+        "_id": {"$nin": frozen_object_ids},
+    }
+
+
+def _break_date_cancellation_preview(parent_id, break_dates):
+    """Count children a save would cancel and the attendees who would be notified."""
+    if not break_dates:
+        return 0, 0
+    query = _break_date_child_query(parent_id, break_dates)
+    query["cancelled"] = {"$ne": True}
+    child_ids = [doc["_id"] for doc in mongo.demonstrations.find(query, {"_id": 1})]
+    if not child_ids:
+        return 0, 0
+    attendees = mongo.demo_attending.count_documents(
+        {"demo_id": {"$in": child_ids}, "attending": True}
+    )
+    return len(child_ids), attendees
+
+
+def _cancel_children_for_break_dates(parent_id, break_dates):
+    """Mark already-created children on break dates as cancelled."""
+    if not break_dates:
+        return 0, 0
     return _cancel_recurring_children(
         parent_id,
-        {
-            "parent": parent_id,
-            "date": {"$in": break_dates},
-            "_id": {"$nin": frozen_object_ids},
-        },
+        _break_date_child_query(parent_id, break_dates),
         "Toistuvan mielenosoituksen taukopäivä",
         "cancel_recurring_child_break",
         "Lapsimielenosoitus peruttiin sarjan taukopäivän vuoksi",
@@ -992,6 +1024,12 @@ def bulk_update_children(demo_id):
         child_query["_id"] = {"$in": child_ids}
 
     children = mongo.demonstrations.find(child_query)
+    # Approval is never copied as a raw field: approving goes through the one
+    # decision service (case closing, links, audit) like every other path,
+    # and a pending series never un-approves its children.
+    approval_requested = "approved" in requested_fields
+    approve_children = approval_requested and bool(parent.get("approved"))
+    requested_fields = [field for field in requested_fields if field != "approved"]
     update_fields = {}
     for field_group in requested_fields:
         for child_field in CHILD_BULK_FIELD_MAP[field_group]:
@@ -1005,7 +1043,21 @@ def bulk_update_children(demo_id):
 
     updated_ids = []
     updated_count = 0
+    approved_count = 0
+    skipped_count = 0
+    if approve_children:
+        from mielenosoitukset_fi.admin.admin_demo_bp import _apply_demo_decision
     for child in children:
+        if approve_children and not child.get("approved") and not child.get("rejected"):
+            if has_demo_approval_permission(current_user, child):
+                result = _apply_demo_decision(
+                    str(child["_id"]), "approved", source="admin_recurring_bulk"
+                )
+                approved_count += int(result.changed)
+            else:
+                skipped_count += 1
+        if not update_fields:
+            continue
         new_child = deepcopy(child)
         new_child.update(deepcopy(update_fields))
         mongo.demonstrations.update_one(
@@ -1032,11 +1084,29 @@ def bulk_update_children(demo_id):
             {"$addToSet": {"freezed_children": {"$each": updated_ids}}},
         )
 
-    flash_message(
-        "Päivitettiin %(count)s lapsimielenosoitusta.",
-        "success",
-        count=updated_count,
-    )
+    if update_fields:
+        flash_message(
+            "Päivitettiin %(count)s lapsimielenosoitusta.",
+            "success",
+            count=updated_count,
+        )
+    if approve_children:
+        flash_message(
+            "Hyväksyttiin %(count)s lapsimielenosoitusta.",
+            "success",
+            count=approved_count,
+        )
+    if skipped_count:
+        flash_message(
+            "Käyttöoikeutesi eivät riitä hyväksymään %(count)s lapsimielenosoitusta.",
+            "warning",
+            count=skipped_count,
+        )
+    if approval_requested and not approve_children:
+        flash_message(
+            "Sarjaa ei ole hyväksytty, joten lapsimielenosoituksia ei hyväksytty.",
+            "warning",
+        )
     return redirect(url_for("admin_recu_demo.edit_recu_demo", demo_id=demo_id))
 
 

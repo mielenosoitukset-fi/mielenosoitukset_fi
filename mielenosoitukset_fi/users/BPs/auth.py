@@ -72,8 +72,13 @@ MFA_PENDING_LOGIN_MAX_ATTEMPTS = 5
 
 
 LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60
+# Failures for one username from one address. Counting per address keeps a
+# stranger from locking an account out of every network with a few guesses.
 LOGIN_FAILURES_PER_USERNAME = 10
 LOGIN_FAILURES_PER_IP = 30
+# Failures for one username from all addresses together: a ceiling for
+# guessing spread across many addresses, out of reach of a single client.
+LOGIN_FAILURES_PER_USERNAME_ALL_IPS = 100
 LOGIN_THROTTLED_MESSAGE = "Liian monta epäonnistunutta kirjautumisyritystä. Yritä uudelleen 15 minuutin kuluttua."
 
 
@@ -81,9 +86,11 @@ def _login_failure_keys(username, ip):
     """Hashed per-window keys, so no username or IP address is stored in clear."""
     bucket = int(utcnow().timestamp()) // LOGIN_FAILURE_WINDOW_SECONDS
     keys = {}
+    user = (username or "").casefold()
     for kind, identity, limit in (
-        ("user", (username or "").casefold(), LOGIN_FAILURES_PER_USERNAME),
+        ("user-ip", f"{user}\n{ip}" if user and ip else "", LOGIN_FAILURES_PER_USERNAME),
         ("ip", ip or "", LOGIN_FAILURES_PER_IP),
+        ("user", user, LOGIN_FAILURES_PER_USERNAME_ALL_IPS),
     ):
         if identity:
             keys["login-limit:" + _pending_mfa_digest(f"{kind}:{identity}:{bucket}")] = limit
@@ -962,7 +969,8 @@ def login():
         return response
     # A GET starts a new sign-in, so only its own ``next`` counts; an older
     # stored target must not leak into it. A POST may fall back to the target
-    # saved when its login page was shown.
+    # saved when its login page was shown (only the legacy Flask page stores
+    # one; the React page always posts an explicit ``next``).
     next_page = request.args.get("next")
     if not next_page and request.method == "POST":
         next_page = session.get("next_page")
@@ -1007,7 +1015,9 @@ def login():
                     user_id=user._id,
                 )
                 flash_message("Väärä MFA-koodi.", "error")
-                return redirect(url_for("users.auth.login", next=safe_next_page))
+                # mfa=1 only tells the page to show the code step again; the
+                # server-held proof decides whether a code is still accepted.
+                return redirect(url_for("users.auth.login", next=safe_next_page, mfa=1))
             user = _consume_pending_mfa_login(user)
             if not user:
                 _clear_pending_mfa_login()
@@ -1064,7 +1074,7 @@ def login():
             if user.mfa_enabled and not mfa_code:
                 _clear_pending_mfa_login()
                 _set_pending_mfa_login(user)
-                return redirect(url_for("users.auth.login", next=safe_next_page))
+                return redirect(url_for("users.auth.login", next=safe_next_page, mfa=1))
             if user.mfa_enabled and not meow(user):
                 log_login_attempt(username, success=False, ip=user_ip, user_agent=user_agent, reason="MFA failed", user_id=user._id)
                 return redirect(url_for("users.auth.login", next=safe_next_page))
