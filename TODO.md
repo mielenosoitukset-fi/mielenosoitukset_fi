@@ -103,12 +103,12 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 
 ## Security and permissions
 
-- [ ] **SEC-01:** release acceptance evidence for the MFA challenge (#901).
+- [ ] **SEC-01:** release acceptance evidence for the MFA challenge (#901). Code and test evidence recorded in [docs/sec-01-mfa-acceptance.md](docs/sec-01-mfa-acceptance.md) (20 November 2026); a manual sign-in with a real authenticator remains.
 - [ ] **SEC-03:** broader role and audit acceptance after #917/#918/#919.
 - [x] **SEC-04:** token and approval lifecycle: revocation, expiry, replay, idempotent decisions. Inventory and open questions in [docs/token-lifecycle.md](docs/token-lifecycle.md).
-- [ ] **SEC-05:** review incident #912/#913 protections before touching related code.
+- [x] **SEC-05:** review incident #912/#913 protections before touching related code. Reviewed 20 November 2026: acknowledgement suppression and contact intake protections hold in Flask and in the Go `/contact` route. Follow-ups are tracked privately.
 - [x] Harden privileged admin user actions (#547), organization membership and invites (#550, #342), and the organization admin panel (#549): done in #918/#919; issues closed 20 November 2026. Broader acceptance stays in SEC-03.
-- [ ] **QA-01:** finish the individual review of authentication and permission tests. QA-01j (#966), QA-01k (#973 via #964) and QA-01m (#1114, superseding #979) are merged. Remaining: other authentication and permission test files, see the roadmap.
+- [ ] **QA-01:** finish the individual review of authentication and permission tests. QA-01j (#966), QA-01k (#973 via #964) and QA-01m (#1114, superseding #979) are merged. `test_auth_bridge_session.py` reviewed 20 November 2026 (cross-organization check added). Remaining: other authentication and permission test files, see the roadmap.
 
 ## Data, jobs and integrations
 

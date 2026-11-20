@@ -87,9 +87,10 @@ def configure(source, target):
         # maintainer's go); `ACCOUNT_SETTINGS_READS: false` in config.yaml opts out.
         if config.get("ACCOUNT_SETTINGS_READS", True) is True:
             values["ACCOUNT_SETTINGS_READS_ENABLED"] = "true"
-            # Bio and general writes (steps 3a, 3b): their own switch, and only on
-            # top of reads that are set explicitly in config.yaml.
-            if config.get("ACCOUNT_SETTINGS_READS") is True and config.get("ACCOUNT_SETTINGS_WRITES") is True:
+            # Bio and general writes (steps 3a, 3b) and later account writes: their
+            # own switch, on by default since 20 November 2026 (maintainer's go;
+            # `ACCOUNT_SETTINGS_WRITES: false` opts out), and only on top of reads.
+            if config.get("ACCOUNT_SETTINGS_WRITES", True) is True:
                 values["ACCOUNT_SETTINGS_WRITES_ENABLED"] = "true"
     # Public profile reads (docs/account-pages-react.md): GET /api/profile/<username>.
     # Its own switch, off by default and independent of the bridge; the own and

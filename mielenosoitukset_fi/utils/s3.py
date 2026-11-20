@@ -69,6 +69,34 @@ def create_s3_client():
 _s3_client = create_s3_client()
 
 
+# Health checks must answer quickly exactly when storage is down, so they use
+# their own client with short timeouts and no retries. Uploads keep the
+# default client and its longer timeouts.
+S3_PROBE_CONNECT_TIMEOUT = 2
+S3_PROBE_READ_TIMEOUT = 3
+_s3_probe_client = None
+
+
+def s3_probe_client():
+    """Return a cached S3 client for health checks, or None without credentials."""
+    global _s3_probe_client
+    if _s3_probe_client is None and _s3_client is not None:
+        from botocore.config import Config as BotoConfig
+
+        _s3_probe_client = boto3.client(
+            "s3",
+            aws_access_key_id=Config.ACCESS_KEY,
+            aws_secret_access_key=Config.S3_SECRET_KEY,
+            endpoint_url=Config.ENDPOINT_URL,
+            config=BotoConfig(
+                connect_timeout=S3_PROBE_CONNECT_TIMEOUT,
+                read_timeout=S3_PROBE_READ_TIMEOUT,
+                retries={"total_max_attempts": 1},
+            ),
+        )
+    return _s3_probe_client
+
+
 def retry_with_graze(max_retries=_max_retries, delay=_retry_delay):
     """
     Decorator to retry a function with exponential backoff and a graze handler.
