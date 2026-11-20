@@ -2014,11 +2014,18 @@ def _collect_infra_health() -> dict:
 
     # S3
     try:
-        from mielenosoitukset_fi.utils.s3 import _s3_client
-        if _s3_client is None:
+        from botocore.exceptions import ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError
+        from mielenosoitukset_fi.utils.s3 import s3_probe_client
+
+        probe = s3_probe_client()
+        if probe is None:
             raise RuntimeError("S3 client not initialised")
-        _s3_client.list_buckets()
-        services.append({"name": "S3 / Tiedostovarasto", "status": "ok", "message": "Saavutettavissa"})
+        try:
+            probe.list_buckets()
+        except (ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError):
+            services.append({"name": "S3 / Tiedostovarasto", "status": "err", "message": _("S3 ei vastaa")})
+        else:
+            services.append({"name": "S3 / Tiedostovarasto", "status": "ok", "message": "Saavutettavissa"})
     except Exception as exc:
         services.append({"name": "S3 / Tiedostovarasto", "status": "err", "message": str(exc)})
 
