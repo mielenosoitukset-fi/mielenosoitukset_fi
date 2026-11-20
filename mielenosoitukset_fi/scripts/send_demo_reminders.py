@@ -97,7 +97,7 @@ def parse_time_string(time_str):
             continue
     raise ValueError(f"Invalid time format: {time_str}")
 
-def generate_ical_event(title, start_date, start_time, city, address, description=None):
+def generate_ical_event(title, start_date, start_time, city, address, description=None, end_date=None, end_time=None):
     """
     Generate an iCalendar (ICS) event string for a demonstration.
 
@@ -115,6 +115,9 @@ def generate_ical_event(title, start_date, start_time, city, address, descriptio
         Event address.
     description : str, optional
         Event description.
+    end_date, end_time : str, optional
+        Last day (``YYYY-MM-DD``) and end time of a multi-day demonstration;
+        the event then ends on that day instead of two hours after the start.
 
     Returns
     -------
@@ -124,6 +127,16 @@ def generate_ical_event(title, start_date, start_time, city, address, descriptio
     dt_fmt = "%Y%m%dT%H%M%S"
     dt = datetime.strptime(f"{start_date} {start_time[:5]}", "%Y-%m-%d %H:%M")
     dtend = dt + timedelta(hours=2)
+    if end_date and str(end_date) > str(start_date):
+        try:
+            last_day = datetime.strptime(str(end_date), "%Y-%m-%d")
+            clock = str(end_time or "")[:5]
+            if clock:
+                dtend = datetime.strptime(f"{end_date} {clock}", "%Y-%m-%d %H:%M")
+            else:
+                dtend = last_day.replace(hour=dt.hour, minute=dt.minute) + timedelta(hours=2)
+        except ValueError:
+            pass
     dtstart_str = dt.strftime(dt_fmt)
     dtend_str = dtend.strftime(dt_fmt)
     ical = (

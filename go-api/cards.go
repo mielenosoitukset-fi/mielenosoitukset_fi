@@ -47,6 +47,26 @@ func cardDate(value any) (string, bool) {
 	return parsed.Format("02.01.2006"), err == nil
 }
 
+// cardDateRange is cardDate for a multi-day demonstration: "01.12.–03.12.2026"
+// within one year, otherwise both full dates. A missing, invalid or
+// non-later end date gives the one-day display.
+func cardDateRange(start, end any) (string, bool) {
+	day, valid := cardDate(start)
+	last, _ := end.(string)
+	if !valid || last == "" {
+		return day, valid
+	}
+	from, _ := time.Parse("2006-01-02", start.(string))
+	to, err := time.Parse("2006-01-02", last)
+	if err != nil || !to.After(from) {
+		return day, valid
+	}
+	if from.Year() == to.Year() {
+		return from.Format("02.01.") + "–" + to.Format("02.01.2006"), true
+	}
+	return from.Format("02.01.2006") + "–" + to.Format("02.01.2006"), true
+}
+
 func homeClock(value any) string {
 	clock, _ := value.(string)
 	parts := strings.Split(clock, ":")
@@ -60,12 +80,12 @@ func homeCards(docs []bson.M, lang string) []bson.M {
 	events := []bson.M{}
 	for _, doc := range docs {
 		payload := publicPayload(doc, lang)
-		day, valid := cardDate(payload["date"])
+		day, valid := cardDateRange(payload["date"], payload["end_date"])
 		if !valid {
 			continue
 		}
 		event := bson.M{}
-		for _, field := range []string{"_id", "title", "date", "city", "address", "tags"} {
+		for _, field := range []string{"_id", "title", "date", "end_date", "city", "address", "tags"} {
 			event[field] = payload[field]
 		}
 		event["date_display"] = day

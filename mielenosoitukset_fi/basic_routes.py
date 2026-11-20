@@ -3539,6 +3539,8 @@ def init_routes(app):
             demo_obj.city or "",
             demo_obj.address or "",
             description_plain,
+            end_date=getattr(demo_obj, "end_date", None),
+            end_time=demo_obj.end_time,
         )
 
         filename_base = secure_filename(f"{demo_obj.title or 'mielenosoitus'}.ics") or "mielenosoitus.ics"
