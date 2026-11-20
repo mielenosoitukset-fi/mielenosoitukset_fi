@@ -8,7 +8,7 @@ export default function StatusScreen({ status }: { status: ServiceStatus | null 
       <h1 id="status-title">{statusTitle}</h1><p>{statusLead}</p>
     </header>
     <p className={`service-status-summary service-status--${status?.overall_ok ? 'ok' : 'err'}`} role="status">
-      {status ? (status.overall_ok ? 'Kaikki palvelut toimivat' : 'Jokin palvelu ei vastaa') : statusUnavailable}
+      {status ? (status.overall_ok ? 'Tarkistetut palvelut toimivat' : 'Jokin tarkistettu palvelu ei vastaa') : statusUnavailable}
     </p>
     {status && <>
       <dl className="service-status-list">{status.services.map(service => <div key={service.name}>

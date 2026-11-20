@@ -87,10 +87,37 @@ from mielenosoitukset_fi.demonstrations.rollback import (
 from .pagination import build_admin_pagination, parse_admin_pagination
 
 
-# Secret key for generating tokens
-SECRET_KEY = "your_secret_key"
+class _AppKeySerializer(URLSafeTimedSerializer):
+    """Sign magic links with the app's configured ``SECRET_KEY``, never a constant.
 
-serializer = URLSafeTimedSerializer(SECRET_KEY)
+    The key is read on every use, so links follow the deployed secret. A
+    missing or default key refuses to sign or verify instead of falling back.
+    """
+
+    def __init__(self):
+        super().__init__(b"unused: the key is read from the app config")
+
+    @property
+    def secret_keys(self) -> list[bytes]:
+        secret = current_app.config.get("SECRET_KEY")
+        if not secret or secret == "secret_key":
+            raise RuntimeError("SECRET_KEY must be configured to sign admin magic links")
+        return [secret.encode("utf-8") if isinstance(secret, str) else bytes(secret)]
+
+    @secret_keys.setter
+    def secret_keys(self, _value) -> None:
+        # Serializer.__init__ assigns the constructor key; ignore it.
+        pass
+
+
+serializer = _AppKeySerializer()
+
+
+def _magic_link_payload(demo_id) -> dict:
+    """Every link carries a random id, so it cannot be recomputed from public data."""
+    return {"demo_id": str(demo_id), "jti": secrets.token_urlsafe(24)}
+
+
 admin_demo_bp = Blueprint("admin_demo", __name__, url_prefix="/admin/demo")
 
 from mielenosoitukset_fi.emailer.EmailSender import EmailSender
@@ -1233,7 +1260,7 @@ def rollback_demo(history_id):
 
 # --- SECURITY HARDENED MAGIC LINK SYSTEM --------------------------------------
 # Requirements / assumptions:
-# - `serializer`: itsdangerous.URLSafeTimedSerializer instance
+# - `serializer`: signs with the app SECRET_KEY (see _AppKeySerializer)
 # - `mongo`: PyMongo db handle
 # - CSRF protection enabled (e.g., flask-wtf) for POST handlers rendering forms
 # - app config has PROXIES_COUNT if behind reverse proxy
@@ -1580,7 +1607,7 @@ def _load_demo_or_bust(demo_id: str):
 
 def generate_demo_preview_link(demo_id: str, *, recipient: dict | None = None) -> str:
     # Create signed token and registry doc
-    token = serializer.dumps({"demo_id": str(demo_id), "jti": secrets.token_urlsafe(24)} if recipient else str(demo_id), salt="preview-demo")
+    token = serializer.dumps(_magic_link_payload(demo_id), salt="preview-demo")
     actor = _get_actor_label()
     _registry_upsert_initial(_hash_token(token), "preview", str(demo_id), actor, recipient=recipient)
     demo = _load_demo_or_bust(demo_id)
@@ -1593,7 +1620,7 @@ def generate_demo_preview_link(demo_id: str, *, recipient: dict | None = None) -
     return url_for("admin_demo.preview_demo_with_token", token=token, _external=True)
 
 def generate_demo_approve_link(demo_id: str, *, recipient: dict | None = None) -> str:
-    token = serializer.dumps({"demo_id": str(demo_id), "jti": secrets.token_urlsafe(24)} if recipient else str(demo_id), salt="approve-demo")
+    token = serializer.dumps(_magic_link_payload(demo_id), salt="approve-demo")
     actor = _get_actor_label()
     _registry_upsert_initial(_hash_token(token), "approve", str(demo_id), actor, recipient=recipient)
     demo = _load_demo_or_bust(demo_id)
@@ -1606,7 +1633,7 @@ def generate_demo_approve_link(demo_id: str, *, recipient: dict | None = None) -
     return url_for("admin_demo.approve_demo_with_token", token=token, _external=True)
 
 def generate_demo_reject_link(demo_id: str, *, recipient: dict | None = None) -> str:
-    token = serializer.dumps({"demo_id": str(demo_id), "jti": secrets.token_urlsafe(24)} if recipient else str(demo_id), salt="reject-demo")
+    token = serializer.dumps(_magic_link_payload(demo_id), salt="reject-demo")
     actor = _get_actor_label()
     _registry_upsert_initial(_hash_token(token), "reject", str(demo_id), actor, recipient=recipient)
     demo = _load_demo_or_bust(demo_id)

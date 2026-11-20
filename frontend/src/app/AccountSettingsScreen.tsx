@@ -6,9 +6,13 @@ import { useSession } from './useSession';
 import {
   accountBioMax, accountBioWarnAt, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
   accountSettingsPath, accountStanding, accountTabs, accountTranslationsUrl, classifyAccountResponse, filterCities,
-  generalPayload, nextTabIndex, postBioToGo, postGeneralToGo, postFlaskJson, profilePayload, readAccountSettings, safePicture, tabFromHash,
+  generalPayload, nextTabIndex, passwordFormError, passwordMinLength, passwordRequest, postBioToGo, postGeneralToGo, postFlaskJson, profilePayload,
+  readAccountSettings, readPasswordResult, safePicture, tabFromHash,
 } from './account-settings-route';
 import type { AccountSettingsRead, AccountTabId } from './account-settings-route';
+import { useStepUp } from './StepUpDialog';
+import { MfaCard } from './MfaCard';
+import { PasskeysCard } from './PasskeysCard';
 import { formatDeveloperDate } from './developer-route';
 import './information/information.css';
 import './suggest-change/suggest-change.css';
@@ -127,35 +131,71 @@ function GeneralPanel({ data, report, message }: { data: AccountSettingsRead; re
   </form>;
 }
 
+/** Password change. The write stays in Flask, which asks for step-up; the dialog handles that and the request is retried once. */
+function PasswordCard() {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<Message>(null);
+  const { withStepUp, dialog } = useStepUp();
+  const ids = { current: useId(), next: useId(), help: useId(), confirm: useId() };
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const form = { current, next, confirm };
+    const problem = passwordFormError(form);
+    if (problem) { setMessage({ kind: 'error', text: problem }); return; }
+    setMessage(null); setBusy(true);
+    // The submit button is where focus goes back when the browser did not focus it on click (Safari).
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    let result: Awaited<ReturnType<typeof readPasswordResult>> = null;
+    try { result = await readPasswordResult(await withStepUp(passwordRequest(form), submitter instanceof HTMLElement ? submitter : null), copy.passwordFailed); } catch { result = { ok: false, message: copy.passwordFailed }; }
+    setBusy(false);
+    if (!result) return;
+    if (result.ok) { setCurrent(''); setNext(''); setConfirm(''); }
+    setMessage({ kind: result.ok ? 'info' : 'error', text: result.message });
+  };
+  // The dialog is a sibling, not a child: its own form must not bubble a submit into this one.
+  return <>
+    <form className="suggest-change-form" onSubmit={submit}>
+    <section className="public-prose-card account-card" aria-labelledby={`${ids.current}-title`}>
+      <h2 id={`${ids.current}-title`}>{copy.passwordTitle}</h2>
+      <div className="suggest-change-field">
+        <label htmlFor={ids.current}>{copy.passwordCurrent}</label>
+        <input id={ids.current} type="password" name="current" autoComplete="current-password" required value={current} onChange={event => setCurrent(event.target.value)} />
+      </div>
+      <div className="suggest-change-field">
+        <label htmlFor={ids.next}>{copy.passwordNew}</label>
+        <input id={ids.next} type="password" name="new" autoComplete="new-password" required minLength={passwordMinLength}
+          aria-describedby={ids.help} value={next} onChange={event => setNext(event.target.value)} />
+        <p className="account-muted" id={ids.help}>{copy.passwordHelp}</p>
+      </div>
+      <div className="suggest-change-field">
+        <label htmlFor={ids.confirm}>{copy.passwordConfirm}</label>
+        <input id={ids.confirm} type="password" name="confirm" autoComplete="new-password" required minLength={passwordMinLength}
+          value={confirm} onChange={event => setConfirm(event.target.value)} />
+      </div>
+      <div className="detail-actions">
+        <button type="submit" className="detail-button detail-button--primary" disabled={busy} aria-busy={busy}>
+          {busy ? copy.passwordChanging : copy.passwordTitle}
+        </button>
+      </div>
+      <SaveMessage message={message} />
+    </section>
+    </form>
+    {dialog}
+  </>;
+}
+
 function SecurityPanel({ data }: { data: AccountSettingsRead }) {
   return <div className="account-stack">
     <section className="public-prose-card account-card" aria-labelledby="account-security-title">
       <h2 id="account-security-title">{copy.securityTitle}</h2>
       <p className="account-muted">{copy.securityLead}</p>
-      {notice('info', copy.securityLater)}
     </section>
-    <section className="public-prose-card account-card" aria-labelledby="account-mfa-title">
-      <h2 id="account-mfa-title">{copy.mfaTitle}</h2>
-      <p className="account-muted">{copy.mfaLead}</p>
-      <p><strong>{data.mfa.enabled ? copy.mfaOn : copy.mfaOff}</strong></p>
-      {data.mfa.enabled && <ul className="account-list">
-        {data.mfa.devices.map(device => <li key={device.id}>
-          <strong>{device.name || copy.mfaDevice}</strong>
-          <div className="account-muted">{formatDeveloperDate(device.createdAt)}</div>
-        </li>)}
-      </ul>}
-    </section>
-    <section className="public-prose-card account-card" aria-labelledby="account-passkeys-title">
-      <h2 id="account-passkeys-title">{copy.passkeysTitle}</h2>
-      <p className="account-muted">{copy.passkeysLead}</p>
-      {data.passkeys.length ? <ul className="account-list">
-        {data.passkeys.map(key => <li key={key.id}>
-          <strong>{key.name || copy.passkeyDevice}</strong>
-          <div className="account-muted">{formatDeveloperDate(key.createdAt)}
-            {key.lastUsedAt && <> · {copy.lastUsed}: {formatDeveloperDate(key.lastUsedAt)}</>}</div>
-        </li>)}
-      </ul> : <p className="account-muted">{copy.noPasskeys}</p>}
-    </section>
+    <PasswordCard />
+    <MfaCard initial={data.mfa} />
+    <PasskeysCard initial={data.passkeys} />
     <section className="public-prose-card account-card" aria-labelledby="account-history-title">
       <h2 id="account-history-title">{copy.historyTitle}</h2>
       <div className="account-table-wrap" tabIndex={0} role="region" aria-label={copy.historyTitle}>

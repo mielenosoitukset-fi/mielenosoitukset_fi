@@ -1,0 +1,1 @@
+- Rejecting a demonstration and closing a case now ask for a reason from a list: duplicate, spam, out of scope, not enough information or other. A duplicate links to the original demonstration or case, and the case history shows the reason and the link.
