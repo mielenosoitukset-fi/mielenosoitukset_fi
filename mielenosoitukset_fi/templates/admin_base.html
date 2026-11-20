@@ -238,7 +238,8 @@ function confirmAction(action, taskId) {
         </li>
       {% endif %}
 
-      {% if current_user.has_permission("EDIT_DEMO") %}
+      {# Global case viewers handle suggestions in Tapaukset; scoped admins keep this list. #}
+      {% if current_user.has_permission("EDIT_DEMO") and not (current_user.has_full_permissions() or "LIST_CASES" in current_user.global_permissions) %}
         <li class="nav-item">
           <a class="nav-link admin-sidebar-link {% if admin_endpoint == 'admin_demo.suggestions_list' %}active{% endif %}" href="{{ url_for('admin_demo.suggestions_list') }}">
             <i class="fas fa-comment-dots me-2"></i>{{ _('Ehdotukset') }}

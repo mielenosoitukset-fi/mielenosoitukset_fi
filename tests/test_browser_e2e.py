@@ -610,7 +610,6 @@ def test_admin_filter_toolbars_use_shared_theme_and_fit_viewport(
         "/admin/logs",
         "/admin/demo/translations",
         "/admin/ui-translations",
-        "/admin/demo/suggestions",
     )
     theme_backgrounds = {}
     for theme in ("light", "dark"):

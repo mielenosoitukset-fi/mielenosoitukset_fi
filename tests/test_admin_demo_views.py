@@ -1,6 +1,16 @@
 from datetime import datetime
 
+import pytest
 from bson import ObjectId
+
+from tests.conftest import _client_for_user
+from tests.test_city_scoped_admin import _create_scoped_admin
+
+
+@pytest.fixture
+def scoped_client(app, db, seeded_data):
+    """A Helsinki admin: case scope is city-based, so they keep the suggestions list."""
+    return _client_for_user(app, _create_scoped_admin(db, ["helsinki"], ["EDIT_DEMO"]))
 
 
 def test_create_demo_hides_edit_only_controls(admin_client):
@@ -44,7 +54,7 @@ def test_demo_dashboard_has_scoped_preview_and_edit_link_quick_actions(
 
 
 def test_demo_suggestions_use_shared_collection_and_review_contract(
-    admin_client, db, seeded_data
+    admin_client, scoped_client, db, seeded_data
 ):
     seeded_suggestion = db.demo_suggestions.find_one(
         {"_id": seeded_data["suggestion_id"]}
@@ -61,7 +71,7 @@ def test_demo_suggestions_use_shared_collection_and_review_contract(
             }
         )
 
-    response = admin_client.get("/admin/demo/suggestions?per_page=20&page=2")
+    response = scoped_client.get("/admin/demo/suggestions?per_page=20&page=2")
     assert response.status_code == 200
     page = response.get_data(as_text=True)
     assert 'class="admin-page admin-workspace"' in page
@@ -82,7 +92,7 @@ def test_demo_suggestions_use_shared_collection_and_review_contract(
 
 
 def test_demo_suggestions_status_filter_counts_and_page_size_are_preserved(
-    admin_client, db, seeded_data
+    scoped_client, db, seeded_data
 ):
     seeded_suggestion = db.demo_suggestions.find_one(
         {"_id": seeded_data["suggestion_id"]}
@@ -101,12 +111,12 @@ def test_demo_suggestions_status_filter_counts_and_page_size_are_preserved(
 
     # The status filter (with the missing/empty status == "pending" fallback)
     # runs server-side; the reported counts stay within the accessible set.
-    pending = admin_client.get("/admin/demo/suggestions?status=pending").get_data(
+    pending = scoped_client.get("/admin/demo/suggestions?status=pending").get_data(
         as_text=True
     )
     assert "3 osumaa" in pending
     assert "yhteensä 5 sinulle näkyvää ehdotusta" in pending
-    applied = admin_client.get("/admin/demo/suggestions?status=applied").get_data(
+    applied = scoped_client.get("/admin/demo/suggestions?status=applied").get_data(
         as_text=True
     )
     assert "yhteensä 5 sinulle näkyvää ehdotusta" in applied
@@ -114,14 +124,14 @@ def test_demo_suggestions_status_filter_counts_and_page_size_are_preserved(
     assert "Demo new" not in applied
 
     # Clearing the filter keeps the selected page size.
-    clear = admin_client.get("/admin/demo/suggestions?status=pending&per_page=50")
+    clear = scoped_client.get("/admin/demo/suggestions?status=pending&per_page=50")
     assert clear.status_code == 200
     clear_page = clear.get_data(as_text=True)
     assert "Tyhjennä suodattimet" in clear_page
     assert "/admin/demo/suggestions?per_page=50" in clear_page
 
     # Out-of-range pages clamp to the last page instead of erroring.
-    overflow = admin_client.get("/admin/demo/suggestions?per_page=20&page=99")
+    overflow = scoped_client.get("/admin/demo/suggestions?per_page=20&page=99")
     assert overflow.status_code == 200
     overflow_page = overflow.get_data(as_text=True)
     assert "Sivu 1 / 1" in overflow_page
@@ -586,3 +596,24 @@ def test_create_demo_rejects_a_duplicate_normalized_slug(admin_client, db, seede
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/admin/demo/create_demo")
     assert db.demonstrations.find_one({"title": "Duplicate slug demo"}) is None
+
+
+def test_global_admin_handles_suggestions_in_cases(admin_client, scoped_client, db, seeded_data):
+    listing = admin_client.get("/admin/demo/suggestions")
+    assert listing.status_code == 302
+    assert listing.headers["Location"].endswith("/admin/case/")
+
+    nav = admin_client.get("/admin/demo/").get_data(as_text=True)
+    assert 'href="/admin/demo/suggestions"' not in nav
+
+    suggestion_id = seeded_data["suggestion_id"]
+    detail = admin_client.get(f"/admin/demo/suggestions/{suggestion_id}").get_data(as_text=True)
+    assert 'href="/admin/case/"' in detail
+    assert "Climate March Helsinki" in detail
+
+    # Once the suggestion has its case, the review page leads back to it.
+    db.cases.insert_one({"_id": suggestion_id, "type": "demo_edit_suggestion",
+                         "demo_id": str(seeded_data["demo_id"]), "meta": {}})
+    rejected = admin_client.post(f"/admin/demo/suggestions/{suggestion_id}/status",
+                                 data={"status": "rejected"})
+    assert rejected.headers["Location"].endswith(f"/admin/case/{suggestion_id}/")
