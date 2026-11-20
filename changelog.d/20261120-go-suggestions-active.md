@@ -1,0 +1,1 @@
+- Change suggestions for organizations and demonstrations are now saved by the Go API. Nothing changes for visitors: the same forms, messages, stored suggestions, cases and moderator mail as before.

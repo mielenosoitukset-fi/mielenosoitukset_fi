@@ -80,6 +80,18 @@ if grep -q 'http://127.0.0.1:8091/api/submissions' "$reviewed"; then
   fi
 fi
 
+# Same idea for the suggestion writes: a cross-site POST is refused (403) by the
+# Go handler before any read or write; a disabled Go route falls through (404/405).
+if grep -q 'save_suggestion\$" "http://127.0.0.1:8091' "$reviewed"; then
+  suggestion_status=$(curl --silent --show-error --max-time 5 --output /dev/null \
+    --write-out '%{http_code}' --request POST --header 'Sec-Fetch-Site: cross-site' \
+    http://127.0.0.1:8091/suggest_change/000000000000000000000000)
+  if [[ $suggestion_status != 403 ]]; then
+    log "Go suggestion writes are not enabled/ready; keeping the current routing"
+    exit 1
+  fi
+fi
+
 install -d -m 0700 "$backup_root"
 backup="$backup_root/mielenosoitukset-react-ssr.conf.$(date -u +%Y%m%dT%H%M%SZ)"
 cp -a "$include" "$backup"
