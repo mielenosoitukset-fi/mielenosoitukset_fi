@@ -287,3 +287,8 @@ html.dark {
     gap: 0.25rem;
   }
 }
+
+.admin-analytics__stack {
+  display: grid;
+  gap: 1rem;
+}

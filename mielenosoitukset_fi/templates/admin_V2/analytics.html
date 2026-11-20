@@ -1,5 +1,5 @@
 {% extends 'admin_base.html' %}
-{% from 'admin_V2/macros.html' import admin_page_hero %}
+{% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
 
 {% block title %}{{ _('Mielenosoitusanalytiikka') }}{% endblock %}
 
@@ -7,23 +7,23 @@
 <section class="admin-page admin-analytics">
   {{ admin_page_hero(
     _('Mielenosoitusanalytiikka'),
-    _('Täältä näet mielenosoitusten katselukerrat järjestyksessä.'),
+    _('Eniten katsotut mielenosoitukset. Luvut päivittyvät 15 minuutin välein.'),
     _('Analytiikka'),
     [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Mielenosoitusanalytiikka'), none)],
     title_id='tabletitle',
-    metric_value=data|length,
+    metric_value=total,
     metric_label=_('mielenosoitusta')
   ) }}
 
   {% if data %}
-  <div class="admin-analytics__split">
+  <div class="admin-analytics__stack">
     <section class="admin-section-card" aria-labelledby="analytics-chart-title">
       <header class="admin-section-card__header">
         <div class="admin-section-card__title">
           <i class="fa-solid fa-chart-column" aria-hidden="true"></i>
           <div>
             <h2 id="analytics-chart-title">{{ _('Katselukerrat vertailussa') }}</h2>
-            <p class="admin-analytics__description">{{ _('Palkit näyttävät suosituimmat mielenosoitukset nopeasti.') }}</p>
+            <p class="admin-analytics__description">{{ _('Tämän sivun mielenosoitukset katselukertojen mukaan.') }}</p>
           </div>
         </div>
       </header>
@@ -37,28 +37,36 @@
     <section class="admin-data-view" aria-labelledby="analytics-table-title">
       <header class="admin-data-view__header">
         <div>
-          <h2 id="analytics-table-title">{{ _('Kaikki luvut') }}</h2>
-          <p class="admin-analytics__description">{{ _('Tarkat katselukerrat mielenosoituksittain.') }}</p>
+          <h2 id="analytics-table-title">{{ _('Katselukerrat') }}</h2>
+          <p class="admin-analytics__description">{{ _('Avaa mielenosoitus nähdäksesi sen tarkemmat luvut.') }}</p>
         </div>
       </header>
-      <div class="admin-data-view__viewport admin-analytics__data-scroll">
+      <div class="admin-data-view__viewport">
         <table class="admin-data-view__table">
           <thead>
             <tr>
-              <th scope="col">{{ _('Mielenosoituksen ID') }}</th>
+              <th scope="col">#</th>
+              <th scope="col">{{ _('Mielenosoitus') }}</th>
               <th scope="col">{{ _('Katselukerrat') }}</th>
             </tr>
           </thead>
           <tbody>
           {% for demo in data %}
             <tr>
-              <td>{{ demo.id }}</td>
+              <td>{{ rank_offset + loop.index }}</td>
+              <td><a href="{{ url_for('admin.demo_analytics', demo_id=demo.id) }}"><strong>{{ demo.title or _('Poistettu mielenosoitus') }}</strong></a><div class="admin-field__help"><code>{{ demo.id }}</code></div></td>
               <td>{{ demo.views }}</td>
             </tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
+      {% if total_pages > 1 %}
+      {{ admin_pagination(page, total_pages, prev_page=prev_page_url, next_page=next_page_url,
+         prev_page_url=prev_page_url, next_page_url=next_page_url, visible_pages=visible_pages,
+         first_page_url=first_page_url, last_page_url=last_page_url,
+         aria_label=_('Analytiikan sivutus')) }}
+      {% endif %}
     </section>
   </div>
   {% else %}
@@ -76,7 +84,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-  const demoLabels = {{ data | map(attribute='id') | list | tojson }};
+  const demoLabels = {{ data | map(attribute='title') | map('truncate', 30, true, '…') | list | tojson }};
   const demoViews = {{ data | map(attribute='views') | list | tojson }};
 
   const chartElement = document.getElementById('viewsChart');
