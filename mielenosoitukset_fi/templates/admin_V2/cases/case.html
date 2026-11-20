@@ -281,6 +281,37 @@
             <strong>{{ _('Virheilmoituksen sisältö') }}</strong>
             <div class="note-box">{{ error_report.error or _('Ei sisältöä') }}</div>
           </div>
+          {% elif case.case_type == "demo_edit_suggestion" %}
+          {% set demo_suggestion = case_data.demo_suggestion if case_data.demo_suggestion is defined else {} %}
+          {% if demo_suggestion.found %}
+          <div class="detail-grid">
+            <div class="detail-item"><strong>{{ _('Liittyvä mielenosoitus') }}</strong><span>{{ demo.title or '-' }}</span></div>
+            <div class="detail-item"><strong>{{ _('Ehdotuksen tila') }}</strong><span>{{ demo_suggestion.status_label }}</span></div>
+            <div class="detail-item"><strong>{{ _('Vastaanotettu') }}</strong><span>{% if demo_suggestion.created_at %}{{ demo_suggestion.created_at|datetimeformat("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</span></div>
+            {% if demo_suggestion.can_edit_demo %}
+            <div class="detail-item"><strong>{{ _('Ilmoittajan sähköposti') }}</strong><span>{{ demo_suggestion.reporter_email or '-' }}</span></div>
+            {% endif %}
+          </div>
+          <div class="detail-item">
+            <strong>{{ _('Ehdotetut kentät') }}</strong>
+            <span>{{ demo_suggestion.fields|join(', ') if demo_suggestion.fields else _('Ei kenttämuutoksia') }}</span>
+          </div>
+          {% if demo_suggestion.comment %}
+          <div class="detail-item">
+            <strong>{{ _('Kommentti') }}</strong>
+            <div class="note-box">{{ demo_suggestion.comment }}</div>
+          </div>
+          {% endif %}
+          {% if demo_suggestion.can_edit_demo %}
+          <div class="admin-row-actions">
+            <a class="btn btn-primary" href="{{ url_for('admin_demo.suggestion_view', suggestion_id=demo_suggestion.id) }}"><i class="fa-solid fa-code-compare me-1" aria-hidden="true"></i>{{ _('Käsittele ehdotus') }}</a>
+          </div>
+          {% else %}
+          <div class="muted">{{ _('Ehdotuksen käsittely ja ilmoittajan tiedot vaativat oikeuden muokata tätä mielenosoitusta.') }}</div>
+          {% endif %}
+          {% else %}
+          <div class="empty-state">{{ _('Ehdotusta ei löytynyt. Se on ehkä poistettu.') }}</div>
+          {% endif %}
           {% elif case.case_type == "organization_edit_suggestion" %}
           <div class="detail-grid">
             <div class="detail-item"><strong>{{ _('Organisaatio') }}</strong><span>{{ organization.name or '-' }}</span></div>
@@ -442,6 +473,31 @@
           </div>
         </div>
       </section>
+
+      {% if case_data.notified_at %}
+      <section class="admin-section-card">
+        <div class="admin-section-card__header">
+          <div class="admin-section-card__title"><h2>{{ _('Ilmoitetut ylläpitäjät') }}</h2></div>
+        </div>
+        <div class="admin-section-card__body admin-stack">
+          {% if case_data.notified_users %}
+          <div class="log-list">
+            {% for notified in case_data.notified_users %}
+            <div class="log-entry">
+              <div class="log-entry-header">
+                <strong>{{ notified.username or _('Tuntematon käyttäjä') }}</strong>
+                <span class="muted">{{ _('Sähköposti ja ilmoitus') if notified.emailed else _('Vain ilmoitus') }}</span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state">{{ _('Kenelläkään ei ollut oikeutta nähdä tapausta, kun se avattiin.') }}</div>
+          {% endif %}
+          <div class="muted">{{ _('Ilmoitettu') }}: {{ case_data.notified_at|datetimeformat("%d.%m.%Y %H:%M") }}</div>
+        </div>
+      </section>
+      {% endif %}
 
       <section class="admin-section-card">
         <div class="admin-section-card__header">

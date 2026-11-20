@@ -53,7 +53,7 @@ const demoID = "66fa58601102367d5d52887f"
 func TestPublicHTTPContract(t *testing.T) {
 	id, _ := bson.ObjectIDFromHex(demoID)
 	store := &fakeStore{doc: bson.M{"_id": id, "title": "Public", "email": "secret@example.test", "unknown": "secret", "organizers": bson.A{bson.M{"name": "Hidden name", "is_private": true, "show_name_public": false, "email": "hidden@example.test"}, bson.M{"name": "Visible", "email": "private@example.test"}}, "translations": bson.M{"en": bson.M{"title": "English", "email": "translated-secret"}}}}
-	server := httptest.NewServer((&API{store}).handler())
+	server := httptest.NewServer((&API{store: store}).handler())
 	defer server.Close()
 	response, err := http.Get(server.URL + "/api/demonstrations/" + demoID + "?lang=en")
 	if err != nil {
@@ -98,7 +98,7 @@ func TestValidationMethodsAndFailures(t *testing.T) {
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(tc.method, tc.path, nil)
 			r.Header.Set("Origin", "https://other.example")
-			(&API{s}).handler().ServeHTTP(w, r)
+			(&API{store: s}).handler().ServeHTTP(w, r)
 			if w.Code != tc.status || s.calls != tc.calls || strings.Contains(w.Body.String(), "secret") {
 				t.Fatalf("status=%d calls=%d body=%s", w.Code, s.calls, w.Body.String())
 			}
@@ -115,7 +115,7 @@ func TestResolveFailures(t *testing.T) {
 	}{{mongo.ErrNoDocuments, 404}, {errors.New("mongodb://secret"), 503}} {
 		s := &fakeStore{resolveErr: tc.lookup}
 		w := httptest.NewRecorder()
-		(&API{s}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/demonstrations/may-day-2026", nil))
+		(&API{store: s}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/demonstrations/may-day-2026", nil))
 		if w.Code != tc.status || s.calls != 0 || strings.Contains(w.Body.String(), "secret") {
 			t.Fatalf("lookup=%v status=%d calls=%d body=%s", tc.lookup, w.Code, s.calls, w.Body.String())
 		}
@@ -348,7 +348,7 @@ func TestLegacyRouteGalleryAndBlankTranslation(t *testing.T) {
 		t.Fatal("legacy route")
 	}
 	w := httptest.NewRecorder()
-	(&API{&fakeStore{}}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/unknown", nil))
+	(&API{store: &fakeStore{}}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/unknown", nil))
 	if w.Code != 404 || !strings.HasPrefix(w.Header().Get("Content-Type"), "application/json") {
 		t.Fatal(w)
 	}
@@ -521,7 +521,7 @@ func TestCachedHandlerResolvesPublicIdentifiers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			s := &fakeJSONStore{id: id, resolveErr: tc.resolveErr, documentErr: tc.documentErr}
 			w := httptest.NewRecorder()
-			(&API{s}).handler().ServeHTTP(w, httptest.NewRequest("GET", tc.path, nil))
+			(&API{store: s}).handler().ServeHTTP(w, httptest.NewRequest("GET", tc.path, nil))
 			if w.Code != tc.status || s.resolveCalls != tc.resolveCalls || s.findCalls != tc.findCalls || strings.Contains(w.Body.String(), "secret") {
 				t.Fatalf("status=%d resolve=%d find=%d body=%s", w.Code, s.resolveCalls, s.findCalls, w.Body.String())
 			}
@@ -543,7 +543,7 @@ func TestCachedHandlerResolvesPublicIdentifiers(t *testing.T) {
 func TestCachedHandlerResolvesOnEveryRequest(t *testing.T) {
 	id, _ := bson.ObjectIDFromHex(demoID)
 	s := &fakeJSONStore{id: id}
-	handler := (&API{s}).handler()
+	handler := (&API{store: s}).handler()
 	for _, identifier := range []string{"may-day-2026", "4242", demoID} {
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest("GET", "/api/demonstrations/"+identifier, nil))

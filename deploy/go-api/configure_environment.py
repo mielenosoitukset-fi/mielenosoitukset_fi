@@ -68,6 +68,11 @@ def configure(source, target):
             for key in ("CONTACT_PER_IP_LIMIT", "CONTACT_GLOBAL_LIMIT", "CONTACT_MAX_REQUEST_BYTES"):
                 if config.get(key) is not None:
                     values[key] = str(config[key])
+        # Go POST /kampanja/api/volunteers (docs/go-campaign-volunteers.md): off by
+        # default, and only with the bridge on, because a private campaign lets
+        # signed-in accounts preview the form.
+        if config.get("CAMPAIGN_VOLUNTEERS_GO_ENABLED") is True:
+            values["CAMPAIGN_VOLUNTEERS_GO_ENABLED"] = "true"
         # Account settings reads (docs/account-pages-react.md, step 2): the route
         # needs the signed-in account, so it exists only with the bridge on.
         if config.get("ACCOUNT_SETTINGS_READS") is True:

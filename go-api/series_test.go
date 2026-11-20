@@ -70,7 +70,7 @@ func TestSeriesHTTPContract(t *testing.T) {
 			// A payload for the parent under test, even when the request is rejected.
 			store.payload.ID = parent.Hex()
 			w := httptest.NewRecorder()
-			(&API{store}).handler().ServeHTTP(w, httptest.NewRequest(tc.method, tc.path, nil))
+			(&API{store: store}).handler().ServeHTTP(w, httptest.NewRequest(tc.method, tc.path, nil))
 			if w.Code != tc.status || store.calls != tc.calls {
 				t.Fatalf("status=%d calls=%d body=%s", w.Code, store.calls, w.Body.String())
 			}
@@ -105,7 +105,7 @@ func TestSeriesHTTPContract(t *testing.T) {
 // store must not look like a public series with no occurrences.
 func TestSeriesWithoutStoreFailsClosed(t *testing.T) {
 	w := httptest.NewRecorder()
-	(&API{&fakeStore{}}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/series/"+demoID, nil))
+	(&API{store: &fakeStore{}}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/series/"+demoID, nil))
 	if w.Code != 503 {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}

@@ -118,16 +118,17 @@
     ]
   },
   "background_jobs": {
-    "count": 26,
+    "count": 27,
     "coverage": [
       "jobs",
       "tests/test_urgent_review_delivery.py",
       "integration",
       "tests/test_fundraising_reminder.py",
       "tests/test_pride_banner_volunteers.py",
-      "tests/test_purge_suggestion_ips.py"
+      "tests/test_purge_suggestion_ips.py",
+      "tests/test_demo_suggestion_cases.py"
     ],
-    "sha256": "068ee6ed01d834ab510378457cf09c429838150c53b98d8d9f9b9bbc5516152e"
+    "sha256": "d53621200e121544fb304789f362646f5a5a0110e70759fc7b7fdb7e188c3494"
   },
   "routes": {
     "mielenosoitukset_fi/admin/admin_bp.py": {
@@ -139,12 +140,13 @@
       "sha256": "0dfb8f5d9deaa4a7dd9554635c8c5418e2af122dea7f954faf2a472d29e344bf"
     },
     "mielenosoitukset_fi/admin/admin_case_bp.py": {
-      "count": 22,
+      "count": 23,
       "coverage": [
         "integration",
-        "e2e-admin"
+        "e2e-admin",
+        "tests/test_demo_suggestion_cases.py"
       ],
-      "sha256": "9230941f2189410071ecc4fb17ab8a09f8793805b344e17972b2486514d9274d"
+      "sha256": "687e5ae729440d8c05962056b3ae6743c1bb43cc83f57ff2b2679e42aeb792bf"
     },
     "mielenosoitukset_fi/admin/admin_city_bp.py": {
       "count": 1,
