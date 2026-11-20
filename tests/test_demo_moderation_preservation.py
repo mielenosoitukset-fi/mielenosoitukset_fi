@@ -170,7 +170,7 @@ def test_duplicate_merge_keeps_primary_approval(
     after = db.demonstrations.find_one({"_id": demo_id})
     assert after["approved"] is True
     assert after["moderation_decision"]["status"] == "approved"
-    assert duplicate_doc["_id"] in after["aliases"]
+    assert str(duplicate_doc["_id"]) in [str(alias) for alias in after["aliases"]]
 
 
 def test_explicit_approval_write_still_persists(admin_client, db, seeded_data, monkeypatch):
