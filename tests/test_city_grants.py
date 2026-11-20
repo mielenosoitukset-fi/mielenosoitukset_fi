@@ -342,3 +342,15 @@ def test_an_expired_fence_is_taken_over(ctx):
     ctx.db[city_grants.FENCES].insert_one({"_id": str(ctx.target), "token": ObjectId(),
                                            "expires_at": city_grants.utcnow() - timedelta(seconds=1)})
     assert _apply(ctx, _request(ctx)).status_code == 200
+
+
+def test_a_writer_that_lost_its_fence_never_confirms(ctx, monkeypatch):
+    original = city_grants.verify_effective_grant
+
+    def taken_over(db, account, city):
+        db[city_grants.FENCES].update_one({"_id": str(account)}, {"$set": {"token": ObjectId()}})
+        return original(db, account, city)
+
+    monkeypatch.setattr(city_grants, "verify_effective_grant", taken_over)
+    outcome = _apply(ctx, _request(ctx))
+    assert outcome.status_code == 202 and outcome.body["status"] == "reconciliation_required"

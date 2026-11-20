@@ -148,7 +148,9 @@ class SyncResult:
 
 FENCES = "city_grant_fences"
 # A fence left by a crashed writer can be taken over after this long.
-FENCE_LEASE = timedelta(minutes=5)
+# Longer than APPLY_LEASE, so an operation is reported stale before its
+# fence can be taken over; holders still recheck the fence before confirming.
+FENCE_LEASE = timedelta(minutes=10)
 
 
 @contextmanager
@@ -169,12 +171,18 @@ def account_fence(db, user_id):
     except DuplicateKeyError:
         raise CityGrantConflict("another city grant write for this account is in progress") from None
     try:
-        yield
+        yield token
     finally:
         try:
             db[FENCES].delete_one({"_id": str(user_id), "token": token})
         except PyMongoError:
             logger.exception("Could not release city grant fence for %s; it expires by lease", user_id)
+
+
+def fence_held(db, user_id, token) -> bool:
+    return db[FENCES].count_documents(
+        {"_id": str(user_id), "token": token, "expires_at": {"$gt": utcnow()}}, limit=1,
+    ) == 1
 
 
 def sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissions: list[str], actor, *,
@@ -557,9 +565,9 @@ def apply_city_admin_v1(db, *, integration: str, actor_id, idempotency_key: str,
 
     account_id = ObjectId(intent["account_id"])
     try:
-        with account_fence(db, account_id):
+        with account_fence(db, account_id) as fence:
             # Owner state is checked, written and reread under one fence.
-            return _apply_fenced(db, operation, intent, actor, integration, account_id)
+            return _apply_fenced(db, operation, intent, actor, integration, account_id, fence)
     except CityGrantConflict:
         # Another writer holds the fence. Fencing happens before any write.
         current = db[OPERATIONS].find_one({"_id": operation["_id"]})
@@ -568,7 +576,7 @@ def apply_city_admin_v1(db, *, integration: str, actor_id, idempotency_key: str,
         return _outcome_for(current) if current else _error("unavailable")
 
 
-def _apply_fenced(db, operation, intent, actor, integration, account_id) -> Outcome:
+def _apply_fenced(db, operation, intent, actor, integration, account_id, fence) -> Outcome:
     city = intent["city"]
     target = db.users.find_one({"_id": account_id})
     if target is None:
@@ -585,6 +593,8 @@ def _apply_fenced(db, operation, intent, actor, integration, account_id) -> Outc
 
     def applying():
         nonlocal operation
+        if not fence_held(db, account_id, fence):
+            raise CityGrantConflict("account fence expired before the write")
         stored = db[OPERATIONS].find_one_and_update(
             {"_id": operation["_id"], "status": "pending", "phase": "allocated"},
             {"$set": {"phase": "applying", "updated_at": utcnow()}},
@@ -619,7 +629,8 @@ def _apply_fenced(db, operation, intent, actor, integration, account_id) -> Outc
 
     verified = verify_effective_grant(db, account_id, city)
     enabled = city in result.enabled_cities
-    if not verified["ok"] or (enabled and not intent["allow_city_enablement"]):
+    if (not verified["ok"] or (enabled and not intent["allow_city_enablement"])
+            or not fence_held(db, account_id, fence)):
         return _outcome_for(_transition(db, operation, {"pending"}, "reconciliation_required"))
     receipt = {
         **_receipt_identity(operation), "status": "confirmed",
