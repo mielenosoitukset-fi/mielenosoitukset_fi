@@ -27,6 +27,7 @@ from mielenosoitukset_fi.scripts.process_email_queue import run as process_email
 from mielenosoitukset_fi.scripts.escalate_city_assignments import main as escalate_city_assignments
 from mielenosoitukset_fi.scripts.deliver_city_admin_applications import main as deliver_city_admin_applications
 from mielenosoitukset_fi.scripts.purge_city_admin_applications import main as purge_city_admin_applications
+from mielenosoitukset_fi.scripts.deliver_case_notices import main as deliver_case_notices
 from mielenosoitukset_fi.scripts.deliver_fundraising_reminder_confirmations import main as deliver_fundraising_reminder_confirmations
 from mielenosoitukset_fi.scripts.send_fundraising_reminders import main as send_fundraising_reminders
 from mielenosoitukset_fi.scripts.purge_fundraising_reminders import main as purge_fundraising_reminders
@@ -184,6 +185,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         name="City admin applications to cases",
         description="Creates a review case and national team inbox notices for each city admin application stored by the Go API.",
         func=deliver_city_admin_applications,
+        default_trigger=_interval(minutes=2),
+    ),
+    JobDefinition(
+        key="deliver_case_notices",
+        name="Demo suggestions and new case notices",
+        description="Opens a case for each open demonstration suggestion (DEMO_SUGGESTION_CASES_ENABLED) and sends a site inbox notice about each new case to the admins who may view it (CASE_NOTIFICATIONS_ENABLED). Does nothing unless a switch is set. Sends no e-mail.",
+        func=deliver_case_notices,
         default_trigger=_interval(minutes=2),
     ),
     JobDefinition(
