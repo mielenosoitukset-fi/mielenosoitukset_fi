@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, MouseEvent } from 'react';
 import {
   accountCopy as copy, accountSettingsApi, classifyAccountResponse, readAccountSettings,
 } from './account-settings-route';
@@ -93,7 +93,9 @@ export function MfaCard({ initial }: { initial: Mfa }) {
     if (!name) { setMessage({ kind: 'error', text: text.nameRequired }); return; }
     setMessage(null); setBusy(true);
     let result: Awaited<ReturnType<typeof readMfaResult>> = null;
-    try { result = await readMfaResult(await withStepUp(mfaRenameRequest(mode.id, name)), text.renameFailed); }
+    // The control to refocus when the browser left focus on the body after a click (Safari).
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    try { result = await readMfaResult(await withStepUp(mfaRenameRequest(mode.id, name), submitter instanceof HTMLElement ? submitter : null), text.renameFailed); }
     catch { result = { ok: false, message: text.renameFailed, body: {} }; }
     setBusy(false);
     if (!result) return;
@@ -101,11 +103,12 @@ export function MfaCard({ initial }: { initial: Mfa }) {
     await finish(result.message);
   };
 
-  const remove = async () => {
+  const remove = async (event: MouseEvent<HTMLButtonElement>) => {
     if (mode.kind !== 'remove') return;
+    const button = event.currentTarget;
     setMessage(null); setBusy(true);
     let result: Awaited<ReturnType<typeof readMfaResult>> = null;
-    try { result = await readMfaResult(await withStepUp(mfaRevokeRequest(mode.id)), text.removeFailed); }
+    try { result = await readMfaResult(await withStepUp(mfaRevokeRequest(mode.id), button), text.removeFailed); }
     catch { result = { ok: false, message: text.removeFailed, body: {} }; }
     setBusy(false);
     if (!result) return;

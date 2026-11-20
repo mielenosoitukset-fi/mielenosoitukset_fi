@@ -43,7 +43,7 @@ export const profileCopy = {
   shareMessage: 'Valmis viesti',
   close: 'Sulje',
   copy: 'Kopioi linkki ja viesti',
-  copied: 'Linkki ja viesti kopioitu leikepöydälle!',
+  copied: 'Linkki ja viesti kopioitu leikepöydälle.',
   copyFailed: 'Kopiointi epäonnistui. Valitse teksti ja kopioi se itse.',
   follow: 'Seuraa',
   unfollow: 'Lopeta seuraaminen',

@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, MouseEvent } from 'react';
 import { accountCopy as copy, accountSettingsApi, classifyAccountResponse, readAccountSettings } from './account-settings-route';
 import type { AccountPasskey } from './account-settings-route';
 import { cleanDeviceName, mfaDeviceNameMax } from './account-mfa';
@@ -48,8 +48,11 @@ export function PasskeysCard({ initial }: { initial: AccountPasskey[] }) {
   const add = async (event: FormEvent) => {
     event.preventDefault();
     if (typeof window.PublicKeyCredential === 'undefined') { setMessage({ kind: 'error', text: text.unsupported }); return; }
+    // The control to refocus when the browser left focus on the body after a click (Safari).
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const opener = submitter instanceof HTMLElement ? submitter : null;
     setMessage(null); setBusy(true);
-    const result = await registerPasskey(cleanDeviceName(name) ?? '', withStepUp);
+    const result = await registerPasskey(cleanDeviceName(name) ?? '', request => withStepUp(request, opener));
     setBusy(false);
     if (!result) return;
     if (!result.ok) { setMessage({ kind: 'error', text: result.message }); return; }
@@ -64,7 +67,10 @@ export function PasskeysCard({ initial }: { initial: AccountPasskey[] }) {
     if (!next) { setMessage({ kind: 'error', text: text.nameRequired }); return; }
     setMessage(null); setBusy(true);
     let result: Awaited<ReturnType<typeof readPasskeyResult>> = null;
-    try { result = await readPasskeyResult(await withStepUp(passkeyRenameRequest(mode.id, next)), text.renameFailed); }
+    // The control to refocus when the browser left focus on the body after a click (Safari).
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const opener = submitter instanceof HTMLElement ? submitter : null;
+    try { result = await readPasskeyResult(await withStepUp(passkeyRenameRequest(mode.id, next), opener), text.renameFailed); }
     catch { result = { ok: false, message: text.renameFailed }; }
     setBusy(false);
     if (!result) return;
@@ -72,11 +78,12 @@ export function PasskeysCard({ initial }: { initial: AccountPasskey[] }) {
     await finish(result.message);
   };
 
-  const remove = async () => {
+  const remove = async (event: MouseEvent<HTMLButtonElement>) => {
     if (mode.kind !== 'remove') return;
+    const button = event.currentTarget;
     setMessage(null); setBusy(true);
     let result: Awaited<ReturnType<typeof readPasskeyResult>> = null;
-    try { result = await readPasskeyResult(await withStepUp(passkeyDeleteRequest(mode.id)), text.removeFailed); }
+    try { result = await readPasskeyResult(await withStepUp(passkeyDeleteRequest(mode.id), button), text.removeFailed); }
     catch { result = { ok: false, message: text.removeFailed }; }
     setBusy(false);
     if (!result) return;

@@ -514,7 +514,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     headers['X-Robots-Tag'] = 'noindex, follow';
     meta = loaded.status === 'ready'
       ? { ...meta, title: `${profileTitle(loaded.profile.displayname)} | Mielenosoitukset.fi` }
-      : { ...meta, title: 'Käyttäjäprofiilia ei löytynyt. | Mielenosoitukset.fi' };
+      : { ...meta, title: 'Käyttäjäprofiilia ei löytynyt | Mielenosoitukset.fi' };
     if (loaded.status === 'not-found') status = 404;
     extraHead = (assets.profile ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
     // The page itself is server-rendered; this only covers a failed script load.
