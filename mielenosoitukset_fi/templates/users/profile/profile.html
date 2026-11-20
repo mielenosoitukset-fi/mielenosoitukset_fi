@@ -990,7 +990,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const w = 500, h = 600;
             const left = (screen.width - w) / 2, top = (screen.height - h) / 2;
             window.open(
-              "{{ url_for('users.auth.login') }}?next=" + encodeURIComponent(location.href) + "&popup=1",
+              "{{ url_for('users.auth.login') }}?next=" + encodeURIComponent(location.pathname + location.search) + "&popup=1",
               "LoginPopup",
               `width=${w},height=${h},top=${top},left=${left},resizable=yes,scrollbars=yes`
             );

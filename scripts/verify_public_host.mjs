@@ -1024,7 +1024,7 @@ try {
     assert.match(servicePage.html, /name="robots" content="noindex, follow"/);
     assert.match(servicePage.html, /rel="canonical" href="https:\/\/example.test\/status"/);
     const statusBody = servicePage.html.split('id="app"')[1].split('id="app-bootstrap"')[0].replace(/<!-- -->/g, '');
-    for (const copy of ['Palvelun tila', 'Kaikki palvelut toimivat', 'Tietokanta', 'Yhteys kunnossa',
+    for (const copy of ['Palvelun tila', 'Tila tarkistetaan aina, kun avaat sivun.', 'Tarkistetut palvelut toimivat', 'Tietokanta', 'Yhteys kunnossa',
       '10.11.2026 12:00:00 UTC', 'Viive 1 ms', 'Välimuistin ja tiedostovaraston tilaa ei tarkisteta.']) {
       assert(statusBody.includes(copy), copy);
     }
@@ -1035,8 +1035,39 @@ try {
       services: [{ name: 'Tietokanta', status: 'err', message: 'Ei vastaa' }] };
     const failedProbe = await detailPage({ path: '/status' });
     assert.equal(failedProbe.status, 200);
-    assert.match(failedProbe.html, /Jokin palvelu ei vastaa/);
+    assert.match(failedProbe.html, /Jokin tarkistettu palvelu ei vastaa/);
     assert.match(failedProbe.html, /Ei vastaa/);
+    // Go adds cache and storage rows only where their checks are configured.
+    const cacheRow = { name: 'Välimuisti', status: 'ok', message: 'Yhteys kunnossa' };
+    const storageRow = { name: 'Tiedostovarasto', status: 'ok', message: 'Saavutettavissa' };
+    for (const [services, note] of [
+      [[healthyStatus.services[0], cacheRow, storageRow], null],
+      [[healthyStatus.services[0], cacheRow], 'Tiedostovaraston tilaa ei tarkisteta.'],
+      [[healthyStatus.services[0], storageRow], 'Välimuistin tilaa ei tarkisteta.']]) {
+      statusReply = { ...healthyStatus, services };
+      const extended = await detailPage({ path: '/status' });
+      const body = extended.html.split('id="app"')[1].split('id="app-bootstrap"')[0].replace(/<!-- -->/g, '');
+      assert.deepEqual(bootstrap(extended.html).serviceStatus, statusReply);
+      for (const service of services) assert(body.includes(service.name) && body.includes(service.message), service.name);
+      assert(!body.includes('Välimuistin ja tiedostovaraston tilaa ei tarkisteta.'));
+      if (note) assert(body.includes(note), note);
+      else assert(!body.includes('tilaa ei tarkisteta'));
+    }
+    statusReply = { ...healthyStatus, overall_ok: false,
+      services: [healthyStatus.services[0], { ...storageRow, status: 'err', message: 'Ei vastaa' }] };
+    assert.match((await detailPage({ path: '/status' })).html, /Jokin tarkistettu palvelu ei vastaa/);
+    for (const services of [
+      [cacheRow],
+      [healthyStatus.services[0], storageRow, cacheRow],
+      [healthyStatus.services[0], cacheRow, cacheRow],
+      [healthyStatus.services[0], { ...cacheRow, message: 'Saavutettavissa' }],
+      [healthyStatus.services[0], { ...storageRow, name: 'Muu' }],
+      [healthyStatus.services[0], cacheRow, storageRow, storageRow]]) {
+      statusReply = { ...healthyStatus, services };
+      assert.equal(bootstrap((await detailPage({ path: '/status' })).html).serviceStatus, null, JSON.stringify(services));
+    }
+    statusReply = { ...healthyStatus, services: [healthyStatus.services[0], { ...cacheRow, status: 'err', message: 'Ei vastaa' }] };
+    assert.equal(bootstrap((await detailPage({ path: '/status' })).html).serviceStatus, null, 'overall_ok must match every row');
     for (const mode of ['503', 'invalid-json', 'network', 'timeout', 'json']) {
       statusMode = mode;
       statusReply = { ...healthyStatus, updated_at: 'private-host secret version', private: 'secret' };

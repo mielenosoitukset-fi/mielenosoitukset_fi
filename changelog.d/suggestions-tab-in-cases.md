@@ -1,0 +1,1 @@
+- Admin: global admins handle demonstration suggestions in Tapaukset. The "Ehdotukset" tab is hidden for them, the old list address opens Tapaukset, and the suggestion review page leads back to its case. City and organization admins keep the suggestions list.

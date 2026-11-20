@@ -126,6 +126,9 @@ references before continuing. Do not record a Finnish language check as passed
 without applying the skill. Existing scope, terminology, localization and
 human-translation rules still apply. Follow the site's tone, terms and
 do-not-change rules in [docs/finnish-style.md](docs/finnish-style.md).
+Before merging a pull request that changes Finnish user-facing text, run the
+[pre-merge Finnish review](docs/finnish-premerge-review.md) and record its result
+in the pull request. It is advisory, not a merge gate.
 
 ## Public UI ownership and copy
 

@@ -226,3 +226,57 @@ def test_recu_demo_dashboard_filters_approval_state(admin_client, db, seeded_dat
     assert "Pending recurring series" not in approved_page
     assert "Recurring Test Series" not in pending_page
     assert "Pending recurring series" in pending_page
+
+
+def test_date_preview_warns_which_children_a_break_save_cancels(admin_client, db, seeded_data):
+    series_id = seeded_data["recu_demo_id"]
+    child_date = "2099-03-06"
+    frozen_date = "2099-03-13"
+    child_id, frozen_id, cancelled_id = ObjectId(), ObjectId(), ObjectId()
+    db.demonstrations.insert_many(
+        [
+            {"_id": child_id, "parent": series_id, "date": child_date, "title": "Lapsi"},
+            {"_id": frozen_id, "parent": series_id, "date": frozen_date, "title": "Lukittu"},
+            {"_id": cancelled_id, "parent": series_id, "date": child_date,
+             "title": "Jo peruttu", "cancelled": True},
+        ]
+    )
+    db.recu_demos.update_one({"_id": series_id}, {"$set": {"freezed_children": [str(frozen_id)]}})
+    db.demo_attending.insert_many(
+        [
+            {"demo_id": child_id, "user_id": ObjectId(), "attending": True},
+            {"demo_id": child_id, "user_id": ObjectId(), "attending": True},
+            {"demo_id": child_id, "user_id": ObjectId(), "attending": False},
+            {"demo_id": frozen_id, "user_id": ObjectId(), "attending": True},
+        ]
+    )
+    query = [
+        ("date", "2099-03-06"),
+        ("frequency_type", "weekly"),
+        ("frequency_interval", "1"),
+        ("weekday", "friday"),
+        ("break_dates", child_date),
+        ("break_dates", frozen_date),
+    ]
+
+    with_series = admin_client.get(
+        "/admin/recu_demo/preview-dates", query_string=query + [("demo_id", str(series_id))]
+    ).get_json()
+    without_series = admin_client.get(
+        "/admin/recu_demo/preview-dates", query_string=query
+    ).get_json()
+
+    assert with_series["cancels_children"] == 1
+    assert with_series["notifies_attendees"] == 2
+    assert without_series["cancels_children"] == 0
+    assert db.demonstrations.count_documents({"_id": child_id, "cancelled": True}) == 0
+
+
+def test_edit_form_sends_series_id_to_date_preview(admin_client, seeded_data):
+    page = admin_client.get(
+        f"/admin/recu_demo/edit_recu_demo/{seeded_data['recu_demo_id']}"
+    ).get_data(as_text=True)
+
+    assert f'data-series-id="{seeded_data["recu_demo_id"]}"' in page
+    assert "data-preview-warning" in page
+    assert "saavat peruutuksesta viestin" in page

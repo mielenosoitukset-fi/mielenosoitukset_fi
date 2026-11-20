@@ -1,0 +1,1 @@
+- The admin analytics page of a demonstration nobody has opened yet shows zero views instead of a 404 error.

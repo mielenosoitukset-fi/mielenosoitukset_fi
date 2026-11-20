@@ -1,54 +1,48 @@
 {% extends 'manual_base.html' %}
+{% import 'manuals/_macros.html' as m with context %}
 
-{% block content %}
-<div class="manual-breadcrumb">
-  <i class="fa-solid fa-house me-1"></i> <a href="{{ url_for('admin.manual_page', page='index') }}">Ohje</a> / Tietoturva &amp; oikeudet
-</div>
-
-<section class="manual-section">
-  <h2><i class="fa-solid fa-lock me-2"></i>Tietoturva &amp; oikeudet</h2>
-  <p>
-    Tällä sivulla kuvataan järjestelmän tietoturvatoimintoja ja käyttöoikeusmallia, jotta käyttö on
-    turvallista ja jäljitettävää.
-  </p>
-
-  <h3>Roolit ja oikeudet</h3>
-  <p>
-    Oikeudet määräytyvät käyttäjän <strong>roolin</strong> sekä <strong>organisaatiojäsenyyksien</strong>
-    perusteella. Katso yksityiskohtainen vertailu
-    <a href="{{ url_for('admin.manual_page', page='users/about_roles') }}">roolit &amp; oikeudet</a> -sivulta.
-  </p>
+{% block manual_content %}
+<section id="roolit">
+  <h2>{{ _('Roolit ja oikeudet') }}</h2>
+  <p>{{ _('Oikeutesi määräytyvät roolin, organisaatiojäsenyyksien ja erikseen myönnettyjen oikeuksien mukaan. Vertailu on sivulla') }} <a href="{{ manual_url('users/about_roles') }}">{{ _('roolit ja oikeudet') }}</a>.</p>
   <ul>
-    <li><strong>Roolihierarkia:</strong> käyttäjä ei voi muokata itseään korkeamman tason käyttäjiä.</li>
-    <li><strong>Kaupunkiadmin:</strong> rajattu oikeusjoukko (esim. <code>ACCEPT_DEMO</code>, <code>EDIT_DEMO</code>)
-      vain niille kaupungeille, jotka on myönnetty <code>admin_scope_grants</code>-luettelossa.</li>
+    <li>{{ _('Et voi muokata käyttäjää, jolla on sama tai korkeampi taso kuin sinulla.') }}</li>
+    <li>{{ _('Kaupunkiadminin oikeudet koskevat vain hänelle myönnettyjä kaupunkeja. Sama raja koskee tapauksia ja tapausilmoituksia.') }}</li>
   </ul>
+</section>
 
-  <h3>Hallituksen turvaluokitus (board clearance)</h3>
-  <p>
-    <code>global_admin</code>-roolin myöntäminen edellyttää <strong>hallituksen hyväksyntää</strong>.
-    Turvaluokituksen tilan näet <strong>/admin/governance/clearances</strong>-sivulla ja muutokset
-    kirjataan <strong>audit-lokiin</strong>.
-  </p>
+<section id="turvaluokitus">
+  <h2>{{ _('Hallituksen turvaluokitus') }}</h2>
+  <p>{{ _('Superkäyttäjän rooli (global_admin) vaatii hallituksen hyväksynnän. Turvaluokitukset ja niiden muutokset näkyvät') }} {{ m.open_link('governance', 'admin_governance.dashboard', _('Hallinto')) }}{{ _('-näkymässä, ja jokainen muutos kirjataan lokiin.') }}</p>
+  <p>{{ _('Samassa näkymässä ovat turvatoimet: käyttäjätilin keskeyttäminen ja julkisen sivuston sulkeminen. Ne kirjataan perusteluineen päätöshistoriaan.') }}</p>
+</section>
 
-  <h3>Taikamerkkilinkit (magic linkit)</h3>
-  <p>
-    Kertakäyttöiset, IP-sidotut linkit, joiden avulla demoa voi esikatsella, hyväksyä, hylätä tai muokata
-    ilman admin-kirjautumista. Ne vanhenevat 24 tunnissa ja tokenit tallennetaan SHA-256-hajautettuina.
-  </p>
-
-  <h3>Panic mode</h3>
-  <p>
-    <strong>Hätäkatkaisin</strong>, joka voi tilapäisesti poistaa julkaistut toiminnot käytöstä
-    kriisitilanteessa (esim. vakava väärinkäytös). Aktivoi ja poista käytöstä hallintapaneelin
-    dashboardilta (<code>admin_required</code>).
-  </p>
-
-  <h3>Loki ja kirjaus</h3>
+<section id="linkit">
+  <h2>{{ _('Linkkien suojaus') }}</h2>
   <ul>
-    <li>Kaikki admin-pyynnöt kirjataan <code>admin_logs</code>-kokoelmaan tekijän, polun ja menetelmän kanssa.</li>
-    <li>Arkaluonteiset kentät (salasanat, tokenit, salaisuudet, evästeet) <strong>piilotetaan</strong> lokista.</li>
-    <li>Audit-timeline ja super-audit-lokit auttavat jäljittämään muutokset mielenosoituksissa ja käyttäjissä.</li>
+    <li>{{ _('Moderointilinkit sähköposteissa ovat kertakäyttöisiä, vanhenevat 24 tunnissa ja sidotaan ensimmäisen avaajan IP-osoitteeseen.') }}</li>
+    <li>{{ _('Muokkauslinkit ovat voimassa valitun ajan (1 tunti, 24 tuntia tai 7 vuorokautta), ja ne voi mitätöidä milloin tahansa.') }}</li>
+    <li>{{ _('Molemmat linkit allekirjoitetaan palvelun omalla salaisella avaimella, ja palvelu tallentaa niistä vain tiivisteen.') }}</li>
+  </ul>
+  <p><a href="{{ manual_url('demos', 'muokkauslinkki') }}">{{ _('Näin annat muokkauslinkin turvallisesti') }}</a>.</p>
+</section>
+
+<section id="lokit">
+  <h2>{{ _('Loki ja kirjaus') }}</h2>
+  <ul>
+    <li>{{ _('Ylläpidon pyynnöt kirjataan lokiin: kuka, mitä ja milloin.') }}</li>
+    <li>{{ _('Lokiin tallentuvat vain peitetyt pyyntötiedot. Salasanat, tunnisteet, evästeet ja muut salaisuudet eivät näy lokissa.') }}</li>
+    <li>{{ _('Tapausten ja mielenosoitusten historia näyttää jokaisen muutoksen tekijän.') }}</li>
+  </ul>
+</section>
+
+<section id="hyvat-tavat">
+  <h2>{{ _('Hyvät tavat') }}</h2>
+  <ul>
+    <li>{{ _('Ota käyttöön') }} <a href="{{ manual_url('account') }}">{{ _('kaksivaiheinen tunnistus tai passkey') }}</a>.</li>
+    <li>{{ _('Älä jaa tunnuksiasi. Jokaisella ylläpitäjällä on oma tili, jotta loki kertoo, kuka teki mitä.') }}</li>
+    <li>{{ _('Älä lähetä ilmoittajien tietoja ylläpidon ulkopuolelle. Ehdottajan yhteystiedot näkyvät vain niille, jotka saavat muokata kyseistä mielenosoitusta.') }}</li>
+    <li>{{ _('Kirjaudu ulos yhteiskäyttöisellä koneella.') }}</li>
   </ul>
 </section>
 {% endblock %}

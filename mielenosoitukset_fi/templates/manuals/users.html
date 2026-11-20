@@ -1,45 +1,29 @@
 {% extends 'manual_base.html' %}
+{% import 'manuals/_macros.html' as m with context %}
 
-{% block content %}
-<div class="manual-breadcrumb">
-  <i class="fa-solid fa-house me-1"></i> <a href="{{ url_for('admin.manual_page', page='index') }}">Ohje</a> / Käyttäjien hallinta
-</div>
-
-<section class="manual-section">
-  <h2><i class="fa-solid fa-users me-2"></i>Käyttäjien hallinta</h2>
-  <p>
-    Käyttäjien hallintanäkymä löytyy osoitteesta <strong>/admin/user</strong>. Täältä voit luoda käyttäjiä,
-    muokata heidän tietojaan ja roolejaan, hallita kaupunkiadmin-oikeuksia, pakottaa salasanan vaihdon ja
-    poistaa käyttäjiä.
-  </p>
-
-  <h3>Keskeiset toiminnot</h3>
+{% block manual_content %}
+<section id="toiminnot">
+  <h2>{{ _('Keskeiset toiminnot') }}</h2>
+  <p>{{ m.open_link('users', 'admin_user.user_control', _('Käyttäjät')) }}{{ _('-näkymässä luot käyttäjiä ja muokkaat heidän tietojaan, roolejaan ja kaupunkiadmin-oikeuksiaan.') }}</p>
   <ul>
-    <li><strong>Lista:</strong> selaa käyttäjiä, hae ja suodata, katso kaupunkiadmin-myönnöt.</li>
-    <li><a href="{{ url_for('admin.manual_page', page='users/add') }}"><strong>Luo uusi käyttäjä</strong></a> (<code>CREATE_USER</code>).</li>
-    <li><strong>Muokkaa käyttäjää</strong> (<code>EDIT_USER</code>): nimi, sähköposti, rooli, oikeudet ja kaupunkialue.</li>
-    <li><strong>Pakota salasanan vaihto</strong> (<code>FORCE_PASSWORD_CHANGE</code>) seuraavaan kirjautumiseen.</li>
-    <li><strong>Poista käyttäjä</strong> (<code>DELETE_USER</code>).</li>
+    <li>{{ _('Selaa, hae ja suodata käyttäjiä.') }}</li>
+    <li>{{ m.ui(_('Luo uusi käyttäjä')) }}: <a href="{{ manual_url('users/add') }}">{{ _('ohje vaihe vaiheelta') }}</a>.</li>
+    <li>{{ _('Muokkaa nimeä, sähköpostia, roolia, oikeuksia ja kaupunkeja.') }}</li>
+    <li>{{ m.ui(_('Pakota salasananvaihto')) }}: {{ _('käyttäjän on vaihdettava salasana seuraavalla kirjautumisella.') }}</li>
+    <li>{{ m.ui(_('Kirjautumishistoria')) }}: {{ _('näe käyttäjän viimeisimmät kirjautumiset.') }}</li>
+    <li>{{ m.ui(_('Poista käyttäjä')) }}: {{ _('poisto vaatii uuden vahvistuksen joka kerta, eikä sitä voi perua.') }}</li>
   </ul>
+  {% call m.callout('tip') %}
+  <p>{{ _('Oikeuksia ei yleensä kannata muokata käsin. Ne määräytyvät roolin ja organisaatiojäsenyyksien mukaan. Katso') }} <a href="{{ manual_url('users/about_roles') }}">{{ _('roolit ja oikeudet') }}</a>.</p>
+  {% endcall %}
+</section>
 
-  <div class="manual-note">
-    <i class="fa-solid fa-triangle-exclamation me-2"></i>
-    <strong>Huomio:</strong> Oikeuksia ei ole yleensä suositeltavaa muokata manuaalisesti. Ne määräytyvät
-    automaattisesti roolin ja organisaatiojäsenyyksien perusteella. Katso lisää
-    <a href="{{ url_for('admin.manual_page', page='users/about_roles') }}">roolit &amp; oikeudet</a> -sivulta.
-  </div>
-
-  <h3>Vaatimukset ja suojaukset</h3>
+<section id="suojaukset">
+  <h2>{{ _('Suojaukset') }}</h2>
   <ul>
-    <li><strong>Roolihierarkia:</strong> Et voi muokata käyttäjiä, joilla on sama tai korkeampi käyttöoikeustaso kuin sinulla.</li>
-    <li><strong>Turvaluokitus:</strong> <code>global_admin</code>-roolin myöntäminen vaatii hallituksen hyväksynnän (board clearance).</li>
-    <li><strong>Sähköposti-ilmoitukset:</strong> Tallennettaessa muutokset käyttäjälle lähetetään sähköposti.</li>
-  </ul>
-
-  <h3>Lisätietoa</h3>
-  <ul>
-    <li><a href="{{ url_for('admin.manual_page', page='users/add') }}">Lisää uusi käyttäjä</a> – vaiheittainen ohje.</li>
-    <li><a href="{{ url_for('admin.manual_page', page='users/about_roles') }}">Roolit &amp; oikeudet</a> – eri roolien vertailu.</li>
+    <li>{{ _('Roolihierarkia: et voi muokata käyttäjää, jolla on sama tai korkeampi taso kuin sinulla.') }}</li>
+    <li>{{ _('Superkäyttäjän rooli (global_admin) vaatii hallituksen turvaluokituksen.') }}</li>
+    <li>{{ _('Käyttäjä saa sähköpostin, kun hänen tietojaan muutetaan.') }}</li>
   </ul>
 </section>
 {% endblock %}

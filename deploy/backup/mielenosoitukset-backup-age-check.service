@@ -1,0 +1,12 @@
+[Unit]
+Description=Check that the local MongoDB backups of mielenosoitukset.fi are fresh
+OnFailure=mielenosoitukset-backup-failed.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/mielenosoitukset/backup.env
+ExecStart=/var/www/mielenosoitukset_fi/deploy/backup/backup-age-check.sh
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadOnlyPaths=/var/www/mielenosoitukset_fi /var/backups/mielenosoitukset

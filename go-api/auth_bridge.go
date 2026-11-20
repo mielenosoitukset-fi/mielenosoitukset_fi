@@ -41,6 +41,9 @@ var (
 	authPermissionName = regexp.MustCompile(`^[A-Z][A-Z0-9_]{1,63}$`)
 	authObjectID       = regexp.MustCompile(`^[a-f0-9]{24}$`)
 	errAuthUnavailable = errors.New("session bridge unavailable")
+	// errIdentityChangeRequired is Flask's 428: the account must finish the forced identity change
+	// before using anything else, so Go routes refuse it too (403) instead of looking broken (503).
+	errIdentityChangeRequired = errors.New("identity change required")
 )
 
 type authBridgeConfig struct {
@@ -269,6 +272,9 @@ func (r *sessionResolver) fetch(ctx context.Context, request *http.Request, cook
 		return Principal{}, errAuthUnavailable
 	}
 	defer response.Body.Close()
+	if response.StatusCode == http.StatusPreconditionRequired {
+		return Principal{}, errIdentityChangeRequired
+	}
 	if response.StatusCode != http.StatusOK {
 		return Principal{}, errAuthUnavailable
 	}
@@ -358,12 +364,27 @@ func authDenied(w http.ResponseWriter, status int, message string) {
 	writeError(w, status, message)
 }
 
+// identityChangePath is where Flask sends an account that must change its username and display
+// name. It is a constant, never copied from Flask's answer, so the redirect cannot be steered.
+const identityChangePath = "/users/auth/forced_identity_change/"
+
+// identityChangeDenied answers 403 for an account in the forced identity change flow.
+func identityChangeDenied(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Vary", "Cookie")
+	writeJSON(w, http.StatusForbidden, map[string]string{"error": "identity change required", "redirect": identityChangePath})
+}
+
 // resolveFor resolves the principal or answers 503. It never runs the wrapped
 // handler on an error: an unreadable session is not an anonymous one.
 func (r *sessionResolver) resolveFor(w http.ResponseWriter, request *http.Request, scope authScope) (*http.Request, bool) {
 	ctx, cancel := context.WithTimeout(request.Context(), 1500*time.Millisecond)
 	defer cancel()
 	p, err := r.Resolve(ctx, request, scope)
+	if errors.Is(err, errIdentityChangeRequired) {
+		identityChangeDenied(w)
+		return nil, false
+	}
 	if err != nil {
 		log.Print("Auth bridge could not read the session")
 		authDenied(w, http.StatusServiceUnavailable, "session unavailable")

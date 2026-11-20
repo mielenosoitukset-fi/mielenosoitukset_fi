@@ -233,6 +233,9 @@ func accountSettingsReadHandler(next http.Handler, db *mongo.Database, resolver 
 	var writes *accountWrites
 	if os.Getenv("ACCOUNT_SETTINGS_WRITES_ENABLED") == "true" {
 		writes = newAccountWrites(mongoAccountWriteStore{db}, origin)
+		if writes != nil {
+			writes.deletions = mongoAccountDeletionStore{db}
+		}
 	}
 	return accountSettingsHandler(next, mongoAccountSettingsStore{db}, resolver, writes)
 }
@@ -243,6 +246,10 @@ func accountSettingsHandler(next http.Handler, store accountSettingsStore, resol
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if writes != nil && r.URL.Path == accountProfilePath {
 			writes.serveProfile(w, r, resolver)
+			return
+		}
+		if writes != nil && r.URL.Path == accountDeletionPath {
+			writes.serveDeletionRequest(w, r, resolver)
 			return
 		}
 		if writes != nil && r.URL.Path == accountSettingsPath && r.Method == http.MethodPost {

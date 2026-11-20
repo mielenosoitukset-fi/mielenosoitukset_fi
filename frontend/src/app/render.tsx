@@ -41,6 +41,9 @@ import EmailConfirmScreen from './EmailConfirmScreen';
 import DeveloperScreen from './DeveloperScreen';
 import ProfileScreen from './ProfileScreen';
 import AccountSettingsScreen from './AccountSettingsScreen';
+import PasswordResetRequestScreen from './PasswordResetRequestScreen';
+import LoginScreen from './LoginScreen';
+import { loginLegacyLocation } from './login-route';
 import { accountCopy } from './account-settings-route';
 import { loadProfile, profileTitle } from './profile-route';
 import type { ProfileInitial } from './profile-route';
@@ -91,7 +94,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; developer?: string; profile?: string; accountSettings?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -530,6 +533,32 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
       serverPage={<AccountSettingsScreen config={config} session={session} />} />);
   }
 
+  if (route.name === 'login') {
+    // A signed-in visitor goes to Flask's own GET, which redirects to the normalised next.
+    if (session.authenticated) return { status: 302, html: '', redirect: loginLegacyLocation(input.search ?? ''),
+      headers: { 'Cache-Control': 'private, no-store' } };
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.login ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The forms are plain HTML that post to Flask, so they work without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<LoginScreen config={config} search={input.search ?? ''} />} />);
+  }
+
+  if (route.name === 'password-reset-request') {
+    // Same for every visitor, but the shared header shows the session: never cache.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.passwordResetRequest ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<PasswordResetRequestScreen config={config} />} />);
+  }
+
   let profile: ProfileInitial | undefined;
   if (route.name === 'profile') {
     // The public part, read without the visitor's cookie. The browser reads again with its own cookie
@@ -542,7 +571,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     headers['X-Robots-Tag'] = 'noindex, follow';
     meta = loaded.status === 'ready'
       ? { ...meta, title: `${profileTitle(loaded.profile.displayname)} | Mielenosoitukset.fi` }
-      : { ...meta, title: 'Käyttäjäprofiilia ei löytynyt. | Mielenosoitukset.fi' };
+      : { ...meta, title: 'Käyttäjäprofiilia ei löytynyt | Mielenosoitukset.fi' };
     if (loaded.status === 'not-found') status = 404;
     extraHead = (assets.profile ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
     // The page itself is server-rendered; this only covers a failed script load.

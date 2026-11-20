@@ -1,0 +1,1 @@
+- New e-mail confirmation links are signed with a key derived from the site's secret instead of the secret itself. Links already sent keep working for their hour; nothing changes for visitors.

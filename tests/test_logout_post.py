@@ -9,7 +9,9 @@ PROFILE = "/users/profile/"
 
 
 def _signed_in(client):
-    return client.get(PROFILE, follow_redirects=False).status_code == 200
+    # Signed in: redirected to the own /users/profile/<username> page; signed out: 404.
+    response = client.get(PROFILE, follow_redirects=False)
+    return response.status_code == 302 and "/users/profile/" in response.headers["Location"]
 
 
 def _token(client):

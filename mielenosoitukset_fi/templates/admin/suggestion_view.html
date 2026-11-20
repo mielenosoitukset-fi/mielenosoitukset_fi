@@ -14,12 +14,12 @@
   {% if suggestion %}
     {% set normalized_status = (suggestion.status or 'pending')|lower %}
     {% call admin_page_hero(
-      suggestion.original_values.get('title', _('Mielenosoituksen muutosehdotus')),
+      (demo.title if demo else none) or suggestion.original_values.get('title') or _('Mielenosoituksen muutosehdotus'),
       _('Vertaa nykyisiä ja ehdotettuja arvoja ja valitse vain ne muutokset, jotka haluat julkaista.'),
       _('Ehdotuksen tarkastelu'),
-      [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Mielenosoitukset'), url_for('admin_demo.demo_control')), (_('Ehdotukset'), url_for('admin_demo.suggestions_list')), (_('Tarkastelu'), none)],
-      back_url=url_for('admin_demo.suggestions_list'),
-      back_label=_('Ehdotukset')
+      [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Mielenosoitukset'), url_for('admin_demo.demo_control')), (suggestions_home_label or _('Ehdotukset'), (suggestions_home_url or url_for('admin_demo.suggestions_list'))), (_('Tarkastelu'), none)],
+      back_url=(suggestions_home_url or url_for('admin_demo.suggestions_list')),
+      back_label=suggestions_home_label or _('Ehdotukset')
     ) %}
       {% if normalized_status in ('new', 'pending') %}<span class="admin-status-badge admin-status-badge--info"><i class="fas fa-star" aria-hidden="true"></i>{{ _('Uusi') }}</span>
       {% elif normalized_status == 'applied' %}<span class="admin-status-badge admin-status-badge--success"><i class="fas fa-check" aria-hidden="true"></i>{{ _('Hyväksytty') }}</span>
@@ -56,7 +56,7 @@
       </section>
       <div class="admin-sticky-actions">
         <div class="admin-sticky-actions__copy"><strong>{{ _('Tarkista valinnat ennen päivittämistä') }}</strong><span>{{ _('Vain valitut kentät korvaavat mielenosoituksen nykyiset tiedot.') }}</span></div>
-        <div class="admin-sticky-actions__buttons"><button type="button" class="btn btn-outline-primary" id="select-all-btn" aria-pressed="true"><i class="fas fa-check-double" aria-hidden="true"></i><span id="select-all-label">{{ _('Poista valinnat') }}</span></button><a href="{{ url_for('admin_demo.suggestions_list') }}" class="btn btn-outline-secondary">{{ _('Peruuta') }}</a><button type="submit" class="btn btn-primary" id="apply-btn"><i class="fas fa-check-circle" aria-hidden="true"></i><span id="apply-label">{{ _('Päivitä valitut kentät') }}</span></button></div>
+        <div class="admin-sticky-actions__buttons"><button type="button" class="btn btn-outline-primary" id="select-all-btn" aria-pressed="true"><i class="fas fa-check-double" aria-hidden="true"></i><span id="select-all-label">{{ _('Poista valinnat') }}</span></button><a href="{{ (suggestions_home_url or url_for('admin_demo.suggestions_list')) }}" class="btn btn-outline-secondary">{{ _('Peruuta') }}</a><button type="submit" class="btn btn-primary" id="apply-btn"><i class="fas fa-check-circle" aria-hidden="true"></i><span id="apply-label">{{ _('Päivitä valitut kentät') }}</span></button></div>
       </div>
     </form>
     {% else %}
@@ -74,7 +74,7 @@
       <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h2 class="modal-title" id="rejectSuggestionTitle">{{ _('Hylkää ehdotus') }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Sulje') }}"></button></div><div class="modal-body"><p id="rejectSuggestionDescription">{{ _('Haluatko varmasti hylätä ehdotuksen? Ehdotettuja muutoksia ei julkaista.') }}</p></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('Peruuta') }}</button><form method="post" action="{{ url_for('admin_demo.suggestion_status_update', suggestion_id=suggestion._id) }}"><input type="hidden" name="status" value="rejected"><button type="submit" class="btn btn-danger"><i class="fas fa-ban" aria-hidden="true"></i>{{ _('Hylkää ehdotus') }}</button></form></div></div></div>
     </div>
   {% else %}
-    {{ admin_page_hero(_('Ehdotusta ei löytynyt'), _('Pyydetty ehdotus ei ole olemassa tai se on poistettu.'), _('Ehdotuksen tarkastelu'), [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Ehdotukset'), url_for('admin_demo.suggestions_list')), (_('Ei löytynyt'), none)], back_url=url_for('admin_demo.suggestions_list'), back_label=_('Ehdotukset')) }}
+    {{ admin_page_hero(_('Ehdotusta ei löytynyt'), _('Pyydetty ehdotus ei ole olemassa tai se on poistettu.'), _('Ehdotuksen tarkastelu'), [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Ehdotukset'), (suggestions_home_url or url_for('admin_demo.suggestions_list'))), (_('Ei löytynyt'), none)], back_url=(suggestions_home_url or url_for('admin_demo.suggestions_list')), back_label=_('Ehdotukset')) }}
     <div class="admin-empty-state"><span class="admin-empty-state__icon"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i></span><h2 class="admin-empty-state__title">{{ _('Ehdotusta ei löytynyt') }}</h2><p>{{ _('Pyydetty ehdotus ei ole olemassa tai se on poistettu.') }}</p></div>
   {% endif %}
 </div>

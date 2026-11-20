@@ -1,0 +1,1 @@
+- The Go analytics event route now ignores request bodies over 16 KB instead of reading them whole into memory, so oversized posts can no longer exhaust the API's memory. Normal beacons are counted as before.
