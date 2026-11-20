@@ -42,10 +42,9 @@
         </div>
       </header>
       <div class="admin-data-view__viewport">
-        <table class="admin-data-view__table">
+        <table class="admin-data-view__table admin-analytics__ranked">
           <thead>
             <tr>
-              <th scope="col">#</th>
               <th scope="col">{{ _('Mielenosoitus') }}</th>
               <th scope="col">{{ _('Katselukerrat') }}</th>
             </tr>
@@ -53,8 +52,7 @@
           <tbody>
           {% for demo in data %}
             <tr>
-              <td>{{ rank_offset + loop.index }}</td>
-              <td><a href="{{ url_for('admin.demo_analytics', demo_id=demo.id) }}"><strong>{{ demo.title or _('Poistettu mielenosoitus') }}</strong></a><div class="admin-field__help"><code>{{ demo.id }}</code></div></td>
+              <td><span class="admin-analytics__rank">{{ rank_offset + loop.index }}.</span> <a href="{{ url_for('admin.demo_analytics', demo_id=demo.id) }}"><strong>{{ demo.title }}</strong></a><div class="admin-field__help"><code>{{ demo.id }}</code></div></td>
               <td>{{ demo.views }}</td>
             </tr>
           {% endfor %}

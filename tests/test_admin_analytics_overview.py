@@ -26,7 +26,7 @@ def test_analytics_overview_lists_most_viewed_page_by_page(admin_client, db):
     second = admin_client.get("/admin/demo_analytics?page=2").get_data(as_text=True)
     assert second.count('href="/admin/per_demo_analytics/') == 10
     assert "Katsotuin &lt;59&gt;" in second
-    assert f"<td>51</td>" in second
+    assert ">51.</span>" in second
 
     clamped = admin_client.get("/admin/demo_analytics?page=99").get_data(as_text=True)
     assert "Sivu 2 / 2" in clamped

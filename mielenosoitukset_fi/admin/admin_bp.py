@@ -2365,7 +2365,7 @@ def render_analytics_overview():
     data = []
     for row in rows:
         entry = DemoViewCount(row.get("demo_id"), row.get("views", 0))
-        entry.title = titles.get(row.get("demo_id")) or ""
+        entry.title = titles.get(row.get("demo_id")) or _("Poistettu mielenosoitus")
         data.append(entry)
 
     def page_url(number):
