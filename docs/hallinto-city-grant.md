@@ -18,6 +18,7 @@ Behaviour of the pilot operation:
 - The actor is reloaded and must be an active account that may manage scope grants. Self-appointment is denied. A missing target is reported as `denied`.
 - Eligible targets are active, confirmed, unprotected `user` accounts with no global permissions and no active scope grant of any kind.
 - `expected_state` is a SHA-256 digest over the target's role, global admin and governance flags, global permissions, activity, protection, active grants and the set of enabled cities. Profile text does not affect it.
+- Every city grant write, legacy or appointment, takes a per-account fence (`city_grant_fences`, keyed by account id, five-minute lease). An appointment checks state, writes and rereads under one fence. A competing writer gets 409 before writing anything.
 - The writer refuses, before any write, to replace an existing city grant or to enable a city the request did not allow.
 - After the write, a freshly loaded user must have the role `city_admin`, the city enabled, exactly one city scope and exactly the nine permissions through `User.has_scoped_permission`. Anything else is `reconciliation_required`.
 - A `pending` operation whose last update is older than five minutes is reported as `reconciliation_required` on replay or lookup. It is never retried automatically.

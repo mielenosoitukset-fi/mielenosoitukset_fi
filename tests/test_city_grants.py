@@ -303,3 +303,42 @@ def test_writes_are_attributed_to_the_actor_in_the_audit_trail(ctx):
     if not events:
         pytest.skip("audit trail disabled in this environment")
     assert {event["actor"].get("user_id") for event in events} == {str(ctx.admin)}
+
+
+def test_a_held_account_fence_blocks_both_writers_before_any_write(ctx, admin_client):
+    request = _request(ctx)
+    with city_grants.account_fence(ctx.db, ctx.target):
+        outcome = _apply(ctx, request)
+        assert (outcome.status_code, outcome.body) == (409, {"code": "stale_state"})
+        payload = _profile(ctx.db.users.find_one({"_id": ctx.target}), **{
+            "admin_scope_cities[]": ["kuopio"], "admin_scope_permissions[city][]": ["EDIT_DEMO"],
+        })
+        assert admin_client.post(f"/admin/user/edit_user/{ctx.target}", data=payload).status_code == 409
+        assert not _grants(ctx)
+    # Released: the next writer proceeds.
+    assert _apply(ctx, request, key="hallinto-op-0000000005").status_code == 200
+    assert ctx.db[city_grants.FENCES].count_documents({}) == 0
+
+
+def test_two_appointments_for_different_cities_cannot_both_land(ctx, monkeypatch):
+    upsert_city_setting(ctx.db, "tampere", True)
+    first, second = _request(ctx, city="kuopio"), _request(ctx, city="tampere")
+    original = city_grants.verify_effective_grant
+    results = {}
+
+    def interleave(db, account, city):
+        # While the first appointment is still fenced, the second one runs.
+        if "second" not in results:
+            results["second"] = _apply(ctx, second, key="hallinto-op-0000000006")
+        return original(db, account, city)
+
+    monkeypatch.setattr(city_grants, "verify_effective_grant", interleave)
+    assert _apply(ctx, first).status_code == 200
+    assert results["second"].body == {"code": "stale_state"}
+    assert [grant["scope_keys"] for grant in _grants(ctx)] == [["kuopio"]]
+
+
+def test_an_expired_fence_is_taken_over(ctx):
+    ctx.db[city_grants.FENCES].insert_one({"_id": str(ctx.target), "token": ObjectId(),
+                                           "expires_at": city_grants.utcnow() - timedelta(seconds=1)})
+    assert _apply(ctx, _request(ctx)).status_code == 200

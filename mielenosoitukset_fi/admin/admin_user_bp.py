@@ -31,7 +31,7 @@ from .utils import get_org_name, mongo, _ADMIN_TEMPLATE_FOLDER
 from .board_compliance import has_board_clearance
 from .city_grants import (
     CITY_ADMIN_AVAILABLE_PERMISSIONS, CITY_ADMIN_PERMISSIONS, CityGrantConflict,
-    _profile_snapshot, auto_activate_granted_cities, can_manage_scope_grants,
+    _profile_snapshot, can_manage_scope_grants,
     city_scope_grant_for_user, commit_profile_change, history_actor, sync_city_scope_grant,
 )
 from .user_history import (
@@ -224,10 +224,6 @@ def _can_manage_scope_grants(actor) -> bool:
 
 def _city_scope_grant_for_user(user_id: ObjectId) -> dict:
     return city_scope_grant_for_user(mongo, user_id)
-
-
-def _auto_activate_granted_cities(city_keys: list[str]) -> None:
-    auto_activate_granted_cities(mongo, city_keys, current_user)
 
 
 def _sync_city_scope_grant(user_id: ObjectId, city_keys: list[str], permissions: list[str]) -> None:

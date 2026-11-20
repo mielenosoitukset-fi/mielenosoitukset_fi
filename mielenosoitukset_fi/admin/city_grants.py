@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Callable, Optional
@@ -145,9 +146,58 @@ class SyncResult:
     enabled_cities: list
 
 
+FENCES = "city_grant_fences"
+# A fence left by a crashed writer can be taken over after this long.
+FENCE_LEASE = timedelta(minutes=5)
+
+
+@contextmanager
+def account_fence(db, user_id):
+    """Serialize city grant writers for one account across processes.
+
+    Raises CityGrantConflict when another writer holds a live fence. The
+    fence is a document keyed by the account id, so taking it is atomic.
+    """
+    token = ObjectId()
+    now = utcnow()
+    try:
+        db[FENCES].find_one_and_update(
+            {"_id": str(user_id), "expires_at": {"$lte": now}},
+            {"$set": {"token": token, "expires_at": now + FENCE_LEASE}},
+            upsert=True,
+        )
+    except DuplicateKeyError:
+        raise CityGrantConflict("another city grant write for this account is in progress") from None
+    try:
+        yield
+    finally:
+        try:
+            db[FENCES].delete_one({"_id": str(user_id), "token": token})
+        except PyMongoError:
+            logger.exception("Could not release city grant fence for %s; it expires by lease", user_id)
+
+
 def sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissions: list[str], actor, *,
                           allow_city_enablement: bool = True, additive_only: bool = False,
-                          before_write: Optional[Callable[[], None]] = None) -> SyncResult:
+                          before_write: Optional[Callable[[], None]] = None,
+                          fenced: bool = False) -> SyncResult:
+    """Replace the user's city grant under the account fence.
+
+    ``fenced=True`` means the caller already holds ``account_fence``.
+    """
+    if fenced:
+        return _sync_city_scope_grant(db, user_id, city_keys, permissions, actor,
+                                      allow_city_enablement=allow_city_enablement,
+                                      additive_only=additive_only, before_write=before_write)
+    with account_fence(db, user_id):
+        return _sync_city_scope_grant(db, user_id, city_keys, permissions, actor,
+                                      allow_city_enablement=allow_city_enablement,
+                                      additive_only=additive_only, before_write=before_write)
+
+
+def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissions: list[str], actor, *,
+                           allow_city_enablement: bool = True, additive_only: bool = False,
+                           before_write: Optional[Callable[[], None]] = None) -> SyncResult:
     """Replace the user's city grant; audit each scope mutation in its own outbox.
 
     ``allow_city_enablement=False`` and ``additive_only=True`` raise
@@ -506,6 +556,19 @@ def apply_city_admin_v1(db, *, integration: str, actor_id, idempotency_key: str,
     _log(operation, "pending")
 
     account_id = ObjectId(intent["account_id"])
+    try:
+        with account_fence(db, account_id):
+            # Owner state is checked, written and reread under one fence.
+            return _apply_fenced(db, operation, intent, actor, integration, account_id)
+    except CityGrantConflict:
+        # Another writer holds the fence. Fencing happens before any write.
+        current = db[OPERATIONS].find_one({"_id": operation["_id"]})
+        if current and current["status"] == "pending" and current.get("phase") == "allocated":
+            return _outcome_for(_reject(db, current, "stale_state"))
+        return _outcome_for(current) if current else _error("unavailable")
+
+
+def _apply_fenced(db, operation, intent, actor, integration, account_id) -> Outcome:
     city = intent["city"]
     target = db.users.find_one({"_id": account_id})
     if target is None:
@@ -539,7 +602,7 @@ def apply_city_admin_v1(db, *, integration: str, actor_id, idempotency_key: str,
             result = sync_city_scope_grant(
                 db, account_id, [city], CITY_ADMIN_V1_PERMISSIONS, actor,
                 allow_city_enablement=intent["allow_city_enablement"], additive_only=True,
-                before_write=applying,
+                before_write=applying, fenced=True,
             )
     except CityGrantConflict:
         if operation.get("phase") != "applying":
