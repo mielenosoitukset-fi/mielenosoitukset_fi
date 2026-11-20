@@ -185,7 +185,8 @@ def test_explicit_approval_write_still_persists(admin_client, db, seeded_data, m
     assert db.demonstrations.find_one({"_id": demo_id})["approved"] is False
 
 
-def test_approver_form_edit_can_still_unapprove(admin_client, db, seeded_data, monkeypatch):
+def test_approver_form_edit_never_changes_approval(admin_client, db, seeded_data, monkeypatch):
+    """Maintainer decision (20 Nov 2026): the edit form has no approval checkbox."""
     _capture_decision_email(monkeypatch)
     demo_id = seeded_data["pending_demo_id"]
     assert admin_client.post(f"/api/admin/demo/{demo_id}/approve").status_code == 200
@@ -194,4 +195,12 @@ def test_approver_form_edit_can_still_unapprove(admin_client, db, seeded_data, m
         "title": before["title"], "date": before["date"], "city": before["city"],
     })
     assert response.status_code == 302
-    assert db.demonstrations.find_one({"_id": demo_id})["approved"] is False
+    assert db.demonstrations.find_one({"_id": demo_id})["approved"] is True
+
+    pending_before = db.demonstrations.find_one({"_id": seeded_data["demo_id"]})
+    db.demonstrations.update_one({"_id": pending_before["_id"]}, {"$set": {"approved": False}})
+    admin_client.post(f"/admin/demo/edit_demo/{pending_before['_id']}", data={
+        "title": pending_before["title"], "date": pending_before["date"],
+        "city": pending_before["city"], "approved": "on",
+    })
+    assert db.demonstrations.find_one({"_id": pending_before["_id"]})["approved"] is False

@@ -4221,11 +4221,11 @@ def handle_demo_form(
     can_change_approval = has_demo_approval_permission(
         current_user, approval_scope_demo
     )
-    requested_approval = bool(demonstration_data.get("approved"))
-    if not can_change_approval:
-        demonstration_data["approved"] = bool(
-            approval_scope_demo and approval_scope_demo.get("approved")
-        )
+    # Maintainer decision (20 Nov 2026): the edit form never changes the
+    # approval status. Decisions happen in the case through the decision
+    # service; a new demo starts pending and an approver's "publish now"
+    # choice on the create form runs the same service after the insert.
+    requested_approval = not is_edit and request.form.get("approved") == "on"
     
     if demo_id and demonstration_data.get("_id") is None:
         demonstration_data["_id"] = ObjectId(demo_id)
@@ -4244,16 +4244,11 @@ def handle_demo_form(
                 if incoming_city_key != previous_city_key and not _user_can_create_demo_in_city(demonstration_data.get("city")):
                     flash_message(_("Sinulla ei ole oikeutta siirtää mielenosoitusta valittuun paikkakuntaan."), "error")
                     abort(403)
-                approve_after_save = can_change_approval and requested_approval
-                if approve_after_save:
-                    # Keep the status unchanged during the ordinary field save;
-                    # the decision service owns approval and its side effects.
-                    demonstration_data["approved"] = bool(prev_demo.get("approved"))
+                demonstration_data.pop("approved", None)
                 merged_data = _deep_merge(prev_demo, demonstration_data)
                 demo = Demonstration.from_dict(merged_data)
-                # Only an approver's form value is authoritative for approval;
-                # otherwise keep whatever the database holds now.
-                demo.save(write_approval=can_change_approval)
+                # The status is whatever the database holds now.
+                demo.save(write_approval=False)
                 hist_id = record_demo_change(
                     demo_id,
                     prev_demo,
@@ -4279,12 +4274,6 @@ def handle_demo_form(
                             "reason": "Muokattu mielenosoitusta hallintapaneelista, lisätietoa: <a href='{}'>historia</a>".format(url_for('admin_demo.view_demo_diff', history_id=hist_id, _external=True))
                         },
                     })
-                if approve_after_save:
-                    _apply_demo_decision(
-                        demo_id,
-                        "approved",
-                        source="admin_form",
-                    )
             flash_message("Mielenosoitus päivitetty onnistuneesti.", "success")
         else:
             if not _user_can_create_demo_in_city(demonstration_data.get("city")):
@@ -4304,6 +4293,10 @@ def handle_demo_form(
                 message=_("%(user)s loi mielenosoituksen") % {"user": _get_actor_label()},
                 details={"title": demonstration_data.get("title")}
             )
+            if can_change_approval and requested_approval:
+                _apply_demo_decision(
+                    str(insert_result.inserted_id), "approved", source="admin_form_create"
+                )
             flash_message("Mielenosoitus luotu onnistuneesti.", "success")
 
         # Redirect to the demonstration control panel on success
@@ -4699,7 +4692,8 @@ def collect_demo_data(request, existing_organizers=None):
         "type": event_type,
         "route": route,
         "organizers": organizers,
-        "approved": approved,
+        # Status is never taken from the form; see handle_demo_form.
+        "approved": False,
         "tags": tags,
         "description": description,
         "default_language": default_language,
