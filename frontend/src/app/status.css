@@ -38,6 +38,11 @@
   background: var(--product-danger-soft);
 }
 
+.service-status-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
 .service-status-list > div {
   background: var(--product-surface);
 }
