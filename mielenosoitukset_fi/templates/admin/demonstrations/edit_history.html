@@ -1,5 +1,6 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
+{% from 'admin_V2/_audit_history.html' import audit_history_table %}
 
 {% block title %}{{ _('Muokkaushistoria') }} – {{ demo_name }}{% endblock %}
 
@@ -52,7 +53,7 @@
           <tr>
             <td>
               <time datetime="{{ entry.edited_at.isoformat() if entry.edited_at else '' }}">
-                {{ entry.edited_at.strftime('%d.%m.%Y %H:%M:%S') if entry.edited_at else '—' }}
+                {{ helsinki_time(entry.edited_at) if entry.edited_at else '—' }}
               </time>
             </td>
             <td>
@@ -112,6 +113,19 @@
       <p>{{ _('Muokkaushistoriaa ei löytynyt tälle mielenosoitukselle.') }}</p>
     </div>
     {% endif %}
+  </section>
+
+  <section class="admin-data-view admin-data-view--scrollable admin-audit-history" aria-labelledby="audit-heading">
+    <div class="admin-data-view__header admin-result-summary">
+      <div>
+        <strong id="audit-heading">{{ _('Kaikki kirjatut muutokset') }}</strong>
+        <span class="d-block text-muted">
+          {{ _('Jokainen muutos kentittäin: kuka, milloin ja mitä kautta, myös lomakkeiden, taustatöiden ja muokkauslinkkien tekemät.') }}
+          {% if audit_total > audit_limit %}{{ _('Näytetään %(limit)s uusinta / %(total)s muutoksesta.', limit=audit_limit, total=audit_total) }}{% endif %}
+        </span>
+      </div>
+    </div>
+    {{ audit_history_table(audit_rows, 'audit-heading', _('Tälle mielenosoitukselle ei ole kirjattu muutoksia sen jälkeen, kun muutoshistorian kirjaus alkoi.')) }}
   </section>
 </div>
 {% endblock %}
