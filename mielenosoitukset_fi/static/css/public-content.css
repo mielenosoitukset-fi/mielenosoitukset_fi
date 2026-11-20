@@ -188,6 +188,13 @@
 .fundraising-facts dt { color: var(--product-text-muted); font-size: .85rem; font-weight: 600; }
 .fundraising-facts dd { margin: .2rem 0 0; font-weight: 700; overflow-wrap: anywhere; }
 .fundraising-official summary { display: flex; align-items: center; min-height: 44px; }
+.fundraising-official summary { justify-content: space-between; gap: 1rem; list-style: none; }
+.fundraising-official summary::-webkit-details-marker { display: none; }
+/* Flex removes the native marker, so draw one: without it a closed question looks like a question with no answer. */
+.fundraising-official summary::after { content: ""; flex: none; width: .55rem; height: .55rem; margin: 0 .3rem .2rem 0; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .15s ease; }
+.fundraising-official[open] summary::after { margin-bottom: -.2rem; transform: rotate(-135deg); }
+@media (prefers-reduced-motion: reduce) { .fundraising-official summary::after { transition: none; } }
+.fundraising-contact a { color: var(--product-primary); }
 .fundraising-contact { margin: 1rem 0 0; }
 .fundraising-page [id] { scroll-margin-top: 5rem; }
 .fundraising-sticky { display: none; }
