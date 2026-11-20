@@ -58,9 +58,9 @@ def test_embed_hides_site_chrome_only(admin_client, db, seeded_data):
     plain = admin_client.get(f"/admin/demo/{demo['_id']}/preview")
     embedded = admin_client.get(f"/admin/demo/{demo['_id']}/preview?embed=1")
     assert_preview(embedded, demo)
-    hide = '[data-react-island="site-header"], .public-site-footer'
-    assert hide in embedded.text and hide not in plain.text
-    assert 'staff-preview-bar' in plain.text and 'staff-preview-bar' not in embedded.text
+    assert 'public-detail-main demo-preview-embed"' in embedded.text
+    assert 'demo-preview-embed"' not in plain.text
+    assert '<p class="staff-preview-bar"' in plain.text and '<p class="staff-preview-bar"' not in embedded.text
     assert 'Odottaa hyväksyntää' in plain.text
     embedded_props, plain_props = props_from(embedded), props_from(plain)
     for props in (embedded_props, plain_props):

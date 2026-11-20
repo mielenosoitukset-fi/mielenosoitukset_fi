@@ -283,7 +283,7 @@ def render_demo_preview(demo, locale, embed=False):
              "recurringTargetId": None, "recurringFollowing": False,
              "preview": {"event": event}}
     response = make_response(render_template(
-        "admin_V2/demonstrations/public_preview.html", props=props,
+        "demo_preview.html", props=props,
         metadata_title=event.get("title") or _("Mielenosoitus"), embed=embed,
         preview_state=preview_state_label(demo)))
     response.headers["Cache-Control"] = "no-store"
