@@ -16,13 +16,16 @@ function Root(props: Bootstrap) {
   useEffect(() => {
     function activate() {
       if ((document as Document & { prerendering?: boolean }).prerendering || navigator.doNotTrack === '1') return;
-      if (session.matomoEnabled && !document.getElementById('public-app-matomo')) {
+      const name = routeForPath(path)?.name;
+      // Pages whose address carries a secret token never load the third-party tracker,
+      // which would send the full URL off-site.
+      const secretPath = name === 'password-reset' || name === 'cancel-link';
+      if (session.matomoEnabled && !secretPath && !document.getElementById('public-app-matomo')) {
         const script = document.createElement('script');
         script.id = 'public-app-matomo'; script.src = '/static/js/matomo.js'; script.async = true;
         document.head.appendChild(script);
       }
       // Detail/series views keep their separate demonstration-view collection.
-      const name = routeForPath(path)?.name;
       if (!name || !['home', 'listing', 'organization', 'cities', 'today', 'submit', 'calendar', 'calendar-year', 'pride', 'information', 'campaign', 'fundraising', 'contact', 'city-admin', 'organization-fill', 'suggest-change', 'api-docs'].includes(name)
         || !session.siteAnalyticsEnabled || tracked.current) return;
       tracked.current = true;

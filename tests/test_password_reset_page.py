@@ -27,7 +27,8 @@ def test_status_refuses_garbage_and_flashes_the_reason(client, db):
 def test_status_refuses_a_spent_link(client, db, seeded_data):
     token = seeded_data["reset_token"]
     password = "Zq7-correct-horse-battery-staple"
-    client.post(f"/users/auth/password_reset/{token}", data={"password": password, "password_confirm": password})
+    changed = client.post(f"/users/auth/password_reset/{token}", data={"password": password, "password_confirm": password})
+    assert changed.status_code == 302 and changed.headers["Location"].endswith("/users/auth/login")
     assert client.post(STATUS, json={"token": token}).get_json() == {"valid": False}
 
 
@@ -55,3 +56,9 @@ def test_page_posts_to_the_flask_handler_and_keeps_the_token_private():
     block = render.split("if (route.name === 'password-reset') {", 1)[1].split("\n  }\n", 1)[0]
     assert "headers['Referrer-Policy'] = 'no-referrer';" in block
     assert "headers['Cache-Control'] = 'private, no-store';" in block
+
+
+def test_token_pages_never_load_the_third_party_tracker():
+    client_source = (ROOT / "frontend/src/app/client.tsx").read_text(encoding="utf-8")
+    assert "const secretPath = name === 'password-reset' || name === 'cancel-link';" in client_source
+    assert "session.matomoEnabled && !secretPath" in client_source

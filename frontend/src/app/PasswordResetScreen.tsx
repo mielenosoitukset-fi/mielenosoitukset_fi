@@ -82,7 +82,7 @@ export default function PasswordResetScreen({ config, token }: { config: AppConf
       <span className="flash-text">{copy.fixErrors}</span></p>}
     <p className="auth-hint" role="status">{link === 'checking' ? copy.checking : link === 'unknown' ? copy.checkFailed : ''}</p>
     <form className="auth-form register-form" action={action} method="post" onSubmit={onSubmit} hidden={link === 'refused'}>
-      <section className="public-prose-card auth-card register-card" aria-labelledby="reset-title">
+      <section className="public-prose-card auth-card register-card">
         <label htmlFor="reset-password">{copy.password}</label>
         <div className="login-password">
           <input type={showPassword ? 'text' : 'password'} id="reset-password" name="password" required minLength={12}
