@@ -1,5 +1,6 @@
 {% extends "admin_base.html" %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
+{% from 'admin_V2/demonstrations/_decision_modal.html' import demo_decision_modal %}
 {% block title %}{{ _('Tapaus') }} #{{ case.running_num }}{% endblock %}
 
 {% block main_content %}
@@ -231,7 +232,7 @@
 
           <div class="admin-row-actions">
 {% if global_case_controls %}
-            <button class="btn btn-success" type="button" onclick="sendDemoAction('accept')" {% if case.meta.superior_needed and current_user.role != 'global_admin' %}disabled{% endif %}>
+            <button class="btn btn-success" type="button" onclick="approveDemo()" {% if case.meta.superior_needed and current_user.role != 'global_admin' %}disabled{% endif %}>
               <i class="fa-solid fa-check me-1"></i>{{ _('Hyväksy mielenosoitus') }}
             </button>
 {% endif %}
@@ -556,11 +557,14 @@
     </aside>
   </div>
 </div>
+{% if case.case_type == 'new_demo' and case.demo_id %}{{ demo_decision_modal() }}{% endif %}
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/admin_demo_decision.js', v='20261120-decision-1') }}"></script>
 <script>
   const caseId = "{{ case._id }}";
+  const caseDemoId = {{ (case.demo_id|string if case.demo_id else '')|tojson }};
 
   const rejectReasons = {{ reject_reasons|tojson }};
   const closeReasons = {{ close_reasons|tojson }};
@@ -728,14 +732,20 @@
       .catch(() => Swal.fire("{{ _('Virhe') }}", "{{ _('Tapahtui odottamaton virhe.') }}", "error"));
   }
 
+  async function approveDemo() {
+    if (await window.MosoDemoDecision.confirm(caseDemoId, "approved")) {
+      sendDemoAction("accept");
+    }
+  }
+
   function rejectDemo() {
     reasonDialog({
       title: "{{ _('Hylkää mielenosoitus') }}",
-      confirmText: "{{ _('Hylkää') }}",
+      confirmText: "{{ _('Jatka') }}",
       reasons: rejectReasons,
       duplicateOf: "demo",
-    }).then((result) => {
-      if (result.isConfirmed) {
+    }).then(async (result) => {
+      if (result.isConfirmed && await window.MosoDemoDecision.confirm(caseDemoId, "rejected")) {
         sendDemoAction("reject", result.value);
       }
     });
