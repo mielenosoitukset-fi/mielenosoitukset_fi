@@ -185,6 +185,26 @@ def _can_take_down(demo):
     return bool(demo) and can_take_down_demo(current_user, demo)
 
 
+def _undo_deadline(demo):
+    """Deadline for the case's "Peru hyväksyntä" button, for approvers only."""
+    from mielenosoitukset_fi.demonstrations.decisions import approval_undo_deadline
+    from mielenosoitukset_fi.utils.wrappers import has_demo_approval_permission
+
+    if not demo or not demo.get("_id") or not has_demo_approval_permission(current_user, demo):
+        return None
+    raw = mongo.demonstrations.find_one(
+        {"_id": ObjectId(str(demo["_id"]))}, {"approved": 1, "moderation_decision": 1}
+    )
+    deadline = approval_undo_deadline(raw)
+    if deadline is None:
+        return None
+    from datetime import timezone
+    from zoneinfo import ZoneInfo
+
+    # Stored times are naive UTC; admins read Helsinki time.
+    return deadline.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Europe/Helsinki")).strftime("%H:%M")
+
+
 def _stringify_demo(demo):
     if not demo:
         return {}
@@ -640,6 +660,7 @@ def single_case(case_id):
         can_edit_case=can_access_case(current_user, "EDIT_CASE", case._id),
         global_case_controls=global_case_permission(current_user, "EDIT_CASE"),
         can_take_down=_can_take_down(case_data.get("demo")),
+        undo_deadline=_undo_deadline(case_data.get("demo")),
         reject_reasons=case_reasons.choices(case_reasons.REJECT_KEYS),
         close_reasons=case_reasons.choices(case_reasons.CLOSE_KEYS),
     )
@@ -1116,6 +1137,19 @@ def demo_action(case_id):
         except DemoNotPublished:
             return jsonify({"error": _("Vain julkaistun mielenosoituksen voi poistaa julkaisusta.")}), 409
         response_status = "taken_down"
+
+    elif data["action"] == "undo_approval":
+        from mielenosoitukset_fi.demonstrations.decisions import UndoWindowClosed, undo_demo_approval
+        from mielenosoitukset_fi.admin.utils import capture_actor_context
+        from mielenosoitukset_fi.utils.wrappers import has_demo_approval_permission
+
+        if not has_demo_approval_permission(current_user, demo):
+            return jsonify({"error": _("Käyttöoikeutesi eivät riitä perumaan hyväksyntää.")}), 403
+        try:
+            undo_demo_approval(mongo, case.demo_id, actor=capture_actor_context(), source="case_undo_approval")
+        except UndoWindowClosed:
+            return jsonify({"error": _("Hyväksyntää ei voi enää perua. Käytä tarvittaessa Poista julkaisusta.")}), 409
+        response_status = "pending"
 
     else:
         return jsonify({"error": _("Tuntematon toiminto.")}), 400
