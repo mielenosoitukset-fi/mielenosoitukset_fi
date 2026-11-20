@@ -101,3 +101,18 @@ def test_flask_marks_the_mfa_step_in_its_redirects(app, db):
     assert "mfa=1" not in response.headers["Location"]
     with fresh.session_transaction() as login_session:
         assert "_user_id" not in login_session
+
+
+def test_login_required_notice_is_finnish_and_shown_once(client):
+    # Several protected requests while signed out each queue Flask-Login's notice.
+    for _ in range(4):
+        response = client.get("/users/auth/ui/tokens")
+        assert response.status_code == 302
+    messages = client.get("/get_flash_messages").get_json()["messages"]
+    assert messages == [{"category": "info", "message": "Kirjaudu sisään nähdäksesi tämän sivun."}]
+    assert client.get("/get_flash_messages").get_json()["messages"] == []
+
+
+def test_react_flash_reader_drops_duplicates():
+    source = (ROOT / "frontend/src/app/flash-notices.tsx").read_text(encoding="utf-8")
+    assert "seen.has(key)" in source

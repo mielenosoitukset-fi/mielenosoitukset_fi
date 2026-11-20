@@ -176,6 +176,9 @@ def create_app(config_overrides=None) -> Flask:
     login_manager.login_view = (
         "users.auth.login"  # Redirect to login view if not authenticated
     )
+    # Flask-Login's default is English ("Please log in to access this page.").
+    login_manager.login_message = "Kirjaudu sisään nähdäksesi tämän sivun."
+    login_manager.login_message_category = "info"
     
     login_manager.anonymous_user = AnonymousUser
 
