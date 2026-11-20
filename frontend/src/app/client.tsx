@@ -83,6 +83,11 @@ if (container) {
       void import('./LoginScreen').then(({ default: LoginScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<LoginScreen config={props.config} search={window.location.search} />} />);
       }).catch(error => console.error('Could not start the login page', error));
+    } else if (route?.name === 'password-reset') {
+      const token = route.token;
+      void import('./PasswordResetScreen').then(({ default: PasswordResetScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<PasswordResetScreen config={props.config} token={token} />} />);
+      }).catch(error => console.error('Could not start the password reset page', error));
     } else if (route?.name === 'register') {
       void import('./RegisterScreen').then(({ default: RegisterScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<RegisterScreen config={props.config} />} />);

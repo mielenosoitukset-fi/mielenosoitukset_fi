@@ -41,6 +41,7 @@ import ProfileScreen from './ProfileScreen';
 import AccountSettingsScreen from './AccountSettingsScreen';
 import PasswordResetRequestScreen from './PasswordResetRequestScreen';
 import RegisterScreen from './RegisterScreen';
+import PasswordResetScreen from './PasswordResetScreen';
 import LoginScreen from './LoginScreen';
 import { loginLegacyLocation } from './login-route';
 import { accountCopy } from './account-settings-route';
@@ -91,7 +92,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; register?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; register?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -518,6 +519,18 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<LoginScreen config={config} search={input.search ?? ''} />} />);
+  }
+
+  if (route.name === 'password-reset') {
+    // The path carries the reset token: never cache, never send it on as a referrer.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.passwordReset ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<PasswordResetScreen config={config} token={route.token} />} />);
   }
 
   if (route.name === 'register') {
