@@ -168,11 +168,12 @@ def test_rejection_revokes_every_open_link(
 def test_form_approval_uses_canonical_decision_service(
     admin_client, db, seeded_data, monkeypatch
 ):
-    queued = _capture_decision_email(monkeypatch)
+    """Only the create form can publish, and it does so through the service."""
+    _capture_decision_email(monkeypatch)
     response = admin_client.post(
-        f"/admin/demo/edit_demo/{seeded_data['pending_demo_id']}",
+        "/admin/demo/create_demo",
         data={
-            "title": "Pending Demonstration",
+            "title": "Uusi julkaistava mielenosoitus",
             "date": "2026-05-01",
             "city": "Helsinki",
             "approved": "on",
@@ -181,15 +182,10 @@ def test_form_approval_uses_canonical_decision_service(
     )
 
     assert response.status_code == 302
-    demo = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
+    demo = db.demonstrations.find_one({"title": "Uusi julkaistava mielenosoitus"})
     assert demo["approved"] is True
     assert demo["rejected"] is False
-    assert demo["moderation_decision"]["source"] == "admin_form"
-    assert len(queued) == 1
-    case = db.cases.find_one({"_id": seeded_data["case_id"]})
-    assert case["meta"]["closed"] is True
-    assert case["outcome"] == case["resolution"] == "approved"
-    assert case["meta"]["decision_id"] == demo["moderation_decision"]["id"]
+    assert demo["moderation_decision"]["source"] == "admin_form_create"
     _assert_single_decision_record(
         db, demo["_id"], demo["moderation_decision"]["id"], "approve_demo"
     )

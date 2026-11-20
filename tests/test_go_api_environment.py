@@ -111,10 +111,13 @@ def test_account_settings_writes_need_the_bridge_and_the_reads(tmp_path):
     spec.loader.exec_module(module)
     bridge = {"AUTH_BRIDGE_SCOPES": True}
     cases = (
+        ({}, False),  # no bridge
         ({"ACCOUNT_SETTINGS_WRITES": True}, False),
-        ({**bridge, "ACCOUNT_SETTINGS_WRITES": True}, False),  # no reads
+        ({**bridge}, True),  # on by default with the bridge and the (default) reads
+        ({**bridge, "ACCOUNT_SETTINGS_WRITES": True}, True),
+        ({**bridge, "ACCOUNT_SETTINGS_READS": False, "ACCOUNT_SETTINGS_WRITES": True}, False),  # no reads
         ({"ACCOUNT_SETTINGS_READS": True, "ACCOUNT_SETTINGS_WRITES": True}, False),  # no bridge
-        ({**bridge, "ACCOUNT_SETTINGS_READS": True}, False),
+        ({**bridge, "ACCOUNT_SETTINGS_READS": True}, True),
         ({**bridge, "ACCOUNT_SETTINGS_READS": True, "ACCOUNT_SETTINGS_WRITES": False}, False),
         ({**bridge, "ACCOUNT_SETTINGS_READS": True, "ACCOUNT_SETTINGS_WRITES": True}, True),
     )
