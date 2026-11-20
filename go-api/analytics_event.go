@@ -83,6 +83,9 @@ func analyticsJSONValue(decoder *json.Decoder) (any, error) {
 	return value, nil
 }
 
+// analyticsMaxBody bounds every event body, JSON and form alike.
+const analyticsMaxBody = 16 << 10
+
 func analyticsEnabledFromEnv() bool {
 	return os.Getenv("SITE_ANALYTICS_ENABLED") == "true"
 }
@@ -94,6 +97,9 @@ func analyticsEventHandler(next http.Handler, enabled bool, increment func(conte
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
+		// Beacons are a few hundred bytes. A larger body is not counted and is
+		// never held in memory; the answer stays the usual {"ok":true}.
+		r.Body = http.MaxBytesReader(w, r.Body, analyticsMaxBody)
 		if enabled && r.Header.Get("DNT") != "1" {
 			if key := analyticsEventKey(r, clock()); key != nil {
 				ctx, cancel := context.WithTimeout(r.Context(), time.Second)
