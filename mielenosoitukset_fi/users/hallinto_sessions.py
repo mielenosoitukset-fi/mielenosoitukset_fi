@@ -38,6 +38,7 @@ def issue_marker(markers, account: AccountVersion, expires_at: datetime) -> str:
             **_marker_filter(marker, account.user_id),
             "auth_epoch": account.auth_epoch,
             "credential_version": account.credential_version,
+            "issued_at": now,
             "expires_at": expires_at,
             "revoked_at": None,
         }

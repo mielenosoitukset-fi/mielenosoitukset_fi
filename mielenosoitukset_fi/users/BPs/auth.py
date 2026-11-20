@@ -1626,6 +1626,10 @@ def logout():
     if not valid_logout_token(request.form.get("logout_token"), current_user.get_id()):
         # An expired or foreign token never signs anyone out; show the confirmation page with a fresh one.
         return redirect(url_for("users.auth.logout"))
+    end_hallinto_login = current_app.extensions.get("hallinto_owner_logout")
+    if end_hallinto_login and not end_hallinto_login(current_user.get_id()):
+        # Keep the browser binding so the visitor can retry revoking it.
+        return jsonify(error="temporarily_unavailable"), 503, {"Cache-Control": "no-store"}
     logout_user()
     clear_elevation()  # step-up state never outlives the session
     flash_message("Kirjauduit onnistuneesti ulos", "success")

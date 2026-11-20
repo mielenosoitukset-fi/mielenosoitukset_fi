@@ -9,7 +9,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = """
 import { isStepUpRequired, needsStepUp, readStepUpMethods, passwordStepUpPayload, runWithStepUp, base64UrlToBuffer, bufferToBase64Url,
-  decodePublicKeyOptions, stepUpWithPassword, stepUpWithPasskey, restoreFocusWhenEnabled } from './frontend/src/app/account-stepup.ts';
+  decodePublicKeyOptions, stepUpWithPassword, stepUpWithPasskey, restoreFocusWhenEnabled, pickFocusReturn } from './frontend/src/app/account-stepup.ts';
 import { passwordFormError, passwordPayload, passwordRequest, readPasswordResult } from './frontend/src/app/account-settings-route.ts';
 const res = (status, body) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
 const calls = [];
@@ -44,6 +44,9 @@ const stuck = { isConnected: true, disabled: true, focused: 0, focus() { this.fo
 restoreFocusWhenEnabled(stuck, schedule, 3); runFrames(10);
 restoreFocusWhenEnabled(null, schedule);
 const focusEdge = { gone: gone.focused, stuck: stuck.focused, pending: frames.length };
+const pageBody = 'body', submitBtn = 'submit', field = 'confirm';
+const focusReturn = [pickFocusReturn(field, pageBody, submitBtn), pickFocusReturn(pageBody, pageBody, submitBtn), pickFocusReturn(null, pageBody, submitBtn),
+  pickFocusReturn(pageBody, pageBody), pickFocusReturn(pageBody, pageBody, null)];
 const out = {
   detect: [isStepUpRequired(403, stepUp), isStepUpRequired(403, { error: 'other' }), isStepUpRequired(401, stepUp), isStepUpRequired(403, null), isStepUpRequired(403, [stepUp])],
   needs: [await needsStepUp(res(403, stepUp)), await needsStepUp(res(403, 'html')), await needsStepUp(res(200, stepUp))],
@@ -63,7 +66,7 @@ const out = {
   result: [await readPasswordResult(res(200, { status: 'success', message: 'Salasana vaihdettu.' }), 'fb'), await readPasswordResult(res(400, { status: 'error', message: 'Nykyinen salasana on väärä.' }), 'fb'),
     await readPasswordResult(res(500, 'html'), 'fb'), await readPasswordResult(null, 'fb')],
   calls: pwCall,
-  focusOut, focusEdge,
+  focusOut, focusEdge, focusReturn,
 };
 console.log(JSON.stringify(out));
 """
@@ -110,3 +113,13 @@ def test_focus_returns_only_after_the_button_is_enabled():
     assert out["focusOut"] == {"enabled": 0, "whileDisabled": 0, "after": 1, "pending": 0}
     # A control that left the page, a control that never re-enables (gives up) and no control: nothing is focused or left pending.
     assert out["focusEdge"] == {"gone": 0, "stuck": 0, "pending": 0}
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node is required")
+def test_focus_returns_to_the_submit_button_when_a_click_left_focus_on_the_body():
+    result = subprocess.run(["node", "--experimental-strip-types", "--input-type=module", "-e", SCRIPT],
+                            cwd=ROOT, capture_output=True, text=True, check=True)
+    out = json.loads(result.stdout.strip().splitlines()[-1])
+    # Enter in a field keeps focus on that field; a Safari click (body focused) or no focus falls back to
+    # the submit button; with no fallback there is nothing to focus.
+    assert out["focusReturn"] == ["confirm", "submit", "submit", None, None]
