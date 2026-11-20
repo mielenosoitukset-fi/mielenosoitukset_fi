@@ -47,6 +47,8 @@ real request. Spec: [go-write-api-proposal.md](go-write-api-proposal.md) section
 - **Language.** Messages are Finnish; Flask would translate for other locales. The public site is Finnish-only.
 - Python `str.lower()` and Go `strings.ToLower` differ for a few special characters (for example `İ`), so such an address may count under a
   different hash key than Flask would. Cosmetic: the limit still applies per runtime.
+- Attempts stay counted when a signup fails with 503, as in Flask. After two failed tries in an hour, a third try for the same address
+  gets the silent 201 and no mail; the visitor can try again after the hour.
 - Lone surrogates written as `\ud800` in the JSON become U+FFFD in Go; Flask would fail storing them.
 
 ## Confirm link: how this interacts with `token-pages-go`
@@ -106,6 +108,8 @@ database needs restoring.
 `go test ./...` covers: the validation matrix (parity with `tests/test_campaign_volunteer_*`), field cleaning, roles and area, document
 shape and key order, hashed token matching the mailed link, publication gate (private anonymous/signed-in, read failure, bridge failure),
 per-address and per-day limits and key hashing, silent repeats, the hourly/daily short circuit, purge behaviour, storage failures and
-rollback, body bound, analytics gating, welcome mail golden, confirm statuses, concurrent signups and concurrent confirmations. With a
-disposable MongoDB set `CAMPAIGN_VOLUNTEER_TEST_MONGO=mongodb://127.0.0.1:PORT` to run the real-store test (signup, attempts, atomic confirm,
-legacy token, expiry, purge). `tests/test_go_api_environment.py` covers the flag mapping.
+rollback, body bound, analytics gating, welcome mail golden, confirm statuses, concurrent signups and concurrent confirmations.
+`go-api/testdata/campaign_volunteer_fields.json` holds about forty cleaning and validation cases (Unicode whitespace, format characters,
+code-point lengths, email shapes, role lists); `tests/test_campaign_volunteer_go_fields.py` pins it to Flask's `_volunteer_fields()` and
+`TestVolunteerFieldsMatchFlaskFixture` runs it through the Go parser. The real-store test (signup, attempts, atomic confirm, legacy token,
+expiry, purge) runs whenever `TEST_MONGODB_URI` is set, as in CI (`CAMPAIGN_VOLUNTEER_TEST_MONGO` still works locally). `tests/test_go_api_environment.py` covers the flag mapping.

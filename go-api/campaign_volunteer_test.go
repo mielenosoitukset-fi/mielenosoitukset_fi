@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -316,6 +317,49 @@ func TestVolunteerValidationMatrix(t *testing.T) {
 			}
 			if len(h.store.volunteers)+len(h.store.jobs) != 0 || len(h.store.attempts) != 0 {
 				t.Fatal("invalid input must store nothing and cost no rate-limit budget")
+			}
+		})
+	}
+}
+
+// TestVolunteerFieldsMatchFlaskFixture runs the cases that
+// tests/test_campaign_volunteer_go_fields.py pins to Flask's _volunteer_fields().
+func TestVolunteerFieldsMatchFlaskFixture(t *testing.T) {
+	raw, err := os.ReadFile("testdata/campaign_volunteer_fields.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases map[string]struct {
+		Data   json.RawMessage `json:"data"`
+		Error  string          `json:"error"`
+		Fields *struct {
+			Name, Email, City, Area, Notes string
+			Roles                          []string
+		} `json:"fields"`
+	}
+	if err := json.Unmarshal(raw, &cases); err != nil {
+		t.Fatal(err)
+	}
+	if len(cases) < 30 {
+		t.Fatalf("only %d cases", len(cases))
+	}
+	messages := map[string]string{"required": campaignErrRequired, "format": campaignErrFormat}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			var data map[string]any
+			if err := json.Unmarshal(c.Data, &data); err != nil {
+				t.Fatal(err)
+			}
+			got, problem := campaignParse(data)
+			if c.Error != "" {
+				if problem != messages[c.Error] {
+					t.Fatalf("got %q (%+v), Flask says %s", problem, got, c.Error)
+				}
+				return
+			}
+			want := campaignFields{Name: c.Fields.Name, Email: c.Fields.Email, City: c.Fields.City, Area: c.Fields.Area, Notes: c.Fields.Notes, Roles: c.Fields.Roles}
+			if problem != "" || !reflect.DeepEqual(got, want) {
+				t.Fatalf("got %+v %q, Flask gives %+v", got, problem, want)
 			}
 		})
 	}
@@ -730,13 +774,16 @@ func (failingConfirmStore) TokenKnown(context.Context, string, string) (bool, er
 	return false, errors.New("down")
 }
 
-// With a disposable MongoDB (CAMPAIGN_VOLUNTEER_TEST_MONGO=mongodb://...) the
+// With a disposable MongoDB (TEST_MONGODB_URI=mongodb://..., as CI sets it) the
 // real store runs: signup, hashed token, mail row, attempt counting, the
 // atomic confirm, legacy plain tokens and concurrent confirmations.
 func TestCampaignVolunteerAgainstMongo(t *testing.T) {
-	uri := os.Getenv("CAMPAIGN_VOLUNTEER_TEST_MONGO")
+	uri := os.Getenv("TEST_MONGODB_URI")
 	if uri == "" {
-		t.Skip("CAMPAIGN_VOLUNTEER_TEST_MONGO not set")
+		uri = os.Getenv("CAMPAIGN_VOLUNTEER_TEST_MONGO")
+	}
+	if uri == "" {
+		t.Skip("set TEST_MONGODB_URI for isolated MongoDB integration")
 	}
 	ctx := context.Background()
 	client, err := mongo.Connect(options.Client().ApplyURI(uri))
