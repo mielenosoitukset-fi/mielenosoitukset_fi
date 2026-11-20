@@ -69,7 +69,6 @@ export const accountCopy = {
   saveFailed: 'Virhe asetusten tallennuksessa.',
   securityTitle: 'Turvallisuusasetukset',
   securityLead: 'Hallinnoi tilisi turvallisuusasetuksia, kuten kaksivaiheista tunnistautumista (MFA).',
-  securityLater: 'Passkeyjä ei voi vielä muuttaa tällä sivulla. Ne lisätään tänne myöhemmin.',
   passwordTitle: 'Vaihda salasana',
   passwordCurrent: 'Nykyinen salasana',
   passwordNew: 'Uusi salasana',
