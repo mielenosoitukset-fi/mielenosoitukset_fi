@@ -1,0 +1,1 @@
+- The sign-in notice for protected pages is now in Finnish and shown once, even after several protected pages were opened.

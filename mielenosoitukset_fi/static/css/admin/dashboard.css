@@ -92,9 +92,27 @@
   transition: border-color .18s ease, transform .18s ease;
 }
 
-.admin-dashboard-shell .stat-card:hover {
+.admin-dashboard-shell .stat-card--link {
+  display: block;
+  text-decoration: none;
+}
+
+/* Only cards that lead somewhere react to the pointer. */
+.admin-dashboard-shell .stat-card--link:hover,
+.admin-dashboard-shell .stat-card--link:focus-visible {
   border-color: var(--admin-workspace-blue);
   transform: translateY(-.15rem);
+}
+
+.admin-dashboard-shell .stat-sub--list {
+  flex-direction: column;
+  gap: .25rem;
+}
+
+.admin-dashboard-shell .stat-link {
+  margin-top: .2rem;
+  color: var(--admin-workspace-blue);
+  font-weight: 700;
 }
 
 .admin-dashboard-shell .stat-label {

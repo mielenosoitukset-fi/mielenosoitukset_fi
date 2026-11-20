@@ -1,5 +1,6 @@
 """Exercise the isolated issuer against the existing Flask login owner."""
 
+import json
 from base64 import urlsafe_b64encode
 from concurrent.futures import ThreadPoolExecutor
 from hashlib import sha256
@@ -166,3 +167,143 @@ def test_live_owner_revalidates_account_binding_and_security(owner, db, change):
         db.users.update_one(account, {"$set": {"active": False}})
     assert _opacity(app.test_client(), claims).json == {"active": False}
     assert _exchange(app.test_client(), code, verifier).status_code == 400
+
+
+def _production_settings(name, uri=None):
+    return {
+        "issuer": ISSUER, "client_id": CLIENT, "client_secret": SECRET,
+        "redirect_uri": CALLBACK, "key_id": "fixture",
+        "private_key": RSAKey.generate_key(2048, private=True).as_dict(private=True),
+        "mongo_database": name,
+        "mongo_uri": uri or f"mongodb://fixture:fixture@127.0.0.1:27017/{name}",
+    }
+
+
+def test_protected_config_uses_dedicated_database_and_server_https(app_factory, db, tmp_path, monkeypatch):
+    from mielenosoitukset_fi.users import hallinto_issuer_config as config
+
+    name = "hallinto_issuer_" + str(ObjectId())
+    state = db.client[name]
+    settings = _production_settings(name)
+    path = tmp_path / "issuer.json"
+    path.write_text(json.dumps(settings))
+    path.chmod(0o600)
+    monkeypatch.setenv("HALLINTO_ISSUER_CONFIG_FILE", str(path))
+    opened = []
+
+    def connect(uri, **kw):
+        opened.append((uri, kw))
+        return db.client
+
+    monkeypatch.setattr(config, "mongo_client", connect)
+    subject = db.users.insert_one({
+        "username": "hallinto-fixture-user", "username_canonical": "hallinto-fixture-user",
+        "email": "fixture@example.test", "password_hash": generate_password_hash(PASSWORD),
+        "active": True, "confirmed": True,
+    }).inserted_id
+    try:
+        app = app_factory()
+        browser, backchannel = app.test_client(), app.test_client()
+        discovery = PREFIX + "/.well-known/openid-configuration"
+        assert browser.get(discovery, base_url=ORIGIN).json["issuer"] == ISSUER
+        # A browser's forwarded header must not turn an untrusted HTTP
+        # connection into a secure issuer request.
+        assert browser.get(discovery, base_url="http://issuer.example.test",
+                           headers={"X-Forwarded-Proto": "https"}).status_code == 400
+        assert browser.get(discovery, base_url="https://wrong.example.test").status_code == 400
+        _login(browser)
+        claims = _identity(browser)
+        assert _opacity(backchannel, claims).json == {"active": True}
+        assert state.hallinto_login_markers.count_documents({"user_id": subject}) == 1
+        assert state.hallinto_oidc_codes.count_documents({"subject": str(subject)}) == 1
+        assert db.hallinto_login_markers.count_documents({"user_id": subject}) == 0
+        assert db.hallinto_oidc_codes.count_documents({"subject": str(subject)}) == 0
+        assert state.users.count_documents({}) == 0
+        assert len(opened) == 1
+        assert opened[0][1]["connect"] is False and opened[0][1]["w"] == "majority"
+    finally:
+        db.users.delete_one({"_id": subject})
+        db.client.drop_database(name)
+
+
+@pytest.mark.parametrize("file_kind", ["world-readable", "symlink", "invalid-json"])
+def test_issuer_refuses_unprotected_config(app_factory, tmp_path, monkeypatch, file_kind):
+    path = tmp_path / "issuer.json"
+    path.write_text("synthetic-secret")
+    path.chmod(0o600)
+    if file_kind == "world-readable":
+        path.chmod(0o644)
+    elif file_kind == "symlink":
+        link = tmp_path / "linked.json"
+        link.symlink_to(path)
+        path = link
+    monkeypatch.setenv("HALLINTO_ISSUER_CONFIG_FILE", str(path))
+    with pytest.raises(RuntimeError, match=r"^Hallinto issuer needs a readable, restricted JSON file$"):
+        app_factory()
+
+
+@pytest.mark.parametrize("name, uri", [
+    ("legacy_site", "mongodb://fixture:fixture@127.0.0.1/legacy_site"),
+    ("hallinto_issuer", "mongodb://fixture:fixture@127.0.0.1/other"),
+    ("hallinto_issuer", "mongodb://127.0.0.1/hallinto_issuer"),
+    ("hallinto_issuer", "mongodb://fixture:fixture@db.example.test/hallinto_issuer"),
+    ("hallinto_issuer", "mongodb://fixture:fixture@127.0.0.1/hallinto_issuer?tls=true&tlsInsecure=true"),
+    ("hallinto_issuer", "mongodb://fixture:fixture@127.0.0.1/hallinto_issuer?tls=true&tlsAllowInvalidCertificates=true"),
+    ("hallinto_issuer", "mongodb://fixture:fixture@127.0.0.1/hallinto_issuer?tls=true&tlsAllowInvalidHostnames=true"),
+    ("hallinto_issuer", "mongodb://fixture:fixture@db.example.test/hallinto_issuer?tls=true&TLSALLOWINVALIDHOSTNAMES=true"),
+    ("hallinto_issuer", "mongodb://fixture:fixture@db.example.test/hallinto_issuer?tls=true&tlsDisableOCSPEndpointCheck=true"),
+])
+def test_issuer_refuses_invalid_state_database(app_factory, tmp_path, monkeypatch, name, uri):
+    path = tmp_path / "issuer.json"
+    path.write_text(json.dumps(_production_settings(name, uri)))
+    path.chmod(0o600)
+    monkeypatch.setenv("HALLINTO_ISSUER_CONFIG_FILE", str(path))
+    with pytest.raises(RuntimeError, match=r"^Hallinto issuer configuration is invalid$"):
+        app_factory()
+
+
+def test_marker_insert_outage_does_not_break_owner_login(owner, db, monkeypatch):
+    from pymongo.errors import AutoReconnect
+
+    app, _ = owner
+    collection = type(db.hallinto_login_markers)
+    original = collection.insert_one
+
+    def insert(self, *args, **kwargs):
+        if self.name == "hallinto_login_markers":
+            raise AutoReconnect("simulated marker outage")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(collection, "insert_one", insert)
+    browser = app.test_client()
+    _login(browser)
+    _, params = _params()
+    assert _authorize(browser, params).status_code == 403
+
+
+def test_linked_logout_can_retry_a_marker_revocation_outage(owner, db, monkeypatch):
+    from pymongo.errors import AutoReconnect
+
+    app, _ = owner
+    collection = type(db.hallinto_login_markers)
+    original = collection.update_one
+
+    def update(self, *args, **kwargs):
+        if self.name == "hallinto_login_markers":
+            raise AutoReconnect("simulated marker outage")
+        return original(self, *args, **kwargs)
+
+    browser, backchannel = app.test_client(), app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    token = browser.get("/api/session", base_url=ORIGIN).json["logout_token"]
+    with monkeypatch.context() as patch:
+        patch.setattr(collection, "update_one", update)
+        failed = browser.post("/users/auth/logout", base_url=ORIGIN, data={"logout_token": token})
+        assert failed.status_code == 503
+        assert failed.headers["Cache-Control"] == "no-store"
+
+    assert browser.get("/api/session", base_url=ORIGIN).json["authenticated"] is True
+    assert _opacity(backchannel, claims).json == {"active": True}
+    assert browser.post("/users/auth/logout", base_url=ORIGIN, data={"logout_token": token}).status_code == 302
+    assert _opacity(backchannel, claims).json == {"active": False}

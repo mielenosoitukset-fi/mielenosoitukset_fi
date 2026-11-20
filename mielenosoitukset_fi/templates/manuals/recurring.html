@@ -22,6 +22,7 @@
   <p>{{ _('Kun muutat sarjan tietoja, jo luodut tulevat mielenosoitukset eivät muutu itsestään.') }}</p>
   <ul>
     <li>{{ _('Massapäivitys kopioi sarjan tiedot valittuihin tai kaikkiin tuleviin mielenosoituksiin.') }}</li>
+    <li>{{ _('Jos valitset kentäksi') }} {{ m.ui(_('Hyväksyntä')) }}{{ _(', hyväksytyn sarjan odottavat päivät hyväksytään tavallisena päätöksenä. Massapäivitys ei koskaan peru hyväksyntää eikä kumoa hylkäystä, eikä odottava sarja hyväksy mitään.') }}</li>
     <li>{{ _('Massaperuutus peruu valitut tai kaikki tulevat mielenosoitukset kerralla. Se vaatii oikeuden muokata sekä toistuvia että tavallisia mielenosoituksia.') }}</li>
   </ul>
   {% call m.callout('tip') %}

@@ -44,6 +44,7 @@ import ProfileScreen from './ProfileScreen';
 import AccountSettingsScreen from './AccountSettingsScreen';
 import NotificationsScreen from './NotificationsScreen';
 import PasswordResetRequestScreen from './PasswordResetRequestScreen';
+import RegisterScreen from './RegisterScreen';
 import LoginScreen from './LoginScreen';
 import { loginLegacyLocation } from './login-route';
 import { accountCopy } from './account-settings-route';
@@ -98,7 +99,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -574,6 +575,18 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<LoginScreen config={config} search={input.search ?? ''} />} />);
+  }
+
+  if (route.name === 'register') {
+    // Same for every visitor, but the shared header shows the session: never cache.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.register ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<RegisterScreen config={config} />} />);
   }
 
   if (route.name === 'password-reset-request') {

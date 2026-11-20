@@ -34,7 +34,9 @@ that was written:
 | `duration_ms` | driver time |
 
 Writes that matched nothing (polling claims, a delete of something already
-gone) are not events. Failed writes are.
+gone) are not events, and neither are updates that matched a document but
+changed nothing (`nModified: 0`, every field already had the value). Failed
+writes are events.
 
 ### Never logged
 
@@ -47,7 +49,8 @@ hashes, JWTs or Fernet tokens, and every non-id value of the credential collecti
 `magic_links`, `mfas`, `mfa_login_challenges`, `user_passkeys`,
 `passkey_challenges`, `fresh_step_up_tokens`, `used_password_change_tokens`,
 `demo_cancellation_tokens`, `demo_submission_tokens`, `contact_form_tokens`,
-`hallinto_sessions`, `oauth_authorization_codes`, `erasure_identity_seals`).
+`hallinto_sessions`, `oauth_authorization_codes`, `erasure_identity_seals`,
+`hallinto_oidc_codes`, `hallinto_login_markers`).
 Long strings are cut at 300 characters, lists at 50 items. Both services run
 the same redaction vectors (`go-api/testdata/audit_redaction.json`).
 

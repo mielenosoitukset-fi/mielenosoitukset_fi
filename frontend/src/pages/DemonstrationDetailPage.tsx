@@ -4,7 +4,7 @@ import { DetailActionDialog, Participation } from '../components/detail/DetailAc
 import type { DialogKind } from '../components/detail/DetailActions';
 import { FollowButton } from '../components/detail/FollowButton';
 import { DetailGallery } from '../components/detail/DetailGallery';
-import { clockLabel, dateLabel, safeHref, sanitizeDescription } from '../components/detail/content';
+import { clockLabel, dateLabel, dateRangeLabel, safeHref, sanitizeDescription } from '../components/detail/content';
 import { useDemonstration } from '../components/detail/useDemonstration';
 import type { DetailEvent, DetailProps } from '../components/detail/types';
 import { isGeneratedPreview } from '../lib/event-image';
@@ -122,7 +122,7 @@ function EventContent({ event, props }: { event: DetailEvent; props: DetailProps
     <header className="detail-heading">
       {event.cancelled && <p className="detail-cancelled" role="status"><Icon name="ban" />{text.cancelled}</p>}
       <h1>{event.title}</h1>
-      <dl className="detail-facts"><div><dt><Icon name="calendar-days" />{text.date}</dt><dd>{dateLabel(event.date, props.locale)}<span>{time ? <>{time}{event.start_time && !event.end_time ? ` ${text.startingFrom}` : ''}</> : text.unknownTime}</span></dd></div>
+      <dl className="detail-facts"><div><dt><Icon name="calendar-days" />{text.date}</dt><dd>{dateRangeLabel(event.date, event.end_date, props.locale)}<span>{time ? <>{time}{event.start_time && !event.end_time ? ` ${text.startingFrom}` : ''}</> : text.unknownTime}</span></dd></div>
         {location && <div><dt><Icon name="location-dot" />{text.location}</dt><dd>{location}</dd></div>}</dl>
       <div className="detail-actions">
         {!event.cancelled && <><button type="button" className="detail-button detail-button--primary" onClick={() => setDialog('reminder')}><Icon name="bell" />{text.reminder}</button>

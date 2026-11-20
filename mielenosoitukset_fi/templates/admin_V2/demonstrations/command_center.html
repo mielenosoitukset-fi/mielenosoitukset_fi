@@ -44,7 +44,8 @@
     {% elif status_flags.needs_review %}
     <span class="status-badge admin-status-badge admin-status-badge--warning"><i class="fa-solid fa-hourglass-half"></i> {{ _('Odottaa käsittelyä') }}</span>
     {% endif %}
-    {% if status_flags.rejected %}<span class="status-badge admin-status-badge admin-status-badge--danger"><i class="fa-solid fa-xmark"></i> {{ _('Hylätty') }}</span>{% endif %}
+    {% if demo_raw.taken_down %}<span class="status-badge admin-status-badge admin-status-badge--danger" title="{{ demo_raw.taken_down_reason or '' }}"><i class="fa-solid fa-eye-slash"></i> {{ _('Poistettu julkaisusta') }}</span>
+    {% elif status_flags.rejected %}<span class="status-badge admin-status-badge admin-status-badge--danger"><i class="fa-solid fa-xmark"></i> {{ _('Hylätty') }}</span>{% endif %}
     {% if status_flags.hidden %}<span class="status-badge admin-status-badge"><i class="fa-solid fa-eye-slash"></i> {{ _('Piilotettu') }}</span>{% endif %}
     {% if status_flags.recurring %}<span class="status-badge admin-status-badge"><i class="fa-solid fa-rotate"></i> {{ _('Toistuva') }}</span>{% endif %}
     {% if status_flags.recommended %}<span class="status-badge admin-status-badge admin-status-badge--success"><i class="fa-solid fa-star"></i> {{ _('Suositeltu') }}</span>{% endif %}
@@ -550,10 +551,12 @@
           </a>
           {% endif %}
           {% if permissions.can_edit %}
+          {% if not status_flags.cancelled %}
           <button type="button" class="action-btn btn btn-danger js-command" data-command="cancel" data-requires-reason="true">
             {{ _('Merkitse perutuksi') }}
             <i class="fa-solid fa-ban"></i>
           </button>
+          {% endif %}
           <button type="button" class="action-btn btn btn-outline-secondary js-command" data-command="duplicate">
             {{ _('Kopioi pohjaksi') }}
             <i class="fa-solid fa-copy"></i>
@@ -654,6 +657,8 @@
 
       if (command === "cancel") {
         const reason = prompt("{{ _('Peruuta: anna lyhyt selite (valinnainen)') }}");
+        // prompt() returns null when the admin presses Cancel: do nothing then.
+        if (reason === null) return;
         await runCommand("cancel", {
           payload: reason ? { reason } : {},
           successMessage: "{{ _('Mielenosoitus merkitty perutuksi') }}",

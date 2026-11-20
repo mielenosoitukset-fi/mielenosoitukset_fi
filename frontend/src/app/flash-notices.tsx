@@ -6,8 +6,11 @@ export type FlashNotice = { category: 'success' | 'error' | 'warning' | 'info'; 
 export function readFlashNotices(value: unknown): FlashNotice[] {
   const messages = value && typeof value === 'object' ? (value as { messages?: unknown }).messages : null;
   if (!Array.isArray(messages)) return [];
+  const seen = new Set<string>();
   return messages.filter((item): item is { category?: unknown; message: string } => !!item && typeof item === 'object'
     && typeof (item as { message?: unknown }).message === 'string')
+    // The same notice queued by several requests is shown once.
+    .filter(item => { const key = `${String(item.category)}\u0000${item.message}`; if (seen.has(key)) return false; seen.add(key); return true; })
     .slice(0, 5).map(item => ({
       category: typeof item.category === 'string' && ['success', 'error', 'warning', 'info'].includes(item.category)
         ? item.category as FlashNotice['category'] : 'info',

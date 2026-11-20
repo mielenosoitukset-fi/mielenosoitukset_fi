@@ -1,0 +1,1 @@
+- Admin pages left open after signing out no longer pile up hundreds of sign-in notices: background requests queue none, and every page shows each notice once.

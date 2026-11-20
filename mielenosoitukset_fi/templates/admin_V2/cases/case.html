@@ -230,16 +230,43 @@
             </div>
           </div>
 
+          {% if demo.taken_down %}
+          <div class="alert alert-warning" role="status">
+            <strong>{{ _('Poistettu julkaisusta') }}</strong>
+            {% if demo.taken_down_by or demo.taken_down_at %}<span class="d-block muted">{{ demo.taken_down_by or '' }}{% if demo.taken_down_at %}, {{ demo.taken_down_at|datetimeformat("%d.%m.%Y %H:%M") }}{% endif %}</span>{% endif %}
+            {% if demo.taken_down_reason %}<span class="d-block">{{ _('Syy') }}: {{ demo.taken_down_reason }}</span>{% endif %}
+          </div>
+          {% endif %}
           <div class="admin-row-actions">
 {% if global_case_controls %}
+            {% if demo.taken_down %}
+            {% if can_take_down %}
+            <button class="btn btn-success" type="button" onclick="approveDemo()">
+              <i class="fa-solid fa-rotate-left me-1"></i>{{ _('Julkaise uudelleen') }}
+            </button>
+            {% endif %}
+            {% elif demo.approved %}
+            {% if undo_deadline %}
+            <button class="btn btn-outline-secondary" type="button" onclick="undoApproval()">
+              <i class="fa-solid fa-rotate-left me-1"></i>{{ _('Peru hyväksyntä') }}
+              <span class="muted">({{ _('klo') }} {{ undo_deadline }} {{ _('asti') }})</span>
+            </button>
+            {% endif %}
+            {% if can_take_down %}
+            <button class="btn btn-outline-danger" type="button" onclick="takeDownDemo()">
+              <i class="fa-solid fa-eye-slash me-1"></i>{{ _('Poista julkaisusta') }}
+            </button>
+            {% endif %}
+            {% else %}
             <button class="btn btn-success" type="button" onclick="approveDemo()" {% if case.meta.superior_needed and current_user.role != 'global_admin' %}disabled{% endif %}>
               <i class="fa-solid fa-check me-1"></i>{{ _('Hyväksy mielenosoitus') }}
             </button>
-{% endif %}
-{% if global_case_controls %}
+            {% if not demo.rejected %}
             <button class="btn btn-danger" type="button" onclick="rejectDemo()" {% if case.meta.superior_needed and current_user.role != 'global_admin' %}disabled{% endif %}>
               <i class="fa-solid fa-xmark me-1"></i>{{ _('Hylkää mielenosoitus') }}
             </button>
+            {% endif %}
+            {% endif %}
 {% endif %}
             {% if not case.meta.superior_needed and not demo.approved and not demo.rejected %}
 {% if global_case_controls %}
@@ -755,6 +782,49 @@
       if (result.isConfirmed && await window.MosoDemoDecision.confirm(caseDemoId, "rejected")) {
         sendDemoAction("reject", result.value);
       }
+    });
+  }
+
+  function undoApproval() {
+    Swal.fire({
+      title: "{{ _('Peru hyväksyntä') }}",
+      html: `<div class="text-start admin-stack">
+          <p>{{ _('Mielenosoitus poistuu heti julkiselta sivustolta ja palaa odottamaan käsittelyä. Tämä tapaus avataan uudelleen, ja ilmoittajan muokkauslinkki toimii taas.') }}</p>
+          <p>{{ _('Ilmoittajalle ei lähetetä viestiä. Hän on jo voinut saada hyväksyntäviestin. Jos hyväksyt mielenosoituksen myöhemmin, viestiä ei lähetetä toista kertaa.') }}</p>
+          <p class="muted">{{ _('Se palaa valtakunnalliseen jonoon, ei kaupungin ylläpitäjille.') }}</p>
+        </div>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "{{ _('Peru hyväksyntä') }}",
+      cancelButtonText: "{{ _('Takaisin') }}",
+      focusCancel: true,
+    }).then((result) => {
+      if (result.isConfirmed) sendDemoAction("undo_approval");
+    });
+  }
+
+  function takeDownDemo() {
+    Swal.fire({
+      title: "{{ _('Poista julkaisusta') }}",
+      html: `<div class="text-start admin-stack">
+          <p>{{ _('Mielenosoitus poistuu listoilta, hausta ja kartalta, mutta sitä ei poisteta. Sen sivulla näkyy lyhyt ilmoitus ja kirjoittamasi syy. Ilmoittaja saa sähköpostin, jossa on syy. Voit julkaista sen myöhemmin uudelleen.') }}</p>
+          <label class="form-label" for="take-down-reason">{{ _('Syy (pakollinen, näkyy julkisesti)') }}</label>
+          <textarea id="take-down-reason" class="form-control" rows="3" maxlength="1000"></textarea>
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: "{{ _('Poista julkaisusta') }}",
+      cancelButtonText: "{{ _('Peruuta') }}",
+      focusConfirm: false,
+      preConfirm: () => {
+        const reason = document.getElementById("take-down-reason").value.trim();
+        if (!reason) {
+          Swal.showValidationMessage("{{ _('Kirjoita syy.') }}");
+          return false;
+        }
+        return reason;
+      },
+    }).then((result) => {
+      if (result.isConfirmed) sendDemoAction("take_down", { reason: result.value });
     });
   }
 

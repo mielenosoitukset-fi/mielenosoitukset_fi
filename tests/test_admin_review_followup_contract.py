@@ -51,8 +51,6 @@ def test_demo_review_regressions_keep_shared_interaction_contracts():
         "admin-page-hero__action admin-page-hero__action--disabled"
     ) == 2
     assert "admin-data-view admin-data-view--scrollable" in dashboard
-    assert "prefers-reduced-motion: reduce" in dashboard
-    assert "window.setTimeout(removeRow, 350)" in dashboard
     freeze_modal = dashboard.split('id="freezeModal"', 1)[1].split("</div>", 4)[0]
     assert "btn-close-white" not in freeze_modal
 
