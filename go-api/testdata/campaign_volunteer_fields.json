@@ -1,0 +1,449 @@
+{
+ "plain": {
+  "data": {
+   "name": "Aino",
+   "email": "aino@example.fi"
+  },
+  "fields": {
+   "name": "Aino",
+   "email": "aino@example.fi",
+   "city": "",
+   "roles": [],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "unicode whitespace stripped": {
+  "data": {
+   "name": "\u3000Aino\u2029",
+   "email": "\u0085aino@example.fi\u000b",
+   "city": "\u00a0Oulu\u001f",
+   "notes": "\u2003hei\n"
+  },
+  "fields": {
+   "name": "Aino",
+   "email": "aino@example.fi",
+   "city": "Oulu",
+   "roles": [],
+   "area": "",
+   "notes": "hei"
+  }
+ },
+ "format characters removed": {
+  "data": {
+   "name": "\u00adA\u200di\ufeffn\u2066o\u2069\u061c",
+   "email": "ai\u200bno@example.fi",
+   "city": "\udb40\udc41Turku"
+  },
+  "fields": {
+   "name": "Aino",
+   "email": "aino@example.fi",
+   "city": "Turku",
+   "roles": [],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "only format characters is blank": {
+  "data": {
+   "name": "\u00ad\u200b",
+   "email": "a@b.fi"
+  },
+  "error": "required"
+ },
+ "only whitespace is blank": {
+  "data": {
+   "name": "\u2028\u3000",
+   "email": "a@b.fi"
+  },
+  "error": "required"
+ },
+ "required checked before format": {
+  "data": {
+   "name": "",
+   "email": "bad",
+   "roles": "x"
+  },
+  "error": "required"
+ },
+ "non-string name": {
+  "data": {
+   "name": 5,
+   "email": "a@b.fi"
+  },
+  "error": "required"
+ },
+ "non-string email": {
+  "data": {
+   "name": "A",
+   "email": [
+    "a@b.fi"
+   ]
+  },
+  "error": "required"
+ },
+ "non-string optional fields are empty": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "city": 5,
+   "notes": [
+    "x"
+   ],
+   "area": {
+    "a": 1
+   },
+   "roles": [
+    "stickers"
+   ]
+  },
+  "fields": {
+   "name": "A",
+   "email": "a@b.fi",
+   "city": "",
+   "roles": [
+    "stickers"
+   ],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "email file separator inside": {
+  "data": {
+   "name": "A",
+   "email": "a\u001cb@c.fi"
+  },
+  "error": "format"
+ },
+ "email line separator inside": {
+  "data": {
+   "name": "A",
+   "email": "a@b\u2028c.fi"
+  },
+  "error": "format"
+ },
+ "email nbsp inside": {
+  "data": {
+   "name": "A",
+   "email": "a@b\u00a0c.fi"
+  },
+  "error": "format"
+ },
+ "email double dot": {
+  "data": {
+   "name": "A",
+   "email": "a@b..c"
+  },
+  "fields": {
+   "name": "A",
+   "email": "a@b..c",
+   "city": "",
+   "roles": [],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "email leading dot domain": {
+  "data": {
+   "name": "A",
+   "email": "a@.b.c"
+  },
+  "fields": {
+   "name": "A",
+   "email": "a@.b.c",
+   "city": "",
+   "roles": [],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "email trailing dot": {
+  "data": {
+   "name": "A",
+   "email": "a@b."
+  },
+  "error": "format"
+ },
+ "email leading dot only": {
+  "data": {
+   "name": "A",
+   "email": "a@.bc"
+  },
+  "error": "format"
+ },
+ "email two at": {
+  "data": {
+   "name": "A",
+   "email": "a@b@c.fi"
+  },
+  "error": "format"
+ },
+ "email no local": {
+  "data": {
+   "name": "A",
+   "email": "@b.fi"
+  },
+  "error": "format"
+ },
+ "email non-ascii domain": {
+  "data": {
+   "name": "A",
+   "email": "a@\u00e4\u00e4.fi"
+  },
+  "fields": {
+   "name": "A",
+   "email": "a@\u00e4\u00e4.fi",
+   "city": "",
+   "roles": [],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "email case kept": {
+  "data": {
+   "name": "A",
+   "email": "Aino@Example.FI"
+  },
+  "fields": {
+   "name": "A",
+   "email": "Aino@Example.FI",
+   "city": "",
+   "roles": [],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "email 254 code points": {
+  "data": {
+   "name": "A",
+   "email": "\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4@example.fi"
+  },
+  "fields": {
+   "name": "A",
+   "email": "\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4@example.fi",
+   "city": "",
+   "roles": [],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "email 255 code points": {
+  "data": {
+   "name": "A",
+   "email": "\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4\u00e4@example.fi"
+  },
+  "error": "format"
+ },
+ "name 120 astral": {
+  "data": {
+   "name": "\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d",
+   "email": "a@b.fi"
+  },
+  "fields": {
+   "name": "\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d",
+   "email": "a@b.fi",
+   "city": "",
+   "roles": [],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "name 121 astral": {
+  "data": {
+   "name": "\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d",
+   "email": "a@b.fi"
+  },
+  "error": "format"
+ },
+ "name combining marks count": {
+  "data": {
+   "name": "e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301",
+   "email": "a@b.fi"
+  },
+  "error": "format"
+ },
+ "length after format removal": {
+  "data": {
+   "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\u200b\u200b\u200b\u200b\u200b",
+   "email": "a@b.fi"
+  },
+  "fields": {
+   "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "email": "a@b.fi",
+   "city": "",
+   "roles": [],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "area limit applies without stickers": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "area": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "error": "format"
+ },
+ "area kept with stickers": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "roles": [
+    "stickers"
+   ],
+   "area": " Kallio "
+  },
+  "fields": {
+   "name": "A",
+   "email": "a@b.fi",
+   "city": "",
+   "roles": [
+    "stickers"
+   ],
+   "area": "Kallio",
+   "notes": ""
+  }
+ },
+ "area dropped without stickers": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "roles": [
+    "events"
+   ],
+   "area": "Kallio"
+  },
+  "fields": {
+   "name": "A",
+   "email": "a@b.fi",
+   "city": "",
+   "roles": [
+    "events"
+   ],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "roles ordered and deduplicated": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "roles": [
+    "communications",
+    "events",
+    "events",
+    "stickers"
+   ]
+  },
+  "fields": {
+   "name": "A",
+   "email": "a@b.fi",
+   "city": "",
+   "roles": [
+    "stickers",
+    "events",
+    "communications"
+   ],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "roles missing": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi"
+  },
+  "fields": {
+   "name": "A",
+   "email": "a@b.fi",
+   "city": "",
+   "roles": [],
+   "area": "",
+   "notes": ""
+  }
+ },
+ "roles null": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "roles": null
+  },
+  "error": "format"
+ },
+ "roles string": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "roles": "stickers"
+  },
+  "error": "format"
+ },
+ "roles object": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "roles": {
+    "stickers": true
+   }
+  },
+  "error": "format"
+ },
+ "roles unknown": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "roles": [
+    "stickers",
+    "admin"
+   ]
+  },
+  "error": "format"
+ },
+ "roles null item": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "roles": [
+    null
+   ]
+  },
+  "error": "format"
+ },
+ "roles boolean item": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "roles": [
+    true
+   ]
+  },
+  "error": "format"
+ },
+ "roles case differs": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "roles": [
+    "Stickers"
+   ]
+  },
+  "error": "format"
+ },
+ "unknown keys ignored": {
+  "data": {
+   "name": "A",
+   "email": "a@b.fi",
+   "phone": "040",
+   "confirmed": true,
+   "_id": "x"
+  },
+  "fields": {
+   "name": "A",
+   "email": "a@b.fi",
+   "city": "",
+   "roles": [],
+   "area": "",
+   "notes": ""
+  }
+ }
+}

@@ -1,0 +1,1 @@
+- Per-visitor rate limits on the Go write routes (event submissions, change suggestions, fundraising and campaign signups, city admin applications) now count IPv6 visitors per /64 network instead of per address, so one connection can no longer rotate addresses to get past the limit. The contact form keeps its Flask-shared limiter keys for now.
