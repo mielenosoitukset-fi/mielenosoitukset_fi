@@ -5,8 +5,9 @@ import os
 import re
 import stat
 
-from pymongo import MongoClient
 from pymongo.uri_parser import parse_uri
+
+from mielenosoitukset_fi.utils.audit_trail import mongo_client
 
 _MAX_CONFIG_BYTES = 64 * 1024
 _MONGO_DATABASE = re.compile(r"hallinto(?:_[a-z0-9_]+)?\Z")
@@ -59,7 +60,9 @@ def _open_state_database(settings, owner_db):
     if not all(host in _LOOPBACK for host, _ in parsed["nodelist"]) and not options.get("tls"):
         raise ValueError
     # Do not let issuer downtime stall unrelated Flask authentication traffic.
-    client = MongoClient(
+    # The audited factory records issuer writes in this database's
+    # audit_events; a refused audit write falls back to the service journal.
+    client = mongo_client(
         uri, connect=False, serverSelectionTimeoutMS=1500, timeoutMS=2500,
         w="majority", journal=True, readPreference="primary",
     )

@@ -195,7 +195,7 @@ def test_protected_config_uses_dedicated_database_and_server_https(app_factory, 
         opened.append((uri, kw))
         return db.client
 
-    monkeypatch.setattr(config, "MongoClient", connect)
+    monkeypatch.setattr(config, "mongo_client", connect)
     subject = db.users.insert_one({
         "username": "hallinto-fixture-user", "username_canonical": "hallinto-fixture-user",
         "email": "fixture@example.test", "password_hash": generate_password_hash(PASSWORD),

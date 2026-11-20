@@ -36,6 +36,12 @@ account data from them.
 | `hallinto_login_markers` | Default unique `_id`, TTL on `expires_at` with `expireAfterSeconds: 0`. Find, insert and update. |
 | `hallinto_oidc_codes` | Default unique `_id` (nonce digest), unique `code_digest`, TTL on `expires_at` with `expireAfterSeconds: 0`. Find, insert and update. |
 
+The issuer's client is built with the audited factory, so each state write
+also inserts a redacted record into `audit_events` in the issuer database.
+Grant the issuer role insert on `audit_events` there, or the audit records go
+to the Flask service journal instead (`AUDIT_FALLBACK`). The `audit_events`
+indexes are created by the audit sink when its role allows it.
+
 Do not use either the existing website account database or Hallinto's registry
 collections for issuer state. Writes use majority and journal acknowledgment.
 The backchannel uses direct state revalidation, so an unavailable owner or issuer
