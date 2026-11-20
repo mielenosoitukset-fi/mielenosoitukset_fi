@@ -421,7 +421,8 @@
                 {# Delete #}
                 {% if current_user.has_permission("DELETE_DEMO") %}
                     <li><button class="dropdown-item text-danger" type="button"
-                                onclick="openModal(event, '{{ demo.title }}', '{{ demo._id }}')">
+                                data-title="{{ demo.title }}" data-id="{{ demo._id }}"
+                                onclick="openModal(event, this.dataset.title, this.dataset.id)">
                         <i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}
                     </button></li>
                 {% else %}
@@ -582,7 +583,8 @@
                 {# Delete #}
                 {% if current_user.has_permission("DELETE_DEMO") %}
                     <li><button class="dropdown-item text-danger" type="button"
-                                onclick="openModal(event, '{{ demo.title }}', '{{ demo._id }}')">
+                                data-title="{{ demo.title }}" data-id="{{ demo._id }}"
+                                onclick="openModal(event, this.dataset.title, this.dataset.id)">
                         <i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}
                     </button></li>
                 {% else %}
@@ -706,18 +708,6 @@
           deleteModal.hide();
         }
       });
-      // Helper: Animate then remove the row
-      function animateAndRemoveRow(rowEl) {
-        if (!rowEl) return;
-        rowEl.classList.add('fade-out');
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          rowEl.remove();
-          return;
-        }
-        const removeRow = () => rowEl.remove();
-        rowEl.addEventListener('transitionend', removeRow, { once: true });
-        window.setTimeout(removeRow, 350);
-      }
       // Open the delete confirmation
       window.openModal = (event, title, id) => {
         event.preventDefault();
@@ -819,12 +809,9 @@
         if (submitterTrigger?.isConnected) submitterTrigger.focus();
       });
 
-      // Initial button text update
-      updateDeleteButtonTexts();
     });
 
 
-    // animateAndRemoveRow is implemented earlier (kept single canonical implementation)
 
 
   </script>

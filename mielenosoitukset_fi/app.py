@@ -420,7 +420,7 @@ def create_app(config_overrides=None) -> Flask:
     def _get_admin_tasks_cached():
         import time as _time
         now = _time.monotonic()
-        cache_key = str(getattr(current_user, "_id", None) or current_user.get_id())
+        cache_key = str(getattr(current_user, "_id", None) or getattr(current_user, "get_id", lambda: None)())
         entry = _admin_tasks_cache.get(cache_key)
         if entry is not None and (now - entry["timestamp"]) < _ADMIN_TASKS_CACHE_TTL:
             return entry["tasks"]
