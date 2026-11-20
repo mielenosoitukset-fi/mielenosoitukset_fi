@@ -159,3 +159,20 @@ def test_demo_analytics_detail_requires_scoped_permission(
     )
 
     assert response.status_code == 403
+
+
+def test_demo_analytics_detail_shows_zero_views_for_unvisited_demo(
+    db, seeded_data, admin_client
+):
+    demo_id = seeded_data["child_demo_id"]
+    db.d_analytics.delete_many({"_id": demo_id})
+    db.analytics.delete_many({"demo_id": demo_id})
+
+    response = admin_client.get(f"/admin/per_demo_analytics/{demo_id}")
+
+    assert response.status_code == 200
+    assert b"data-analytics-empty" in response.data
+    assert b"viewsPerMinuteChart" not in response.data
+    assert admin_client.get(
+        "/admin/per_demo_analytics/6b00a7a3655dc1bdc40fffff"
+    ).status_code == 404
