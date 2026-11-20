@@ -117,7 +117,7 @@ export const accountCopy = {
   reloadPage: 'Lataa sivu uudelleen',
   charsLeft: 'merkkiä jäljellä',
   deleteTitle: 'Tilin poistaminen',
-  deleteLead: 'Voit pyytää tilisi poistamista. Ylläpito käsittelee pyynnön ja poistaa tilin. Kirjautumistiedot ja asetukset poistetaan. Väärinkäytösten selvittämiseen tarvittavat tiedot säilytetään ilman suoraa yhteyttä sinuun.',
+  deleteLead: 'Voit pyytää tilisi poistamista. Ylläpito käsittelee pyynnön ja poistaa tilin. Kirjautumistiedot ja asetukset poistetaan. Väärinkäytösten selvittämiseen tarvittavat tiedot säilytetään niin, ettei niitä voi suoraan yhdistää sinuun.',
   deletePrivacy: 'Lue lisää tietosuojaselosteesta',
   deleteReason: 'Syy',
   deleteReasonHelp: 'Voit kertoa, miksi haluat poistaa tilin. Ylläpito näkee tekstin.',
@@ -128,7 +128,7 @@ export const accountCopy = {
   deleteCreated: 'Poistopyyntö on lähetetty. Ylläpito käsittelee sen.',
   deletePending: 'Poistopyyntösi on jo käsittelyssä.',
   deleteFailed: 'Poistopyynnön lähettäminen epäonnistui.',
-  deleteByEmail: 'Voit pyytää tilin poistamista ottamalla yhteyttä osoitteeseen',
+  deleteByEmail: 'Voit pyytää tilin poistamista lähettämällä sähköpostia osoitteeseen',
 } as const;
 
 export type AccountGeneral = { displayName: string; city: string | null; language: string | null; darkMode: boolean | null };

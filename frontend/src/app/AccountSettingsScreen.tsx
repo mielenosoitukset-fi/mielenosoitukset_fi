@@ -218,7 +218,7 @@ function DeleteAccountCard({ csrf }: { csrf?: string }) {
           <p className="account-muted" id={ids.help}>{copy.deleteReasonHelp}</p>
         </div>
         <label className="account-check" htmlFor={ids.confirm}>
-          <input id={ids.confirm} type="checkbox" checked={confirmed} disabled={done} onChange={event => setConfirmed(event.target.checked)} />
+          <input id={ids.confirm} type="checkbox" checked={confirmed} disabled={done} onChange={event => { setConfirmed(event.target.checked); setMessage(null); }} />
           <span>{copy.deleteConfirm}</span>
         </label>
         <div className="detail-actions">
