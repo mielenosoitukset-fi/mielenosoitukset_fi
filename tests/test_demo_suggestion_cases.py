@@ -13,7 +13,10 @@ from mielenosoitukset_fi.utils.time_utils import utcnow
 from tests.conftest import _client_for_user
 from tests.test_city_scoped_admin import _create_scoped_admin
 
-ON = {"DEMO_SUGGESTION_CASES_ENABLED": "1", "CASE_NOTIFICATIONS_ENABLED": "1"}
+# The switches default to on; tests name each one so no test can queue real mail.
+OFF = {"DEMO_SUGGESTION_CASES_ENABLED": "0", "CASE_NOTIFICATIONS_ENABLED": "0", "CASE_NOTIFICATION_EMAILS_ENABLED": "0"}
+ON = {**OFF, "DEMO_SUGGESTION_CASES_ENABLED": "1", "CASE_NOTIFICATIONS_ENABLED": "1"}
+SUGGESTIONS_ONLY = {**OFF, "DEMO_SUGGESTION_CASES_ENABLED": "1"}
 
 
 def _run(db, environ=ON):
@@ -22,7 +25,7 @@ def _run(db, environ=ON):
 
 def test_switches_off_change_nothing(db, seeded_data):
     before_cases = db.cases.count_documents({})
-    result = _run(db, environ={})
+    result = _run(db, environ=OFF)
     assert result["opened"] == result["notified"] == 0
     assert db.cases.count_documents({}) == before_cases
     assert db.notifications.count_documents({"type": "new_case"}) == 0
@@ -38,8 +41,8 @@ def test_open_suggestion_becomes_one_case(db, seeded_data):
     db.demo_suggestions.insert_one({"_id": decided, "demo_id": str(seeded_data["demo_id"]),
                                     "status": "rejected", "created_at": utcnow()})
 
-    assert _run(db, {"DEMO_SUGGESTION_CASES_ENABLED": "1"})["opened"] == 1
-    assert _run(db, {"DEMO_SUGGESTION_CASES_ENABLED": "1"})["opened"] == 0
+    assert _run(db, SUGGESTIONS_ONLY)["opened"] == 1
+    assert _run(db, SUGGESTIONS_ONLY)["opened"] == 0
 
     case = db.cases.find_one({"_id": suggestion_id})
     assert case["type"] == "demo_edit_suggestion"
@@ -54,10 +57,10 @@ def test_open_suggestion_becomes_one_case(db, seeded_data):
 
 def test_case_closes_when_suggestion_is_decided(db, seeded_data):
     suggestion_id = seeded_data["suggestion_id"]
-    _run(db, {"DEMO_SUGGESTION_CASES_ENABLED": "1"})
+    _run(db, SUGGESTIONS_ONLY)
     assert not db.cases.find_one({"_id": suggestion_id})["meta"].get("closed")
     db.demo_suggestions.update_one({"_id": suggestion_id}, {"$set": {"status": "applied"}})
-    assert _run(db, {"DEMO_SUGGESTION_CASES_ENABLED": "1"})["closed"] == 1
+    assert _run(db, SUGGESTIONS_ONLY)["closed"] == 1
     case = db.cases.find_one({"_id": suggestion_id})
     assert case["meta"]["closed"] is True
     assert case["meta"]["closed_reason"] == "Ehdotus käsitelty"
@@ -66,7 +69,7 @@ def test_case_closes_when_suggestion_is_decided(db, seeded_data):
 def test_case_list_and_detail_show_suggestion(app, db, admin_client, seeded_data):
     suggestion_id = seeded_data["suggestion_id"]
     db.demo_suggestions.update_one({"_id": suggestion_id}, {"$set": {"reporter_comment": "Aika on väärin"}})
-    _run(db, {"DEMO_SUGGESTION_CASES_ENABLED": "1"})
+    _run(db, SUGGESTIONS_ONLY)
 
     listing = admin_client.get("/admin/case/")
     assert listing.status_code == 200
@@ -91,7 +94,7 @@ def test_city_admin_sees_only_own_city_suggestion_cases(app, db, seeded_data):
     helsinki = _create_scoped_admin(db, ["helsinki"], ["LIST_CASES", "VIEW_CASE"])
     turku = _create_scoped_admin(db, ["turku"], ["LIST_CASES", "VIEW_CASE"])
     db.demonstrations.update_one({"_id": seeded_data["demo_id"]}, {"$set": {"city": "Helsinki", "city_key": "helsinki"}})
-    _run(db, {"DEMO_SUGGESTION_CASES_ENABLED": "1"})
+    _run(db, SUGGESTIONS_ONLY)
     case_url = f"/admin/case/{seeded_data['suggestion_id']}/"
     assert _client_for_user(app, helsinki).get(case_url).status_code == 200
     assert _client_for_user(app, turku).get(case_url).status_code == 403
@@ -165,8 +168,13 @@ def test_old_and_skipped_cases_are_not_notified(db, seeded_data):
 def test_job_is_registered():
     from mielenosoitukset_fi.background_jobs.definitions import JOB_DEFINITION_MAP
     assert JOB_DEFINITION_MAP["deliver_case_notices"].func is deliver_case_notices.main
-    assert demo_suggestion_cases.is_enabled({}) is False
-    assert case_notifications.is_enabled({"CASE_NOTIFICATIONS_ENABLED": "true"}) is True
+    # On by default; any of 0/false/no/off switches a part off.
+    assert demo_suggestion_cases.is_enabled({}) is True
+    assert case_notifications.is_enabled({}) is True and case_notifications.emails_enabled({}) is True
+    for value in ("0", "false", "No", " off "):
+        assert demo_suggestion_cases.is_enabled({"DEMO_SUGGESTION_CASES_ENABLED": value}) is False
+        assert case_notifications.is_enabled({"CASE_NOTIFICATIONS_ENABLED": value}) is False
+        assert case_notifications.emails_enabled({"CASE_NOTIFICATION_EMAILS_ENABLED": value}) is False
 
 
 class FakeSender:
@@ -256,7 +264,7 @@ def test_city_admin_toggles_case_emails(app, db, seeded_data, monkeypatch):
 def test_broken_suggestion_is_skipped_once(db, seeded_data):
     broken = ObjectId()
     db.demo_suggestions.insert_one({"_id": broken, "demo_id": "not-an-id", "status": "new", "created_at": utcnow() - timedelta(days=1)})
-    assert _run(db, {"DEMO_SUGGESTION_CASES_ENABLED": "1"})["opened"] == 1
+    assert _run(db, SUGGESTIONS_ONLY)["opened"] == 1
     assert db.demo_suggestions.find_one({"_id": broken})["case_skipped"] == "invalid_demo_id"
     assert db.cases.find_one({"_id": broken}) is None
     assert db.cases.find_one({"_id": seeded_data["suggestion_id"]})["type"] == "demo_edit_suggestion"
@@ -266,7 +274,7 @@ def test_reporter_details_need_demo_edit_right(app, db, seeded_data):
     db.demonstrations.update_one({"_id": seeded_data["demo_id"]}, {"$set": {"city": "Helsinki", "city_key": "helsinki"}})
     db.demo_suggestions.update_one({"_id": seeded_data["suggestion_id"]}, {"$set": {
         "reporter_email": "secret-reporter@example.test", "reporter_comment": "Salainen kommentti"}})
-    _run(db, {"DEMO_SUGGESTION_CASES_ENABLED": "1"})
+    _run(db, SUGGESTIONS_ONLY)
     case_url = f"/admin/case/{seeded_data['suggestion_id']}/"
     viewer = _create_scoped_admin(db, ["helsinki"], ["LIST_CASES", "VIEW_CASE"])
     editor = _create_scoped_admin(db, ["helsinki"], ["LIST_CASES", "VIEW_CASE", "EDIT_DEMO"])

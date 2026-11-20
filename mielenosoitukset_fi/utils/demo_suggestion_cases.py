@@ -25,9 +25,13 @@ OPEN_STATUSES = ("new", "pending", "", None)
 DECIDED_STATUSES = ("applied", "rejected", "closed")
 
 
+OFF_VALUES = {"0", "false", "no", "off"}
+
+
 def is_enabled(environ=None):
+    """On by default since 20 Nov 2026; set the flag to 0/false/no/off to switch off."""
     environ = os.environ if environ is None else environ
-    return str(environ.get(ENV_FLAG, "")).strip().lower() in {"1", "true", "yes"}
+    return str(environ.get(ENV_FLAG, "")).strip().lower() not in OFF_VALUES
 
 
 def _open_without_case():

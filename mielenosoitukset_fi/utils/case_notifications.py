@@ -19,7 +19,9 @@ The notice stores only the case number, type and linked demonstration title,
 never submitter details. The inbox rechecks access and hides the notice once
 the case is closed or the admin loses access.
 
-Nothing is sent unless ``CASE_NOTIFICATIONS_ENABLED`` is set.
+Both switches are on by default (maintainer go, 20 Nov 2026). Setting
+``CASE_NOTIFICATIONS_ENABLED`` or ``CASE_NOTIFICATION_EMAILS_ENABLED`` to
+``0``/``false``/``no``/``off`` in the Flask environment switches that part off.
 """
 import os
 from datetime import timedelta
@@ -52,9 +54,13 @@ SKIPPED_TYPES = frozenset({"city_admin_application"})
 LOOKBACK = timedelta(days=2)
 
 
+OFF_VALUES = {"0", "false", "no", "off"}
+
+
 def _flag(environ, name):
+    """On by default since 20 Nov 2026; set the flag to 0/false/no/off to switch off."""
     environ = os.environ if environ is None else environ
-    return str(environ.get(name, "")).strip().lower() in {"1", "true", "yes"}
+    return str(environ.get(name, "")).strip().lower() not in OFF_VALUES
 
 
 def is_enabled(environ=None):
