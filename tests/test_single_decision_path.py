@@ -114,3 +114,13 @@ def test_pending_series_never_unapproves_children(admin_client, db, seeded_data)
     )
 
     assert db.demonstrations.find_one({"_id": children[0]})["approved"] is True
+
+
+def test_case_page_offers_escalation_only_for_pending_demos(admin_client, db, seeded_data):
+    demo_id = seeded_data["pending_demo_id"]
+    db.cases.update_one({"_id": seeded_data["case_id"]}, {"$set": {"demo_id": demo_id, "type": "new_demo"}})
+    url = f"/admin/case/{seeded_data['case_id']}/"
+
+    assert "escalateDemo()" in admin_client.get(url).get_data(as_text=True).split("function escalateDemo")[0]
+    db.demonstrations.update_one({"_id": demo_id}, {"$set": {"approved": True}})
+    assert "escalateDemo()" not in admin_client.get(url).get_data(as_text=True).split("function escalateDemo")[0]
