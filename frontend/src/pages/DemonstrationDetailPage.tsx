@@ -93,13 +93,23 @@ function ShareActions({ url, title, messages }: { url: string; title: string; me
     <span role="status">{shareCopied === 'success' ? messages.shareCopied : shareCopied === 'error' ? messages.copyFailed : ''}</span>
   </div>;
 }
+/** Address with the city appended, unless the address already names it ("00100 Helsinki"). */
+export function placeLabel(address: string | null | undefined, city: string | null | undefined): string {
+  const street = (address ?? '').trim();
+  const town = (city ?? '').trim();
+  if (!town) return street;
+  if (!street) return town;
+  const escaped = town.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[\\s,])${escaped}$`, 'iu').test(street) ? street : `${street}, ${town}`;
+}
+
 function EventContent({ event, props }: { event: DetailEvent; props: DetailProps }) {
   const text = props.messages;
   const [mapVisible, showMap] = useState(false);
   const [dialog, setDialog] = useState<DialogKind | null>(null);
   useEffect(() => { if (props.initialAction === 'invite') { setDialog('invite'); props.onIntentConsumed?.(); } }, [props.initialAction, props.onIntentConsumed]);
   const time = [clockLabel(event.start_time), clockLabel(event.end_time)].filter(Boolean).join('–');
-  const location = [event.address, event.city].filter(Boolean).join(', ');
+  const location = placeLabel(event.address, event.city);
   const source = (event.cover_source ?? '').toLowerCase();
   const manualCover = !['auto', 'automatic'].includes(source) && !isGeneratedPreview(event.cover_picture)
     && (source || event.cover_picture !== event.preview_image) ? event.cover_picture : null;

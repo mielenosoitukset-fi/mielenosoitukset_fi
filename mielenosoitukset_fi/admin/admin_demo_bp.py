@@ -30,6 +30,7 @@ from flask_babel import _, force_locale, get_locale, gettext as babel_gettext
 from urllib.parse import quote_plus
 
 from mielenosoitukset_fi.utils.classes import Demonstration, MemberShip, Case
+from mielenosoitukset_fi.utils.case_access import global_case_permission
 from mielenosoitukset_fi.utils.demo_cancellation import cancel_demo, queue_cancellation_links_for_demo
 from mielenosoitukset_fi.utils.demo_slugs import (
     demo_slug_is_available,
@@ -80,7 +81,10 @@ from mielenosoitukset_fi.demonstrations.audit import (
     save_demo_history,
     log_super_audit,
 )
-from mielenosoitukset_fi.demonstrations.decisions import apply_demo_decision
+from mielenosoitukset_fi.demonstrations.decisions import (
+    apply_demo_decision,
+    preview_demo_decision,
+)
 from mielenosoitukset_fi.demonstrations.rollback import (
     PENDING_ROLLBACK_HISTORY, commit_rollback, flush_rollback_history, restore_merge_conflict,
 )
@@ -140,14 +144,15 @@ MERGE_FIELD_DEFINITIONS = [
     {"key": "tags", "label": _("Tunnisteet"), "type": "list"},
     {"key": "facebook", "label": _("Facebook-linkki"), "type": "text"},
     {"key": "cover_picture", "label": _("Kansikuva"), "type": "text"},
-    {"key": "approved", "label": _("Hyväksytty"), "type": "bool"},
     {"key": "hide", "label": _("Piilotettu"), "type": "bool"},
     {"key": "slug", "label": _("Lyhytlinkki"), "type": "text"},
     {"key": "parent", "label": _("Toistuvan demon vanhempi"), "type": "objectid"},
     {"key": "recurs", "label": _("Merkitty toistuvaksi"), "type": "bool"},
 ]
 
-MERGE_BOOL_FIELDS = {"recurs", "approved", "hide"}
+# Approval is not a mergeable field: it changes only through the decision
+# service (see merge_demos, which approves the kept demo there if needed).
+MERGE_BOOL_FIELDS = {"recurs", "hide"}
 
 
 MAX_MERGE_COUNT = 10
@@ -494,6 +499,31 @@ def _handle_cases_after_merge(primary_id, secondary_ids, doc_map):
         )
 
 
+def _decision_urls(demo_ids):
+    """Map each pending demo to the one page where the current admin decides it.
+
+    Maintainer decision (20 Nov 2026): new submissions are decided in their
+    case. Admins with global case controls go to the demo's newest
+    ``new_demo`` case; everyone else (city admins) uses the content-only
+    review page, which is their only decision page.
+    """
+    from mielenosoitukset_fi.utils.case_access import global_case_permission
+
+    ids = [ObjectId(str(value)) for value in demo_ids if ObjectId.is_valid(str(value))]
+    urls = {str(value): url_for("admin_demo.review_demo", demo_id=str(value)) for value in ids}
+    if not ids or not global_case_permission(current_user, "EDIT_CASE"):
+        return urls
+    cases = mongo.cases.find(
+        {"type": "new_demo", "demo_id": {"$in": ids + [str(value) for value in ids]}},
+        {"demo_id": 1, "created_at": 1},
+    ).sort("created_at", 1)
+    for case_doc in cases:
+        urls[str(case_doc["demo_id"])] = url_for(
+            "admin_case.single_case", case_id=str(case_doc["_id"])
+        )
+    return urls
+
+
 def _apply_demo_decision(demo_id, decision, source, used_token_id=None):
     """Route adapter for the shared idempotent moderation service."""
     actor = capture_actor_context()
@@ -774,6 +804,52 @@ def demo_edit_history(demo_id):
     )
 
 
+def _cases_replace_suggestions_list():
+    """Global case viewers handle suggestions as cases (Tapaukset)."""
+    return global_case_permission(current_user, "LIST_CASES")
+
+
+def _suggestions_home_url(suggestion_id=None):
+    """Where the suggestion pages lead back to: the case, the case list, or the old list.
+
+    Scoped admins keep the old list because case scope is city-based and
+    would hide suggestions they may edit through an organization or as editors.
+    """
+    if not _cases_replace_suggestions_list():
+        return url_for("admin_demo.suggestions_list")
+    if suggestion_id and ObjectId.is_valid(str(suggestion_id)) and mongo.cases.find_one(
+        {"_id": ObjectId(str(suggestion_id))}, {"_id": 1}
+    ):
+        return url_for("admin_case.single_case", case_id=str(suggestion_id))
+    return url_for("admin_case.cases")
+
+
+def _suggestions_home_label(suggestion_id=None):
+    if not _cases_replace_suggestions_list():
+        return _("Ehdotukset")
+    if _suggestions_home_url(suggestion_id).endswith(f"/{suggestion_id}/"):
+        case_doc = mongo.cases.find_one({"_id": ObjectId(str(suggestion_id))}, {"running_num": 1}) or {}
+        if case_doc.get("running_num"):
+            return _("Tapaus") + f" #{case_doc['running_num']}"
+        return _("Tapaus")
+    return _("Tapaukset")
+
+
+def _suggestion_breadcrumbs(suggestion_id=None):
+    """Case-backed suggestions sit under Tapaukset > Tapaus #N, others under Mielenosoitukset."""
+    home_url = _suggestions_home_url(suggestion_id)
+    home_label = _suggestions_home_label(suggestion_id)
+    crumbs = [(_("Hallintapaneeli"), url_for("admin.admin_dashboard"))]
+    if _cases_replace_suggestions_list():
+        if home_url != url_for("admin_case.cases"):
+            crumbs.append((_("Tapaukset"), url_for("admin_case.cases")))
+    else:
+        crumbs.append((_("Mielenosoitukset"), url_for("admin_demo.demo_control")))
+    crumbs.append((home_label, home_url))
+    crumbs.append((_("Tarkastelu"), None))
+    return crumbs
+
+
 @admin_demo_bp.route('/suggestions')
 @login_required
 @admin_required
@@ -782,6 +858,8 @@ def suggestions_list():
     """
     List incoming demo suggestions for admin review.
     """
+    if _cases_replace_suggestions_list():
+        return redirect(url_for("admin_case.cases"))
     status_filter = (request.args.get("status") or "all").strip().lower()
     if status_filter not in {"all", "new", "pending", "applied", "rejected"}:
         status_filter = "all"
@@ -921,7 +999,7 @@ def suggestion_view(suggestion_id):
         s = None
     if not s:
         flash_message('Ehdotusta ei löytynyt.', 'error')
-        return redirect(url_for('admin_demo.suggestions_list'))
+        return redirect(_suggestions_home_url(suggestion_id))
 
     _abort_if_demo_forbidden(s.get('demo_id'), "EDIT_DEMO")
 
@@ -931,7 +1009,14 @@ def suggestion_view(suggestion_id):
     except Exception:
         demo = None
 
-    return render_template('admin/suggestion_view.html', suggestion=s, demo=demo)
+    return render_template(
+        'admin/suggestion_view.html',
+        suggestion=s,
+        demo=demo,
+        suggestions_home_url=_suggestions_home_url(suggestion_id),
+        suggestions_home_label=_suggestions_home_label(suggestion_id),
+        suggestion_breadcrumbs=_suggestion_breadcrumbs(suggestion_id),
+    )
 
 
 @admin_demo_bp.route('/suggestions/<suggestion_id>/apply', methods=['POST'])
@@ -949,7 +1034,7 @@ def suggestion_apply(suggestion_id):
         s = None
     if not s:
         flash_message('Ehdotusta ei löytynyt.', 'error')
-        return redirect(url_for('admin_demo.suggestions_list'))
+        return redirect(_suggestions_home_url(suggestion_id))
 
     _abort_if_demo_forbidden(s.get('demo_id'), "EDIT_DEMO")
 
@@ -961,7 +1046,7 @@ def suggestion_apply(suggestion_id):
 
     if not demo_doc:
         flash_message('Mielenosoitusta ei löytynyt.', 'error')
-        return redirect(url_for('admin_demo.suggestions_list'))
+        return redirect(_suggestions_home_url(suggestion_id))
 
     # A rejected or closed suggestion is decided. An applied one may still give
     # other fields, but a field that was already applied is not applied again.
@@ -1005,7 +1090,7 @@ def suggestion_apply(suggestion_id):
         logger.exception('Failed to apply suggestion to demo')
         flash_message('Päivitys epäonnistui.', 'error')
 
-    return redirect(url_for('admin_demo.suggestions_list'))
+    return redirect(_suggestions_home_url(suggestion_id))
 
 
 @admin_demo_bp.route('/suggestions/<suggestion_id>/status', methods=['POST'])
@@ -1038,7 +1123,7 @@ def suggestion_status_update(suggestion_id):
     except Exception:
         logger.exception('Failed to update suggestion status')
         flash_message('Tilapäivitys epäonnistui.', 'error')
-    return redirect(url_for('admin_demo.suggestions_list'))
+    return redirect(_suggestions_home_url(suggestion_id))
     
 @admin_demo_bp.route("/trigger_screenshot/<demo_id>")
 @login_required
@@ -2083,6 +2168,14 @@ def demo_control():
         "GENERATE_EDIT_LINK" in permissions
         for permissions in demo_actions.values()
     )
+    decision_urls = _decision_urls(
+        demo.get("_id")
+        for demo in demos
+        if not demo.get("approved")
+        and not demo.get("rejected")
+        and not demo.get("cancelled")
+        and "ACCEPT_DEMO" in demo_actions[str(demo.get("_id"))]
+    )
 
     # --- Determine next/previous pages ---
     prev_page = page - 1 if page > 1 else None
@@ -2145,6 +2238,7 @@ def demo_control():
         f"{_ADMIN_TEMPLATE_FOLDER}demonstrations/dashboard.html",
         demonstrations=demos,
         demo_actions=demo_actions,
+        decision_urls=decision_urls,
         can_generate_edit_link=can_generate_edit_link,
         edit_link_csrf_token=(
             _edit_link_csrf_token() if can_generate_edit_link else None
@@ -2937,6 +3031,42 @@ def merge_demos():
     if not set_merge_phase("completed", state="completed", history_id=history_id):
         abort(503)
 
+    # A merge must not unpublish an event that was public under another copy.
+    # The kept demo is approved through the same decision service as every
+    # other path (audit, case closing), never by copying the flag.
+    any_copy_approved = any(doc.get("approved") for doc in doc_map.values())
+    if any_copy_approved and original_primary.get("rejected"):
+        flash_message(
+            _(
+                "Säilytetty mielenosoitus on hylätty, joten se ei näy sivustolla, "
+                "vaikka yhdistetty kopio oli hyväksytty."
+            ),
+            "warning",
+        )
+    elif any_copy_approved and not original_primary.get("approved") and not has_demo_approval_permission(
+        current_user, original_primary
+    ):
+        flash_message(
+            _(
+                "Yhdistetty kopio oli hyväksytty, mutta käyttöoikeutesi eivät riitä "
+                "hyväksymään säilytettyä mielenosoitusta. Se odottaa käsittelyä tapauksessa."
+            ),
+            "warning",
+        )
+    elif any_copy_approved and not original_primary.get("approved"):
+        try:
+            _apply_demo_decision(primary_id, "approved", source="admin_merge")
+        except Exception:
+            logger.exception("Merge approval failed for %s", primary_id)
+            flash_message(
+                _(
+                    "Mielenosoitukset yhdistettiin, mutta hyväksyntä epäonnistui. "
+                    "Hyväksy mielenosoitus tapauksessa."
+                ),
+                "warning",
+            )
+            return redirect(url_for("admin_demo.edit_demo", demo_id=primary_id))
+
     flash_message(_("Mielenosoitukset yhdistettiin onnistuneesti."), "success")
     return redirect(url_for("admin_demo.edit_demo", demo_id=primary_id))
 
@@ -3563,8 +3693,6 @@ def demo_command_center(demo_id):
     public_url = url_for("demonstration_detail", demo_id=public_identifier)
 
     action_endpoints = {
-        "approve": {"url": url_for("admin_demo_api.approve_demo", demo_id=demo_id_str), "method": "POST"},
-        "reject": {"url": url_for("admin_demo_api.reject_demo", demo_id=demo_id_str), "method": "POST"},
         "cancel": {"url": url_for("admin_demo_api.admin_cancel_demo", demo_id=demo_id_str), "method": "POST"},
         "recommend": {"url": url_for("admin_demo.recommend_demo", demo_id=demo_id_str), "method": "POST"},
         "unrecommend": {"url": url_for("admin_demo.unrecommend_demo", demo_id=demo_id_str), "method": "POST"},
@@ -3596,8 +3724,14 @@ def demo_command_center(demo_id):
         "cancelled_by": demo_data.get("cancelled_by"),
     }
 
+    # The command center shows state; decisions happen in the case.
+    decision_url = None
+    if status_flags["needs_review"] and not status_flags["cancelled"] and permissions["can_accept"]:
+        decision_url = _decision_urls([demo_data["_id"]]).get(demo_id_str)
+
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}demonstrations/command_center.html",
+        decision_url=decision_url,
         demo=demo,
         demo_raw=demo_data,
         demo_id=demo_id_str,
@@ -4198,7 +4332,9 @@ def handle_demo_form(
                     demonstration_data["approved"] = bool(prev_demo.get("approved"))
                 merged_data = _deep_merge(prev_demo, demonstration_data)
                 demo = Demonstration.from_dict(merged_data)
-                demo.save()
+                # Only an approver's form value is authoritative for approval;
+                # otherwise keep whatever the database holds now.
+                demo.save(write_approval=can_change_approval)
                 hist_id = record_demo_change(
                     demo_id,
                     prev_demo,
@@ -5625,6 +5761,24 @@ def geocode_address():
 
     latitude, longitude = coordinates
     return jsonify({"latitude": latitude, "longitude": longitude})
+
+@admin_demo_api_bp.route("/<demo_id>/decision_preview", methods=["GET"])
+@login_required
+@admin_required
+@permission_required("ACCEPT_DEMO", _type="DEMONSTRATION")
+def preview_demo_decision_effects(demo_id):
+    """Read-only list of what approving or rejecting would do, for the confirm dialog."""
+    decision = request.args.get("decision")
+    if decision not in {"approved", "rejected"}:
+        return jsonify({"success": False, "error": _("Virheellinen päätös")}), 400
+    demo_oid = _require_valid_objectid(demo_id)
+    _abort_if_demo_forbidden(demo_oid, "ACCEPT_DEMO")
+    try:
+        preview = preview_demo_decision(mongo, demo_oid, decision)
+    except LookupError:
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
+    return jsonify({"success": True, **preview})
+
 
 @admin_demo_api_bp.route("/<demo_id>/approve", methods=["POST"])
 @login_required

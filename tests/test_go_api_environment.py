@@ -91,7 +91,7 @@ def test_account_settings_reads_flag_needs_the_bridge_and_is_off_by_default(tmp_
     spec.loader.exec_module(module)
     cases = (
         ({}, False),
-        ({"AUTH_BRIDGE_SCOPES": True}, False),
+        ({"AUTH_BRIDGE_SCOPES": True}, True),  # on by default with the bridge
         ({"ACCOUNT_SETTINGS_READS": True}, False),  # no bridge, no route
         ({"AUTH_BRIDGE_SCOPES": True, "ACCOUNT_SETTINGS_READS": False}, False),
         ({"AUTH_BRIDGE_SCOPES": True, "ACCOUNT_SETTINGS_READS": True}, True),
@@ -230,14 +230,14 @@ def test_fundraising_details_file_is_kept_only_when_it_exists(tmp_path):
         assert ("FUNDRAISING_DETAILS_FILE" in values) is expected
 
 
-def test_contact_go_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
+def test_contact_go_flag_needs_the_bridge_and_is_on_by_default(tmp_path):
     path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
     spec = importlib.util.spec_from_file_location("go_environment", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     cases = (
         ({}, False),
-        ({"AUTH_BRIDGE_SCOPES": True}, False),
+        ({"AUTH_BRIDGE_SCOPES": True}, True),  # on by default with the bridge
         ({"CONTACT_GO_ENABLED": True}, False),  # no bridge, no contact route
         ({"AUTH_BRIDGE_SCOPES": True, "CONTACT_GO_ENABLED": False}, False),
         ({"AUTH_BRIDGE_SCOPES": True, "CONTACT_GO_ENABLED": True}, True),
@@ -258,14 +258,14 @@ def test_contact_go_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
             assert "CONTACT_GLOBAL_LIMIT" not in values
 
 
-def test_campaign_volunteers_go_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
+def test_campaign_volunteers_go_flag_needs_the_bridge_and_is_on_by_default(tmp_path):
     path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
     spec = importlib.util.spec_from_file_location("go_environment", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     cases = (
         ({}, False),
-        ({"AUTH_BRIDGE_SCOPES": True}, False),
+        ({"AUTH_BRIDGE_SCOPES": True}, True),  # on by default with the bridge
         ({"CAMPAIGN_VOLUNTEERS_GO_ENABLED": True}, False),  # no bridge, no route
         ({"AUTH_BRIDGE_SCOPES": True, "CAMPAIGN_VOLUNTEERS_GO_ENABLED": False}, False),
         ({"AUTH_BRIDGE_SCOPES": True, "CAMPAIGN_VOLUNTEERS_GO_ENABLED": True}, True),
@@ -276,3 +276,33 @@ def test_campaign_volunteers_go_flag_needs_the_bridge_and_is_off_by_default(tmp_
         module.configure(source, target)
         values = dict(line.split("=", 1) for line in target.read_text().splitlines())
         assert ("CAMPAIGN_VOLUNTEERS_GO_ENABLED" in values) is expected
+
+
+def test_suggestion_writes_follow_public_submissions_and_default_on(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment_suggestions", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    secret = "test-secret-not-for-production-" * 2
+    cases = (
+        ({}, False),
+        ({"SUGGESTIONS_GO": True}, False),  # no public submissions, no route
+        ({"GO_SUBMIT_ENABLED": True}, True),
+        ({"GO_SUBMIT_ENABLED": True, "SUGGESTIONS_GO": False}, False),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"s{index}.yaml", tmp_path / f"se{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated",
+                                          "SECRET_KEY": secret, **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("SUGGESTIONS_GO_ENABLED" in values) is expected
+
+
+def test_suggestion_routing_is_guarded_by_the_release_check():
+    root = Path(__file__).resolve().parents[1]
+    routing = (root / "deploy/apache/react-ssr-routing.conf").read_text(encoding="utf-8")
+    release = (root / "deploy/release_routing.sh").read_text(encoding="utf-8")
+    assert 'RewriteRule "^/organization/[a-fA-F0-9]{24}/save_suggestion$" "http://127.0.0.1:8091%{REQUEST_URI}" [P,L]' in routing
+    assert 'RewriteRule "^/suggest_change/[a-fA-F0-9]{24}$" "http://127.0.0.1:8091%{REQUEST_URI}" [P,L]' in routing
+    assert "Sec-Fetch-Site: cross-site" in release and "suggest_change/000000000000000000000000" in release

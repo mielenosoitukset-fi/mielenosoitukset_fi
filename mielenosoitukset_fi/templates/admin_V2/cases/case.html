@@ -1,5 +1,6 @@
 {% extends "admin_base.html" %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
+{% from 'admin_V2/demonstrations/_decision_modal.html' import demo_decision_modal %}
 {% block title %}{{ _('Tapaus') }} #{{ case.running_num }}{% endblock %}
 
 {% block main_content %}
@@ -66,7 +67,7 @@
           <div class="detail-item">
             <strong>{{ _('Viesti') }}</strong>
             {% if support_ticket.html_message %}
-            <div class="description-box">{{ support_ticket.html_message|safe }}</div>
+            <div class="description-box">{{ support_ticket.html_message|stored_html }}</div>
             {% else %}
             <div class="note-box">{{ support_ticket.message or _('(ei viestia)') }}</div>
             {% endif %}
@@ -174,7 +175,7 @@
             <div class="detail-item"><strong>{{ _('Kaupunki') }}</strong><span>{{ demo.city or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Osoite') }}</strong><span>{{ demo.address or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Tapahtumatyyppi') }}</strong><span>{{ demo.event_type or demo.type or '-' }}</span></div>
-            <div class="detail-item"><strong>{{ _('Facebook') }}</strong>{% if demo.facebook %}<a href="{{ demo.facebook }}" target="_blank" rel="noopener noreferrer">{{ demo.facebook }}</a>{% else %}<span>-</span>{% endif %}</div>
+            <div class="detail-item"><strong>{{ _('Facebook') }}</strong>{% if demo.facebook|safe_href %}<a href="{{ demo.facebook|safe_href }}" target="_blank" rel="noopener noreferrer">{{ demo.facebook }}</a>{% else %}<span>-</span>{% endif %}</div>
           </div>
 
           {% if demo.route %}
@@ -212,7 +213,7 @@
               <div class="note-box">
                 <div><strong>{{ org.name or _('Nimetön järjestäjä') }}</strong></div>
                 {% if org.email %}<div class="muted">{{ org.email }}</div>{% endif %}
-                {% if org.website %}<div><a href="{{ org.website }}" target="_blank" rel="noopener noreferrer">{{ org.website }}</a></div>{% endif %}
+                {% if org.website|safe_href %}<div><a href="{{ org.website|safe_href }}" target="_blank" rel="noopener noreferrer">{{ org.website }}</a></div>{% endif %}
               </div>
               {% endfor %}
             </div>
@@ -231,7 +232,7 @@
 
           <div class="admin-row-actions">
 {% if global_case_controls %}
-            <button class="btn btn-success" type="button" onclick="sendDemoAction('accept')" {% if case.meta.superior_needed and current_user.role != 'global_admin' %}disabled{% endif %}>
+            <button class="btn btn-success" type="button" onclick="approveDemo()" {% if case.meta.superior_needed and current_user.role != 'global_admin' %}disabled{% endif %}>
               <i class="fa-solid fa-check me-1"></i>{{ _('Hyväksy mielenosoitus') }}
             </button>
 {% endif %}
@@ -240,7 +241,7 @@
               <i class="fa-solid fa-xmark me-1"></i>{{ _('Hylkää mielenosoitus') }}
             </button>
 {% endif %}
-            {% if not case.meta.superior_needed %}
+            {% if not case.meta.superior_needed and not demo.approved and not demo.rejected %}
 {% if global_case_controls %}
             <button class="btn btn-secondary" type="button" onclick="escalateDemo()">
               <i class="fa-solid fa-arrow-up-right-dots me-1"></i>{{ _('Eskaloi esihenkilölle') }}
@@ -365,6 +366,13 @@
           {% else %}
           <div class="empty-state">{{ _('Hakemusta ei löytynyt.') }}</div>
           {% endif %}
+          {% elif case.case_type == "account_deletion_request" %}
+          <div class="detail-grid">
+            <div class="detail-item"><strong>{{ _('Pyytäjä') }}</strong><span>{% if case.submitter_id %}<a href="{{ url_for('admin_user.edit_user', user_id=case.submitter_id) }}">{{ case_data.submitter_label }}</a>{% else %}-{% endif %}</span></div>
+            <div class="detail-item"><strong>{{ _('Vastaanotettu') }}</strong><span>{% if case.created_at %}{{ case.created_at|datetimeformat("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</span></div>
+          </div>
+          <div class="detail-item"><strong>{{ _('Syy') }}</strong><div class="note-box">{{ (case.meta or {}).get('reason') or _('Ei ilmoitettu') }}</div></div>
+          <p class="muted"><a href="{{ url_for('admin_user.user_control') }}">{{ _('Poista tili käyttäjälistan poistotoiminnolla.') }}</a> {{ _('Kirjautumistiedot poistetaan, ja väärinkäytösten selvittämiseen tarvittavat tiedot säilytetään peitenimellä. Sulje tapaus poiston jälkeen.') }}</p>
           {% else %}
           <div class="empty-state">{{ _('Tälle tapaukselle ei ole vielä omaa tarkempaa esitystapaa.') }}</div>
           {% endif %}
@@ -556,11 +564,14 @@
     </aside>
   </div>
 </div>
+{% if case.case_type == 'new_demo' and case.demo_id %}{{ demo_decision_modal() }}{% endif %}
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/admin_demo_decision.js', v='20261120-decision-1') }}"></script>
 <script>
   const caseId = "{{ case._id }}";
+  const caseDemoId = {{ (case.demo_id|string if case.demo_id else '')|tojson }};
 
   const rejectReasons = {{ reject_reasons|tojson }};
   const closeReasons = {{ close_reasons|tojson }};
@@ -728,14 +739,20 @@
       .catch(() => Swal.fire("{{ _('Virhe') }}", "{{ _('Tapahtui odottamaton virhe.') }}", "error"));
   }
 
+  async function approveDemo() {
+    if (await window.MosoDemoDecision.confirm(caseDemoId, "approved")) {
+      sendDemoAction("accept");
+    }
+  }
+
   function rejectDemo() {
     reasonDialog({
       title: "{{ _('Hylkää mielenosoitus') }}",
-      confirmText: "{{ _('Hylkää') }}",
+      confirmText: "{{ _('Jatka') }}",
       reasons: rejectReasons,
       duplicateOf: "demo",
-    }).then((result) => {
-      if (result.isConfirmed) {
+    }).then(async (result) => {
+      if (result.isConfirmed && await window.MosoDemoDecision.confirm(caseDemoId, "rejected")) {
         sendDemoAction("reject", result.value);
       }
     });
@@ -821,8 +838,16 @@
         el.className = "admin-link-result";
         el.tabIndex = 0;
         const label = item.title || item.name || "";
-        const extra = item.city ? ` <span class="muted">(${item.city})</span>` : (item.cancelled ? ` <span class="muted">(${item.cancelled ? '{{ _('peruttu') }}' : ''})</span>` : "");
-        el.innerHTML = `<strong>${label}</strong>${extra}`;
+        const extraText = item.city ? item.city : (item.cancelled ? "{{ _('peruttu') }}" : "");
+        const strong = document.createElement("strong");
+        strong.textContent = label;
+        el.appendChild(strong);
+        if (extraText) {
+          const extra = document.createElement("span");
+          extra.className = "muted";
+          extra.textContent = ` (${extraText})`;
+          el.append(" ", extra);
+        }
         el.addEventListener("click", () => {
           selected = item;
           hiddenInput.value = item.id;

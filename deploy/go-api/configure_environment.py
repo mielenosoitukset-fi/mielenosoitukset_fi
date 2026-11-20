@@ -43,6 +43,12 @@ def configure(source, target):
         # Campaign opening interest signup (docs/campaign-opening-interest.md): same rules.
         if config.get("OPENING_INTEREST_SIGNUP") is True:
             values["OPENING_INTEREST_SIGNUP_ENABLED"] = "true"
+        # Suggestion form writes (docs/go-public-api.md): need public submissions, as
+        # above. On by default since 20 November 2026 (maintainer's go);
+        # `SUGGESTIONS_GO: false` in config.yaml opts out. Without this line a
+        # hand-set environment flag was lost at the next deploy.
+        if config.get("SUGGESTIONS_GO", True) is True:
+            values["SUGGESTIONS_GO_ENABLED"] = "true"
     # Event analytics follow the Flask switch, which defaults to enabled when
     # the key is missing (app.py: config.get("SITE_ANALYTICS_ENABLED", True)),
     # so a redeploy keeps Go writes in step with Flask.
@@ -63,22 +69,27 @@ def configure(source, target):
         # the bridge on, because the one-time token lives in Flask's session.
         # Quotas and the body bound follow the Flask settings of the same name
         # so both runtimes enforce the same numbers.
-        if config.get("CONTACT_GO_ENABLED") is True:
+        # On by default since 20 November 2026 (maintainer's go); an explicit
+        # `CONTACT_GO_ENABLED: false` keeps Flask's handler.
+        if config.get("CONTACT_GO_ENABLED", True) is True:
             values["CONTACT_GO_ENABLED"] = "true"
             for key in ("CONTACT_PER_IP_LIMIT", "CONTACT_GLOBAL_LIMIT", "CONTACT_MAX_REQUEST_BYTES"):
                 if config.get(key) is not None:
                     values[key] = str(config[key])
-        # Go POST /kampanja/api/volunteers (docs/go-campaign-volunteers.md): off by
-        # default, and only with the bridge on, because a private campaign lets
-        # signed-in accounts preview the form.
-        if config.get("CAMPAIGN_VOLUNTEERS_GO_ENABLED") is True:
+        # Go POST /kampanja/api/volunteers (docs/go-campaign-volunteers.md): on by
+        # default (an explicit false opts out), and only with the bridge on,
+        # because a private campaign lets signed-in accounts preview the form.
+        if config.get("CAMPAIGN_VOLUNTEERS_GO_ENABLED", True) is True:
             values["CAMPAIGN_VOLUNTEERS_GO_ENABLED"] = "true"
         # Account settings reads (docs/account-pages-react.md, step 2): the route
-        # needs the signed-in account, so it exists only with the bridge on.
-        if config.get("ACCOUNT_SETTINGS_READS") is True:
+        # needs the signed-in account, so it exists only with the bridge on. On by
+        # default since the React settings page was activated (20 November 2026,
+        # maintainer's go); `ACCOUNT_SETTINGS_READS: false` in config.yaml opts out.
+        if config.get("ACCOUNT_SETTINGS_READS", True) is True:
             values["ACCOUNT_SETTINGS_READS_ENABLED"] = "true"
-            # Bio write (step 3a): its own switch, and only on top of the reads.
-            if config.get("ACCOUNT_SETTINGS_WRITES") is True:
+            # Bio and general writes (steps 3a, 3b): their own switch, and only on
+            # top of reads that are set explicitly in config.yaml.
+            if config.get("ACCOUNT_SETTINGS_READS") is True and config.get("ACCOUNT_SETTINGS_WRITES") is True:
                 values["ACCOUNT_SETTINGS_WRITES_ENABLED"] = "true"
     # Public profile reads (docs/account-pages-react.md): GET /api/profile/<username>.
     # Its own switch, off by default and independent of the bridge; the own and

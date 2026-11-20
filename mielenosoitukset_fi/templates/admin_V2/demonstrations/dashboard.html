@@ -4,75 +4,7 @@
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/demonstrations.css', v='20260914-admin-ui-51') }}">{% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/admin_demo_edit_links.js') }}"></script>
-<script>
-  function acceptSty(demoId) {
-    const demo = document.getElementById(`demo-${demoId}`);
-    const approvalCell = demo?.querySelector('[data-col="approved"]');
-    if (!demo || !approvalCell) return;
 
-    const icon = document.createElement('i');
-    icon.className = 'fa-solid fa-check-circle admin-status-icon admin-status-icon--success';
-    icon.setAttribute('aria-hidden', 'true');
-    approvalCell.replaceChildren(icon, document.createTextNode(" {{ _('Kyllä') }}"));
-    demo.classList.remove("admin-data-row--attention");
-  }
-
-  function acceptDemo(demoId) {
-    fetch(`/admin/demo/accept_demo/${demoId}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({}), // You can add additional data here if needed,
-      redirect: "manual",
-    })
-      .then((response) => response.json())
-      .then((data) => {
-
-        if (data.status === "OK") {
-          showToast("{{ _('Mielenosoitus hyväksytty onnistuneesti!') }}", 'success');
-          acceptSty(demoId);
-        } else {
-          // Handle error (e.g., show a flash message)
-          console.error("Error fetching submitter info:", data.message);
-          showToast("{{ _('Virhe hyväksyttäessä mielenosoitusta.') }}", 'danger');
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        showToast("{{ _('Yhteysvirhe, yritä uudelleen.') }}", 'danger');
-      });
-  }
-
-
-  function rejectDemo(demoId) {
-    if (!confirm("{{ _('Haluatko varmasti hylätä tämän mielenosoituksen?') }}")) return;
-
-    fetch(`/api/admin/demo/${demoId}/deny`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({}),
-      redirect: "manual",
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.success) {
-          showToast("{{ _('Mielenosoitus hylätty.') }}", 'success');
-          const row = document.getElementById(`demo-${demoId}`);
-          if (row) row.remove();
-        } else {
-          showToast(data.message || data.error || "{{ _('Virhe hylkäämisessä.') }}", 'danger');
-        }
-      })
-      .catch(() => {
-        showToast("{{ _('Yhteysvirhe, yritä uudelleen.') }}", 'danger');
-      });
-  }
-
-
-</script>
 
 {% endblock %} {% block main_content %}
 
@@ -329,31 +261,13 @@
                     <i class="fa-solid fa-ellipsis-vertical"></i> {{ _('Toiminnot') }}
                 </button>
 
-            <ul class="dropdown-menu" aria-labelledby="actionsDropdown-{{ demo._id }}">
+            <ul class="dropdown-menu" aria-labelledby="actionsDropdown-approved-{{ demo._id }}">
 
-                {# Accept #}
-                {% if not demo.approved %}
-                  {% if 'ACCEPT_DEMO' in demo_actions.get(demo._id|string, []) %}
-                      <li><button class="dropdown-item" type="button"
-                                  onclick="acceptDemo('{{ demo._id }}')">
-                          <i class="fa-solid fa-check me-2"></i>{{ _('Hyväksy') }}
-                      </button></li>
-                  {% else %}
-                      <li><span class="dropdown-item disabled">
-                          <i class="fa-solid fa-check me-2"></i>{{ _('Hyväksy') }}
-                      </span></li>
-                  {% endif %}
-
-                  {% if 'ACCEPT_DEMO' in demo_actions.get(demo._id|string, []) %}
-                      <li><button class="dropdown-item text-danger" type="button"
-                                  onclick="rejectDemo('{{ demo._id }}')">
-                          <i class="fa-solid fa-xmark me-2"></i>{{ _('Hylkää') }}
-                      </button></li>
-                  {% else %}
-                      <li><span class="dropdown-item disabled">
-                          <i class="fa-solid fa-xmark me-2"></i>{{ _('Hylkää') }}
-                      </span></li>
-                  {% endif %}
+                {# Decide: one place per admin, the case (or the review page for city admins). #}
+                {% if not demo.approved and not demo.rejected and decision_urls.get(demo._id|string) %}
+                      <li><a class="dropdown-item" href="{{ decision_urls[demo._id|string] }}">
+                          <i class="fa-solid fa-scale-balanced me-2"></i>{{ _('Käsittele') }}
+                      </a></li>
                 {% endif %}
 
                 {# Recommend toggle #}
@@ -421,7 +335,7 @@
                 {# Delete #}
                 {% if current_user.has_permission("DELETE_DEMO") %}
                     <li><button class="dropdown-item text-danger" type="button"
-                                onclick="openModal(event, '{{ demo.title }}', '{{ demo._id }}')">
+                                data-demo-title="{{ demo.title }}" onclick="openModal(event, this.dataset.demoTitle, '{{ demo._id }}')">
                         <i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}
                     </button></li>
                 {% else %}
@@ -582,7 +496,7 @@
                 {# Delete #}
                 {% if current_user.has_permission("DELETE_DEMO") %}
                     <li><button class="dropdown-item text-danger" type="button"
-                                onclick="openModal(event, '{{ demo.title }}', '{{ demo._id }}')">
+                                data-demo-title="{{ demo.title }}" onclick="openModal(event, this.dataset.demoTitle, '{{ demo._id }}')">
                         <i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}
                     </button></li>
                 {% else %}

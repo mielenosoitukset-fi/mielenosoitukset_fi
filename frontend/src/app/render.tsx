@@ -39,7 +39,12 @@ import CancelLinkScreen from './CancelLinkScreen';
 import DeveloperScreen from './DeveloperScreen';
 import ProfileScreen from './ProfileScreen';
 import AccountSettingsScreen from './AccountSettingsScreen';
+import NotificationsScreen from './NotificationsScreen';
+import PasswordResetRequestScreen from './PasswordResetRequestScreen';
+import LoginScreen from './LoginScreen';
+import { loginLegacyLocation } from './login-route';
 import { accountCopy } from './account-settings-route';
+import { notificationsCopy } from './notifications-route';
 import { loadProfile, profileTitle } from './profile-route';
 import type { ProfileInitial } from './profile-route';
 import { loadCancelLink, cancelLinkTitle, type CancelLinkState } from './cancel-link';
@@ -87,7 +92,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; accountSettings?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -107,7 +112,7 @@ const serialize = (value: unknown) => JSON.stringify(value)
   .replaceAll('&', '\\u0026').replaceAll('\u2028', '\\u2028').replaceAll('\u2029', '\\u2029');
 
 /** The existing detail stylesheet; the host page uses the same markup. */
-const DETAIL_STYLESHEET = '/static/css/public-detail.css?v=20261110-detail-buttons-1';
+const DETAIL_STYLESHEET = '/static/css/public-detail.css?v=20261120-detail-title-1';
 
 /**
  * The home batch is the same for every anonymous visitor, so the server reads it
@@ -370,7 +375,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
       meta = { ...meta, robots: 'noindex, nofollow' };
     }
     extraHead = (assets.fundraising ?? '')
-      + '<link rel="stylesheet" href="/static/css/public-content.css?v=20261116-fundraising-ux-3">'
+      + '<link rel="stylesheet" href="/static/css/public-content.css?v=20261120-fundraising-ux-4">'
       + '<link rel="stylesheet" href="/static/css/campaign.css?v=20261110-volunteer-message-1">';
     // The whole page is in the server-rendered document; no fallback is needed.
     noscript = '';
@@ -403,7 +408,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     {
       extraHead = (assets.campaign ?? '')
         + '<link rel="stylesheet" href="/static/css/campaign.css?v=20261110-volunteer-message-1">'
-        + '<link rel="stylesheet" href="/static/css/campaign-v2.css?v=20261113-campaign-v2-7">'
+        + '<link rel="stylesheet" href="/static/css/campaign-v2.css?v=20261120-campaign-v2-8">'
         + '<link rel="stylesheet" href="/static/css/campaign-opening.css?v=20261116-opening-1">';
       noscript = '<noscript><p class="container-main-content">Sivu toimii parhaiten, kun JavaScript on käytössä. '
         + 'Ilmoittautuminen tarvitsee sen.</p></noscript>';
@@ -500,6 +505,42 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = `<noscript><p class="container-main-content">${accountCopy.noscript}</p></noscript>`;
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<AccountSettingsScreen config={config} session={session} />} />);
+  }
+
+  if (route.name === 'notifications') {
+    // Per-account page: never cached or indexed. The list loads in the browser from the Flask JSON endpoint.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    extraHead = (assets.notifications ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${notificationsCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<NotificationsScreen config={config} session={session} />} />);
+  }
+
+  if (route.name === 'login') {
+    // A signed-in visitor goes to Flask's own GET, which redirects to the normalised next.
+    if (session.authenticated) return { status: 302, html: '', redirect: loginLegacyLocation(input.search ?? ''),
+      headers: { 'Cache-Control': 'private, no-store' } };
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.login ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The forms are plain HTML that post to Flask, so they work without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<LoginScreen config={config} search={input.search ?? ''} />} />);
+  }
+
+  if (route.name === 'password-reset-request') {
+    // Same for every visitor, but the shared header shows the session: never cache.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.passwordResetRequest ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<PasswordResetRequestScreen config={config} />} />);
   }
 
   let profile: ProfileInitial | undefined;

@@ -1,0 +1,48 @@
+{# Building blocks of the admin manual pages. #}
+
+{% macro task(id, title, intro, open_url=none, open_label=none, kicker=none) %}
+<div class="manual-task" id="{{ id }}" data-task="{{ id }}">
+  <div class="manual-task__head">
+    <div>
+      <span class="manual-task__kicker">{{ kicker or _('Vaihe vaiheelta') }}</span>
+      <h3>{{ title }}</h3>
+    </div>
+    {% if open_url %}
+    <a class="btn btn-sm btn-outline-primary" href="{{ open_url }}">
+      <i class="fas fa-arrow-up-right-from-square me-1" aria-hidden="true"></i>{{ open_label or _('Avaa näkymä') }}
+    </a>
+    {% endif %}
+  </div>
+  {% if intro %}<p class="manual-task__intro">{{ intro }}</p>{% endif %}
+  <ol class="manual-steps">
+    {{ caller() }}
+  </ol>
+  <div class="manual-task__progress" hidden
+       data-template="{{ _('{done}/{total} vaihetta tehty') }}"
+       data-step-label="{{ _('Tehty') }}">
+    <span data-progress-label aria-live="polite"></span>
+    <span class="manual-task__bar" aria-hidden="true"><span></span></span>
+    <button type="button" class="btn btn-sm btn-link p-0" data-progress-reset hidden>{{ _('Aloita alusta') }}</button>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro step() %}
+<li><div class="manual-step__body">{{ caller() }}</div></li>
+{% endmacro %}
+
+{% macro callout(kind='tip') %}
+{% set icons = {'tip': 'fa-lightbulb', 'warning': 'fa-triangle-exclamation', 'danger': 'fa-circle-exclamation'} %}
+<div class="manual-callout manual-callout--{{ kind }}">
+  <i class="fas {{ icons.get(kind, 'fa-circle-info') }}" aria-hidden="true"></i>
+  <div>{{ caller() }}</div>
+</div>
+{% endmacro %}
+
+{% macro ui(label) %}<span class="manual-ui">{{ label }}</span>{% endmacro %}
+
+{% macro open_link(access, endpoint, label) %}
+{%- if manual_can_open(access) -%}
+<a href="{{ url_for(endpoint, **kwargs) }}">{{ label }}</a>
+{%- else -%}{{ label }}{%- endif -%}
+{% endmacro %}

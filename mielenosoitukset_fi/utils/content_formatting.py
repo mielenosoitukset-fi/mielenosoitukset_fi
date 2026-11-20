@@ -8,6 +8,7 @@ import markdown
 
 _MARKDOWN_HTML_TAGS = {
     "a",
+    "b",
     "blockquote",
     "br",
     "code",
@@ -19,6 +20,7 @@ _MARKDOWN_HTML_TAGS = {
     "h5",
     "h6",
     "hr",
+    "i",
     "li",
     "ol",
     "p",
@@ -44,6 +46,26 @@ def markdown_to_html(value):
     return sanitizer.html()
 
 
+_DISCARDED_HTML_CONTENT = {"script", "style", "template", "iframe", "object", "noscript", "svg", "math", "title", "head"}
+
+
+def sanitize_stored_html(value):
+    """Rebuild stored rich text with the Markdown tag allowlist.
+
+    Descriptions and e-mailed messages are stored as raw HTML from public
+    input. Never render them with ``|safe``: this keeps the small formatting
+    vocabulary, drops every attribute except a safe link target and discards
+    script-like content entirely.
+    """
+    text = value if isinstance(value, str) else ""
+    if not text.strip():
+        return ""
+    sanitizer = _SafeMarkdownHTMLParser(discard=_DISCARDED_HTML_CONTENT)
+    sanitizer.feed(text)
+    sanitizer.close()
+    return sanitizer.html()
+
+
 def markdown_to_plain_text(value):
     """Convert Markdown into readable plain text through the safe HTML form."""
     rendered = markdown_to_html(value)
@@ -56,6 +78,16 @@ def markdown_to_plain_text(value):
     return parser.text()
 
 
+def safe_href(value):
+    """Return ``value`` when it is an http(s) or mailto link, otherwise ""."""
+    if not isinstance(value, str):
+        return ""
+    target = value.strip()
+    if any(ord(char) < 32 or ord(char) == 127 for char in target):
+        return ""
+    return _safe_link_target(target)
+
+
 def _safe_link_target(value):
     target = (value or "").strip()
     parsed = urlparse(target)
@@ -65,33 +97,62 @@ def _safe_link_target(value):
 
 
 class _SafeMarkdownHTMLParser(HTMLParser):
-    def __init__(self):
+    def __init__(self, discard=()):
         super().__init__(convert_charrefs=True)
         self.parts = []
+        self.discard = set(discard)
+        self.discard_depth = 0
+        self.open_tags = []
 
     def handle_starttag(self, tag, attrs):
+        if tag in self.discard:
+            self.discard_depth += 1
+            return
+        if self.discard_depth:
+            return
         if tag not in _MARKDOWN_HTML_TAGS:
             return
         if tag == "a":
             target = _safe_link_target(dict(attrs).get("href"))
             href = f' href="{html.escape(target, quote=True)}"' if target else ""
             self.parts.append(f"<a{href}>")
+            self.open_tags.append(tag)
             return
         self.parts.append(f"<{tag}>")
+        if tag not in {"br", "hr"}:
+            self.open_tags.append(tag)
 
     def handle_startendtag(self, tag, attrs):
+        if self.discard_depth or tag in self.discard:
+            return
         if tag in {"br", "hr"}:
             self.parts.append(f"<{tag}>")
 
     def handle_endtag(self, tag):
+        if tag in self.discard:
+            self.discard_depth = max(self.discard_depth - 1, 0)
+            return
+        if self.discard_depth:
+            return
         if tag in _MARKDOWN_HTML_TAGS and tag not in {"br", "hr"}:
-            self.parts.append(f"</{tag}>")
+            # Close only tags this parser opened, so stored markup cannot
+            # close or leave open elements of the page around it.
+            if tag not in self.open_tags:
+                return
+            while self.open_tags:
+                opened = self.open_tags.pop()
+                self.parts.append(f"</{opened}>")
+                if opened == tag:
+                    break
 
     def handle_data(self, data):
+        if self.discard_depth:
+            return
         self.parts.append(html.escape(data))
 
     def html(self):
-        return "".join(self.parts)
+        closing = "".join(f"</{tag}>" for tag in reversed(self.open_tags))
+        return "".join(self.parts) + closing
 
 
 class _HTMLToPlainTextParser(HTMLParser):

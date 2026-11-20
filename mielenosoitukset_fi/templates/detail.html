@@ -43,7 +43,7 @@
     </h2>
     <div class="event-description__content{% if not collapsible %} event-description__content--classic{% endif %}"
          id="demo-description">
-      {{ demo['description']|safe }}
+      {{ demo['description']|stored_html }}
     </div>
     {% if collapsible %}
     <p class="event-description__preview"
@@ -2179,7 +2179,7 @@ Template accepts either demo['mastodon'] or a global mastodon_profile variable. 
 
   <!-- Navigation -->
   <div class="nav-buttons animate-fade-in-up">
-    {% if request.referrer is defined %}
+    {% if request.referrer %}
     <a href="{{ request.referrer }}" class="btn btn-outline">
       <i class="fa-solid fa-arrow-left"></i>
       {{ _('Takaisin edelliselle sivulle') }}

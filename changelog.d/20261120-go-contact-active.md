@@ -1,0 +1,1 @@
+- The contact form is now handled by the Go API. Nothing changes for visitors: the same checks, limits, messages and email to the team as before.
