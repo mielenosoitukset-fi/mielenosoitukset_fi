@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { adjacentMonth, calendarPlace, currentMonth, dateForDay, monthName, monthPath } from './calendar';
+import { adjacentMonth, calendarDemonstrations, calendarPlace, currentMonth, dateForDay, monthName, monthPath } from './calendar';
 import type { CalendarBootstrap } from './calendar';
 import type { AppConfig } from './config';
 import type { SessionSummary } from './session';
@@ -63,7 +63,7 @@ export default function CalendarScreen({ calendar, config, session }: {
           {next.year <= 2100 && <a href={monthPath(next)} aria-label={`Seuraava kuukausi: ${monthName(next)}`}>Seuraava →</a>}
         </nav></div>
       {!data ? <div role="alert" className="calendar-notice"><p>Kalenterin lataaminen epäonnistui.</p><button type="button" className="detail-button" onClick={() => window.location.reload()}>Yritä uudelleen</button></div> : <>
-        <p className="month-calendar-summary">{data.total} {data.total === 1 ? 'mielenosoitus' : 'mielenosoitusta'} tässä kuussa. Päivän numeroiden alla näkyy mielenosoitusten määrä.</p>
+        <p className="month-calendar-summary">{calendarDemonstrations(data)} {calendarDemonstrations(data) === 1 ? 'mielenosoitus' : 'mielenosoitusta'} tässä kuussa. Päivän numeroiden alla näkyy mielenosoitusten määrä.</p>
         <CalendarGrid period={calendar} days={data.days} selected={day} />
         <div className="month-calendar-links"><span>Tänään on {dayLabel(helsinkiDay())}</span><a href={monthPath({ ...calendar, month: 0 })}>Vuosi {calendar.year}</a></div>
       </>}

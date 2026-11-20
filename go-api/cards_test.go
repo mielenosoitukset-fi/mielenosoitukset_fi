@@ -22,3 +22,17 @@ func TestCardDateRange(t *testing.T) {
 		}
 	}
 }
+
+func TestOverlapDates(t *testing.T) {
+	dates, running := overlapDates("2026-12-20", "2026-12-21")
+	if dates["$gte"] != "2026-12-07" || dates["$lte"] != "2026-12-21" {
+		t.Fatalf("date bounds = %v", dates)
+	}
+	if running == nil {
+		t.Fatal("expected a running clause")
+	}
+	dates, running = overlapDates("", "2026-12-21")
+	if running != nil || dates["$gte"] != nil || dates["$lte"] != "2026-12-21" {
+		t.Fatalf("open start = %v %v", dates, running)
+	}
+}
