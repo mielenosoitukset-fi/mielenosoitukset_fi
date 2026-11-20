@@ -5757,35 +5757,74 @@ def reject_demo(demo_id):
     )
 
 
+_TAKE_DOWN_ERRORS = {
+    "reason": (400, "Kirjoita syy. Se näytetään mielenosoituksen sivulla ja lähetetään ilmoittajalle."),
+    "not_public": (409, "Vain julkaistun mielenosoituksen voi poistaa julkaisusta."),
+    "open": (409, "Mielenosoituksella on jo avoin poistopyyntö."),
+    "same_admin": (409, "Toisen ylläpitäjän pitää vahvistaa poisto. Et voi vahvistaa omaa pyyntöäsi."),
+    "no_request": (409, "Vahvistettavaa poistopyyntöä ei ole."),
+    "not_found": (404, "Mielenosoitusta ei löytynyt"),
+}
+
+
+def _take_down_action(demo_id, data, source):
+    """One path for take-down requests, confirmations and withdrawals.
+
+    Returns (json body, status). Rights: ``can_take_down_demo``; the
+    second-admin rule lives in ``utils.demo_takedown``.
+    """
+    from mielenosoitukset_fi.demonstrations.decisions import DemoNotPublished
+    from mielenosoitukset_fi.utils import demo_takedown
+
+    if not ObjectId.is_valid(str(demo_id)):
+        return {"success": False, "error": _("Mielenosoitusta ei löytynyt")}, 404
+    demo = mongo.demonstrations.find_one({"_id": ObjectId(str(demo_id))}, {"approved": 1, "taken_down": 1})
+    if not demo:
+        return {"success": False, "error": _("Mielenosoitusta ei löytynyt")}, 404
+    if not demo_takedown.can_take_down_demo(current_user, demo):
+        return {"success": False, "error": _("Käyttöoikeutesi eivät riitä poistamaan mielenosoitusta julkaisusta.")}, 403
+
+    def apply(reason):
+        return _apply_demo_decision(demo_id, "taken_down", source=source, reason=reason)
+
+    action = data.get("action") or "take_down"
+    actor = capture_actor_context()
+    try:
+        if action == "confirm_take_down":
+            status = demo_takedown.confirm_take_down(mongo, demo_id, current_user, apply=apply, actor=actor)
+        elif action == "cancel_take_down":
+            status = demo_takedown.cancel_take_down_request(mongo, demo_id, current_user, actor=actor)
+        else:
+            status = demo_takedown.request_take_down(
+                mongo, demo_id, current_user, str(data.get("reason") or ""),
+                urgent=data.get("urgent") is True, apply=apply, actor=actor,
+            )
+    except DemoNotPublished:
+        code, message = _TAKE_DOWN_ERRORS["not_public"]
+        return {"success": False, "error": _(message)}, code
+    except demo_takedown.TakeDownReviewError as error:
+        code, message = _TAKE_DOWN_ERRORS.get(error.code, (409, "Toimintoa ei voitu tehdä."))
+        return {"success": False, "error": _(message)}, code
+    messages = {
+        "taken_down": _("Mielenosoitus poistettiin julkaisusta."),
+        "requested": _("Poistopyyntö odottaa toisen ylläpitäjän vahvistusta."),
+        "public": _("Poistopyyntö peruttiin. Mielenosoitus pysyy julkisena."),
+    }
+    return {"success": True, "status": status, "message": messages[status]}, 200
+
+
 @admin_demo_api_bp.route("/<demo_id>/take_down", methods=["POST"])
 @login_required
 @admin_required
 def take_down_demo(demo_id):
-    """Take an approved demo off the public site without deleting it."""
-    from mielenosoitukset_fi.demonstrations.decisions import DemoNotPublished
-    from mielenosoitukset_fi.utils.demo_takedown import can_take_down_demo
+    """Take an approved demo off the public site without deleting it.
 
+    JSON: {"reason": str, "urgent": bool} or {"action": "confirm_take_down"|"cancel_take_down"}.
+    """
     if not request.is_json:
         return jsonify({"success": False, "error": _("Virheellinen pyyntö.")}), 415
-    if not ObjectId.is_valid(demo_id):
-        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
-    demo = mongo.demonstrations.find_one({"_id": ObjectId(demo_id)}, {"approved": 1, "taken_down": 1})
-    if not demo:
-        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
-    if not can_take_down_demo(current_user, demo):
-        return jsonify({"success": False, "error": _("Käyttöoikeutesi eivät riitä poistamaan mielenosoitusta julkaisusta.")}), 403
-    reason = str((request.get_json(silent=True) or {}).get("reason") or "").strip()
-    if not reason:
-        return jsonify({"success": False, "error": _("Kirjoita syy. Se näytetään mielenosoituksen sivulla ja lähetetään ilmoittajalle.")}), 400
-    try:
-        result = _apply_demo_decision(demo_id, "taken_down", source="admin_take_down", reason=reason)
-    except DemoNotPublished:
-        return jsonify({"success": False, "error": _("Vain julkaistun mielenosoituksen voi poistaa julkaisusta.")}), 409
-    return jsonify({
-        "success": True,
-        "changed": result.changed,
-        "message": _("Mielenosoitus poistettiin julkaisusta.") if result.changed else _("Mielenosoitus on jo poistettu julkaisusta."),
-    })
+    body, code = _take_down_action(demo_id, request.get_json(silent=True) or {}, source="admin_take_down")
+    return jsonify(body), code
 
 
 @admin_demo_api_bp.route("/bulk_decide", methods=["POST"])

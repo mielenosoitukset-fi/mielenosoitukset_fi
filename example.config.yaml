@@ -59,6 +59,12 @@ CITY_ASSIGNMENT_ESCALATION_HOURS: 24
 # The demo returns to pending and its case reopens; no email is sent.
 DEMO_APPROVAL_UNDO_MINUTES: 30
 
+# Taking an approved demo off the site needs a second admin. A normal request
+# waits for the confirmation; an urgent one hides the demo at once and must be
+# confirmed within TAKE_DOWN_CONFIRM_HOURS. false = one admin is enough.
+TAKE_DOWN_SECOND_ADMIN: true
+TAKE_DOWN_CONFIRM_HOURS: 48
+
 # Optional configurations
 # SERVER_NAME: "www.example.com"  # Server name for the application
 # PREFERRED_URL_SCHEME: "https"  # URL scheme (e.g., https)
