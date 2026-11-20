@@ -40,7 +40,8 @@ Modification Notes
 import copy
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pymongo import MongoClient, UpdateOne
+from pymongo import UpdateOne
+from mielenosoitukset_fi.utils.audit_trail import mongo_client
 from datetime import datetime, date, timedelta
 import argparse
 from typing import Union, Optional
@@ -80,7 +81,7 @@ GENERATION_HORIZON_YEARS = 1
 # Database setup
 mongo_uri = Config.MONGO_URI or "mongodb://localhost:27017"
 db_name = Config.MONGO_DBNAME or "testdb"
-client = MongoClient(mongo_uri)
+client = mongo_client(mongo_uri)
 db = client[db_name]
 recu_demos_collection = db["recu_demos"]
 demonstrations_collection = db["demonstrations"]
