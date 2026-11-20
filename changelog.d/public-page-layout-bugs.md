@@ -1,0 +1,4 @@
+- Event pages no longer break long Finnish words in the middle of the title on phones, and the title now lines up with the date, place and buttons under it. The address no longer repeats the city when it already names it.
+- The campaign page keeps "Mielenosoitukset.fi" on one line on phones, its date line icon sits next to the text, and the timeline link arrow stays with its link.
+- Collapsed questions on the fundraising page show an open/close arrow, so they no longer look like questions without answers; the contact links there use the site's link colour.
+- The contact page intro says once, without a trailing colon, how to reach the maintainers.
