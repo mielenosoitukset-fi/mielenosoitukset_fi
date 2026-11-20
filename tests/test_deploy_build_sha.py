@@ -93,7 +93,8 @@ def test_production_deploy_contract_is_sha_bound():
     assert "--unix-socket" not in workflow
     assert "id: deploy_origin" in workflow
     assert 'echo "verified_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"' in workflow
-    assert '--origin-verified-sha "${{ steps.deploy_origin.outputs.verified_sha }}"' in workflow
+    assert "ORIGIN_VERIFIED_SHA: ${{ steps.deploy_origin.outputs.verified_sha }}" in workflow
+    assert '--origin-verified-sha "$ORIGIN_VERIFIED_SHA"' in workflow
     assert workflow.index('"$command $GITHUB_SHA"') < workflow.index('echo "verified_sha=')
     assert "?deploy=" not in workflow
     assert 'restrict,command="' in documentation
