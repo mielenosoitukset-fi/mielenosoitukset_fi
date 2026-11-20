@@ -2357,13 +2357,16 @@ def demo_analytics(demo_id):
         _log_admin_event("demo_analytics_detail_error", demo_id=demo_id, reason="invalid_id")
         abort(404, "Invalid demo ID")
 
-    anal = get_per_demo_anal(demo_oid)
-    if not anal:
-        _log_admin_event("demo_analytics_detail_error", demo_id=demo_id, reason="missing_data")
-        abort(404, "No analytics data found")
+    demo_data = mongo["demonstrations"].find_one({"_id": demo_oid})
+    if not demo_data:
+        _log_admin_event("demo_analytics_detail_error", demo_id=demo_id, reason="missing_demo")
+        abort(404, "Demonstration not found")
+
+    # A demonstration nobody has opened yet has no analytics document. Show
+    # the page with zero views instead of a 404 that looks like a broken link.
+    anal = get_per_demo_anal(demo_oid) or {"_id": demo_oid, "analytics": {}}
 
     analytics = anal.get("analytics", {})
-    demo_data = mongo["demonstrations"].find_one({"_id": demo_oid})
     demo = Demonstration.from_dict(demo_data)
 
     now_utc = datetime.now(timezone.utc)
