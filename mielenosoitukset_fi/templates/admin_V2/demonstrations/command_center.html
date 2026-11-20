@@ -1,6 +1,5 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
-{% from 'admin_V2/demonstrations/_decision_modal.html' import demo_decision_modal %}
 
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/demonstrations.css', v='20260914-admin-ui-51') }}">{% endblock %}
 
@@ -544,15 +543,11 @@
       <div class="action-card admin-section-card">
         <h3>{{ _('Pikatoiminnot') }}</h3>
         <div class="action-grid">
-          {% if permissions.can_accept and not status_flags.approved %}
-          <button type="button" class="action-btn btn btn-success js-command" data-command="approve">
-            {{ _('Hyväksy mielenosoitus') }}
-            <i class="fa-solid fa-check"></i>
-          </button>
-          <button type="button" class="action-btn btn btn-outline-secondary js-command" data-command="reject">
-            {{ _('Hylkää mielenosoitus') }}
-            <i class="fa-solid fa-xmark"></i>
-          </button>
+          {% if decision_url %}
+          <a class="action-btn btn btn-success" href="{{ decision_url }}">
+            {{ _('Käsittele') }}
+            <i class="fa-solid fa-scale-balanced"></i>
+          </a>
           {% endif %}
           {% if permissions.can_edit %}
           <button type="button" class="action-btn btn btn-danger js-command" data-command="cancel" data-requires-reason="true">
@@ -596,14 +591,11 @@
     </aside>
   </div>
 </div>
-{{ demo_decision_modal() }}
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin_demo_decision.js', v='20261120-decision-1') }}"></script>
 <script>
   const COMMAND_ENDPOINTS = {{ action_endpoints|tojson }};
-  const demoId = {{ demo_id|tojson }};
 
   async function runCommand(actionKey, { payload = {}, successMessage = "{{ _('Toiminto suoritettu') }}", failureMessage = "{{ _('Toiminto epäonnistui') }}", refresh = true } = {}) {
     const config = COMMAND_ENDPOINTS[actionKey];
@@ -674,19 +666,6 @@
           refresh: false,
           successMessage: "{{ _('Esikatselukuvan luonti käynnistetty.') }}",
         });
-        return;
-      }
-
-      if (command === "approve") {
-        if (await window.MosoDemoDecision.confirm(demoId, "approved")) {
-          await runCommand("approve", { successMessage: "{{ _('Hyväksytty!') }}" });
-        }
-        return;
-      }
-      if (command === "reject") {
-        if (await window.MosoDemoDecision.confirm(demoId, "rejected")) {
-          await runCommand("reject", { successMessage: "{{ _('Hylätty!') }}" });
-        }
         return;
       }
 
