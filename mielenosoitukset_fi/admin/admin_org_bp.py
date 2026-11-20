@@ -815,10 +815,7 @@ def confirm_delete_organization(org_id):
 
 
 # TODO: #174 Add unit tests for all routes and functions.
-# TODO: #175 Implement pagination for the organization control panel.
 # TODO: #176 Add error handling for database operations.
-# TODO: #177 Refactor common code into utility functions.
-# TODO: #179 #178 Improve the user interface for organization forms.
 
 
 @admin_org_bp.route("/invite", methods=["POST"])
@@ -928,10 +925,6 @@ def delete_membership() -> Tuple[Response, int]:
         - 500 Internal Server Error:
             {"error": "Poisto epäonnistui"}
 
-    Notes
-    -----
-    - TODO (#342): Require organization-level admin/owner access,
-      global `edit_organization` access, or superuser status before deletion.
     """
     # --- Parse input ---
     data, error = _validated_org_action_input("membership_id")

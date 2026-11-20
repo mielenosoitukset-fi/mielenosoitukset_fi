@@ -11,7 +11,10 @@ from mielenosoitukset_fi.demonstrations.audit import (
     log_demo_audit_entry,
     record_demo_change,
 )
-from mielenosoitukset_fi.utils.city_assignment import clear_city_assignment
+from mielenosoitukset_fi.utils.city_assignment import (
+    CITY_ASSIGNMENT_FIELD,
+    clear_city_assignment,
+)
 from mielenosoitukset_fi.utils.logger import logger
 from mielenosoitukset_fi.utils.time_utils import utcnow
 
@@ -435,3 +438,60 @@ def apply_demo_decision(
         tokens_revoked=tokens_revoked,
         notification_queued=notification_queued,
     )
+
+
+def preview_demo_decision(db, demo_id, decision: str) -> dict:
+    """Describe what ``apply_demo_decision`` would do, without changing anything.
+
+    The admin confirm dialog shows these effects so that no approval or
+    rejection path has side effects the moderator cannot see beforehand.
+    """
+    if decision not in DECISION_STATES:
+        raise ValueError("Unsupported demonstration decision")
+    demo_oid = _object_id(demo_id)
+    demo = db.demonstrations.find_one(
+        {"_id": demo_oid},
+        {"title": 1, "approved": 1, "rejected": 1, "cancelled": 1, CITY_ASSIGNMENT_FIELD: 1},
+    )
+    if not demo:
+        raise LookupError("Demonstration not found")
+
+    target = DECISION_STATES[decision]
+    status_changes = (
+        bool(demo.get("approved")) != target["approved"]
+        or bool(demo.get("rejected")) != target["rejected"]
+    )
+    submitter = db.submitters.find_one(
+        {"demonstration_id": demo_oid}, {"submitter_email": 1}
+    )
+    links = list(
+        db.magic_links.find(
+            {
+                "demo_id": str(demo_oid),
+                "action": {"$in": list(TERMINAL_TOKEN_ACTIONS)},
+                "revoked": {"$ne": True},
+                "used_at": None,
+            },
+            {"action": 1},
+        )
+    )
+    open_cases = db.cases.count_documents(
+        {
+            "demo_id": {"$in": [demo_oid, str(demo_oid)]},
+            "meta.closed": {"$ne": True},
+        }
+    )
+    return {
+        "decision": decision,
+        "title": demo.get("title") or "",
+        "status_changes": status_changes,
+        "cancelled": bool(demo.get("cancelled")),
+        "emails_submitter": bool(
+            status_changes and (submitter or {}).get("submitter_email")
+        ),
+        "has_submitter_email": bool((submitter or {}).get("submitter_email")),
+        "open_cases": open_cases,
+        "links_revoked": len(links),
+        "edit_links_revoked": sum(1 for link in links if link.get("action") == "edit"),
+        "leaves_city_queue": bool(demo.get(CITY_ASSIGNMENT_FIELD)),
+    }

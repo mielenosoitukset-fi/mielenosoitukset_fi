@@ -203,8 +203,8 @@ def passkey_login_verify():
         user_id=user._id,
     )
 
-    # The login page stores its normalized ``next`` in the session; an
-    # explicit value from the page script wins. Both are normalized again.
+    # The React login page always sends ``next``; the legacy Flask page also
+    # stores its normalized ``next`` in the session. Both are normalized again.
     stored_next_page = session.pop("next_page", None)
     safe_next_page = _normalize_post_login_target(
         data.get("next") or stored_next_page or ""
