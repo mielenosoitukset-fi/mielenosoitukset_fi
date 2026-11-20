@@ -1,0 +1,1 @@
+- Sign-in now pauses for 15 minutes after 10 failed password attempts for one username, or 30 from one address. Failed checks in the first login step are now logged like other failed sign-ins. Passkey sign-in is not affected.
