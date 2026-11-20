@@ -1,0 +1,1 @@
+- The registration page now uses the new site design. The form, its checks and the confirmation email work as before.

@@ -118,7 +118,7 @@
     ]
   },
   "background_jobs": {
-    "count": 29,
+    "count": 30,
     "coverage": [
       "jobs",
       "tests/test_urgent_review_delivery.py",
@@ -127,10 +127,11 @@
       "tests/test_pride_banner_volunteers.py",
       "tests/test_purge_suggestion_ips.py",
       "tests/test_demo_suggestion_cases.py",
+      "tests/test_user_erasure.py",
       "tests/test_scrub_admin_log_secrets.py",
       "tests/test_expire_undecided_demos.py"
     ],
-    "sha256": "e3602c108574a1ad85c739aeef28ba49e485a8270a1afd9c6b764df8827e76a1"
+    "sha256": "47da2a590194ff1dc9de6135771b0f17f5813a780c4d05aafdd0bbe360348c14"
   },
   "routes": {
     "mielenosoitukset_fi/admin/admin_bp.py": {
@@ -276,7 +277,7 @@
         "tests/test_fundraising_page.py",
         "tests/test_public_session_summary.py"
       ],
-      "sha256": "5d15762ba7f16e29b9cb0a6a094ae7adb1ab1967dad45e535185977089718e42"
+      "sha256": "f202d922ee0328300072b744b1f6a2ef2b6ca2cdf2f3f7e9d345ffabda74021e"
     },
     "mielenosoitukset_fi/developer_bp.py": {
       "count": 9,

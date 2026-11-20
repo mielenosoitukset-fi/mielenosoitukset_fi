@@ -136,6 +136,9 @@ class Config:
             "GEOCODE_API_KEY",
             "66df12ce96495339674278ivnc82595",
         )
+        # Public key (PEM) that seals a deleted account's identity; the private key is
+        # kept offline. Unset: no seal is stored. See docs/account-erasure.md.
+        cls.ERASURE_SEAL_PUBLIC_KEY = config.get("ERASURE_SEAL_PUBLIC_KEY", "")
         cls.UI_TRANSLATION_SYNC_ENABLED = config.get("UI_TRANSLATION_SYNC_ENABLED", False)
         cls.UI_TRANSLATION_SYNC_REPO_PATH = config.get("UI_TRANSLATION_SYNC_REPO_PATH", "")
         cls.UI_TRANSLATION_SYNC_BASE_BRANCH = config.get("UI_TRANSLATION_SYNC_BASE_BRANCH", "main")
@@ -308,6 +311,7 @@ class Config:
         cls.CITY_ASSIGNMENT_ESCALATION_HOURS = config.get(
             "CITY_ASSIGNMENT_ESCALATION_HOURS", 24
         )
+        cls.DEMO_APPROVAL_UNDO_MINUTES = config.get("DEMO_APPROVAL_UNDO_MINUTES", 30)
         cls.EXPIRE_UNDECIDED_DEMOS = config.get("EXPIRE_UNDECIDED_DEMOS", True)
         cls.EXPIRED_DEMO_NOTIFY_DAYS = config.get("EXPIRED_DEMO_NOTIFY_DAYS", 14)
         cls.NATIONAL_ADMIN_ORG_ID = config.get("NATIONAL_ADMIN_ORG_ID")

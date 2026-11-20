@@ -77,6 +77,7 @@ from mielenosoitukset_fi.utils.database import stringify_object_ids
 
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from mielenosoitukset_fi.demonstrations.audit import (
+    meaningful_history_query,
     record_demo_change,
     log_demo_audit_entry,
     save_demo_history,
@@ -786,7 +787,7 @@ def demo_edit_history(demo_id):
 
     if not flush_rollback_history(mongo, demo_data["_id"]):
         abort(503)
-    history_query = {"demo_id": str(demo_data["_id"])}
+    history_query = meaningful_history_query(demo_data["_id"])
     page, per_page = parse_admin_pagination(request.args)
     total_count = mongo.demo_edit_history.count_documents(history_query)
     pagination = build_admin_pagination(
@@ -1973,6 +1974,7 @@ def reject_demo_with_token(token):
     )
     return redirect(url_for("index"))
 from flask import request, render_template
+from mielenosoitukset_fi.utils.multi_day import normalize_end_date
 from flask_login import login_required, current_user
 from datetime import datetime, date
 from bson.objectid import ObjectId as BsonObjectId
@@ -2121,44 +2123,66 @@ def demo_control():
     filter_query = query_from(filter_clauses)
 
     # --- Count total documents ---
+    # The four filtered counts come from one pass over the filtered rows
+    # instead of one collection scan each.
     total_count = mongo.demonstrations.count_documents(scope_query)
-    filtered_count = mongo.demonstrations.count_documents(filter_query)
-    pending_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"approved": False}]))
-    approved_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"approved": True}]))
-    recurring_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"recurs": True}]))
+    counts = next(
+        mongo.demonstrations.aggregate(
+            [
+                {"$match": filter_query},
+                {
+                    "$group": {
+                        "_id": None,
+                        "filtered": {"$sum": 1},
+                        "pending": {"$sum": {"$cond": [{"$eq": ["$approved", False]}, 1, 0]}},
+                        "approved": {"$sum": {"$cond": [{"$eq": ["$approved", True]}, 1, 0]}},
+                        "recurring": {"$sum": {"$cond": [{"$eq": ["$recurs", True]}, 1, 0]}},
+                    }
+                },
+            ]
+        ),
+        {},
+    )
+    filtered_count = counts.get("filtered", 0)
+    pending_count = counts.get("pending", 0)
+    approved_count = counts.get("approved", 0)
+    recurring_count = counts.get("recurring", 0)
     total_pages = max(1, (filtered_count + per_page - 1) // per_page)
     page = min(page, total_pages)
     # --- Fetch current page ---
     skip_count = (page - 1) * per_page
 
-    # Use aggregation to sort unapproved demos first, then approved, all within MongoDB
-    # (avoids loading entire collection into Python memory)
-    sort_key_stage = {
-        "$addFields": {
-            "_sort_priority": {
-                "$cond": [{"$eq": ["$approved", False]}, 0, 1]
-            }
-        }
-    }
+    # "priority" lists demos waiting for approval first, then the rest, each
+    # by date. It is read as two date-ordered queries so MongoDB can walk the
+    # date index and stop at the page instead of sorting every matching row.
     sort_specs = {
-        "priority": {"_sort_priority": 1, "date": 1, "_id": 1},
-        "date_asc": {"date": 1, "_id": 1},
-        "date_desc": {"date": -1, "_id": -1},
-        "title_asc": {"title": 1, "_id": 1},
+        "priority": [("date", 1), ("_id", 1)],
+        "date_asc": [("date", 1), ("_id", 1)],
+        "date_desc": [("date", -1), ("_id", -1)],
+        "title_asc": [("title", 1), ("_id", 1)],
     }
-    sort_stage = {"$sort": sort_specs[sort_filter]}
-    project_stage = {"$project": {"_sort_priority": 0}}
-
-    pipeline = [
-        {"$match": filter_query},
-        sort_key_stage,
-        sort_stage,
-        {"$skip": skip_count},
-        {"$limit": per_page},
-        project_stage,
-    ]
-
-    demos = list(mongo.demonstrations.aggregate(pipeline))
+    order = sort_specs[sort_filter]
+    if sort_filter == "priority":
+        demos = []
+        if skip_count < pending_count:
+            demos = list(
+                mongo.demonstrations.find(query_from(filter_clauses + [{"approved": False}]))
+                .sort(order)
+                .skip(skip_count)
+                .limit(per_page)
+            )
+        remaining = per_page - len(demos)
+        if remaining > 0:
+            demos += list(
+                mongo.demonstrations.find(query_from(filter_clauses + [{"approved": {"$ne": False}}]))
+                .sort(order)
+                .skip(max(0, skip_count - pending_count))
+                .limit(remaining)
+            )
+    else:
+        demos = list(
+            mongo.demonstrations.find(filter_query).sort(order).skip(skip_count).limit(per_page)
+        )
 
     recommended_lookup = {
         doc.get("demo_id"): True for doc in mongo.recommended_demos.find({}, {"demo_id": 1})
@@ -3444,6 +3468,11 @@ def edit_demo(demo_id):
         demo_edit_access=demo_edit_access,
         show_demo_access_panel=show_demo_access_panel,
         can_approve_demo=has_demo_approval_permission(current_user, demo_data),
+        # Decisions (approve, reject, take down) happen in the case only.
+        decision_url=(
+            _decision_urls([demo_id]).get(str(demo_id))
+            if has_demo_approval_permission(current_user, demo_data) else None
+        ),
         can_generate_edit_link=can_generate_edit_link,
         edit_link_rows=(
             _demo_edit_link_rows(demo_id) if can_generate_edit_link else []
@@ -4289,11 +4318,11 @@ def handle_demo_form(
     can_change_approval = has_demo_approval_permission(
         current_user, approval_scope_demo
     )
-    requested_approval = bool(demonstration_data.get("approved"))
-    if not can_change_approval:
-        demonstration_data["approved"] = bool(
-            approval_scope_demo and approval_scope_demo.get("approved")
-        )
+    # Maintainer decision (20 Nov 2026): the edit form never changes the
+    # approval status. Decisions happen in the case through the decision
+    # service; a new demo starts pending and an approver's "publish now"
+    # choice on the create form runs the same service after the insert.
+    requested_approval = not is_edit and request.form.get("approved") == "on"
     
     if demo_id and demonstration_data.get("_id") is None:
         demonstration_data["_id"] = ObjectId(demo_id)
@@ -4312,16 +4341,15 @@ def handle_demo_form(
                 if incoming_city_key != previous_city_key and not _user_can_create_demo_in_city(demonstration_data.get("city")):
                     flash_message(_("Sinulla ei ole oikeutta siirtää mielenosoitusta valittuun paikkakuntaan."), "error")
                     abort(403)
-                approve_after_save = can_change_approval and requested_approval
-                if approve_after_save:
-                    # Keep the status unchanged during the ordinary field save;
-                    # the decision service owns approval and its side effects.
-                    demonstration_data["approved"] = bool(prev_demo.get("approved"))
+                demonstration_data.pop("approved", None)
                 merged_data = _deep_merge(prev_demo, demonstration_data)
+                # An emptied end date makes the demonstration one day again;
+                # _deep_merge would otherwise keep the old value.
+                if "end_date" in demonstration_data:
+                    merged_data["end_date"] = demonstration_data["end_date"]
                 demo = Demonstration.from_dict(merged_data)
-                # Only an approver's form value is authoritative for approval;
-                # otherwise keep whatever the database holds now.
-                demo.save(write_approval=can_change_approval)
+                # The status is whatever the database holds now.
+                demo.save(write_approval=False)
                 hist_id = record_demo_change(
                     demo_id,
                     prev_demo,
@@ -4347,12 +4375,6 @@ def handle_demo_form(
                             "reason": "Muokattu mielenosoitusta hallintapaneelista, lisätietoa: <a href='{}'>historia</a>".format(url_for('admin_demo.view_demo_diff', history_id=hist_id, _external=True))
                         },
                     })
-                if approve_after_save:
-                    _apply_demo_decision(
-                        demo_id,
-                        "approved",
-                        source="admin_form",
-                    )
             flash_message("Mielenosoitus päivitetty onnistuneesti.", "success")
         else:
             if not _user_can_create_demo_in_city(demonstration_data.get("city")):
@@ -4372,6 +4394,10 @@ def handle_demo_form(
                 message=_("%(user)s loi mielenosoituksen") % {"user": _get_actor_label()},
                 details={"title": demonstration_data.get("title")}
             )
+            if can_change_approval and requested_approval:
+                _apply_demo_decision(
+                    str(insert_result.inserted_id), "approved", source="admin_form_create"
+                )
             flash_message("Mielenosoitus luotu onnistuneesti.", "success")
 
         # Redirect to the demonstration control panel on success
@@ -4709,6 +4735,7 @@ def collect_demo_data(request, existing_organizers=None):
     # Validate required fields
     if not title or not date or not city:
         raise ValueError(_("Otsikko, päivämäärä ja kaupunki ovat pakollisia kenttiä."))
+    end_date = normalize_end_date(date, request.form.get("end_date"))
 
     # Process organizers and tags
     organizers = collect_organizers(
@@ -4757,6 +4784,7 @@ def collect_demo_data(request, existing_organizers=None):
     return {
         "title": title,
         "date": date,
+        "end_date": end_date,
         "start_time": start_time,
         "end_time": end_time,
         "facebook": facebook,
@@ -4767,7 +4795,8 @@ def collect_demo_data(request, existing_organizers=None):
         "type": event_type,
         "route": route,
         "organizers": organizers,
-        "approved": approved,
+        # Status is never taken from the form; see handle_demo_form.
+        "approved": False,
         "tags": tags,
         "description": description,
         "default_language": default_language,

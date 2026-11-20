@@ -1,9 +1,9 @@
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from datetime import datetime, date, time
 import time as process_time
-from flask import Flask, redirect, request, session, g, url_for
+from flask import Flask, flash, redirect, request, session, g, url_for
 from flask_babel import Babel
-from flask_login import LoginManager, current_user, user_logged_in
+from flask_login import LoginManager, current_user, login_url, user_logged_in
 import hashlib
 from pathlib import Path
 from bson.objectid import ObjectId
@@ -70,6 +70,9 @@ def create_app(config_overrides=None) -> Flask:
     from mielenosoitukset_fi.utils.frontend import frontend_assets
 
     app.jinja_env.globals["frontend_assets"] = frontend_assets
+    from mielenosoitukset_fi.utils.flashing import unique_flashed_messages
+    # Templates show each queued notice once.
+    app.jinja_env.globals["get_flashed_messages"] = unique_flashed_messages
     app.config.from_object("config.Config")  # Load configurations from 'config.Config'
     if config_overrides:
         app.config.update(config_overrides)
@@ -176,6 +179,31 @@ def create_app(config_overrides=None) -> Flask:
     login_manager.login_view = (
         "users.auth.login"  # Redirect to login view if not authenticated
     )
+    # Flask-Login's default is English ("Please log in to access this page.").
+    login_manager.login_message = "Kirjaudu sisään nähdäksesi tämän sivun."
+    login_manager.login_message_category = "info"
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        """Signed-out request to a protected route: redirect to login, as Flask-Login does.
+
+        Only a page navigation queues the sign-in notice, and only once. Background
+        requests (fetch/XHR polling, JSON, /api/ paths) used to queue another
+        copy each time, so an admin page left open after the session ended piled up
+        hundreds of them in the session cookie.
+        """
+        # A form POST is a navigation only when the browser says so (Sec-Fetch-Mode).
+        fetch_mode = request.headers.get("Sec-Fetch-Mode", "navigate" if request.method in ("GET", "HEAD") else "")
+        navigation = (
+            fetch_mode == "navigate"
+            and request.headers.get("X-Requested-With") != "XMLHttpRequest"
+            and request.accept_mimetypes.best != "application/json"
+            and "/api/" not in request.path
+        )
+        notice = (login_manager.login_message_category, login_manager.login_message)
+        if navigation and not any(tuple(item) == notice for item in session.get("_flashes", [])):
+            flash(login_manager.login_message, login_manager.login_message_category)
+        return redirect(login_url(login_manager.login_view, request.url))
     
     login_manager.anonymous_user = AnonymousUser
 
@@ -249,10 +277,8 @@ def create_app(config_overrides=None) -> Flask:
     app.register_blueprint(user_bp, url_prefix="/users/")
     app.register_blueprint(api_bp, url_prefix="/api/")
     app.register_blueprint(mcp_admin_bp)
-    # The opt-in issuer is only configured through isolated test overrides.
-    if app.testing and app.config.get("HALLINTO_OIDC"):
-        from mielenosoitukset_fi.users.hallinto_issuer import register_hallinto_issuer
-        register_hallinto_issuer(app, mongo, app.config["HALLINTO_OIDC"])
+    from mielenosoitukset_fi.users.hallinto_issuer_config import configure_hallinto_issuer
+    configure_hallinto_issuer(app, mongo)
     app.register_blueprint(developer_bp, url_prefix="/developer")
     
     
@@ -416,15 +442,19 @@ def create_app(config_overrides=None) -> Flask:
     from bson import ObjectId
 
     # --- Cached admin tasks (avoid re-running heavy queries on every template render) ---
-    _admin_tasks_cache = {"tasks": None, "timestamp": 0}
+    # The task list is filtered by the viewer's permissions, so it is cached
+    # per user: a shared entry would show one admin's scope to another.
+    _admin_tasks_cache = {}
     _ADMIN_TASKS_CACHE_TTL = 30  # seconds
+    _ADMIN_TASKS_CACHE_MAX = 256
 
     def _get_admin_tasks_cached():
         import time as _time
         now = _time.monotonic()
-        cached = _admin_tasks_cache["tasks"]
-        if cached is not None and (now - _admin_tasks_cache["timestamp"]) < _ADMIN_TASKS_CACHE_TTL:
-            return cached
+        cache_key = str(getattr(current_user, "_id", None) or getattr(current_user, "get_id", lambda: None)())
+        entry = _admin_tasks_cache.get(cache_key)
+        if entry is not None and (now - entry["timestamp"]) < _ADMIN_TASKS_CACHE_TTL:
+            return entry["tasks"]
 
         tasks = []
 
@@ -481,8 +511,13 @@ def create_app(config_overrides=None) -> Flask:
         # sort by creation time descending
         tasks.sort(key=lambda x: x.get("created_at", datetime.min), reverse=True)
 
-        _admin_tasks_cache["tasks"] = tasks
-        _admin_tasks_cache["timestamp"] = now
+        if len(_admin_tasks_cache) >= _ADMIN_TASKS_CACHE_MAX:
+            for stale_key, stale in list(_admin_tasks_cache.items()):
+                if (now - stale["timestamp"]) >= _ADMIN_TASKS_CACHE_TTL:
+                    _admin_tasks_cache.pop(stale_key, None)
+            if len(_admin_tasks_cache) >= _ADMIN_TASKS_CACHE_MAX:
+                _admin_tasks_cache.clear()
+        _admin_tasks_cache[cache_key] = {"tasks": tasks, "timestamp": now}
         return tasks
 
     @app.context_processor
