@@ -59,15 +59,15 @@ func orgInviteEnabledFromEnv() bool {
 	return strings.EqualFold(strings.TrimSpace(os.Getenv("ORG_INVITE_GO_ENABLED")), "true")
 }
 
-// orgProtectedIDs reads the system team organizations. A value that is set but not a
-// valid id disables the route: refusing to run is safer than guessing which
-// organization is a team.
+// orgProtectedIDs reads the system team organizations. Both ids must be set and valid:
+// a missing or malformed one disables the route, because refusing to run is safer than
+// guessing which organization is a team (the security review of 20 November 2026).
 func orgProtectedIDs() (map[bson.ObjectID]bool, bool) {
 	ids := map[bson.ObjectID]bool{}
 	for _, name := range []string{"NATIONAL_ADMIN_ORG_ID", "BOARD_ORG_ID"} {
 		raw := strings.TrimSpace(os.Getenv(name))
 		if raw == "" {
-			continue
+			return nil, false
 		}
 		id, err := bson.ObjectIDFromHex(raw)
 		if err != nil || len(raw) != 24 {
@@ -384,7 +384,7 @@ func orgInviteFromEnv(next http.Handler, db *mongo.Database, resolver *sessionRe
 	}
 	protected, ok := orgProtectedIDs()
 	if !ok {
-		log.Print("Organization invitations disabled: invalid system team configuration")
+		log.Print("Organization invitations disabled: NATIONAL_ADMIN_ORG_ID and BOARD_ORG_ID must both be valid")
 		return next
 	}
 	return orgInviteHandler(next, mongoOrgInviteStore{db}, resolver, origin, protected)

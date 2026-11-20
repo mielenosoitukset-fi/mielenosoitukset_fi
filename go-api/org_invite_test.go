@@ -457,15 +457,30 @@ func TestInvitationOffByDefault(t *testing.T) {
 		t.Fatal("flag off must return next")
 	}
 	t.Setenv("ORG_INVITE_GO_ENABLED", "true")
-	t.Setenv("BOARD_ORG_ID", "not-an-id")
-	if orgInviteFromEnv(next, nil, resolver, "https://example.test") != http.Handler(next) {
-		t.Fatal("an invalid system team id must disable the route")
+	board := "bbbbbbbbbbbbbbbbbbbbbbbb"
+	for name, ids := range map[string][2]string{
+		"both missing": {"", ""}, "board missing": {testOrg, ""}, "national missing": {"", board},
+		"board malformed": {testOrg, "not-an-id"}, "national malformed": {"short", board}, "board wrong length": {testOrg, board + "0"},
+	} {
+		t.Run("refuses to start: "+name, func(t *testing.T) {
+			t.Setenv("NATIONAL_ADMIN_ORG_ID", ids[0])
+			t.Setenv("BOARD_ORG_ID", ids[1])
+			if orgInviteFromEnv(next, nil, resolver, "https://example.test") != http.Handler(next) {
+				t.Fatal("the route must stay off unless both system team ids are valid")
+			}
+			if _, ok := orgProtectedIDs(); ok {
+				t.Fatal("orgProtectedIDs must report not ok")
+			}
+		})
 	}
-	t.Setenv("BOARD_ORG_ID", "")
 	t.Setenv("NATIONAL_ADMIN_ORG_ID", testOrg)
+	t.Setenv("BOARD_ORG_ID", board)
 	ids, ok := orgProtectedIDs()
-	if !ok || len(ids) != 1 {
+	if !ok || len(ids) != 2 {
 		t.Fatalf("ids=%v ok=%v", ids, ok)
+	}
+	if orgInviteFromEnv(next, nil, resolver, "https://example.test") == http.Handler(next) {
+		t.Fatal("with both ids valid and the flag on the route must start")
 	}
 }
 

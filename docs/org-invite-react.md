@@ -83,15 +83,15 @@ Differences, all on purpose:
 - **Audit.** One `api_usage` row (`organization invitation accepted`, user, organization, IP,
   `source: go-api`), like the other Go writes. Flask wrote none.
 - **System teams, belt and braces.** Besides `NATIONAL_ADMIN_ORG_ID` and `BOARD_ORG_ID`, an
-  organization with any `governance_approved` membership is treated as a system team. A set but
-  malformed id switches the whole route off.
+  organization with any `governance_approved` membership is treated as a system team. The route
+  **refuses to start unless both `NATIONAL_ADMIN_ORG_ID` and `BOARD_ORG_ID` are set and valid**.
 - Flask answers with a redirect and a flash; React shows the outcome and a link to the organization.
 
 ## Open questions for the security review
 
 1. **`BOARD_ORG_ID` is not in the Go environment today** (only `NATIONAL_ADMIN_ORG_ID` is, for
-   profiles). Activation must add it if Flask's config has it; the governance marker above is a
-   second line, not a replacement.
+   profiles). Resolved in code: the route refuses to start without both ids. Activation must add
+   `BOARD_ORG_ID`; the governance marker is a second line, not a replacement.
 2. Matching by the exact stored address means an invitation sent to `Maija@x.fi` does not work for a
    user stored as `maija@x.fi`. That is Flask's behaviour and is kept; making it case-insensitive
    would widen who can use an invitation and is a separate decision.
@@ -114,7 +114,8 @@ that Apache stays unrouted.
 
 1. Security SHIP; settle the open questions.
 2. In `/etc/mielenosoitukset-api/environment`: `ORG_INVITE_GO_ENABLED=true`, and `BOARD_ORG_ID` next to
-   the existing `NATIONAL_ADMIN_ORG_ID` if the Flask config sets one. The auth bridge must be on.
+   the existing `NATIONAL_ADMIN_ORG_ID` (**both required**: without them Go logs "Organization
+   invitations disabled" and the route stays off). The auth bridge must be on.
    Restart Go. Check: signed out `GET` answers 401; a signed-in `GET` for an uninvited account answers
    `not-invited`.
 3. Uncomment the four Apache rules, `apachectl configtest`, reload.
