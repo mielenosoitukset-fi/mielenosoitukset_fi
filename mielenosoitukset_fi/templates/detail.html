@@ -2179,7 +2179,7 @@ Template accepts either demo['mastodon'] or a global mastodon_profile variable. 
 
   <!-- Navigation -->
   <div class="nav-buttons animate-fade-in-up">
-    {% if request.referrer is defined %}
+    {% if request.referrer %}
     <a href="{{ request.referrer }}" class="btn btn-outline">
       <i class="fa-solid fa-arrow-left"></i>
       {{ _('Takaisin edelliselle sivulle') }}
