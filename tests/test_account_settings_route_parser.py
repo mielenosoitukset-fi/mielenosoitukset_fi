@@ -8,7 +8,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = """
-import { readAccountSettings, classifyAccountResponse, tabFromHash, nextTabIndex, generalPayload, filterCities, postFlaskJson, postBioToGo }
+import { readAccountSettings, classifyAccountResponse, tabFromHash, nextTabIndex, generalPayload, changedGeneralPayload, filterCities, postFlaskJson, postBioToGo }
   from './frontend/src/app/account-settings-route.ts';
 const id = 'abcdefabcdefabcdefabcdef';
 const good = { general: { display_name: 'Maija', city: null, language: 'fi', dark_mode: null }, profile: { bio: null, profile_picture: 'javascript:x' },
@@ -39,6 +39,11 @@ const out = {
   hash: [tabFromHash('#tab-security'), tabFromHash('#nope'), tabFromHash('')],
   keys: [nextTabIndex('ArrowRight', 3, 4), nextTabIndex('ArrowRight', 0, 4), nextTabIndex('ArrowLeft', 0, 4), nextTabIndex('End', 0, 4), nextTabIndex('x', 0, 4)],
   payload: [generalPayload({ displayName: 'A', city: '', language: 'fi', darkMode: true }), generalPayload({ displayName: 'A', city: 'Oulu', language: 'fi', darkMode: false })],
+  changed: [
+    changedGeneralPayload(generalPayload({ displayName: 'Old long name', city: 'Gone', language: 'fi', darkMode: true }), { displayName: 'Old long name', city: 'Gone' }),
+    changedGeneralPayload(generalPayload({ displayName: 'New', city: '', language: 'fi', darkMode: false }), { displayName: 'Old', city: 'Gone' }),
+    changedGeneralPayload(generalPayload({ displayName: 'Old', city: 'Oulu', language: 'fi', darkMode: false }), { displayName: 'Old', city: '' }),
+  ],
   filter: filterCities(['Äänekoski', 'Oulu', 'Espoo'], 'ä'),
   flaskError: await postFlaskJson('/x', {}, 'fallback', answer(400, { status: 'error', message: 'Admin-nimitys on varattu palvelun sisäiseen käyttöön.' })),
   flaskHtml: await postFlaskJson('/x', {}, 'fallback', async () => ({ ok: true, status: 200, json: async () => { throw new Error('html'); } })),
@@ -61,6 +66,10 @@ def test_account_settings_parser_rejects_malformed_bodies():
     assert out["keys"] == [0, 1, 3, 3, None]
     assert out["payload"][0] == {"display_name": "A", "language": "fi", "dark_mode": True}  # no city when none is chosen
     assert out["payload"][1]["city"] == "Oulu"
+    # Go checks every field it receives: unchanged display name and city are left out.
+    assert out["changed"] == [{"language": "fi", "dark_mode": True},
+                              {"language": "fi", "dark_mode": False, "display_name": "New", "city": ""},
+                              {"language": "fi", "dark_mode": False, "city": "Oulu"}]
     assert out["filter"] == ["Äänekoski"]
     assert out["flaskError"] == {"ok": False, "message": "Admin-nimitys on varattu palvelun sisäiseen käyttöön."}
     assert out["flaskHtml"]["ok"] is False and out["flaskHtml"]["message"] == "fallback"

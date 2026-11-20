@@ -20,7 +20,6 @@ UPDATE_OPERATORS = {"$set", "$setOnInsert", "$unset"}
 # Keep this list shrinking; a new entry needs a maintainer-visible reason.
 ALLOWED = {
     ("admin/admin_demo_bp.py", "duplicate_demo"): "a new copy always starts pending",
-    ("admin/admin_demo_bp.py", "handle_demo_form"): "edit-form checkbox, removed after #1265",
     ("admin/admin_case_bp.py", "_stringify_demo"): "read-only view model for the case page",
     ("admin/admin_recu_demo_bp.py", "handle_recu_demo_form"): "series record, not a demonstration",
     # Governance records (board clearances, appointments), not demonstrations.

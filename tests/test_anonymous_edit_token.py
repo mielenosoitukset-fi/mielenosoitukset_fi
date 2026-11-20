@@ -29,9 +29,9 @@ def test_anonymous_edit_token_renders_without_city_admin_navigation(app, seeded_
     assert observed == {'edit_demo_with_token': True, 'can_approve_demo': False,
         'can_generate_edit_link': False, 'show_demo_access_panel': False}
     approval_inputs = re.findall(r'<input\b[^>]*name="approved"[^>]*>', page)
-    # Keep the existing hidden payload contract, but never offer an editable
-    # approval control; forged approval POSTs are checked in lifecycle tests.
-    assert approval_inputs and all('type="hidden"' in control for control in approval_inputs)
+    # The edit form never offers an approval control (maintainer decision,
+    # 20 Nov 2026); forged approval POSTs are checked in lifecycle tests.
+    assert all('type="hidden"' in control for control in approval_inputs)
     assert 'generate-edit-link-btn' not in page
     assert re.search(r'<input\b[^>]*name="csrf_token"', page)
     with client.session_transaction() as session:

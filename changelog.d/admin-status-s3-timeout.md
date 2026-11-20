@@ -1,0 +1,1 @@
+- The admin status page answers within a few seconds when file storage is down and shows "S3 ei vastaa" instead of waiting on retries.

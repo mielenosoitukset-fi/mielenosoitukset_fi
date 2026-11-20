@@ -1,0 +1,158 @@
+[
+ {
+  "name": "update keeps the diff, hides secrets",
+  "mode": "change",
+  "collection": "users",
+  "input": {
+   "$set": {
+    "displayname": "Uusi nimi",
+    "password_hash": "x",
+    "mfa": {
+     "secret": "JBSW",
+     "enabled": true
+    },
+    "api_tokens_enabled": true,
+    "user_id": "abc"
+   },
+   "$unset": {
+    "reset_token": ""
+   }
+  },
+  "expected": {
+   "$set": {
+    "displayname": "Uusi nimi",
+    "password_hash": "[redacted]",
+    "mfa": {
+     "secret": "[redacted]",
+     "enabled": true
+    },
+    "api_tokens_enabled": true,
+    "user_id": "abc"
+   },
+   "$unset": {
+    "reset_token": "[redacted]"
+   }
+  }
+ },
+ {
+  "name": "filters keep ids, hide other strings",
+  "mode": "filter",
+  "collection": "users",
+  "input": {
+   "email": "a@example.org",
+   "status": "pending",
+   "token_id": "t1",
+   "$or": [
+    {
+     "username": "x"
+    },
+    {
+     "_id": "y"
+    }
+   ],
+   "age": {
+    "$gt": 3
+   }
+  },
+  "expected": {
+   "email": "[str]",
+   "status": "pending",
+   "token_id": "t1",
+   "$or": [
+    {
+     "username": "[str]"
+    },
+    {
+     "_id": "y"
+    }
+   ],
+   "age": {
+    "$gt": 3
+   }
+  }
+ },
+ {
+  "name": "hash-shaped values under any key",
+  "mode": "change",
+  "collection": "cases",
+  "input": {
+   "note": "$2b$12$abc",
+   "jwt": "eyJhbGciOi.e30.x",
+   "fernet": "gAAAAABk",
+   "plain": "teksti"
+  },
+  "expected": {
+   "note": "[redacted]",
+   "jwt": "[redacted]",
+   "fernet": "[redacted]",
+   "plain": "teksti"
+  }
+ },
+ {
+  "name": "credential collections keep ids and flags only",
+  "mode": "change",
+  "collection": "magic_links",
+  "input": {
+   "_id": "m1",
+   "user_id": "u1",
+   "link": "https://x/t/1",
+   "used": false,
+   "expires": 5
+  },
+  "expected": {
+   "_id": "m1",
+   "user_id": "u1",
+   "link": "[redacted]",
+   "used": false,
+   "expires": 5
+  }
+ },
+ {
+  "name": "operators inherit the secret field",
+  "mode": "filter",
+  "collection": "users",
+  "input": {
+   "password": {
+    "$exists": true
+   },
+   "session_token": {
+    "$in": [
+     "a",
+     "b"
+    ]
+   }
+  },
+  "expected": {
+   "password": {
+    "$exists": true
+   },
+   "session_token": {
+    "$in": [
+     "[redacted]",
+     "[redacted]"
+    ]
+   }
+  }
+ },
+ {
+  "name": "network identifiers are not kept",
+  "mode": "change",
+  "collection": "demo_suggestions",
+  "input": {
+   "ip": "203.0.113.9",
+   "client_ip": "x",
+   "user_agent": "Mozilla/5.0",
+   "note": "2001:db8::1",
+   "time": "12:30",
+   "title": "Mielenosoitus"
+  },
+  "expected": {
+   "ip": "[redacted]",
+   "client_ip": "[redacted]",
+   "user_agent": "[redacted]",
+   "note": "[redacted]",
+   "time": "12:30",
+   "title": "Mielenosoitus"
+  }
+ }
+]
