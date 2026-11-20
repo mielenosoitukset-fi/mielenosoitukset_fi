@@ -37,6 +37,7 @@ import apiDocs from 'virtual:api-docs';
 import StatusScreen from './StatusScreen';
 import CancelLinkScreen from './CancelLinkScreen';
 import VolunteerConfirmScreen from './VolunteerConfirmScreen';
+import EmailConfirmScreen from './EmailConfirmScreen';
 import DeveloperScreen from './DeveloperScreen';
 import ProfileScreen from './ProfileScreen';
 import AccountSettingsScreen from './AccountSettingsScreen';
@@ -44,6 +45,7 @@ import { accountCopy } from './account-settings-route';
 import { loadProfile, profileTitle } from './profile-route';
 import type { ProfileInitial } from './profile-route';
 import { volunteerConfirmCopy } from './volunteer-confirm';
+import { emailConfirmCopy } from './email-confirm';
 import { loadCancelLink, cancelLinkTitle, type CancelLinkState } from './cancel-link';
 import { loadStatus, statusTitle, type ServiceStatus } from './status';
 import { loadSuggestion, suggestionTitle, suggestionLead, type SuggestionDemo } from './suggest-change';
@@ -89,7 +91,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; developer?: string; profile?: string; accountSettings?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; developer?: string; profile?: string; accountSettings?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -504,6 +506,18 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = `<noscript><p class="container-main-content">${volunteerConfirmCopy.noscript}</p></noscript>`;
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<VolunteerConfirmScreen token={route.token} />} />);
+  }
+
+  if (route.name === 'email-confirm') {
+    // The link is a bearer secret (a signed token naming the address) and the page reads
+    // nothing: it only shows the button. Never cached, never indexed, no referrer.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.emailConfirm ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${emailConfirmCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<EmailConfirmScreen token={route.token} loginUrl={config.urls.login} />} />);
   }
 
   if (route.name === 'account-settings') {
