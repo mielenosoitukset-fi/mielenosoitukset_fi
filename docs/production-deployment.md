@@ -335,3 +335,69 @@ Backwards compatibility must cover the graceful Flask overlap and Flask â†’ Go â
 React deployment order. This pipeline does not make the three services or MongoDB
 one atomic transaction. A migration needing a particular intermediate application
 version must use an approved bridge instead of relying on every PR becoming live.
+
+## Deploying to moso-prod through Cloudflare Tunnel and Access
+
+Since 20 Nov 2026 the site runs on moso-prod (VM behind hypervisor lc-moso-01).
+No inbound SSH port is opened for CI. A `cloudflared` tunnel on moso-prod dials
+out to Cloudflare and exposes only `ssh-ci.mielenosoitukset.fi` (to the VM's
+sshd). A Cloudflare Access application with a Service Auth policy admits one
+service token, `github-ci-deploy`. Behind it, the `deploy-ci` account's key is
+locked to `deploy/production_ssh_entrypoint.sh` (`deploy <sha>` and
+`deploy-routing <sha>` only). Never use raw IPs or port 22 on 65.109.65.236.
+
+The job installs a pinned `cloudflared` (version and SHA-256 are in the workflow
+`env`; bump both together, taking the checksum from the release notes), then runs
+`ssh -o ProxyCommand="cloudflared access ssh --hostname %h"` with
+`TUNNEL_SERVICE_TOKEN_ID`/`TUNNEL_SERVICE_TOKEN_SECRET` from secrets. It fails
+before connecting if `PRODUCTION_SSH_HOST` is still a raw IP of the old or new
+host, or if either token secret is empty.
+
+`PRODUCTION_SSH_KNOWN_HOSTS` holds the moso-prod host key under the Access
+hostname, which is what ssh looks up (`%h`):
+
+```text
+ssh-ci.mielenosoitukset.fi ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlVX+3AKN3rmTtfCs5nxBJm23V45iIFd/bQoVtbAZOD
+```
+
+(SHA256:BnYr2vOE1EpNZ6L/hXLaAbEPK7YxbsQCO0cCQuY0ZXo.) Do not use `ssh-keyscan`
+on 65.109.65.236.
+
+**Server side:** the `deploy-ci` key's `authorized_keys` line is
+`restrict,command="/usr/local/sbin/moso-github-deploy"`. That file is the
+wrapper installed on moso-prod from `deploy/production_ssh_entrypoint.sh` (same
+contract as the lc-main install above: `deploy <sha>` and `deploy-routing <sha>`
+only).
+
+**MUST DO BEFORE SETTING ANY SECRET:** restrict the GitHub environment
+`production` to deployments from `main`, so no other branch can read the SSH key
+or Access token. The maintainer runs this (the PR does not):
+
+```sh
+gh api -X PUT repos/mielenosoitukset-fi/mielenosoitukset_fi/environments/production \
+  --input - <<'JSON'
+{"deployment_branch_policy": {"protected_branches": false, "custom_branch_policies": true}}
+JSON
+gh api -X POST repos/mielenosoitukset-fi/mielenosoitukset_fi/environments/production/deployment-branch-policies \
+  -f name=main -f type=branch
+```
+
+Check with `gh api repos/mielenosoitukset-fi/mielenosoitukset_fi/environments/production/deployment-branch-policies`.
+The Access token env is set only on the deploy step, and the job fails unless the
+host is exactly `ssh-ci.mielenosoitukset.fi` and the user exactly `deploy-ci`.
+
+The maintainer then sets, before the workflow is re-enabled or this PR merges
+(merging runs the first deploy):
+
+```sh
+gh variable set PRODUCTION_SSH_HOST --env production --body ssh-ci.mielenosoitukset.fi
+gh variable set PRODUCTION_SSH_USER --env production --body deploy-ci
+gh secret set PRODUCTION_SSH_PRIVATE_KEY --env production < deploy-ci-key   # new key
+gh secret set PRODUCTION_SSH_KNOWN_HOSTS --env production < known_hosts.moso
+gh secret set CF_ACCESS_CLIENT_ID --env production      # service token id
+gh secret set CF_ACCESS_CLIENT_SECRET --env production  # service token secret
+```
+
+Revert: `gh workflow disable production-deploy.yml`, then delete the
+`github-ci-deploy` service token (and, if wanted, the Access application and
+tunnel) in Cloudflare; remove the `deploy-ci` key line on moso-prod.

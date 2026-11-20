@@ -44,7 +44,7 @@ def accept_invite():
     """ """
     if not current_user.is_authenticated:
         flash_message("Kirjaudu sisään liittyäksesi organisaatioon.", "info")
-        return redirect(url_for("users.auth.login", next=request.url))
+        return redirect(url_for("users.auth.login", next=request.full_path.rstrip("?")))
 
     organization_id = request.args.get("organization_id")
     if not organization_id:
@@ -86,7 +86,7 @@ def accept_invite_post(organization_id):
     """Accept an organization invite via POST using the organization_id URL parameter."""
     if not current_user.is_authenticated:
         flash_message("Kirjaudu sisään liittyäksesi organisaatioon.", "info")
-        return redirect(url_for("users.auth.login", next=request.url))
+        return redirect(url_for("users.auth.login", next=request.full_path.rstrip("?")))
 
     if not organization_id:
         flash_message("Organisaation tunnus puuttuu.", "warning")
@@ -136,7 +136,7 @@ def decline_invite_post():
     """
     if not current_user.is_authenticated:
         flash_message("Kirjaudu sisään hylätäksesi kutsun.", "info")
-        return redirect(url_for("users.auth.login", next=request.url))
+        return redirect(url_for("users.auth.login", next=request.full_path.rstrip("?")))
 
     organization_id = request.args.get("organization_id")
     if not organization_id:

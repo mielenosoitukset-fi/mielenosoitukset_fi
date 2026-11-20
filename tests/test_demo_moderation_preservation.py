@@ -122,3 +122,76 @@ def test_form_content_edit_keeps_approval_identity_and_case_history(
     assert after["moderation_decision"] == before["moderation_decision"]
     assert db.cases.find_one({"_id": seeded_data["case_id"]}) == before_case
     assert len(queued) == 1
+
+
+def test_stale_model_save_does_not_clear_later_approval(
+    admin_client, db, seeded_data, monkeypatch
+):
+    """#1172: a model loaded before approval must not write approved=false back."""
+    from mielenosoitukset_fi.utils.classes.Demonstration import Demonstration
+
+    _capture_decision_email(monkeypatch)
+    demo_id = seeded_data["pending_demo_id"]
+    stale = Demonstration.from_dict(db.demonstrations.find_one({"_id": demo_id}))
+    assert stale.approved is False
+
+    assert admin_client.post(f"/api/admin/demo/{demo_id}/approve").status_code == 200
+
+    stale.title = "Content saved from a snapshot loaded before approval"
+    stale.save()
+
+    after = db.demonstrations.find_one({"_id": demo_id})
+    assert after["title"] == stale.title
+    assert after["approved"] is True
+    assert after["moderation_decision"]["status"] == "approved"
+
+
+def test_duplicate_merge_keeps_primary_approval(
+    admin_client, db, seeded_data, monkeypatch
+):
+    """The scheduled duplicate merge copies fields from an unapproved duplicate."""
+    from bson import ObjectId
+    from mielenosoitukset_fi.utils.classes.Demonstration import Demonstration
+
+    _capture_decision_email(monkeypatch)
+    demo_id = seeded_data["pending_demo_id"]
+    assert admin_client.post(f"/api/admin/demo/{demo_id}/approve").status_code == 200
+    primary_doc = db.demonstrations.find_one({"_id": demo_id})
+    duplicate_doc = {
+        key: value
+        for key, value in primary_doc.items()
+        if key not in ("_id", "moderation_decision", "slug")
+    }
+    duplicate_doc.update({"_id": ObjectId(), "approved": False, "aliases": []})
+    db.demonstrations.insert_one(duplicate_doc)
+
+    Demonstration.from_dict(primary_doc).merge(str(duplicate_doc["_id"]))
+
+    after = db.demonstrations.find_one({"_id": demo_id})
+    assert after["approved"] is True
+    assert after["moderation_decision"]["status"] == "approved"
+    assert str(duplicate_doc["_id"]) in [str(alias) for alias in after["aliases"]]
+
+
+def test_explicit_approval_write_still_persists(admin_client, db, seeded_data, monkeypatch):
+    from mielenosoitukset_fi.utils.classes.Demonstration import Demonstration
+
+    _capture_decision_email(monkeypatch)
+    demo_id = seeded_data["pending_demo_id"]
+    assert admin_client.post(f"/api/admin/demo/{demo_id}/approve").status_code == 200
+    model = Demonstration.from_dict(db.demonstrations.find_one({"_id": demo_id}))
+    model.approved = False
+    model.save(write_approval=True)
+    assert db.demonstrations.find_one({"_id": demo_id})["approved"] is False
+
+
+def test_approver_form_edit_can_still_unapprove(admin_client, db, seeded_data, monkeypatch):
+    _capture_decision_email(monkeypatch)
+    demo_id = seeded_data["pending_demo_id"]
+    assert admin_client.post(f"/api/admin/demo/{demo_id}/approve").status_code == 200
+    before = db.demonstrations.find_one({"_id": demo_id})
+    response = admin_client.post(f"/admin/demo/edit_demo/{demo_id}", data={
+        "title": before["title"], "date": before["date"], "city": before["city"],
+    })
+    assert response.status_code == 302
+    assert db.demonstrations.find_one({"_id": demo_id})["approved"] is False

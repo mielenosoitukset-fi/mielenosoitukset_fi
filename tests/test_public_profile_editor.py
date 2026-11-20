@@ -82,7 +82,7 @@ def test_saved_bio_is_safely_rendered_on_public_profile(
         {"$set": {"bio": "Public bio <script>alert(1)</script>\nSecond line"}},
     )
 
-    response = user_client.get("/users/profile/")
+    response = user_client.get("/users/profile/", follow_redirects=True)
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)

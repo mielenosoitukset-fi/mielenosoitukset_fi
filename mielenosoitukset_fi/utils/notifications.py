@@ -38,7 +38,16 @@ def fetch_notifications(user_id, limit: int = 20):
     # Recheck the current assignment and permission before every API/page read.
     # Stream rather than materializing historical notices; hidden entries must
     # not consume the visible inbox quota. The database cursor has a time limit.
-    return list(islice((doc for doc in cur if _assignment_notice_visible(doc, user_id)), limit))
+    user_cache = {}
+    return list(islice((doc for doc in cur if _notice_visible(doc, user_id, user_cache)), limit))
+
+
+def _notice_visible(doc, user_id, user_cache):
+    if doc.get("type") == "new_case":
+        # Case notices follow the live case scope and hide once the case closes.
+        from mielenosoitukset_fi.utils.case_notifications import notice_visible
+        return notice_visible(mongo, doc, user_id, user_cache)
+    return _assignment_notice_visible(doc, user_id)
 
 
 def _assignment_notice_visible(doc, user_id):
@@ -141,6 +150,11 @@ def serialize_notification(doc: dict) -> dict:
     elif n_type == "city_admin_application":
         message = _("Uusi kaupunkiadminhakemus: ") + ", ".join(payload.get("cities") or [])
         icon = "fa-solid fa-user-shield"
+    elif n_type == "new_case":
+        message = _("Uusi tapaus") + f" #{payload.get('running_num') or ''}"
+        if payload.get("demo_title"):
+            message += ": " + payload["demo_title"]
+        icon = "fa-solid fa-folder-open"
     elif n_type == "recurring_demo_update":
         message = _("Seuraamasi mielenosoitussarja päivittyi: ") + payload.get("demo_title", "")
         icon = "fa-solid fa-arrows-rotate"

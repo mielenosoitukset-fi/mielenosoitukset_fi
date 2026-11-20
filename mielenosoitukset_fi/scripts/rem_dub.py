@@ -33,10 +33,11 @@ def hide_duplicates():
         else:
             unique_docs.add(unique_id)
 
-    # Hide duplicates
+    # Hide duplicates. Approval is changed only through the decision service
+    # (demonstrations/decisions.py), so hiding leaves it as it is.
     if duplicates:
         demonstrations.update_many(
-            {"_id": {"$in": duplicates}}, {"$set": {"approved": False, "hide": True}}
+            {"_id": {"$in": duplicates}}, {"$set": {"hide": True}}
         )
         print(f"Hid {len(duplicates)} duplicate documents.")
     else:

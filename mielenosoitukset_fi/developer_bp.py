@@ -64,10 +64,8 @@ def dashboard():
 
 @developer_bp.route("/apps", methods=["GET"])
 def apps_home():
-    apps = list(mongo.developer_apps.find({"owner_id": current_user._id}))
-    for app in apps:
-        app["_id"] = str(app["_id"])
-    return render_template("developer/apps.html", apps=apps)
+    # The React /developer overview lists the apps and has the create form.
+    return redirect(url_for("developer.dashboard"))
 
 
 @developer_bp.route("/apps/<app_id>", methods=["GET"])

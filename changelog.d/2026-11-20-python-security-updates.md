@@ -1,0 +1,1 @@
+- Updated Flask to 3.1.3, Werkzeug to 3.1.9, Requests to 2.33.0, Markdown to 3.8.2 and Flask-SocketIO to 5.6.1 for known security fixes. Flask now sends `Vary: Cookie` whenever the session is read, so shared caches do not serve one visitor's page to another. Chat keeps working with the new Flask.

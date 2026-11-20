@@ -102,18 +102,19 @@ def test_revoked_magic_link_is_forbidden_and_does_not_decide(
 
 
 def test_unregistered_but_validly_signed_magic_link_is_rejected(
-    client, db, seeded_data
+    app, client, db, seeded_data
 ):
     from mielenosoitukset_fi.admin.admin_demo_bp import serializer
 
-    forged = serializer.dumps(
-        str(seeded_data["pending_demo_id"]), salt="approve-demo"
-    ) + "x"
+    with app.app_context():
+        forged = serializer.dumps(
+            str(seeded_data["pending_demo_id"]), salt="approve-demo"
+        ) + "x"
+        # A correctly signed token that never reached the registry is also refused.
+        unregistered = serializer.dumps(
+            str(seeded_data["pending_demo_id"]), salt="approve-demo-unregistered"
+        )
     assert client.post(f"/admin/demo/approve_demo_with_token/{forged}").status_code == 400
-    # A correctly signed token that never reached the registry is also refused.
-    unregistered = serializer.dumps(
-        str(seeded_data["pending_demo_id"]), salt="approve-demo-unregistered"
-    )
     assert (
         client.post(f"/admin/demo/approve_demo_with_token/{unregistered}").status_code
         == 400
@@ -354,3 +355,34 @@ def test_claimed_reset_token_blocks_a_second_submission(
         data={"password": password, "password_confirm": password},
     )
     assert db.users.find_one({"email": "alice@example.test"})["password_hash"] == before
+
+
+def test_magic_link_signed_with_the_old_constant_key_is_rejected(
+    app, client, db, seeded_data
+):
+    """A link signed with a key from the public source must never verify."""
+    from itsdangerous import URLSafeTimedSerializer
+
+    forged = URLSafeTimedSerializer("your_secret_key").dumps(
+        str(seeded_data["pending_demo_id"]), salt="approve-demo"
+    )
+    assert client.post(f"/admin/demo/approve_demo_with_token/{forged}").status_code == 400
+    assert not db.demonstrations.find_one(
+        {"_id": seeded_data["pending_demo_id"]}
+    ).get("approved")
+
+
+def test_magic_links_always_carry_a_random_id(app, seeded_data):
+    """Links made without a recipient must not be recomputable from the demo id."""
+    from mielenosoitukset_fi.admin.admin_demo_bp import (
+        generate_demo_approve_link,
+        serializer,
+    )
+
+    demo_id = str(seeded_data["pending_demo_id"])
+    with app.test_request_context("/"):
+        first = generate_demo_approve_link(demo_id).rsplit("/", 1)[-1]
+        second = generate_demo_approve_link(demo_id).rsplit("/", 1)[-1]
+        payload = serializer.loads(first, salt="approve-demo")
+    assert first != second
+    assert payload["demo_id"] == demo_id and len(payload["jti"]) >= 24

@@ -54,9 +54,11 @@ func emailConfirmEnabledFromEnv() bool {
 	return strings.EqualFold(strings.TrimSpace(os.Getenv("EMAIL_CONFIRM_GO_ENABLED")), "true")
 }
 
-// emailConfirmKeyFromEnv is the key Flask signs these tokens with (its SECRET_KEY).
-// Anything shorter than 32 bytes is refused, so a typo cannot turn the route on
-// with a guessable key.
+// emailConfirmKeyFromEnv is the key Flask signs these tokens with: the derived
+// key from utils/auth.py derive_confirmation_key (64 hex characters), never
+// SECRET_KEY itself, which also signs sessions and password reset tokens.
+// scripts/write_confirmation_key.py writes it. Anything shorter than 32 bytes is
+// refused, so a typo cannot turn the route on with a guessable key.
 func emailConfirmKeyFromEnv() []byte {
 	key := strings.TrimSpace(os.Getenv("EMAIL_CONFIRM_JWT_KEY"))
 	if len(key) < 32 {

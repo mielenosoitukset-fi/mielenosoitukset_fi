@@ -100,7 +100,7 @@ func TestMongoCitiesAndToday(t *testing.T) {
 	}
 	cached := newCachedDetailStore(store)
 	defer cached.Close()
-	api := &API{cached}
+	api := &API{store: cached}
 	for _, raw := range []string{"", "?lang=fi", "?lang=fi&lang=en", "?private=true"} {
 		w := httptest.NewRecorder()
 		api.handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/cities"+raw, nil))
