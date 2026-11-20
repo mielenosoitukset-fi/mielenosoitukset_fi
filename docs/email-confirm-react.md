@@ -56,21 +56,20 @@ Differences, on purpose:
 - Flask answers with a redirect and a flash message; React shows the outcome and a login link.
 - Flask wrote no audit row for this action; neither does Go.
 
-## The open security question: the signing key
+## The signing key: derived key only, never `SECRET_KEY`
 
-Flask signs and verifies with its `SECRET_KEY`, which also signs the session cookie. The Go API
-does not have it (it receives only an HMAC-derived `PUBLIC_SUBMIT_SECRET`), and
-[auth-bridge.md](auth-bridge.md) chose not to move the key. Verifying these tokens in Go needs a key
-that equals the one that signed them. Options for the maintainer and the security reviewer:
+Flask signs and verifies with its `SECRET_KEY`, which also signs the session cookie and password reset tokens.
+The Go API must **never** hold it (the security review of 20 November 2026 rejected that option, and
+[auth-bridge.md](auth-bridge.md) chose not to move the key either). Instead Flask signs new confirmation tokens with
+`HMAC-SHA256(SECRET_KEY, "moso-email-confirmation-token-v1")`, accepting old and new tokens for an hour (draft PR #1241,
+which changes only Flask's token issue/verify side). `EMAIL_CONFIRM_JWT_KEY` is that derived value and nothing else; a
+Go process holding it can verify confirmation links but cannot forge sessions or reset tokens.
 
-1. ~~Give Go the same value as `SECRET_KEY`~~ Rejected by the security review: a leak from Go would allow forging Flask sessions. Do not use it.
-2. **Chosen: mint confirmation tokens with a derived key** (HMAC of `SECRET_KEY` with a fixed label) and let
-   Flask accept both old and new tokens for an hour. Go then holds only the derived key. This changes
-   Flask's token issuing, so it is a separate, reviewed PR; the Go verifier needs no change besides
-   the key value.
-3. Keep this route in Flask.
-
-Option 2 is a separate small draft PR touching only Flask's token issue/verify side. `EMAIL_CONFIRM_JWT_KEY` stays unset until that PR is reviewed and live, so this route stays off. Nothing here sets or reads a production secret.
+- Until #1241 is merged, deployed and reviewed, `EMAIL_CONFIRM_JWT_KEY` stays **unset** and this route stays off.
+- The operator writes the derived key into the Go environment file with `sudo python3 scripts/write_confirmation_key.py`
+  (from #1241): nothing on a command line or in shell history, mode 600, output only `written`
+  (see `docs/token-lifecycle.md`).
+- Rotating `SECRET_KEY` changes the derived key: run the script again and restart Go.
 
 ## Tests
 
@@ -84,8 +83,8 @@ literal, a regex-looking address matches nothing) against a disposable MongoDB
 
 ## Activation (later maintainer go; separate steps)
 
-1. Decide the key (above) and get the security SHIP.
-2. Put `EMAIL_CONFIRM_GO_ENABLED=true` and `EMAIL_CONFIRM_JWT_KEY=<key>` in
+1. Merge #1241, let it run, get the security SHIP.
+2. Run `sudo python3 scripts/write_confirmation_key.py` on the Flask host, add `EMAIL_CONFIRM_GO_ENABLED=true` to
    `/etc/mielenosoitukset-api/environment`, restart Go. Check: a POST with garbage answers 400
    `invalid`; GET answers 405.
 3. Uncomment the four Apache rules, `apachectl configtest`, reload.
