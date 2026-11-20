@@ -61,3 +61,18 @@ Related: incident #912/#913 protections (SEC-05) were not touched by this work.
 - Organization invites: new invitations carry `invited_at` and expire after 30 days; undated ones never expire (PR 1120).
 - Cancellation links: claimed atomically before acting (PR 1121).
 - Password reset: claimed through a unique partial index `token_hash_unique` on `used_password_change_tokens` (revert: `db.used_password_change_tokens.dropIndex("token_hash_unique")` and the code falls back to the read-then-write check only after reverting the PR). Spent tokens are stored as SHA-256 hashes; legacy raw rows are still honoured and rewritten to hashes when met. Back up `used_password_change_tokens` before the first production start with this code. The visit log in `password_changes` also stores the hash now, not the raw token.
+
+## Confirmation tokens use a derived key (20 November 2026)
+
+New e-mail confirmation tokens are signed with `HMAC-SHA256(SECRET_KEY, "moso-email-confirmation-token-v1")`
+(hex) instead of `SECRET_KEY`, so a service that only verifies them (the Go confirmation route in
+`docs/email-confirm-react.md`) can hold the derived value without being able to forge sessions or password
+reset tokens. Flask accepts both for the one-hour overlap: tokens signed with the derived key first, then
+the old `SECRET_KEY` ones, with the same purpose rule as before.
+
+- Nothing else changes: same claims, same one hour lifetime, same `/users/auth/confirm_email/<token>` URL.
+- After one hour from the first deploy, delete the fallback (the second `_verify_token(token)` call in
+  `verify_confirmation_token`). It is harmless to leave.
+- Revert: restore `generate_confirmation_token` to sign with `SECRET_KEY` and keep the dual verify;
+  links already mailed with the derived key then fail for their remaining hour at most.
+- Not changed here: the Go route and its `EMAIL_CONFIRM_JWT_KEY` stay unset until this is live and reviewed.
