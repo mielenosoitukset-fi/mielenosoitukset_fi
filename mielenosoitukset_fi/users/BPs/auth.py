@@ -63,7 +63,7 @@ from mielenosoitukset_fi.utils.tokens import (
     tokens_collection,
 )
 from mielenosoitukset_fi.utils.logout_token import is_prefetch_request, make_logout_token, valid_logout_token
-from mielenosoitukset_fi.utils.step_up import clear_elevation, is_elevated, sudo_required
+from mielenosoitukset_fi.utils.step_up import clear_elevation, is_elevated, step_up_required_response, sudo_required
 
 
 MFA_PENDING_LOGIN_KEY = "mfa_pending_login"
@@ -1373,7 +1373,7 @@ def settings_api_v2():
 
     # ---------- POST ----------
     if request.is_json:
-        user_data = request.get_json(force=True)
+        user_data = request.get_json(silent=True) or {}
     else:
         user_data = request.form.to_dict()
 
@@ -1459,10 +1459,17 @@ def mfa_setup_api():
     3) done: just returns success
     """
     user = current_user
-    data = request.get_json(force=True)
+    # Only a real JSON request is read: a form or text/plain body from another site is refused.
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"status": "error", "message": "Invalid request"}), 400
     step = data.get("step")
 
     if step == "request_activation":
+        # Adding a device changes how the account signs in: ask for a fresh
+        # re-authentication first, as for renaming or removing one.
+        if not is_elevated():
+            return step_up_required_response()
         # Step 1: generate secret for new device
         secret = PendingMFA.create(user._id)
         user_mfa = UserMFA(user._id)
@@ -1626,6 +1633,10 @@ def logout():
     if not valid_logout_token(request.form.get("logout_token"), current_user.get_id()):
         # An expired or foreign token never signs anyone out; show the confirmation page with a fresh one.
         return redirect(url_for("users.auth.logout"))
+    end_hallinto_login = current_app.extensions.get("hallinto_owner_logout")
+    if end_hallinto_login and not end_hallinto_login(current_user.get_id()):
+        # Keep the browser binding so the visitor can retry revoking it.
+        return jsonify(error="temporarily_unavailable"), 503, {"Cache-Control": "no-store"}
     logout_user()
     clear_elevation()  # step-up state never outlives the session
     flash_message("Kirjauduit onnistuneesti ulos", "success")
@@ -2007,7 +2018,10 @@ def api_change_password():
       "confirm": "<repeat>"
     }
     """
-    data = request.get_json(force=True)
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"status": "error",
+                        "message": _("Kaikki kentät ovat pakollisia.")}), 400
     cur, new, confirm = data.get("current"), data.get("new"), data.get("confirm")
 
     if not all((cur, new, confirm)):

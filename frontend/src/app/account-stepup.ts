@@ -173,6 +173,15 @@ export async function stepUpWithPasskey(
 type Focusable = { isConnected: boolean; disabled?: boolean; focus: (options?: FocusOptions) => void };
 
 /**
+ * The control to return focus to after the dialog. Normally the focused element; but Safari (and
+ * Firefox on macOS) do not focus a button on a mouse click, so the page body is focused then and
+ * the caller's `fallback` (the button that sent the form) is used instead.
+ */
+export function pickFocusReturn<T>(active: T | null, body: T | null, fallback: T | null = null): T | null {
+  return active && active !== body ? active : fallback;
+}
+
+/**
  * Returns focus to the control that started a request. That control is disabled while the request
  * runs and the caller re-enables it in a later render, so one frame is not enough: wait, frame by
  * frame, until it is enabled (at most `maxFrames`), then focus it. A control that left the page is skipped.

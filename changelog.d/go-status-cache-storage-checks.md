@@ -1,0 +1,1 @@
+- The Go status API can again check the cache and file storage, as the old Flask status page did, with its own Redis and S3 clients. Both checks are off until `STATUS_CACHE_REDIS_URL` or the `STATUS_S3_*` settings are configured; until then `/status` keeps showing only the database row.

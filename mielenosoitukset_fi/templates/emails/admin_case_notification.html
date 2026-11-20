@@ -1,0 +1,38 @@
+{% extends "admin_email_base.html" %}
+{% set eyebrow = "Tapaukset" %}
+{% set heading = "Uusi tapaus odottaa käsittelyä" %}
+
+{% block subject %}Uusi tapaus #{{ running_num }}: {{ type_label }}{% endblock %}
+
+{% block body %}
+<p>
+    Ylläpitoon on avattu uusi tapaus, jonka voit käsitellä. Avaa tapaus ylläpidossa nähdäksesi sen tiedot.
+</p>
+
+<ul class="data-list">
+    <li>
+        <strong>Tapaus</strong>
+        #{{ running_num }}
+    </li>
+    <li>
+        <strong>Tyyppi</strong>
+        {{ type_label }}
+    </li>
+    {% if demo_title %}
+    <li>
+        <strong>Mielenosoitus</strong>
+        {{ demo_title }}
+    </li>
+    {% endif %}
+</ul>
+
+<div class="btn-group">
+    <a href="{{ case_link }}" class="btn btn-primary">Avaa tapaus</a>
+</div>
+
+<div class="meta">
+    <p>
+        Saat tämän viestin, koska sinulla on oikeus nähdä tapaus. Sama ilmoitus näkyy myös sivuston ilmoituksissa.
+    </p>
+</div>
+{% endblock %}

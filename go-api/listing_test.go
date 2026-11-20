@@ -47,7 +47,7 @@ func TestListingHTTPContract(t *testing.T) {
 	for _, raw := range []string{"lang=zz", "page=-1", "page=100000&per_page=100", "per_page=101", "date_start=2026-02-30", "date_start=2026-12-02&date_end=2026-12-01", "search=a&search=b", "search=" + strings.Repeat("a", 201), "include_private=true", "parent_id=invalid", "parent_id=000000000000000000000000", "organization_id=000000000000000000000000", "city=%00", "in_past=whatever"} {
 		store := &fakeListingStore{}
 		w := httptest.NewRecorder()
-		(&API{store}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/demonstrations?"+raw, nil))
+		(&API{store: store}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/demonstrations?"+raw, nil))
 		if w.Code != 400 || store.loads.Load() != 0 || w.Header().Get("Cache-Control") != "no-store" {
 			t.Fatalf("invalid %q: %d %s", raw, w.Code, w.Body.String())
 		}
@@ -57,14 +57,14 @@ func TestListingHTTPContract(t *testing.T) {
 		request := httptest.NewRequest("GET", "/api/demonstrations?per_page=12&lang=fi", nil)
 		request.Header.Set("Cookie", cookie)
 		w := httptest.NewRecorder()
-		(&API{store}).handler().ServeHTTP(w, request)
+		(&API{store: store}).handler().ServeHTTP(w, request)
 		if w.Code != 200 || !strings.Contains(w.Body.String(), `"per_page":12`) || w.Header().Get("Cache-Control") != "public, max-age=30, s-maxage=30" {
 			t.Fatalf("unexpected listing response: %d %s", w.Code, w.Body.String())
 		}
 	}
 	store.fail.Store(true)
 	w := httptest.NewRecorder()
-	(&API{store}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/demonstrations", nil))
+	(&API{store: store}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/demonstrations", nil))
 	if w.Code != 503 || strings.Contains(w.Body.String(), "secret") || w.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("database failure: %d %s", w.Code, w.Body.String())
 	}

@@ -81,7 +81,7 @@ func TestSharedResponseCacheKeys(t *testing.T) {
 func TestSharedResponseCachePreservesListingHTTPContract(t *testing.T) {
 	cache, _ := testResponseCache(t)
 	source := &fakeListingStore{}
-	handler := publicResponseCache((&API{source}).handler(), cache)
+	handler := publicResponseCache((&API{store: source}).handler(), cache)
 	for _, query := range []string{"city=Helsinki&per_page=12", "per_page=12&city=helsinki"} {
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest("GET", "/api/demonstrations?"+query, nil))

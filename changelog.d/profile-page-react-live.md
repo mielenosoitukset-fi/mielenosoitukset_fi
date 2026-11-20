@@ -1,0 +1,1 @@
+- The public profile page (`/users/profile/<username>`) is now served by the new site. It looks and works as before, and a missing profile shows a "not found" page instead of redirecting to the front page.

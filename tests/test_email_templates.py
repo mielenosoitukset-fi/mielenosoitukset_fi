@@ -59,7 +59,7 @@ def test_demo_cancellation_link_email_explains_verified_vs_reviewed_paths():
         }
     )
     assert "ohjautuu ensin Mielenosoitukset.fi:n ylläpidon käsiteltäväksi" in reviewed_rendered
-    assert "vasta sen jälkeen, jos ylläpito hyväksyy pyynnön" in reviewed_rendered
+    assert "vasta, kun ylläpito hyväksyy pyynnön" in reviewed_rendered
 
 
 def _city_assignment_context():
