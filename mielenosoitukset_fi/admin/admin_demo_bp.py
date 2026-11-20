@@ -773,11 +773,12 @@ def demo_edit_history(demo_id):
     demo_name = demo.title
     # Every write from any path (Go API, jobs, links, scripts), not only the
     # saves that store a full version above.
-    from mielenosoitukset_fi.admin.audit_history import load_history
+    from mielenosoitukset_fi.admin.audit_history import helsinki_time, load_history
 
     audit = load_history(mongo, "demonstrations", demo_data["_id"])
     return render_template(
         "admin/demonstrations/edit_history.html",
+        helsinki_time=helsinki_time,
         audit_rows=audit["rows"][:AUDIT_ROWS_ON_DEMO_HISTORY],
         audit_total=len(audit["rows"]),
         audit_limit=AUDIT_ROWS_ON_DEMO_HISTORY,

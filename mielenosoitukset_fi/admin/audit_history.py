@@ -189,15 +189,17 @@ def load_history(db, collection: str, doc_id: Any) -> Dict[str, Any]:
         op = _op_label(event.get("op", ""), outcome)
         if op["key"] == "create":
             first_known_create = True
+        succeeded = bool(outcome.get("ok", True)) and not outcome.get("errors")
         fields = []
         for field, change in sorted(_field_changes(event).items()):
             if field in _NOISE_FIELDS:
                 continue
             before = known.get(field, UNKNOWN) if op["key"] != "create" else UNKNOWN
             after = change["value"] if change["kind"] == "set" else None
-            if change["kind"] == "set":
+            # A failed write changed nothing, so it does not move old values on.
+            if succeeded and change["kind"] == "set":
                 known[field] = change["value"]
-            elif change["kind"] == "unset":
+            elif succeeded and change["kind"] == "unset":
                 known.pop(field, None)
             if change["kind"] == "unset":
                 after_text = _("(poistettu)")
@@ -216,7 +218,7 @@ def load_history(db, collection: str, doc_id: Any) -> Dict[str, Any]:
             "at": event.get("at"),
             "at_display": helsinki_time(event["at"]) if isinstance(event.get("at"), datetime) else "—",
             "op": op,
-            "ok": outcome.get("ok", True) and not outcome.get("errors"),
+            "ok": succeeded,
             "actor": _actor_label(event.get("actor") or {}, users),
             "via": _via_label(event.get("via") or {}),
             "via_is_actor": (event.get("via") or {}).get("kind") == "job"

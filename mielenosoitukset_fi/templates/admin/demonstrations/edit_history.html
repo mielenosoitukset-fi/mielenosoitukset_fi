@@ -53,7 +53,7 @@
           <tr>
             <td>
               <time datetime="{{ entry.edited_at.isoformat() if entry.edited_at else '' }}">
-                {{ entry.edited_at.strftime('%d.%m.%Y %H:%M:%S') if entry.edited_at else '—' }}
+                {{ helsinki_time(entry.edited_at) if entry.edited_at else '—' }}
               </time>
             </td>
             <td>
@@ -110,7 +110,7 @@
     {% endif %}
   </section>
 
-  <section class="admin-data-view admin-data-view--scrollable" aria-labelledby="audit-heading">
+  <section class="admin-data-view admin-data-view--scrollable admin-audit-history" aria-labelledby="audit-heading">
     <div class="admin-data-view__header admin-result-summary">
       <div>
         <strong id="audit-heading">{{ _('Kaikki kirjatut muutokset') }}</strong>
