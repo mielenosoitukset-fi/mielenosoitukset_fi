@@ -177,6 +177,23 @@ def _is_admin_shell_request() -> bool:
 
 
 @admin_bp.app_context_processor
+def inject_manual_help_link():
+    """Link the admin sidebar to the manual section for the current view."""
+    from . import manual_registry
+
+    endpoint = request.endpoint or ""
+    if not endpoint.startswith(("admin", "admin_")) or endpoint.startswith("admin.manual"):
+        return {}
+    target = manual_registry.help_target(endpoint)
+    if not target:
+        return {}
+    try:
+        return {"manual_help_url": manual_registry.page_url(*target)}
+    except Exception:
+        return {}
+
+
+@admin_bp.app_context_processor
 def inject_admin_actor_context():
     """Expose truthful role/scope context to the shared admin shell."""
     if (
@@ -2142,17 +2159,47 @@ def admin_status():
     )
 
 
+def _render_manual(page):
+    from . import manual_registry
+
+    previous_page, next_page = manual_registry.neighbours(page)
+    meta = manual_registry.PAGES[page]
+    parent = manual_registry.PAGES.get(meta.get("parent") or "")
+    return render_template(
+        f"manuals/{page}.html",
+        current_page=page,
+        manual_page_meta=meta,
+        manual_parent_title=parent["title"] if parent else None,
+        manual_groups=manual_registry.nav_groups(),
+        manual_search_index=manual_registry.search_index(),
+        manual_tasks=manual_registry.tasks_for(current_user),
+        manual_can_open=lambda access: manual_registry.can_open(current_user, access),
+        manual_url=manual_registry.page_url,
+        manual_previous=previous_page,
+        manual_next=next_page,
+    )
+
+
 @admin_bp.route("/manual/")
 @login_required
 def manual():
     _log_admin_event("manual_index_view")
-    return render_template("manuals/index.html", current_page="index")
+    return _render_manual("index")
+
 
 @admin_bp.route("/manual/<path:page>")
 @login_required
 def manual_page(page):
+    from . import manual_registry
+
+    # Only listed pages are served; any other path is a 404 and never
+    # reaches the template loader.
+    if page not in manual_registry.PAGES:
+        abort(404)
+    if page == "index":
+        return redirect(url_for("admin.manual"))
     _log_admin_event("manual_page_view", page=page)
-    return render_template(f"manuals/{page}.html", current_page=page)
+    return _render_manual(page)
 
 @admin_bp.route("/logs")
 @login_required

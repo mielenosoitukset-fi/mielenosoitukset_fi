@@ -1,0 +1,153 @@
+{% extends 'manual_base.html' %}
+{% import 'manuals/_macros.html' as m with context %}
+{% set cases_url = url_for('admin_case.cases') if manual_can_open('cases') else none %}
+
+{% block manual_content %}
+<section id="tyypit">
+  <h2>{{ _('Mikä on tapaus?') }}</h2>
+  <p>
+    {{ _('Tapaus on yksi käsiteltävä asia. Kaikki, mikä odottaa ylläpitäjän päätöstä, tulee') }}
+    {{ m.open_link('cases', 'admin_case.cases', _('Tapaukset')) }}{{ _('-listalle. Jokaisella tapauksella on numero, esimerkiksi #100123, ja oma sivu, jolla näet tiedot, historian ja käsittelytoiminnot.') }}
+  </p>
+  <div class="admin-workspace-table">
+    <table class="table manual-table">
+      <thead><tr><th scope="col">{{ _('Tyyppi') }}</th><th scope="col">{{ _('Syntyy, kun') }}</th><th scope="col">{{ _('Tavallinen käsittely') }}</th></tr></thead>
+      <tbody>
+        <tr><td>{{ _('Uusi mielenosoitus') }}</td><td>{{ _('joku ilmoittaa mielenosoituksen lomakkeella') }}</td><td>{{ _('Hyväksy tai hylkää') }}</td></tr>
+        <tr><td>{{ _('Muutosehdotus') }}</td><td>{{ _('joku ehdottaa korjausta mielenosoituksen tietoihin') }}</td><td>{{ _('Käsittele ehdotus vertailusivulla') }}</td></tr>
+        <tr><td>{{ _('Virheilmoitus') }}</td><td>{{ _('joku ilmoittaa virheestä mielenosoituksen tai organisaation sivulla') }}</td><td>{{ _('Selvitä, korjaa ja sulje') }}</td></tr>
+        <tr><td>{{ _('Peruutuspyyntö') }}</td><td>{{ _('järjestäjä pyytää perumaan mielenosoituksen') }}</td><td>{{ _('Hyväksy peruutus') }}</td></tr>
+        <tr><td>{{ _('Organisaation muutospyyntö') }}</td><td>{{ _('joku ehdottaa muutosta organisaation tietoihin') }}</td><td>{{ _('Tallenna muutokset organisaatioon') }}</td></tr>
+        <tr><td>{{ _('Tukipyyntö') }}</td><td>{{ _('tuen sähköpostiin tulee viesti, esimerkiksi yhteydenottolomakkeelta') }}</td><td>{{ _('Vastaa ja sulje') }}</td></tr>
+        <tr><td>{{ _('Kaupunkiadminhakemus') }}</td><td>{{ _('joku hakee kaupunkiadminiksi') }}</td><td>{{ _('Päätä hakemuksesta') }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  {% call m.callout('tip') %}
+  <p>{{ _('Moni tapaus sulkeutuu itsestään, kun asia on hoidettu: esimerkiksi kun mielenosoitus hyväksytään tai ehdotus käsitellään. Näet ne listalla kohdassa') }} {{ m.ui(_('Automaattisesti suljetut')) }}.</p>
+  {% endcall %}
+</section>
+
+<section id="lista">
+  <h2>{{ _('Tapauslista ja suodattimet') }}</h2>
+  <ul>
+    <li>{{ _('Yläreunan kortit ja suodatinpainikkeet rajaavat listan:') }} {{ m.ui(_('Avoimet')) }}, {{ m.ui(_('Suljetut')) }}, {{ m.ui(_('Kriittiset')) }} {{ _('ja') }} {{ m.ui(_('Eskaloinnit')) }}.</li>
+    <li>{{ _('Kriittisiä ovat kiireellisiksi merkityt tapaukset, esimerkiksi tukipyynnöt, joiden viestissä on sana URGENT.') }}</li>
+    <li>{{ _('Kaupunkiadmin näkee vain omien kaupunkiensa tapaukset.') }}</li>
+  </ul>
+</section>
+
+<section id="ilmoitukset">
+  <h2>{{ _('Ilmoitukset uusista tapauksista') }}</h2>
+  <p>{{ _('Kun uusi tapaus avataan, jokainen ylläpitäjä, jolla on oikeus nähdä se, saa ilmoituksen sivuston kelloon (kellokuvake julkisen sivun yläpalkissa). Ilmoituksesta pääsee suoraan tapaukseen. Ilmoitus katoaa, kun tapaus suljetaan.') }}</p>
+  <ul>
+    <li>{{ _('Ylläpitäjät, joilla on tapausoikeudet kaikkialla, saavat aina myös sähköpostin.') }}</li>
+    <li>{{ _('Kaupunkiadmin voi tilata sähköpostit Tapaukset-listan painikkeesta') }} {{ m.ui(_('Tilaa sähköpostit uusista tapauksista')) }}. {{ _('Saman painikkeen kautta tilauksen voi lopettaa.') }}</li>
+    <li>{{ _('Tapauksen sivun kohta') }} {{ m.ui(_('Ilmoitetut ylläpitäjät')) }} {{ _('näyttää, kenelle ilmoitus meni ja saiko hän myös sähköpostin.') }}</li>
+  </ul>
+  {% call m.callout('tip') %}
+  <p>{{ _('Ilmoitus lähtee vain uusista tapauksista. Kaupunkiadminhakemuksista ilmoitetaan kansalliselle tiimille erikseen.') }}</p>
+  {% endcall %}
+</section>
+
+<section id="kasittele-uusi-osio">
+  <h2>{{ _('Uuden mielenosoituksen käsittely') }}</h2>
+  {% call m.task('kasittele-uusi', _('Käsittele uusi mielenosoitus'), _('Tarkista ilmoitus ja julkaise se tai hylkää se syyn kanssa.'), cases_url, _('Avaa tapaukset')) %}
+    {% call m.step() %}<p>{{ _('Avaa') }} {{ m.ui(_('Tapaukset')) }} {{ _('ja valitse') }} {{ m.ui(_('Avoimet')) }}. {{ _('Avaa tapaus, jonka tyyppi on') }} {{ m.ui(_('Uusi mielenosoitus')) }}.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Tarkista tiedot: otsikko, aika, paikka, järjestäjät ja kuvaus. Avaa tarvittaessa') }} {{ m.ui(_('Avaa julkinen sivu')) }} {{ _('tai') }} {{ m.ui(_('Avaa hallintapaneelissa')) }}.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Jos kaikki on kunnossa, valitse') }} {{ m.ui(_('Hyväksy mielenosoitus')) }}. {{ _('Mielenosoitus julkaistaan ja tapaus sulkeutuu itsestään.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Jos ilmoitusta ei voi julkaista, valitse') }} {{ m.ui(_('Hylkää mielenosoitus')) }} {{ _('ja valitse syy listasta. Katso') }} <a href="#syyt">{{ _('syyt') }}</a>.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Jos et ole varma, valitse') }} {{ m.ui(_('Eskaloi esihenkilölle')) }}. {{ _('Eskaloidun tapauksen hyväksyy tai hylkää superkäyttäjä.') }}</p>{% endcall %}
+  {% endcall %}
+</section>
+
+<section id="kaksoiskappale-osio">
+  <h2>{{ _('Kaksoiskappaleet') }}</h2>
+  {% call m.task('kaksoiskappale', _('Hylkää kaksoiskappale'), _('Sama mielenosoitus on ilmoitettu kahdesti. Hylkää uudempi ja linkitä se alkuperäiseen.'), cases_url, _('Avaa tapaukset')) %}
+    {% call m.step() %}<p>{{ _('Avaa uudemman ilmoituksen tapaus ja valitse') }} {{ m.ui(_('Hylkää mielenosoitus')) }}.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Valitse syyksi') }} {{ m.ui(_('Kaksoiskappale')) }}.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Kirjoita kenttään') }} {{ m.ui(_('Alkuperäinen mielenosoitus')) }} {{ _('osa alkuperäisen otsikosta ja valitse oikea osuma listasta.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Lisää halutessasi lisätieto ja vahvista. Tapauksen historiaan tallentuu syy ja linkki alkuperäiseen.') }}</p>{% endcall %}
+  {% endcall %}
+  <p>{{ _('Jos kaksi tapausta koskee samaa asiaa, sulje uudempi tapaus syyllä') }} {{ m.ui(_('Kaksoiskappale')) }} {{ _('ja anna alkuperäisen tapauksen numero, esimerkiksi #100123.') }}</p>
+</section>
+
+<section id="syyt">
+  <h2>{{ _('Hylkäämisen ja sulkemisen syyt') }}</h2>
+  <p>{{ _('Kun hylkäät mielenosoituksen tai suljet tapauksen, valitset syyn listasta. Syy näkyy tapauksen historiassa ja auttaa muita ymmärtämään päätöksen.') }}</p>
+  <div class="admin-workspace-table">
+    <table class="table manual-table">
+      <thead><tr><th scope="col">{{ _('Syy') }}</th><th scope="col">{{ _('Käytä, kun') }}</th><th scope="col">{{ _('Lisätieto') }}</th></tr></thead>
+      <tbody>
+        <tr><td>{{ _('Käsitelty') }}</td><td>{{ _('asia on hoidettu (vain tapauksen sulkeminen)') }}</td><td>{{ _('vapaaehtoinen') }}</td></tr>
+        <tr><td>{{ _('Kaksoiskappale') }}</td><td>{{ _('sama asia on jo olemassa') }}</td><td>{{ _('alkuperäinen pakollinen') }}</td></tr>
+        <tr><td>{{ _('Roskaposti') }}</td><td>{{ _('ilmoitus on roskapostia tai häirintää') }}</td><td>{{ _('vapaaehtoinen') }}</td></tr>
+        <tr><td>{{ _('Ei kuulu palveluun') }}</td><td>{{ _('kyse ei ole mielenosoituksesta tai se ei sovi palveluun') }}</td><td>{{ _('vapaaehtoinen') }}</td></tr>
+        <tr><td>{{ _('Puutteelliset tiedot') }}</td><td>{{ _('ilmoituksesta puuttuu olennaista tietoa') }}</td><td>{{ _('vapaaehtoinen') }}</td></tr>
+        <tr><td>{{ _('Muu syy') }}</td><td>{{ _('mikään muu ei sovi') }}</td><td>{{ _('pakollinen') }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  {% call m.callout('warning') %}
+  <p>{{ _('Mielenosoitukset-listan') }} {{ m.ui(_('Hylkää')) }}{{ _('-painike ei kysy syytä. Hylkää siksi mieluiten tapauksen kautta, niin syy tallentuu.') }}</p>
+  {% endcall %}
+</section>
+
+<section id="muutosehdotus-osio">
+  <h2>{{ _('Muutosehdotukset') }}</h2>
+  {% call m.task('muutosehdotus', _('Käsittele muutosehdotus'), _('Joku on ehdottanut korjausta mielenosoituksen tietoihin.'), cases_url, _('Avaa tapaukset')) %}
+    {% call m.step() %}<p>{{ _('Avaa tapaus, jonka tyyppi on') }} {{ m.ui(_('Muutosehdotus')) }}. {{ _('Tapauksen otsikkona on mielenosoituksen nimi, ja kuvaus kertoo, mitä kenttiä ehdotus koskee.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Valitse') }} {{ m.ui(_('Käsittele ehdotus')) }}. {{ _('Vertailusivulla näet rinnakkain nykyisen ja ehdotetun arvon.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Valitse kentät, jotka haluat hyväksyä, ja valitse') }} {{ m.ui(_('Päivitä valitut kentät')) }}. {{ _('Vain valitut kentät muuttuvat.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Jos ehdotus ei kelpaa, valitse') }} {{ m.ui(_('Hylkää ehdotus')) }}. {{ _('Tapaus sulkeutuu itsestään, kun ehdotus on käsitelty.') }}</p>{% endcall %}
+  {% endcall %}
+  {% call m.callout('tip') %}
+  <p>{{ _('Ehdottajan sähköpostiosoite ja kommentti näkyvät vain, jos sinulla on oikeus muokata kyseistä mielenosoitusta.') }}</p>
+  {% endcall %}
+</section>
+
+<section id="peruutus-osio">
+  <h2>{{ _('Peruutuspyynnöt') }}</h2>
+  {% call m.task('peruutus', _('Hyväksy peruutuspyyntö'), _('Järjestäjä on pyytänyt perumaan mielenosoituksen.'), cases_url, _('Avaa tapaukset')) %}
+    {% call m.step() %}<p>{{ _('Avaa tapaus, jonka tyyppi on') }} {{ m.ui(_('Peruutuspyyntö')) }}. {{ _('Tarkista pyytäjä, lähde ja peruutuksen syy.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Varmista tarvittaessa järjestäjältä, että pyyntö on aito. Voit vastata lähettäjälle tapauksen sivulta.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Valitse') }} {{ m.ui(_('Hyväksy peruutus')) }}, {{ _('kirjoita halutessasi sisäinen perustelu ja vahvista. Mielenosoitus merkitään perutuksi.') }}</p>{% endcall %}
+  {% endcall %}
+</section>
+
+<section id="vastaa-osio">
+  <h2>{{ _('Vastaaminen') }}</h2>
+  {% call m.task('vastaa', _('Vastaa ilmoittajalle'), _('Vastaus lähtee sähköpostina tapauksen lähettäjälle.'), cases_url, _('Avaa tapaukset')) %}
+    {% call m.step() %}<p>{{ _('Avaa tapaus ja etsi kohta') }} {{ m.ui(_('Vastaa lähettäjälle')) }}.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Kirjoita vastaus. Voit käyttää Markdown-muotoiluja, kuten lihavointia, listoja ja linkkejä.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Valitse') }} {{ m.ui(_('Lähetä vastaus sähköpostitse')) }}. {{ _('Vastaus näkyy kohdassa') }} {{ m.ui(_('Lähetetyt vastaukset')) }}.</p>{% endcall %}
+  {% endcall %}
+</section>
+
+<section id="sulje">
+  <h2>{{ _('Sulje tai avaa tapaus uudelleen') }}</h2>
+  <ul>
+    <li>{{ m.ui(_('Sulje tapaus')) }} {{ _('kysyy syyn samasta listasta kuin hylkääminen. Valitse') }} {{ m.ui(_('Käsitelty')) }}, {{ _('kun asia on hoidettu.') }}</li>
+    <li>{{ m.ui(_('Avaa uudelleen')) }} {{ _('palauttaa tapauksen avoimeksi ja tyhjentää sulkemisen syyn.') }}</li>
+  </ul>
+</section>
+
+<section id="eskaloi">
+  <h2>{{ _('Eskaloi tapaus') }}</h2>
+  <p>{{ _('Eskalointi nostaa tapauksen kokeneemman ylläpitäjän käsiteltäväksi. Eskaloidun uuden mielenosoituksen voi hyväksyä tai hylätä vain superkäyttäjä.') }} {{ m.ui(_('Poista eskalointi')) }} {{ _('palauttaa tapauksen tavalliseen jonoon.') }}</p>
+</section>
+
+<section id="merkinnat">
+  <h2>{{ _('Merkinnät ja liitokset') }}</h2>
+  <ul>
+    <li>{{ m.ui(_('Lisää merkintä')) }}: {{ _('kirjaa muistiinpano, seurantatoimi tai tieto siitä, että olet ollut yhteydessä. Merkinnät näkyvät vain ylläpitäjille.') }}</li>
+    <li>{{ m.ui(_('Liitä olemassa oleva mielenosoitus')) }} {{ _('tai') }} {{ m.ui(_('Liitä olemassa oleva organisaatio')) }}: {{ _('yhdistä tapaus oikeaan kohteeseen hakemalla nimellä.') }}</li>
+    <li>{{ m.ui(_('Tapahtumahistoria')) }} {{ _('kertoo, kuka teki mitä ja milloin.') }}</li>
+  </ul>
+</section>
+
+<section id="estolista">
+  <h2>{{ _('Tukipyyntöjen estolista') }}</h2>
+  <p>{{ _('Jos samasta osoitteesta tulee toistuvasti roskapostia, lisää se') }} {{ m.ui(_('Tukilippujen estolista')) }}{{ _('-sivulle. Voit estää yksittäisen osoitteen tai koko verkkotunnuksen (esimerkiksi *@example.com). Estetyistä lähettäjistä ei avata uusia tukipyyntöjä. Poista esto samalta sivulta.') }}</p>
+</section>
+{% endblock %}
