@@ -799,8 +799,26 @@ def _suggestions_home_label(suggestion_id=None):
     if not _cases_replace_suggestions_list():
         return _("Ehdotukset")
     if _suggestions_home_url(suggestion_id).endswith(f"/{suggestion_id}/"):
+        case_doc = mongo.cases.find_one({"_id": ObjectId(str(suggestion_id))}, {"running_num": 1}) or {}
+        if case_doc.get("running_num"):
+            return _("Tapaus") + f" #{case_doc['running_num']}"
         return _("Tapaus")
     return _("Tapaukset")
+
+
+def _suggestion_breadcrumbs(suggestion_id=None):
+    """Case-backed suggestions sit under Tapaukset > Tapaus #N, others under Mielenosoitukset."""
+    home_url = _suggestions_home_url(suggestion_id)
+    home_label = _suggestions_home_label(suggestion_id)
+    crumbs = [(_("Hallintapaneeli"), url_for("admin.admin_dashboard"))]
+    if _cases_replace_suggestions_list():
+        if home_url != url_for("admin_case.cases"):
+            crumbs.append((_("Tapaukset"), url_for("admin_case.cases")))
+    else:
+        crumbs.append((_("Mielenosoitukset"), url_for("admin_demo.demo_control")))
+    crumbs.append((home_label, home_url))
+    crumbs.append((_("Tarkastelu"), None))
+    return crumbs
 
 
 @admin_demo_bp.route('/suggestions')
@@ -968,6 +986,7 @@ def suggestion_view(suggestion_id):
         demo=demo,
         suggestions_home_url=_suggestions_home_url(suggestion_id),
         suggestions_home_label=_suggestions_home_label(suggestion_id),
+        suggestion_breadcrumbs=_suggestion_breadcrumbs(suggestion_id),
     )
 
 
