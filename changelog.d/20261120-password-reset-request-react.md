@@ -1,0 +1,1 @@
+- The "Unohtuiko salasanasi?" page is now served by the React app. The form, the email and the answer are unchanged.

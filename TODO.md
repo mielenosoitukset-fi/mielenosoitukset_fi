@@ -66,8 +66,8 @@ Maintainer direction, 10 November 2026: when a page is redesigned or moved to Re
 
 - [ ] `/api/session` and its scopes (`organization_id`, `translation_join`, `contact_form`). *(approval: session)* The read-only Go bridge and scopes were activated and verified 12 November ([auth-bridge.md](docs/auth-bridge.md)); the underlying session endpoint still lives in Flask.
 - [ ] `POST /contact`: rate limits, one-time token, honeypot, validation and email.
-- [ ] `POST /organization/<id>/save_suggestion`: stores the suggestion, opens a case and notifies moderators.
-- [ ] `POST /suggest_change/<demo_id>`: compares proposed fields and Markdown, stores a demonstration suggestion, opens a case and notifies moderators; GET/HEAD now belongs to the React host.
+- [x] `POST /organization/<id>/save_suggestion` (Go, activated 20 November 2026): stores the suggestion, opens a case and notifies moderators.
+- [x] `POST /suggest_change/<demo_id>` (Go, activated 20 November 2026): compares proposed fields and Markdown, stores a demonstration suggestion, opens a case and notifies moderators; GET/HEAD now belongs to the React host.
 - [ ] `POST /kampanja/api/volunteers` and `/kampanja/confirm/<token>`. Signup is in Go, dark, flag `CAMPAIGN_VOLUNTEERS_GO_ENABLED` ([go-campaign-volunteers.md](docs/go-campaign-volunteers.md)); the confirm route remains.
 - [ ] `POST /upcoming/translations/join`. *(approval: permissions)*
 - [x] Analytics event `POST /api/analytics/event`: Go activated 11 November; the Flask-equivalent counter cross-check and POST routing are complete (`SITE_ANALYTICS_ENABLED=true`; `docs/go-public-api.md`). Production routing rechecked 13 November.
@@ -150,6 +150,7 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 
 - [ ] **OPS-01 remaining:** off-site copy and who holds the encryption key, failure alert channel, and evidence from the first weekly full run. `docs/backups.md` status updated 17 November.
   - [x] Nightly core and weekly full backup timers are installed and active; core archives exist (read-only production check, 13 November). This is not proof of restoration.
+  - [x] Backup units and failure alerts ship with every production deploy (`deploy/backup/install_units.sh`), plus a daily local freshness alert (20 November). Off-site copy waits for the homelab target and the maintainer's public age key.
 - [ ] **OPS-02:** authorized recovery exercises with recorded RPO and RTO.
 - [ ] **OPS-03:** review Web Vitals once there are enough samples.
 - [ ] **OPS-04:** keep exact-build deployment, rollback and CDN contracts; measure burst/coalescing behavior and rehearse held-admission recovery in isolation.

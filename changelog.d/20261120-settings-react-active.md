@@ -1,0 +1,1 @@
+- The account settings page `/users/auth/settings` is now served by the React app, with password, two-step verification and passkey changes on the Security tab. The old page stays reachable at `/users/auth/settings?legacy=1` as a fallback.
