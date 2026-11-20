@@ -87,7 +87,7 @@ def test_city_assignment_email_template_renders():
     assert "Uusi mielenosoitus odottaa käsittelyä" in rendered
     assert "Climate March" in rendered
     assert "Mielenosoitusta ei käsitellä kansallisessa tiimissä automaattisesti" in rendered
-    assert "Hyväksy mielenosoitus" in rendered
+    assert "Avaa tapaus" in rendered and "Hyväksy mielenosoitus" not in rendered
     assert "https://example.test/approve" in rendered
     assert "24 tunnin kuluessa" in rendered
 
@@ -101,5 +101,5 @@ def test_city_assignment_escalation_email_template_renders():
     assert "Mielenosoitus nousi kansalliselle tasolle" in rendered
     assert "Climate March" in rendered
     assert "siirtynyt kaupungin ylläpidosta kansallisen tiimin käsiteltäväksi" in rendered
-    assert "Hyväksy mielenosoitus" in rendered
-    assert "https://example.test/reject" in rendered
+    assert "Avaa tapaus" in rendered and "Hyväksy mielenosoitus" not in rendered
+    assert "https://example.test/reject" not in rendered
