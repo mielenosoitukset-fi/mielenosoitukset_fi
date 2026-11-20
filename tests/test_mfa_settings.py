@@ -48,6 +48,14 @@ def test_mfa_enable_flow_end_to_end(app, db):
     user_id = _create_mfa_user(db)
     client = _client_for_user(app, user_id)
 
+    # Adding a device asks for a fresh re-authentication first.
+    r = client.post("/users/auth/api/v2/mfa", json={"step": "request_activation"})
+    assert r.status_code == 403, r.get_data(as_text=True)
+    assert r.get_json()["error"] == "step_up_required"
+
+    r = client.post("/users/auth/api/v2/step-up/password", json={"password": TEST_PASSWORD})
+    assert r.status_code == 200, r.get_data(as_text=True)
+
     r = client.post("/users/auth/api/v2/mfa", json={"step": "request_activation"})
     assert r.status_code == 200, r.get_data(as_text=True)
     data = r.get_json()
@@ -480,3 +488,19 @@ def test_legacy_mfa_flag_does_not_replace_first_factor_proof(app, db):
     assert response.status_code == 200
     with client.session_transaction() as login_session:
         assert "_user_id" not in login_session
+
+
+def test_mfa_setup_refuses_a_body_that_is_not_json(app, db):
+    user_id = _create_mfa_user(db)
+    client = _client_for_user(app, user_id)
+    r = client.post("/users/auth/api/v2/step-up/password", json={"password": TEST_PASSWORD})
+    assert r.status_code == 200, r.get_data(as_text=True)
+
+    # A plain-text body is what a cross-site form can send; it is never read as JSON.
+    r = client.post(
+        "/users/auth/api/v2/mfa",
+        data='{"step": "request_activation"}',
+        content_type="text/plain",
+    )
+    assert r.status_code == 400, r.get_data(as_text=True)
+    assert "secret" not in (r.get_json() or {})
