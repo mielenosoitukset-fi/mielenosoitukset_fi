@@ -1,0 +1,1 @@
+- The demonstration page no longer shows a broken "Takaisin edelliselle sivulle" button when it was opened directly.

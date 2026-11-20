@@ -8,7 +8,6 @@ destroyed (e.g., during process restarts or script exits).
 Run periodically via the scheduler to guarantee queued emails are sent.
 """
 from mielenosoitukset_fi.database_manager import DatabaseManager
-from mielenosoitukset_fi.emailer.EmailJob import EmailJob
 from mielenosoitukset_fi.emailer.EmailSender import EmailSender
 from mielenosoitukset_fi.utils.logger import logger
 from config import Config
@@ -37,7 +36,10 @@ def run(max_jobs: int = 50):
 
     Jobs are claimed atomically (status ``in_flight``) so concurrent
     drainers never double-send. Failed sends are marked ``failed`` and are
-    retried on later runs until ``EMAIL_MAX_ATTEMPTS`` is reached; legacy
+    retried with exponential backoff (``next_attempt_at``) until
+    ``EMAIL_MAX_ATTEMPTS`` is reached, after which the job stays in the queue
+    as a ``dead`` letter for admins to see. Once SMTP accepts a message the
+    job is never retried, even if deleting it fails. Legacy
     empty-sender ticket jobs that exhausted that budget are reopened each
     run so the config-based recovery can deliver them. Jobs are only deleted
     from the queue after a successful send.
@@ -59,7 +61,6 @@ def run(max_jobs: int = 50):
     # Always follow DatabaseManager's current database instead of retaining
     # stale collection objects captured at module import time.
     _bind_sender_to_database(db)
-    queue = db["email_queue"]
     processed = 0
 
     # 1. Requeue jobs stuck in-flight (e.g. a worker crashed mid-send) and
@@ -74,15 +75,8 @@ def run(max_jobs: int = 50):
         if not job_doc:
             break
 
-        try:
-            email_job = EmailJob.from_dict(job_doc)
-            _sender.send_email(email_job, raise_on_error=True)
-            queue.delete_one({"_id": job_doc["_id"]})
-            _sender._record_cases_delivery(job_doc, delivered=True)
+        if _sender._process_claimed_job(job_doc):
             processed += 1
-        except Exception as exc:
-            logger.exception("Failed to process email job %s", job_doc.get("_id"))
-            _sender._record_delivery_failure(job_doc, exc)
 
     if processed:
         logger.info("Processed %d queued email jobs.", processed)

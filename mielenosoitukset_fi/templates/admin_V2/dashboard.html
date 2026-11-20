@@ -17,7 +17,7 @@
         <div>
           <div class="eyebrow">{{ _('Hallintatyökalut') }}</div>
           <h2 class="mb-1">{{ _('Reaaliaikainen tilannekuva') }}</h2>
-          <p class="text-muted mb-0">{{ _('Pysy kärryillä palvelun kuormituksesta, kirjautumisista ja hallintatoiminnoista yhdellä silmäyksellä.') }}</p>
+          <p class="text-muted mb-0">{{ _('Käyttäjät, tapahtumat, tapaukset ja kirjautumiset yhdellä silmäyksellä.') }}</p>
         </div>
         <div class="live-indicator">
           <span class="pulse"></span>
@@ -47,17 +47,12 @@
         <div class="stat-card">
           <div class="stat-label">{{ _('Ylläpitäjiä') }}</div>
           <div class="stat-value" id="stat-users-admins">—</div>
-          <div class="stat-sub">
-            <span>{{ _('Mahdolliset uudet oikeudet') }}</span>
-            <span class="text-success"><i class="fa-solid fa-shield-halved me-1"></i>{{ _('Valvottu') }}</span>
-          </div>
         </div>
         <div class="stat-card">
           <div class="stat-label">{{ _('Organisaatiot') }}</div>
           <div class="stat-value" id="stat-orgs-active">—</div>
           <div class="stat-sub">
             <span>{{ _('Aktiivisia toimijoita') }}</span>
-            <span>{{ _('Koko maassa') }}</span>
           </div>
         </div>
         <div class="stat-card">
@@ -69,15 +64,11 @@
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">{{ _('Hallintatapaukset') }}</div>
+          <div class="stat-label">{{ _('Avoimet tapaukset') }}</div>
           <div class="stat-value" id="stat-cases-open">—</div>
-          <div class="stat-sub">
-            <span>{{ _('Avoimia tikettejä') }}</span>
-            <span class="text-warning"><i class="fa-solid fa-circle-dot me-1"></i>{{ _('Seurannassa') }}</span>
-          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">{{ _('Kirjautumiset / h') }}</div>
+          <div class="stat-label">{{ _('Kirjautumisia (viime tunti)') }}</div>
           <div class="stat-value" id="stat-logins-hour">—</div>
           <div class="stat-sub">
             <span>{{ _('Onnistumisprosentti') }}: <strong id="stat-logins-success">—</strong></span>
@@ -127,20 +118,6 @@
             </div>
             <div class="admin-dashboard-progress" role="progressbar" aria-label="{{ _('Onnistuneet kirjautumiset') }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="bar-login-success"></span></div>
           </div>
-          <div class="health-metric">
-            <div class="health-label">
-              <span>{{ _('Avoimet tapaukset / kapasiteetti') }}</span>
-              <span id="metric-case-load">0%</span>
-            </div>
-            <div class="admin-dashboard-progress" role="progressbar" aria-label="{{ _('Avoimet tapaukset / kapasiteetti') }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="bar-case-load"></span></div>
-          </div>
-          <div class="health-metric">
-            <div class="health-label">
-              <span>{{ _('Tapahtumat julkaisuputkessa') }}</span>
-              <span id="metric-demo-pending">0%</span>
-            </div>
-            <div class="admin-dashboard-progress" role="progressbar" aria-label="{{ _('Tapahtumat julkaisuputkessa') }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="bar-demo-pending"></span></div>
-          </div>
         </div>
       </div>
 
@@ -148,7 +125,7 @@
         <a class="quick-card text-decoration-none" href="{{ url_for('admin.stats') }}">
           <div>
             <strong>{{ _('Tilastot') }}</strong>
-            <div class="text-muted small">{{ _('Ryhdy data-analyysiin') }}</div>
+            <div class="text-muted small">{{ _('Palvelun tilastot') }}</div>
           </div>
           <i class="fa-solid fa-chart-line"></i>
         </a>
@@ -177,7 +154,7 @@
         <div class="quick-card">
           <div>
             <strong>{{ _('Tyhjennä välimuisti') }}</strong>
-            <div class="text-muted small">{{ _('Pakota palvelu lataamaan uusimmat näkymät') }}</div>
+            <div class="text-muted small">{{ _('Pakota palvelu lataamaan uusin sisältö') }}</div>
           </div>
           <form method="POST" action="{{ url_for('admin.clear_cache') }}">
             <button type="submit" class="btn btn-outline-danger btn-sm">
@@ -292,11 +269,7 @@
       loginsDay: document.getElementById('stat-logins-day'),
       loginSuccessText: document.getElementById('stat-logins-success'),
       metricLoginSuccess: document.getElementById('metric-login-success'),
-      metricCaseLoad: document.getElementById('metric-case-load'),
-      metricDemoPending: document.getElementById('metric-demo-pending'),
       barLoginSuccess: document.getElementById('bar-login-success'),
-      barCaseLoad: document.getElementById('bar-case-load'),
-      barDemoPending: document.getElementById('bar-demo-pending'),
       updated: document.getElementById('snapshot-updated'),
       panicGrid: document.getElementById('panic-grid'),
       panicState: document.getElementById('panic-state'),
@@ -305,6 +278,11 @@
     };
 
     const numberFormat = new Intl.NumberFormat('fi-FI');
+    const helsinkiTime = { timeZone: 'Europe/Helsinki', hour12: false };
+    const helsinkiDateTime = {
+      timeZone: 'Europe/Helsinki', day: 'numeric', month: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    };
 
     function updatePanicState(active) {
       if (!elements.panicGrid || !elements.panicState) return;
@@ -351,14 +329,10 @@
       elements.loginSuccessText.textContent = `${successRate}%`;
       setProgress(elements.barLoginSuccess, elements.metricLoginSuccess, successRate);
 
-      // Approximate workload percentages
-      setProgress(elements.barCaseLoad, elements.metricCaseLoad, cases.open || 0, 50);
-      setProgress(elements.barDemoPending, elements.metricDemoPending, demos.pending || 0, Math.max(demos.live || 1, demos.pending || 1));
-
       if (data.generated_at) {
         const ts = new Date(data.generated_at);
         if (!isNaN(ts)) {
-          elements.updated.textContent = ts.toLocaleTimeString('fi-FI', { hour12: false });
+          elements.updated.textContent = ts.toLocaleTimeString('fi-FI', helsinkiTime);
         }
       }
 
@@ -375,8 +349,6 @@
         console.error(err);
       }
     }
-
-    const minuteLabel = "{{ _('min') }}";
 
     function makeFeedLine(iconClass, text, className = '') {
       const line = document.createElement('div');
@@ -400,7 +372,7 @@
       }
 
       items.forEach(item => {
-        const time = item.timestamp ? new Date(item.timestamp).toLocaleTimeString('fi-FI', { hour12: false }) : '—';
+        const time = item.timestamp ? new Date(item.timestamp).toLocaleString('fi-FI', helsinkiDateTime) : '—';
         const entry = document.createElement('article');
         entry.className = `login-entry ${item.success ? 'success' : 'failure'}`;
 
@@ -415,9 +387,8 @@
 
         const meta = document.createElement('div');
         meta.className = 'entry-meta';
-        const relativeTime = item.minutes_ago != null ? ` · ${item.minutes_ago} ${minuteLabel}` : '';
         meta.append(
-          makeFeedLine('fa-regular fa-clock', `${time}${relativeTime}`),
+          makeFeedLine('fa-regular fa-clock', time),
           makeFeedLine('fa-solid fa-network-wired', item.ip || '—')
         );
         if (item.user_agent) {
