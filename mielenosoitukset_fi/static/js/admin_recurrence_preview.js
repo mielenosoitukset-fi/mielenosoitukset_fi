@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const status = preview.querySelector("[data-preview-status]");
   const dates = preview.querySelector("[data-preview-dates]");
   const note = preview.querySelector("[data-preview-note]");
+  const warning = preview.querySelector("[data-preview-warning]");
   const watchedNames = new Set([
     "date",
     "frequency_type",
@@ -39,7 +40,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     }
+    if (preview.dataset.seriesId) query.append("demo_id", preview.dataset.seriesId);
     return query;
+  }
+
+  // Saving break dates cancels existing children and notifies their attendees.
+  // Say so before the save, not only in the flash message afterwards.
+  function renderWarning(payload) {
+    if (!warning) return;
+    const lines = [];
+    if (payload && payload.cancels_children) {
+      lines.push(withCount(label("cancelLabel", "Jo luotuja mielenosoituksia perutaan: __COUNT__."), payload.cancels_children));
+      lines.push(withCount(label("attendeesLabel", "Ilmoittautuneita, jotka saavat viestin: __COUNT__."), payload.notifies_attendees || 0));
+    }
+    warning.textContent = lines.join(" ");
+    warning.hidden = lines.length === 0;
   }
 
   function clearPreview() {
@@ -91,6 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const query = buildQuery();
     if (!query.get("date")) {
       clearPreview();
+      renderWarning(null);
       status.textContent = label("startLabel", "Täytä alkupäivä nähdäksesi tulevat päivämäärät.");
       return;
     }
@@ -106,11 +122,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const payload = await response.json();
       if (requestController !== controller) return;
       if (!response.ok) throw new Error(payload.message || "Preview failed");
+      renderWarning(payload);
       renderDates(payload);
     } catch (error) {
       if (error.name === "AbortError") return;
       if (requestController !== controller) return;
       clearPreview();
+      renderWarning(null);
       status.textContent = error.message || label("errorLabel", "Päivämäärien esikatselua ei voitu laskea.");
     } finally {
       if (requestController === controller) requestController = null;

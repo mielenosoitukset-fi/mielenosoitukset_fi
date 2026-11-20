@@ -15,7 +15,7 @@
 <script src="{{ url_for('static', filename='js/modal.js', v='20261111-overlay-guard') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.9"></script>
 <script src="{{ url_for('static', filename='js/jQuery/jq.min.js') }}"></script>
-<script defer src="{{ url_for('static', filename='js/admin_recurrence_preview.js', v='20260920-admin-ui-1') }}"></script>
+<script defer src="{{ url_for('static', filename='js/admin_recurrence_preview.js', v='20261120-break-warning-1') }}"></script>
 <script defer src="{{ url_for('static', filename='js/admin_organizer_editor.js', v='20260923-admin-ui-1') }}"></script>
 
 <script>
@@ -275,7 +275,7 @@
 
             <div class="form-group mt-4" id="recurring-break-dates">
                 <label class="block font-medium mb-1">{{ _('Taukopäivät') }}</label>
-                <p class="text-muted">{{ _('Taukopäivälle osuvat jo luodut lapsimielenosoitukset merkitään perutuiksi, eikä uusia luoda kyseiselle päivälle.') }}</p>
+                <p class="text-muted">{{ _('Taukopäivälle osuvat jo luodut lapsimielenosoitukset merkitään perutuiksi, ja niihin ilmoittautuneet saavat peruutuksesta viestin. Uusia ei luoda kyseiselle päivälle. Lukitut lapsimielenosoitukset eivät muutu.') }}</p>
                 <div id="break-date-list" class="child-demo-list">
                     {% if demo and demo.break_dates %}
                     {% for break_date in demo.break_dates %}
@@ -319,6 +319,9 @@
                 data-count-label="{{ _('Seuraavat %(count)s päivämäärää', count='__COUNT__') }}"
                 data-more-label="{{ _('Lisää päivämääriä syntyy tämän esikatselun jälkeen.') }}"
                 data-break-label="{{ _('%(count)s taukopäivää on jätetty pois.', count='__COUNT__') }}"
+                {% if demo and demo._id %}data-series-id="{{ demo._id }}"{% endif %}
+                data-cancel-label="{{ _('Kun tallennat, jo luotuja mielenosoituksia perutaan taukopäivinä: %(count)s.', count='__COUNT__') }}"
+                data-attendees-label="{{ _('Ilmoittautuneita, jotka saavat peruutuksesta viestin: %(count)s.', count='__COUNT__') }}"
             >
                 <header class="admin-recurrence-preview__header">
                     <div>
@@ -330,6 +333,7 @@
                 <p class="admin-recurrence-preview__status" data-preview-status aria-live="polite">{{ _('Täytä alkupäivä nähdäksesi tulevat päivämäärät.') }}</p>
                 <ol class="admin-recurrence-preview__dates" data-preview-dates></ol>
                 <p class="admin-field__help" data-preview-note hidden></p>
+                <div class="alert alert-warning mb-0 mt-3" role="status" data-preview-warning hidden></div>
             </section>
 
             <script>
