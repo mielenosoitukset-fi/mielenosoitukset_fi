@@ -55,6 +55,10 @@ TICKET_IGNORED_SENDERS: []  # Optional static fallback blocklist (admin UI manag
 # national team. Cities without city admins fall back to the national queue.
 CITY_ASSIGNMENT_ESCALATION_HOURS: 24
 
+# Minutes after an approval during which an admin can undo it in the case.
+# The demo returns to pending and its case reopens; no email is sent.
+DEMO_APPROVAL_UNDO_MINUTES: 30
+
 # Optional configurations
 # SERVER_NAME: "www.example.com"  # Server name for the application
 # PREFERRED_URL_SCHEME: "https"  # URL scheme (e.g., https)
