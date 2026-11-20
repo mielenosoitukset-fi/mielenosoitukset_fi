@@ -85,8 +85,12 @@ func homeCards(docs []bson.M, lang string) []bson.M {
 			continue
 		}
 		event := bson.M{}
-		for _, field := range []string{"_id", "title", "date", "end_date", "city", "address", "tags"} {
+		for _, field := range []string{"_id", "title", "date", "city", "address", "tags"} {
 			event[field] = payload[field]
+		}
+		// Only multi-day cards carry end_date, so one-day cards keep their shape.
+		if end, ok := payload["end_date"].(string); ok && end > submissionString(payload["date"]) {
+			event["end_date"] = end
 		}
 		event["date_display"] = day
 		event["start_time_display"] = homeClock(payload["start_time"])
