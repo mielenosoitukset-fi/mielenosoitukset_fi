@@ -1,0 +1,1 @@
+- The status page now says that the checked services work, instead of claiming all services work, and explains that the status is checked when the page opens. The privacy policy shows its real last update date, 17.11.2026.

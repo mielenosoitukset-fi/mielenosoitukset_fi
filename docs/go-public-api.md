@@ -110,10 +110,39 @@ initialized S3 client's `list_buckets()`. It showed the three names
 `Tietokanta`, `Välimuisti`, `Tiedostovarasto`; success messages `Yhteys kunnossa`
 or `Saavutettavissa`; failure `Ei vastaa`; overall state, UTC response timestamp
 and request latency. Its checks were cached for 60 seconds. Go retains the
-database probe, overall state and timing fields. The Flask-owned cache instance
-and initialized S3 client checks are omitted, not replaced with probes of
-different services. The page explicitly discloses this reduced coverage, and
-their ownership migration is recorded under “Move APIs to Go” in `TODO.md`.
+database probe, overall state and timing fields.
+
+### Optional cache and file storage rows (off by default)
+
+Go can now own the two checks Flask had, with its own clients
+(`go-api/status_checks.go`). Both are off unless their settings are in the Go
+service environment, and nothing in `deploy/` sets them yet:
+
+| Row | Setting | Probe |
+| --- | --- | --- |
+| `Välimuisti` | `STATUS_CACHE_REDIS_URL`, for example `redis://127.0.0.1:6379/0` | `SET moso:status-probe:v1 1 EX 5` on the Redis that Flask's cache uses. Flask's own keys are not touched. |
+| `Tiedostovarasto` | `STATUS_S3_ENDPOINT`, `STATUS_S3_ACCESS_KEY`, `STATUS_S3_SECRET_KEY`, optional `STATUS_S3_REGION` (default `us-east-1`, boto3's default) | SigV4-signed `GET /` of the endpoint, the request boto3's `list_buckets()` makes. Any 2xx is reachable; redirects are not followed. |
+
+`STATUS_CACHE_REDIS_URL` must point at Flask's cache Redis (`REDIS_HOST`,
+`REDIS_PORT`, `REDIS_DB` in `config.yaml`), never at `PUBLIC_REDIS_URL`: the Go
+response cache is a different dependency. Leave it unset if production Flask
+uses `CACHE_TYPE: SimpleCache`, which keeps its cache in process and has nothing
+for Go to reach. The S3 values are Flask's `S3.ENDPOINT_URI`, `S3.ACCESS_KEY`
+and `S3.SECRET_KEY`; the endpoint must be `https` (plain `http` only on a
+loopback host). An incomplete or invalid setting disables only that row, with a
+log line, and never stops the API.
+
+The configured rows follow `Tietokanta` in the order above, run in parallel
+with the database probe, share its one-second deadline and 60-second result,
+and use the Flask names and messages. `overall_ok` is false if any row fails.
+The React page accepts `[Tietokanta]` with optional `Välimuisti` then
+`Tiedostovarasto`, and its note names only the rows that are not checked
+(no note when all three are present). Any other shape renders as unavailable.
+
+Activation, when the maintainer decides it: confirm Flask's `CACHE_TYPE` and S3
+settings read-only, add the settings to the Go environment, restart Go, check
+`/api/status` and get a visual review of `/status` with the new rows. Rollback:
+remove the settings and restart; the page returns to the single database row.
 
 Current cache behavior: [public response caching](go-public-cache.md). The
 initial-slice and document-cache descriptions below are historical layer

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -60,10 +61,29 @@ func submissionClientAddress(r *http.Request) string {
 	return submissionVisitorAddress(r, host)
 }
 
+// submissionClient is the per-visitor rate limit key for Go's own write
+// routes. IPv6 visitors are grouped by /64: one home or server connection
+// normally gets a whole /64, so counting each address separately would let a
+// single visitor rotate past the limit.
 func submissionClient(r *http.Request, secret string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte("submission-rate\x00" + submissionClientAddress(r)))
+	mac.Write([]byte("submission-rate\x00" + rateLimitAddress(submissionClientAddress(r))))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// rateLimitAddress keeps IPv4 addresses as they are (an IPv4-mapped IPv6
+// address counts as IPv4) and reduces IPv6 addresses to their /64 prefix.
+// Anything that is not an address is returned unchanged.
+func rateLimitAddress(address string) string {
+	parsed, err := netip.ParseAddr(address)
+	if err != nil {
+		return address
+	}
+	parsed = parsed.Unmap()
+	if parsed.Is4() {
+		return parsed.String()
+	}
+	return netip.PrefixFrom(parsed.WithZone(""), 64).Masked().String()
 }
 
 func submissionRate(ctx context.Context, db *mongo.Database, key string) (bool, error) {
