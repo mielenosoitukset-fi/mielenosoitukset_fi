@@ -27,6 +27,8 @@ export type SubmitFields = {
   defaultLanguage: string;
   descriptionHtml: string;
   date: string;
+  /** Last day of a multi-day demonstration (YYYY-MM-DD), empty for one day. */
+  endDate: string;
   startTime: string;
   endTime: string;
   eventType: string;
@@ -100,6 +102,9 @@ export type SubmitMessages = {
   startTimeLabel: string;
   endTimeLabel: string;
   endTimeHelper: string;
+  endDateLabel: string;
+  endDateHelper: string;
+  endDateInvalid: string;
   typeLabel: string;
   typePlaceholder: string;
   typeOption: Record<string, string>;
