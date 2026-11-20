@@ -3,6 +3,7 @@ import re
 import hmac
 import secrets
 from flask import abort, current_app
+from werkzeug.exceptions import Forbidden
 from copy import deepcopy
 
 from mielenosoitukset_fi.utils.time_utils import utcnow
@@ -5817,13 +5818,18 @@ def bulk_decide_demos():
         elif not _user_can_access_demo(raw_id, "ACCEPT_DEMO"):
             entry["status"] = "forbidden"
         else:
-            result = _apply_demo_decision(
-                raw_id,
-                decision,
-                source="admin_bulk",
-            )
-            entry["status"] = "changed" if result.changed else "unchanged"
-            changed_count += int(result.changed)
+            try:
+                result = _apply_demo_decision(
+                    raw_id,
+                    decision,
+                    source="admin_bulk",
+                )
+            except Forbidden:
+                # A taken-down demo is republished only by take-down rights.
+                entry["status"] = "forbidden"
+            else:
+                entry["status"] = "changed" if result.changed else "unchanged"
+                changed_count += int(result.changed)
         results.append(entry)
 
     return jsonify(
