@@ -297,3 +297,15 @@ not part of this step: the React page posts to the unchanged Flask endpoints unt
 Prerequisite: #1225 (accounts in the forced identity change are refused by the Go account routes).
 `/users/auth/settings?legacy=1` stays on Flask as a fallback. Revert: re-comment the five lines
 in `react-ssr-routing.conf` and deploy (or reload Apache by hand).
+
+## Activation of the settings writes (20 November 2026)
+
+Under the maintainer's standing go for activations that pass the security and visual checks,
+`configure_environment.py` now turns `ACCOUNT_SETTINGS_WRITES_ENABLED` on by default whenever the
+settings reads are on (`ACCOUNT_SETTINGS_WRITES: false` opts out), and `react-ssr-routing.conf`
+routes `POST /api/account/profile` and `POST /api/account/settings` to Go. `release_routing.sh`
+refuses the include unless Go answers `GET /api/account/profile` with 405, so Apache never routes
+the writes while Go has them off, and the page (which only posts to Go when the read answer carries
+`writes: true`) never posts to a missing route. After the deploy, watch the first "Käyttäjäasetusten
+muutokset" mail queued by Go reach Flask's worker (`email_queue`, `status` pending → sent). Revert:
+comment out the four lines and set `ACCOUNT_SETTINGS_WRITES: false`; the page falls back to Flask.

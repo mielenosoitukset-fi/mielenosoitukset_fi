@@ -106,6 +106,20 @@ if grep -q '^RewriteRule "\^/contact\$" "http://127.0.0.1:8091/contact"' "$revie
   fi
 fi
 
+# Settings writes: with the write flag Go answers a GET to /api/account/profile
+# with 405 (Allow: POST) before any session or database work; without it the
+# path is unknown (404). The settings page only posts to Go when the flag is on.
+if grep -q '^RewriteRule "\^/api/account/profile\$" "http://127.0.0.1:8091' "$reviewed"; then
+  settings_writes_ready() {
+    [[ $(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' \
+      http://127.0.0.1:8091/api/account/profile || true) == 405 ]]
+  }
+  if ! retry 5 2 settings_writes_ready; then
+    log "Go settings writes are not enabled/ready; keeping the current routing"
+    exit 1
+  fi
+fi
+
 install -d -m 0700 "$backup_root"
 backup="$backup_root/mielenosoitukset-react-ssr.conf.$(date -u +%Y%m%dT%H%M%SZ)"
 cp -a "$include" "$backup"
