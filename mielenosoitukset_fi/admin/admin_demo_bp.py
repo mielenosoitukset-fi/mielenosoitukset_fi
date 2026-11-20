@@ -81,7 +81,10 @@ from mielenosoitukset_fi.demonstrations.audit import (
     save_demo_history,
     log_super_audit,
 )
-from mielenosoitukset_fi.demonstrations.decisions import apply_demo_decision
+from mielenosoitukset_fi.demonstrations.decisions import (
+    apply_demo_decision,
+    preview_demo_decision,
+)
 from mielenosoitukset_fi.demonstrations.rollback import (
     PENDING_ROLLBACK_HISTORY, commit_rollback, flush_rollback_history, restore_merge_conflict,
 )
@@ -5677,6 +5680,24 @@ def geocode_address():
 
     latitude, longitude = coordinates
     return jsonify({"latitude": latitude, "longitude": longitude})
+
+@admin_demo_api_bp.route("/<demo_id>/decision_preview", methods=["GET"])
+@login_required
+@admin_required
+@permission_required("ACCEPT_DEMO", _type="DEMONSTRATION")
+def preview_demo_decision_effects(demo_id):
+    """Read-only list of what approving or rejecting would do, for the confirm dialog."""
+    decision = request.args.get("decision")
+    if decision not in {"approved", "rejected"}:
+        return jsonify({"success": False, "error": _("Virheellinen päätös")}), 400
+    demo_oid = _require_valid_objectid(demo_id)
+    _abort_if_demo_forbidden(demo_oid, "ACCEPT_DEMO")
+    try:
+        preview = preview_demo_decision(mongo, demo_oid, decision)
+    except LookupError:
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
+    return jsonify({"success": True, **preview})
+
 
 @admin_demo_api_bp.route("/<demo_id>/approve", methods=["POST"])
 @login_required
