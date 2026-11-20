@@ -12,6 +12,7 @@ from flask import (
     url_for,
     current_app,
     session,
+    make_response,
 )
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_babel import gettext as _
@@ -19,6 +20,8 @@ from flask_babel import gettext as _
 from config import Config
 from mielenosoitukset_fi.users.models import MFAToken, PendingMFA, User, UserMFA
 from mielenosoitukset_fi.utils.auth import (
+    reset_invalidation_enabled,
+    token_issued_before,
     generate_confirmation_token,
     verify_confirmation_token,
     generate_reset_token,
@@ -59,7 +62,8 @@ from mielenosoitukset_fi.utils.tokens import (
     token_usage_logs_collection,
     tokens_collection,
 )
-from mielenosoitukset_fi.utils.step_up import clear_elevation, is_elevated, sudo_required
+from mielenosoitukset_fi.utils.logout_token import is_prefetch_request, make_logout_token, valid_logout_token
+from mielenosoitukset_fi.utils.step_up import clear_elevation, is_elevated, step_up_required_response, sudo_required
 
 
 MFA_PENDING_LOGIN_KEY = "mfa_pending_login"
@@ -636,10 +640,10 @@ def api_token_status():
 def request_api_token_access():
     user_doc = _fresh_user_doc()
     if user_doc.get("api_tokens_enabled", False):
-        return jsonify({"status": "success", "message": "Access already approved."})
+        return jsonify({"status": "success", "message": _("Käyttöoikeus on jo hyväksytty.")})
 
     if user_doc.get("api_token_request", None):
-        return jsonify({"status": "success", "message": "Request already sent."})
+        return jsonify({"status": "success", "message": _("Pyyntö on jo lähetetty.")})
 
     reason = (request.get_json() or {}).get("reason") or ""
     reason = reason.strip()
@@ -662,11 +666,11 @@ def request_api_token_access():
         )
     except Exception as e:
         current_app.logger.exception("Failed to record API token request")
-        return jsonify({"status": "error", "message": "Request failed"}), 500
+        return jsonify({"status": "error", "message": _("Pyynnön lähettäminen epäonnistui.")}), 500
 
     return jsonify({
         "status": "success",
-        "message": "Request sent. An admin must approve API tokens for your account.",
+        "message": _("Pyyntö lähetetty. Ylläpitäjän täytyy hyväksyä API-avainten käyttö tililläsi."),
         "requested_at": timestamp
     })
 
@@ -847,6 +851,9 @@ def mfa_check():
 from urllib.parse import unquote, urlparse
 
 
+_POST_LOGIN_PAGES_UNDER_API = frozenset({"/api/admin/mcp/oauth/authorize"})
+
+
 def _normalize_post_login_target(target: str | None) -> str:
     # Require an unambiguous origin-relative URL. Do not repair backslashes or
     # controls: browsers and URL parsers can interpret those differently.
@@ -870,6 +877,11 @@ def _normalize_post_login_target(target: str | None) -> str:
         return url_for("index")
 
     # Post-login redirects should land on human-facing pages, not raw APIs.
+    # The MCP OAuth consent page lives under /api/ but is an HTML page that
+    # sends signed-out admins here first. Match the raw path exactly so no
+    # encoded or dot-segment spelling can reach another /api/ URL.
+    if parsed.path.rstrip("/") in _POST_LOGIN_PAGES_UNDER_API:
+        return candidate
     if path in {"/api", "/users/auth/api"} or path.startswith(("/api/", "/users/auth/api/")):
         return url_for("index")
 
@@ -894,8 +906,13 @@ def login():
         response = current_app.make_response(handle_action(_get_mongo(), request.get_json(silent=True)))
         response.headers["Cache-Control"] = "no-store"
         return response
-    # Get the next page from GET param or from session fallback
-    next_page = request.args.get("next") or session.get("next_page") or ""
+    # A GET starts a new sign-in, so only its own ``next`` counts; an older
+    # stored target must not leak into it. A POST may fall back to the target
+    # saved when its login page was shown.
+    next_page = request.args.get("next")
+    if not next_page and request.method == "POST":
+        next_page = session.get("next_page")
+    next_page = next_page or ""
     safe_next_page = _normalize_post_login_target(next_page)
 
     # Save the safe next page to session in case of POST failures
@@ -1369,7 +1386,7 @@ def settings_api_v2():
 
     # ---------- POST ----------
     if request.is_json:
-        user_data = request.get_json(force=True)
+        user_data = request.get_json(silent=True) or {}
     else:
         user_data = request.form.to_dict()
 
@@ -1455,10 +1472,17 @@ def mfa_setup_api():
     3) done: just returns success
     """
     user = current_user
-    data = request.get_json(force=True)
+    # Only a real JSON request is read: a form or text/plain body from another site is refused.
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"status": "error", "message": "Invalid request"}), 400
     step = data.get("step")
 
     if step == "request_activation":
+        # Adding a device changes how the account signs in: ask for a fresh
+        # re-authentication first, as for renaming or removing one.
+        if not is_elevated():
+            return step_up_required_response()
         # Step 1: generate secret for new device
         secret = PendingMFA.create(user._id)
         user_mfa = UserMFA(user._id)
@@ -1475,10 +1499,10 @@ def mfa_setup_api():
         secret = data.get("secret")  # which secret we are verifying
         device_name = data.get("device_name", "New device")
         if not code or not secret:
-            return jsonify({"status": "error", "message": "Code or secret missing"}), 400
+            return jsonify({"status": "error", "message": _("Vahvistuskoodi tai salainen avain puuttuu.")}), 400
 
         if secret not in PendingMFA.get(user._id, secret):
-            return jsonify({"status": "error", "message": "Invalid or expired MFA setup"}), 400
+            return jsonify({"status": "error", "message": _("Kaksivaiheisen tunnistautumisen käyttöönotto on virheellinen tai vanhentunut.")}), 400
 
         mfa_token = MFAToken(secret)
         if mfa_token.verify(code):
@@ -1592,10 +1616,40 @@ def mfa_device_rename():
     return jsonify({"status": "error", "message": _("Laitetta ei löytynyt.")}), 404
 
 
-@auth_bp.route("/logout")
-@login_required
+@auth_bp.app_context_processor
+def inject_logout_form_token():
+    """Templates mint the sign-out form token on demand, only for a signed-in visitor."""
+    def logout_form_token():
+        return make_logout_token(current_user.get_id()) if current_user.is_authenticated else ""
+    return {"logout_form_token": logout_form_token}
+
+
+@auth_bp.route("/logout", methods=["GET", "POST"])
 def logout():
-    """ """
+    """Sign out. Only a POST that carries the form token ends the session.
+
+    A GET never signs anyone out: links, bookmarks, prefetchers and crawlers
+    land on a small confirmation page (or get an empty answer when the browser
+    is only prefetching it).
+    """
+    if request.method == "GET":
+        if is_prefetch_request(request.headers):
+            return "", 204, {"Cache-Control": "no-store"}
+        if not current_user.is_authenticated:
+            return redirect(url_for("users.auth.login"))
+        response = make_response(render_template(
+            "users/logout_confirm.html", logout_token=make_logout_token(current_user.get_id())))
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    if not current_user.is_authenticated:
+        return redirect(url_for("users.auth.login"))
+    if not valid_logout_token(request.form.get("logout_token"), current_user.get_id()):
+        # An expired or foreign token never signs anyone out; show the confirmation page with a fresh one.
+        return redirect(url_for("users.auth.logout"))
+    end_hallinto_login = current_app.extensions.get("hallinto_owner_logout")
+    if end_hallinto_login and not end_hallinto_login(current_user.get_id()):
+        # Keep the browser binding so the visitor can retry revoking it.
+        return jsonify(error="temporarily_unavailable"), 503, {"Cache-Control": "no-store"}
     logout_user()
     clear_elevation()  # step-up state never outlives the session
     flash_message("Kirjauduit onnistuneesti ulos", "success")
@@ -1735,6 +1789,29 @@ def user_profile():
     })
 from datetime import datetime
 
+def _reset_token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _reset_token_spent(token: str, token_hash: str) -> bool:
+    """True if the token was used. Reads hashed rows and legacy raw rows.
+
+    A legacy raw row is rewritten to its hash when met, so raw tokens leave the
+    collection as they are touched; no bulk migration is needed.
+    """
+    used = mongo.used_password_change_tokens
+    if used.find_one({"token_hash": token_hash}):
+        return True
+    legacy = used.find_one({"token": token})
+    if legacy:
+        used.update_one(
+            {"_id": legacy["_id"]},
+            {"$set": {"token_hash": token_hash}, "$unset": {"token": ""}},
+        )
+        return True
+    return False
+
+
 @auth_bp.route("/password_reset/<token>", methods=["GET", "POST"])
 def password_reset(token):
     """
@@ -1743,8 +1820,9 @@ def password_reset(token):
     ip = get_client_ip()
     user_agent = request.headers.get("User-Agent", "")
     
-    # Check if token has already been used
-    if mongo.used_password_change_tokens.find_one({"token": token}):
+    token_hash = _reset_token_hash(token)
+    # Check if token has already been used (hashed rows, or legacy raw rows)
+    if _reset_token_spent(token, token_hash):
         flash_message(
             "Tämä salasanan palautuslinkki on jo käytetty.", "warning"
         )
@@ -1753,7 +1831,7 @@ def password_reset(token):
     email = verify_reset_token(token)
 
     log_entry = {
-        "token": token,
+        "token_hash": token_hash,
         "email": email or None,
         "datetime": utcnow(),
         "ip": ip,
@@ -1776,6 +1854,16 @@ def password_reset(token):
         log_entry["error"] = "User not found"
         mongo.password_changes.insert_one(log_entry)
         flash_message("Käyttäjää ei löytynyt.", "warning")
+        return redirect(url_for("users.auth.password_reset_request"))
+
+    if reset_invalidation_enabled() and token_issued_before(
+        token, user_doc.get("password_changed_at")
+    ):
+        log_entry["error"] = "Token issued before the last password change"
+        mongo.password_changes.insert_one(log_entry)
+        flash_message(
+            "Salasanan palautuslinkki on virheellinen tai vanhentunut.", "warning"
+        )
         return redirect(url_for("users.auth.password_reset_request"))
 
     user = User.from_db(user_doc)
@@ -1801,21 +1889,38 @@ def password_reset(token):
             flash_message("Salasana ei täytä vaatimuksia.", "warning")
             return redirect(url_for("users.auth.password_reset", token=token))
 
+        # Claim the token before changing anything: the unique index on
+        # token_hash lets exactly one of two simultaneous submissions proceed.
         try:
-            user._change_password(password)
-            log_entry["changed"] = True
-            mongo.password_changes.insert_one(log_entry)
-
-            # Mark token as used
             mongo.used_password_change_tokens.insert_one({
-                "token": token,
+                "token_hash": token_hash,
                 "email": email,
                 "used_at": utcnow(),
                 "ip": ip,
                 "user_agent": user_agent,
-                "password_change_success": True
+                "password_change_success": False
             })
+        except DuplicateKeyError:
+            flash_message("Tämä salasanan palautuslinkki on jo käytetty.", "warning")
+            return redirect(url_for("users.auth.password_reset_request"))
+
+        try:
+            user._change_password(password)
+            if reset_invalidation_enabled():
+                # Existing sessions carry the old epoch and are dropped by the
+                # user loader; the cookie format is unchanged.
+                mongo.users.update_one({"_id": user_doc["_id"]}, {"$inc": {"auth_epoch": 1}})
+            log_entry["changed"] = True
+            mongo.password_changes.insert_one(log_entry)
+            mongo.used_password_change_tokens.update_one(
+                {"token_hash": token_hash},
+                {"$set": {"password_change_success": True}},
+            )
         except Exception as e:
+            # Release the claim so the link can be retried after a failure.
+            mongo.used_password_change_tokens.delete_one(
+                {"token_hash": token_hash, "password_change_success": False}
+            )
             log_entry["error"] = f"Password change failed: {e}"
             mongo.password_changes.insert_one(log_entry)
             flash_message(f"Salasanan vaihto epäonnistui: {e}", "error")
@@ -1926,7 +2031,10 @@ def api_change_password():
       "confirm": "<repeat>"
     }
     """
-    data = request.get_json(force=True)
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"status": "error",
+                        "message": _("Kaikki kentät ovat pakollisia.")}), 400
     cur, new, confirm = data.get("current"), data.get("new"), data.get("confirm")
 
     if not all((cur, new, confirm)):

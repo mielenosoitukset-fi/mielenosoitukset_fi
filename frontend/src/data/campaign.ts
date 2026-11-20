@@ -1,7 +1,7 @@
 export const volunteerMessages = {
   required: 'Nimi ja sähköpostiosoite ovat pakollisia.',
   invalid: 'Tarkista korostetut tiedot ja yritä uudelleen.',
-  success: 'Kiitos ilmoittautumisestasi! Tarkista sähköpostisi vahvistaaksesi ilmoittautumisen.',
+  success: 'Kiitos ilmoittautumisestasi. Tarkista sähköpostisi vahvistaaksesi ilmoittautumisen.',
   failed: 'Ilmoittautuminen epäonnistui. Yritä uudelleen.',
   network: 'Yhteys palveluun epäonnistui. Yritä myöhemmin uudelleen.',
   sending: 'Lähetetään…',
@@ -21,6 +21,6 @@ export const confirmationCopy = {
   expired: {
     title: 'Vahvistuslinkki on vanhentunut',
     description: 'Ilmoittautumista ei voitu vahvistaa tällä linkillä.',
-    detail: 'Voit palata kampanjasivulle. Jos tarvitset apua ilmoittautumisen kanssa, ota yhteyttä sähköpostitse.',
+    detail: 'Voit palata kampanjasivulle. Jos tarvitset apua ilmoittautumisessa, ota yhteyttä sähköpostitse.',
   },
 } as const;

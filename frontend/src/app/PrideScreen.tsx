@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
 import { PrideMap } from '../components/pride/PrideMap';
+import { PrideCarrierLink } from './PrideCarrierLink';
+import { PrideVolunteer } from './PrideVolunteer';
+import { prideVolunteerCopy, prideVolunteerEnabled } from './pride-volunteer';
 import { PublicListingPage } from '../pages/PublicListingPage';
 import type { AppConfig } from './config';
 import { listingProps } from './listing';
@@ -10,16 +13,16 @@ export const prideRoute = { name: 'listing', scope: 'tag', value: 'pride' } as c
 
 export const prideCopy = {
   title: 'Pride näkyväksi',
-  lead: 'Löydä tulevat Pride-aiheiset mielenosoitukset eri puolilta Suomea ja ilmoita oma tapahtumasi mukaan.',
-  empty: 'Meille ei vielä ole ilmoitettu tulevia Pride-mielenosoituksia.',
+  lead: 'Löydä tulevat Pride-aiheiset mielenosoitukset eri puolilta Suomea ja ilmoita myös oma tapahtumasi.',
+  empty: 'Meille ei ole vielä ilmoitettu tulevia Pride-mielenosoituksia.',
 };
 
 const mapMessages = {
   title: 'Pride-kartta',
-  loading: 'Ladataan Pride-karttaa...',
+  loading: 'Ladataan Pride-karttaa…',
   error: 'Pride-kartan lataaminen epäonnistui. Yritä uudelleen.',
   retry: 'Yritä uudelleen',
-  empty: 'Kartalla ei vielä ole tulevia Pride-mielenosoituksia.',
+  empty: 'Kartalla ei ole vielä tulevia Pride-mielenosoituksia.',
   noCoordinates: 'Tapahtumille ei ole karttasijaintia. Löydät ne mielenosoituslistasta.',
   tileError: 'Karttapohjan lataaminen epäonnistui. Tapahtumat löytyvät myös listasta.',
   popupDetails: 'Avaa mielenosoitus',
@@ -42,7 +45,7 @@ export function PrideDetails({ submitUrl }: { submitUrl: string }) {
       <ol>
         <li><a href={submitUrl}>Avaa ilmoituslomake</a>. Kerro tapahtuman nimi, ajankohta, paikka ja kuvaus.</li>
         <li>Lisää tageihin pride, jotta tapahtuma löytyy tältä sivulta.</li>
-        <li>Tarkista tiedot ja lähetä ilmoitus. Ilmoitukset tarkistetaan ennen julkaisua.</li>
+        <li>Tarkista tiedot ja lähetä ilmoitus. Ylläpito käy ilmoitukset läpi ennen julkaisua.</li>
       </ol>
       <p>Ilmoitus ei saa sisältää syrjintää tai vihapuhetta. <a href="/terms">Lue käyttöehdot</a>.</p>
     </section>
@@ -57,7 +60,7 @@ export default function PrideScreen({ config, session, listing }: {
   // Scrolling loads more events above the lower sections, so stay aligned until the reader takes over.
   useEffect(() => {
     const { hash } = window.location;
-    const target = ['#demos', '#demo-guidelines', '#pride-map-section'].includes(hash) ? document.querySelector(hash) : null;
+    const target = ['#demos', '#demo-guidelines', '#pride-map-section', '#banderolli'].includes(hash) ? document.querySelector(hash) : null;
     const page = document.querySelector('.pride-page');
     if (!target || !page) return undefined;
     const align = () => target.scrollIntoView({ block: 'start' });
@@ -74,6 +77,7 @@ export default function PrideScreen({ config, session, listing }: {
     align();
     return stop;
   }, []);
+  const volunteers = prideVolunteerEnabled();
   return <div className="pride-page">
     <section className="pride-intro" aria-labelledby="pride-title">
       <h1 id="pride-title">{prideCopy.title}</h1>
@@ -81,8 +85,11 @@ export default function PrideScreen({ config, session, listing }: {
       <div className="pride-actions">
         <a className="button button-primary" href="#demos">Katso mielenosoitukset</a>
         <a className="button button-secondary" href={config.urls.submit}>Ilmoita mielenosoitus</a>
+        {volunteers && <a className="button button-secondary" href="#banderolli">{prideVolunteerCopy.navButton}</a>}
       </div>
     </section>
+
+    <PrideCarrierLink />
 
     <section className="pride-map-section" id="pride-map-section" aria-labelledby="pride-map-title">
       <header className="pride-section-header">
@@ -104,6 +111,8 @@ export default function PrideScreen({ config, session, listing }: {
           ], { type: 'application/json' })); } catch { /* Optional analytics. */ }
         }} />
     </section>
+
+    {volunteers && <PrideVolunteer privacyUrl={config.urls.privacy} />}
 
     <PrideDetails submitUrl={config.urls.submit} />
   </div>;

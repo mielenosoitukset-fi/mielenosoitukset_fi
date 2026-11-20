@@ -19,7 +19,8 @@ const sessionServer = createServer((req, res) => {
   setTimeout(() => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ authenticated, name, locale: 'fi', locales: [{ code: 'fi', name: 'Suomi' }],
-      role: authenticated ? 'user' : 'guest', site_analytics_enabled: true, matomo_enabled: true }));
+      role: authenticated ? 'user' : 'guest', site_analytics_enabled: true, matomo_enabled: true,
+      ...(authenticated ? { logout_token: 'x'.repeat(30) + '.' + 'y'.repeat(20) } : {}) }));
   }, 25);
 });
 await new Promise(resolve => sessionServer.listen(0, '127.0.0.1', resolve));
@@ -56,6 +57,14 @@ try {
   assert.equal(reads, 3, 'Cookie-bearing requests must not share reads');
   assert.equal(bootstrap(alice.html).session.name, 'Alice');
   assert.equal(bootstrap(bob.html).session.name, 'Bob');
+  // Signing out is a POST form in the header menu and footer, never a followable link.
+  const readsBefore = reads;
+  const signedInPage = (await page({ path: '/info', cookie: 'session=alice' })).html;
+  assert(!signedInPage.includes('href="/users/auth/logout"'), 'a signed-in page must not link to a GET sign-out');
+  assert((signedInPage.match(/<form [^>]*action="\/users\/auth\/logout"[^>]*method="post"/g) ?? []).length >= 2, 'header menu and footer post the sign-out form');
+  assert(signedInPage.includes('name="logout_token"'));
+  assert(!(await page({ path: '/info' })).html.includes('name="logout_token"'), 'anonymous pages carry no sign-out token');
+  reads = readsBefore;
   assert.equal(bootstrap((await page()).html).session.name, null);
   const forms = await Promise.all(Array.from({ length: 8 }, () => page({ path: '/submit' })));
   const tokens = forms.map(result => bootstrap(result.html).submission.token);
@@ -86,6 +95,10 @@ try {
   await page({ sessionUrl: `${base}/down` });
   await page({ sessionUrl: `${base}/down` });
   assert.equal(reads, 6, 'Failed configuration reads must not be cached');
+  // A cookie whose session read fails is unknown, never a guest; without a cookie it is simply anonymous.
+  assert.equal(bootstrap((await page({ sessionUrl: `${base}/down`, cookie: 'session=alice' })).html).session.unverified, true);
+  assert.equal(bootstrap((await page({ sessionUrl: `${base}/down` })).html).session.unverified, undefined);
+  assert.equal(bootstrap((await page({ cookie: 'session=alice' })).html).session.unverified, undefined);
   console.log('PASS: unknown-route zero reads; eight concurrent anonymous pages one read; warm zero reads; private sessions isolated; TTL and failure handling');
   for (const [path, heading, canonical, anchor] of [
     ['/info', 'Tietoa Mielenosoitukset.fi', '/info'],
@@ -196,8 +209,14 @@ try {
     assert.equal(down.headers['Set-Cookie'], undefined);
   } finally { contactSessions.close(); }
   console.log('PASS: contact page mints a private per-visitor form token, forwards the session cookie, skips HEAD and degrades to email');
+  let fundState = { status: 503, body: {} };
   let campaignState = { status: 200, body: { published: false } };
   const campaignApi = createServer((req, res) => {
+    if (req.url === '/api/fundraising/details') {
+      res.writeHead(fundState.status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(fundState.body));
+      return;
+    }
     if (req.url !== '/api/campaign/publication') { res.writeHead(404); res.end(); return; }
     res.writeHead(campaignState.status, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify(campaignState.body));
@@ -225,45 +244,129 @@ try {
     assert.equal(live.headers['Cache-Control'], 'private, no-store');
     assert.equal(live.headers['X-Robots-Tag'], undefined);
     const body = live.html.split('<body>')[1].split('<script type="application/json"')[0];
-    assert(body.includes('Yhdessä näkyväksi') && body.includes('id="vapaaehtoiseksi"') && body.includes('id="newsletter"'));
+    assert(body.includes('Mielenosoitukset.fi näkyviin kymmeniin kaupunkeihin') && body.includes('id="vapaaehtoiseksi"') && !body.includes('id="newsletter"'));
+    for (const id of ['auta', 'mita', 'kerays', 'aikataulu', 'lahde', 'avajaiset', 'pride', 'ukk']) assert(body.includes(`id="${id}"`), `campaign section ${id}`);
+    assert.equal((body.match(/<details>/g) || []).length, 8 + 1, 'eight FAQ items and the share text');
+    assert(body.includes('/pride-nakyvaksi#banderolli') && body.includes('/static/kampanja/sticker-2026-fi.png'));
+    assert(!/!/.test(body.replace(/<[^>]*>/g, '')), 'No exclamation marks in the page text');
+    // The phase follows the Helsinki date from the shared configuration, chosen by the server.
+    const dayOf = offset => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date(Date.now() + offset * 86_400_000));
+    const bodyOfCampaign = r => r.html.split('<body>')[1].split('<script type="application/json"')[0];
+    const order = html => ['id="kerays"', 'id="mita"'].map(marker => html.indexOf(marker));
+    fundState = { status: 200, body: { start_date: dayOf(1), end_date: dayOf(60) } };
+    const before = bodyOfCampaign(await campaign());
+    assert(before.includes('Seuraavaksi') && !before.includes('Tässä ollaan nyt') && before.includes('Tilaa muistutus') && !before.includes('Lahjoita keräykseen'));
+    assert(order(before)[1] < order(before)[0], 'Collection info stays below "Mistä on kyse" before opening');
+    fundState = { status: 200, body: { start_date: dayOf(0), end_date: dayOf(60) } };
+    const opened = bodyOfCampaign(await campaign());
+    assert(opened.includes('Tässä ollaan nyt') && opened.includes('Lahjoita keräykseen') && !opened.includes('Tilaa muistutus'));
+    assert(order(opened)[0] < order(opened)[1], 'Collection info moves above "Mistä on kyse" on the opening day');
+    assert(!opened.includes('account') && !opened.includes('FI46'), 'No payment details on the campaign page');
+    const bootstrapped = (await campaign()).html;
+    assert(!bootstrapped.includes('FI46 5723'), 'The bootstrap carries no account number');
+    const link = await campaign({ search: '?avajaiset=vahvista' });
+    assert.equal(link.headers['X-Robots-Tag'], 'noindex, nofollow');
+    assert.match(link.html, /<meta name="robots" content="noindex, nofollow" \/>/);
+    // The opening interest form is off by default and appears only when the shared configuration turns it on.
+    assert(!before.includes('id="ie"') && !opened.includes('id="ie"'), 'Opening form is off by default');
+    fundState = { status: 200, body: { start_date: dayOf(0), end_date: dayOf(60), opening_interest_form: true } };
+    const withForm = bodyOfCampaign(await campaign());
+    assert(withForm.includes('id="ie"') && withForm.includes('Kerro halutessasi lisää') && withForm.includes('Sallin sähköpostiosoitteeni, paikkakuntani ja vapaaehtoiset vastaukseni käytön'));
+    assert(withForm.includes('Ilmoittaudu kiinnostuneeksi'));
+    fundState = { status: 200, body: { start_date: dayOf(-90), end_date: dayOf(-1) } };
+    const closed = bodyOfCampaign(await campaign());
+    assert(!closed.includes('Lahjoita keräykseen') && !closed.includes('Tilaa muistutus'));
+    fundState = { status: 503, body: {} };
     assert(live.html.includes('rel="canonical" href="https://example.test/kampanja/"'));
     assert(live.html.includes('og:image" content="https://example.test/static/kampanja/og-banner.png"'));
-    assert(live.html.includes('/static/css/campaign.css'));
+    assert(live.html.includes('/static/css/campaign.css') && live.html.includes('/static/css/campaign-v2.css'));
     assert(body.includes('/kampanja/api/volunteers') || live.html.includes('/kampanja/api/volunteers'));
     assert.equal((await page({ path: '/kampanja' })).status, 404, 'Flask keeps the slash redirect');
     assert.equal((await page({ path: '/kampanja/confirm/token' })).status, 404, 'Confirmation stays in Flask');
+    // The fundraising page is public and independent of the campaign gate.
     const fundraising = changes => campaign({ path: '/ker%C3%A4ys', ...changes });
+    const dayHelsinki = offset => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date(Date.now() + offset * 86_400_000));
+    const bodyOf = r => r.html.split('<body>')[1].split('<script type="application/json"')[0];
     campaignState = { status: 200, body: { published: false } };
-    for (const path of ['/ker%C3%A4ys', '/keräys']) {
-      const hidden = await fundraising({ path });
-      assert.equal(hidden.status, 302, path);
-      assert.equal(hidden.redirect, '/users/auth/login?next=%2Fker%C3%A4ys');
-      assert.equal(hidden.headers['Cache-Control'], 'private, no-store');
-    }
-    const fundPreview = await fundraising({ cookie: 'session=alice' });
-    assert.equal(fundPreview.status, 200);
-    assert.equal(fundPreview.headers['X-Robots-Tag'], 'noindex, nofollow');
-    campaignState = { status: 200, body: { published: true } };
-    const fundLive = await fundraising();
-    assert.equal(fundLive.status, 200);
-    assert.equal(fundLive.headers['Cache-Control'], 'private, no-store');
-    const fundBody = fundLive.html.split('<body>')[1].split('<script type="application/json"')[0];
-    for (const text of ['Jotta mielenosoitukset löytyvät', '2 500 €', 'Valmistelussa', 'Lahjoittaminen ei ole vielä avoinna',
-      'jatkuvuuden turvaamiseen', 'href="/contact"', 'MobilePay 1', 'MobilePay 2',
-      '<article class="public-content campaign-page" lang="fi">']) assert(fundBody.includes(text), text);
-    assert.match(fundBody, /datetime="2026-11-16"[^]*datetime="2027-02-16"/i);
-    for (const text of ['Näin lahjoitat', 'Tilinumero (IBAN)', 'name="iban"', 'type="submit"']) assert(!fundBody.includes(text), text);
-    assert(fundLive.html.includes('rel="canonical" href="https://example.test/ker%C3%A4ys"'));
-    assert(fundLive.html.includes('/static/css/public-content.css'));
-    assert.match(bootstrap(fundLive.html).today, /^\d{4}-\d{2}-\d{2}$/);
+    const closedFund = { publication_state: 'active', details_confirmed: true, collection_number: 'RA/2026/0000',
+      recipient: 'Testiyhdistys', iban: 'FI00 0000 0000 0000 00', bic: 'TESTFIHH', area: 'Koko Suomi Ahvenanmaata lukuun ottamatta',
+      mobilepay_links: [], end_date: dayHelsinki(60) };
+    // Pre-launch: first day is tomorrow. No account, noindex, calendar download only.
+    fundState = { status: 200, body: { ...closedFund, start_date: dayHelsinki(1) } };
+    const reminderLink = await fundraising({ search: '?muistutus=vahvista' });
+    assert.equal(reminderLink.headers['X-Robots-Tag'], 'noindex, nofollow', 'Reminder links are never indexed');
+    assert.match(reminderLink.html, /<meta name="robots" content="noindex, nofollow" \/>/);
+    const pre = await fundraising();
+    assert.equal(pre.status, 200, 'Public without login or campaign publication');
+    assert.equal(pre.headers['Cache-Control'], 'private, no-store');
+    assert.equal(pre.headers['X-Robots-Tag'], 'noindex, follow');
+    assert.match(pre.html, /<meta name="robots" content="noindex, follow" \/>/);
+    const preBody = bodyOf(pre);
+    for (const text of ['Pienkeräys aukeaa', 'Keräyksen tiedot', 'RA/2026/0000',
+      'Koko Suomi Ahvenanmaata lukuun ottamatta',
+      'Miksi tämä keräys', 'vasta, kun ne ovat jo ohi', 'Mihin raha menee', 'Tarroja kymmeniin kaupunkeihin', '12 banderollia', 'Jos varoja jää yli', 'Virallinen käyttötarkoitus', 'Tampereen Tapahtuma- ja mediarenessanssi ry', 'äänentoistolaitteita',
+      'palvelin ja ylläpito', '<details class="fundraising-official">']) assert(preBody.includes(text), text);
+    assert(!/€|euro/i.test(preBody), 'No euro amounts on the page');
+    assert(!/Turku|Kirkkonummi|Noin 1 000|Noin 500|tarraa:/.test(preBody), 'No per-city sticker quantities');
+    for (const text of ['FI00 0000 0000 0000 00', 'TESTFIHH', 'Näin lahjoitat', 'Kopioi tilinumero', 'Tilinumero (IBAN)']) assert(!pre.html.includes(text), `pre-launch leaks ${text}`);
+    // Open: first day is today. Account, BIC and copy button appear; indexable.
+    fundState = { status: 200, body: { ...closedFund, start_date: dayHelsinki(0) } };
+    const open = await fundraising();
+    assert.equal(open.headers['X-Robots-Tag'], undefined);
+    assert.match(open.html, /<meta name="robots" content="index, follow" \/>/);
+    const openBody = bodyOf(open);
+    for (const text of ['Näin lahjoitat', 'FI00 0000 0000 0000\u00a000', 'TESTFIHH', 'Kopioi tilinumero', 'RA/2026/0000']) assert(openBody.includes(text), text);
+    assert(!openBody.includes('mobilepay'), 'No MobilePay link when none is configured');
+    for (const text of ['Saaja', 'Testiyhdistys', 'Kopioi saajan nimi', 'Kopioi tilinumero', 'Kopioi BIC', 'Kopioi viesti', 'Kysy lisää', 'Jaa sivu', 'href="#lahjoita"']) assert(openBody.includes(text), text);
+    assert(!/<svg[^>]*QR-koodi/.test(openBody), 'No QR code without a MobilePay link');
+    fundState = { status: 200, body: { ...closedFund, start_date: dayHelsinki(0), mobilepay_active: 2,
+      mobilepay_links: [{ label: 'a', url: 'https://qr.mobilepay.fi/box/one/pay-in' }, { label: 'b', url: 'https://qr.mobilepay.fi/box/two/pay-in' }] } };
+    const boxed = bodyOf(await fundraising());
+    assert(boxed.includes('box/two/pay-in') && !boxed.includes('box/one/pay-in') && boxed.includes('Lahjoita MobilePaylla'), 'Only the active MobilePay box is shown');
+    assert.equal((boxed.match(/qr\.mobilepay\.fi/g) ?? []).length, 2, 'Active box link: donate button and sticky bar');
+    assert(/<svg[^>]*aria-label="QR-koodi/.test(boxed) && boxed.includes('fundraising-sticky'), 'QR code and sticky bar for the active box');
+    fundState = { status: 200, body: { ...closedFund, start_date: dayHelsinki(0) } };
+    for (const text of ['Pienkeräys aukeaa', 'Lisää kalenteriin', 'data:text/calendar', 'Muistutus']) assert(!openBody.includes(text), `open page keeps ${text}`);
+    // The page makes no fundraising link on its own routes: nothing here links it from other pages.
+    fundState = { status: 503, body: {} };
+    const bundled = await fundraising();
+    assert.equal(bundled.status, 200);
+    assert.equal(bootstrap(bundled.html).fundraising, undefined, 'Unreachable API: bundled details, nothing embedded');
+    assert.match(bootstrap(bundled.html).today, /^\d{4}-\d{2}-\d{2}$/);
+    assert(bundled.html.includes('rel="canonical" href="https://example.test/ker%C3%A4ys"'));
+    fundState = { status: 200, body: [] };
+    assert.match(bodyOf(await fundraising()), /datetime="2026-11-16"/i, 'Malformed API answer falls back to the bundled file');
+    for (const path of ['/ker%C3%A4ys', '/keräys']) assert.equal((await fundraising({ path })).status, 200, path);
   } finally { campaignApi.close(); }
-  console.log('PASS: campaign and fundraising pages keep the publication gate: signed-in preview, fail-closed reads, private no-store and noindex until published');
-  const { fundraisingDetails } = await import(pathToFileURL(`${root}/frontend/dist/server/render.js`));
+  console.log('PASS: campaign keeps the publication gate; fundraising is public with a pre-launch state that hides the account and is noindex until the first collection day');
+  const { fundraisingDetails, fundraisingExtras, activeMobilepayUrl, readReminderLink } = await import(pathToFileURL(`${root}/frontend/dist/server/render.js`));
   const parity = JSON.parse(readFileSync(`${root}/tests/fixtures/fundraising_parity.json`, "utf8"));
   for (const item of parity) {
     const got = fundraisingDetails(item.input, item.today);
     assert.deepEqual(Object.fromEntries(Object.entries(got).sort()), item.expected, item.name);
   }
+  const ex = (start, today) => fundraisingExtras({ start_date: start, end_date: '2027-02-15' }, today);
+  assert.equal(ex('2026-11-16', '2026-11-15').pre_launch, true, 'Day before opening is pre-launch');
+  assert.equal(ex('2026-11-16', '2026-11-16').pre_launch, false, 'Opening day is open');
+  assert.equal(ex('2026-11-16', '2026-11-17').pre_launch, false);
+  assert.equal(fundraisingExtras({ planned_start_date: '2026-11-16' }, '2026-11-15').pre_launch, true, 'Planned date counts while unconfirmed');
+  assert.equal(fundraisingExtras({}, '2026-11-15').pre_launch, false, 'No date: never pre-launch');
+  assert.equal(fundraisingExtras({ start_date: 'bad' }, '2026-11-15').opens_date, null);
+  const boxes = [{ url: 'https://a.test/1' }, { url: 'https://a.test/2' }, { url: '' }];
+  assert.equal(activeMobilepayUrl(boxes, 1), 'https://a.test/1');
+  assert.equal(activeMobilepayUrl(boxes, 2), 'https://a.test/2');
+  assert.equal(activeMobilepayUrl(boxes, 3), 'https://a.test/1', 'Empty active box falls back to the first usable one');
+  assert.equal(activeMobilepayUrl(boxes, 9), 'https://a.test/1');
+  assert.equal(activeMobilepayUrl([{ url: '' }], 1), '');
+  assert.equal(fundraisingExtras({ mobilepay_active: 2 }).mobilepay_active, 2);
+  assert.equal(fundraisingExtras({ mobilepay_active: 'x' }).mobilepay_active, 1);
+  assert.equal(fundraisingExtras({ mobilepay_active: 0 }).mobilepay_active, 1);
+  // The links the reminder mails send (mielenosoitukset_fi/utils/fundraising_reminder.py).
+  const mailLink = (url) => { const u = new URL(url); return readReminderLink(u.search, u.hash); };
+  assert.deepEqual(mailLink('https://example.test/ker%C3%A4ys?muistutus=vahvista#t=abc'), { mode: 'vahvista', token: 'abc' });
+  assert.deepEqual(mailLink('https://example.test/ker%C3%A4ys?muistutus=peru#t=abc'), { mode: 'peru', token: 'abc' });
+  assert.equal(mailLink('https://example.test/ker%C3%A4ys?muistutus=muu#t=abc'), null);
+  assert.equal(mailLink('https://example.test/ker%C3%A4ys'), null);
   console.log(`PASS: fundraising rules match the Python implementation on ${parity.length} shared cases`);
 } finally {
   await new Promise(resolve => sessionServer.close(resolve));
@@ -652,6 +755,9 @@ try {
   const annual = await detailPage({ path:'/calendar/2028/' });
   assert.equal(annual.status,200);
   assert.equal(bootstrap(annual.html).calendar.data.total,3);
+  assert.match(annual.html, /1 mielenosoitus(?=[<\s])/);
+  assert.doesNotMatch(annual.html, /(?<!\d)1 mielenosoitusta/);
+  assert.match(annual.html, /2 mielenosoitusta/);
   assert.equal(bootstrap(annual.html).route.name,'calendar-year');
   assert.match(annual.html,/rel="canonical" href="https:\/\/example.test\/calendar\/2028\/"/);
   const cityAnnual = await detailPage({ path:'/city/helsinki/calendar/2028/' });
@@ -742,10 +848,90 @@ try {
   }
   assert.equal(localReads.length, suggestionReads, 'Only exact suggestion routes query Go');
   const apacheRouting = readFileSync(`${root}/deploy/apache/react-ssr-routing.conf`, 'utf8');
-  // The Go event endpoint ships dark: Flask keeps both analytics beacons until activation.
-  assert(!apacheRouting.includes('/api/analytics/'), 'Analytics beacons stay in Flask until the Go endpoint is activated');
+  // Only the event beacon POST goes to Go; pageviews, vitals and other methods stay in Flask.
+  assert(apacheRouting.includes('RewriteCond %{REQUEST_METHOD} "^POST$"\nRewriteRule "^/api/analytics/event$" "http://127.0.0.1:8091/api/analytics/event" [P,L]'));
+  assert.equal(apacheRouting.match(/\/api\/analytics\//g).length, 2, 'No other analytics path is routed');
   assert(apacheRouting.includes('RewriteCond %{REQUEST_METHOD} "^(GET|HEAD)$"\nRewriteRule "^/suggest_change/[a-fA-F0-9]{24}$"'));
   console.log('PASS: suggestion SSR fields, Markdown, privacy-safe prefills, no-JS POST, cancel, bootstrap, noindex and failures');
+
+  // Organizer cancellation link: the Go read decides the state, the form posts to Flask.
+  const cancelFetch = globalThis.fetch;
+  const cancelToken = 'abcDEF123_-abcDEF123_-abcDEF123_-abcDEF123_-xyz';
+  const cancelReads = [];
+  let cancelReply = { status: 200, body: { state: 'ready', demo: { title: 'Marssi <b>', date: '01.12.2026', city: 'Turku', cancelled: false },
+    can_cancel_directly: true } };
+  globalThis.fetch = async (url, options) => {
+    if (!String(url).startsWith(`${apiReadBase}/cancellation-links/`)) return cancelFetch(url, options);
+    cancelReads.push(String(url));
+    assert.equal(options?.headers?.Cookie, undefined, 'The session cookie never reaches the token read');
+    return new Response(JSON.stringify(cancelReply.body), { status: cancelReply.status });
+  };
+  try {
+    const direct = await detailPage({ path: `/cancel_demonstration/${cancelToken}` });
+    assert.equal(direct.status, 200);
+    assert.equal(cancelReads.at(-1), `${apiReadBase}/cancellation-links/${cancelToken}`);
+    const directBody = direct.html.split('<body>')[1].split('<script type="application/json"')[0];
+    for (const text of ['Mielenosoituksen peruminen', 'Marssi &lt;b&gt;', '01.12.2026', 'Turku', 'Tämä on virallinen järjestäjälinkki.',
+      `action="/cancel_demonstration/${cancelToken}"`, 'method="post"', 'name="reason"', 'detail-button--danger', 'Peruuta mielenosoitus']) {
+      assert(directBody.includes(text), text);
+    }
+    assert(!directBody.includes('Marssi <b>') && !directBody.includes('<noscript>'));
+    assert.match(direct.html, /<meta name="robots" content="noindex, nofollow" \/>/);
+    assert(!/rel="canonical"/.test(direct.html), 'A bearer link has no canonical URL');
+    assert.equal(direct.headers?.['x-robots-tag'] ?? direct.headers?.['X-Robots-Tag'], 'noindex, nofollow');
+    assert.equal(bootstrap(direct.html).cancelLink.canCancelDirectly, true);
+    cancelReply = { status: 200, body: { state: 'ready', demo: { title: 'Marssi', date: '01.12.2026', city: 'Turku', cancelled: false } } };
+    const requestOnly = (await detailPage({ path: `/cancel_demonstration/${cancelToken}` })).html;
+    assert(requestOnly.includes('Tämä linkki lähettää pyynnön ylläpidolle.') && requestOnly.includes('Lähetä peruutuspyyntö')
+      && requestOnly.includes('detail-button--primary'));
+    cancelReply = { status: 200, body: { state: 'ready', demo: { title: 'Marssi', date: '', city: '', cancelled: true } } };
+    const cancelled = (await detailPage({ path: `/cancel_demonstration/${cancelToken}` })).html;
+    assert(cancelled.includes('Mielenosoitus on jo merkitty perutuksi.') && !cancelled.includes('name="reason"'));
+    cancelReply = { status: 200, body: { state: 'ready', demo: { title: 'Marssi', date: '', city: '', cancelled: false }, cancellation_pending: true } };
+    const pending = (await detailPage({ path: `/cancel_demonstration/${cancelToken}` })).html;
+    assert(pending.includes('Peruutuspyyntö on jo lähetetty ylläpidolle.') && !pending.includes('name="reason"'));
+    for (const [state, text] of [['invalid', 'Peruutuslinkkiä ei tunnistettu.'], ['expired', 'Peruutuslinkki on vanhentunut.'],
+      ['used', 'Peruutuslinkki on jo käytetty.'], ['missing-demonstration', 'Mielenosoitusta ei löytynyt.']]) {
+      cancelReply = { status: 200, body: { state } };
+      const stateHtml = await detailPage({ path: `/cancel_demonstration/${cancelToken}` });
+      assert.equal(stateHtml.status, 200);
+      assert(stateHtml.html.includes(text) && !stateHtml.html.includes('name="reason"'), state);
+    }
+    cancelReply = { status: 200, body: { state: 'ready', demo: { title: 7 } } };
+    assert.equal((await detailPage({ path: `/cancel_demonstration/${cancelToken}` })).status, 503, 'Malformed reply is unavailable');
+    cancelReply = { status: 503, body: {} };
+    assert.equal((await detailPage({ path: `/cancel_demonstration/${cancelToken}` })).status, 503, 'A failed read is not a bad link');
+    assert.equal((await detailPage({ path: `/cancel_demonstration/${cancelToken}`, headOnly: true })).status, 503);
+    const cancelReadCount = cancelReads.length;
+    for (const path of ['/cancel_demonstration/', `/cancel_demonstration/${cancelToken}/`, '/cancel_demonstration/a%20b', `/cancel_demonstration/${'a'.repeat(129)}`]) {
+      assert.equal((await detailPage({ path })).status, 404, path);
+    }
+    assert.equal(cancelReads.length, cancelReadCount, 'Only well-formed token paths query Go');
+  } finally {
+    globalThis.fetch = cancelFetch;
+  }
+  assert(apacheRouting.includes('RewriteCond %{REQUEST_METHOD} "^(GET|HEAD)$"\nRewriteRule "^/cancel_demonstration/[A-Za-z0-9_-]{1,128}$" "http://127.0.0.1:8090$0" [P,L]'));
+  console.log('PASS: cancellation link states, escaping, noindex, Flask POST form and failures');
+
+  // Developer panel: the shell is server-rendered, the data is read in the browser from Go.
+  const developerAppId = 'a'.repeat(24);
+  for (const [path, next] of [['/developer', '%2Fdeveloper'], [`/developer/apps/${developerAppId}`, `%2Fdeveloper%2Fapps%2F${developerAppId}`]]) {
+    const anonymous = await detailPage({ path });
+    assert.equal(anonymous.status, 200, path);
+    const body = anonymous.html.split('<body>')[1].split('<script type="application/json"')[0];
+    for (const text of ['Kehittäjäpaneeli', 'Kirjaudu sisään', `/users/auth/login?next=${next}`]) assert(body.includes(text), `${path}: ${text}`);
+    assert(!body.includes('Client ID'), 'The anonymous shell holds no account data');
+    assert.match(anonymous.html, /<meta name="robots" content="noindex, nofollow" \/>/);
+    assert(!/rel="canonical"/.test(anonymous.html));
+    assert.equal(anonymous.headers?.['Cache-Control'] ?? anonymous.headers?.['cache-control'], 'private, no-store');
+  }
+  for (const path of ['/developer/apps', `/developer/apps/${developerAppId}/`, '/developer/apps/short', '/developer/request_access', '/developer/docs']) {
+    assert.equal((await detailPage({ path })).status, 404, `${path} stays on Flask`);
+  }
+  assert(apacheRouting.includes('RewriteCond %{REQUEST_METHOD} "^(GET|HEAD)$"\nRewriteRule "^/developer/?$" "http://127.0.0.1:8090$0" [P,L]'));
+  assert(apacheRouting.includes('RewriteCond %{REQUEST_METHOD} "^(GET|HEAD)$"\nRewriteRule "^/developer/apps/[a-fA-F0-9]{24}$" "http://127.0.0.1:8090$0" [P,L]'));
+  assert(apacheRouting.includes('RewriteRule "^/api/developer/(overview|apps|apps/[a-fA-F0-9]{24}(/(token|rotate))?|tokens|tokens/[A-Za-z0-9_-]{1,128})$" "http://127.0.0.1:8091$0" [P,L]'), 'Developer data and writes reach Go');
+  console.log('PASS: developer panel shell, login redirect with next, noindex, unclaimed paths and active routing');
 
   const statusFetch = globalThis.fetch;
   const healthyStatus = { overall_ok: true, services: [{ name: 'Tietokanta', status: 'ok', message: 'Yhteys kunnossa' }],
@@ -773,7 +959,7 @@ try {
     assert.match(servicePage.html, /name="robots" content="noindex, follow"/);
     assert.match(servicePage.html, /rel="canonical" href="https:\/\/example.test\/status"/);
     const statusBody = servicePage.html.split('id="app"')[1].split('id="app-bootstrap"')[0].replace(/<!-- -->/g, '');
-    for (const copy of ['Palvelun tila', 'Kaikki palvelut toimivat', 'Tietokanta', 'Yhteys kunnossa',
+    for (const copy of ['Palvelun tila', 'Tila tarkistetaan aina, kun avaat sivun.', 'Tarkistetut palvelut toimivat', 'Tietokanta', 'Yhteys kunnossa',
       '10.11.2026 12:00:00 UTC', 'Viive 1 ms', 'Välimuistin ja tiedostovaraston tilaa ei tarkisteta.']) {
       assert(statusBody.includes(copy), copy);
     }
@@ -784,8 +970,39 @@ try {
       services: [{ name: 'Tietokanta', status: 'err', message: 'Ei vastaa' }] };
     const failedProbe = await detailPage({ path: '/status' });
     assert.equal(failedProbe.status, 200);
-    assert.match(failedProbe.html, /Jokin palvelu ei vastaa/);
+    assert.match(failedProbe.html, /Jokin tarkistettu palvelu ei vastaa/);
     assert.match(failedProbe.html, /Ei vastaa/);
+    // Go adds cache and storage rows only where their checks are configured.
+    const cacheRow = { name: 'Välimuisti', status: 'ok', message: 'Yhteys kunnossa' };
+    const storageRow = { name: 'Tiedostovarasto', status: 'ok', message: 'Saavutettavissa' };
+    for (const [services, note] of [
+      [[healthyStatus.services[0], cacheRow, storageRow], null],
+      [[healthyStatus.services[0], cacheRow], 'Tiedostovaraston tilaa ei tarkisteta.'],
+      [[healthyStatus.services[0], storageRow], 'Välimuistin tilaa ei tarkisteta.']]) {
+      statusReply = { ...healthyStatus, services };
+      const extended = await detailPage({ path: '/status' });
+      const body = extended.html.split('id="app"')[1].split('id="app-bootstrap"')[0].replace(/<!-- -->/g, '');
+      assert.deepEqual(bootstrap(extended.html).serviceStatus, statusReply);
+      for (const service of services) assert(body.includes(service.name) && body.includes(service.message), service.name);
+      assert(!body.includes('Välimuistin ja tiedostovaraston tilaa ei tarkisteta.'));
+      if (note) assert(body.includes(note), note);
+      else assert(!body.includes('tilaa ei tarkisteta'));
+    }
+    statusReply = { ...healthyStatus, overall_ok: false,
+      services: [healthyStatus.services[0], { ...storageRow, status: 'err', message: 'Ei vastaa' }] };
+    assert.match((await detailPage({ path: '/status' })).html, /Jokin tarkistettu palvelu ei vastaa/);
+    for (const services of [
+      [cacheRow],
+      [healthyStatus.services[0], storageRow, cacheRow],
+      [healthyStatus.services[0], cacheRow, cacheRow],
+      [healthyStatus.services[0], { ...cacheRow, message: 'Saavutettavissa' }],
+      [healthyStatus.services[0], { ...storageRow, name: 'Muu' }],
+      [healthyStatus.services[0], cacheRow, storageRow, storageRow]]) {
+      statusReply = { ...healthyStatus, services };
+      assert.equal(bootstrap((await detailPage({ path: '/status' })).html).serviceStatus, null, JSON.stringify(services));
+    }
+    statusReply = { ...healthyStatus, services: [healthyStatus.services[0], { ...cacheRow, status: 'err', message: 'Ei vastaa' }] };
+    assert.equal(bootstrap((await detailPage({ path: '/status' })).html).serviceStatus, null, 'overall_ok must match every row');
     for (const mode of ['503', 'invalid-json', 'network', 'timeout', 'json']) {
       statusMode = mode;
       statusReply = { ...healthyStatus, updated_at: 'private-host secret version', private: 'secret' };
@@ -1001,9 +1218,9 @@ try {
       if (reply === 'http-503') return new Response('{}', { status: 503 });
       return new Response(JSON.stringify({ available: reply === 'open' }), { status: 200 });
     };
-    const read = availabilityReader('http://api.test/api', fetcher, () => clock);
+    const read = availabilityReader('http://api.test/api', fetcher, () => clock, () => false, () => {});
     const step = async (next, ms = 2000) => { reply = next; clock += ms; return read(); };
-    assert.equal(await step('error'), false, 'A fresh host without an answer fails closed');
+    assert.equal(await step('error'), true, 'A fresh host without an answer stays open without the override');
     assert.equal(await step('open'), true);
     assert.equal(await step('error'), true, 'A failed read within the grace period keeps the last open answer');
     assert.equal(await step('http-503'), true, 'An HTTP error is a failed read, not a lockdown');
@@ -1014,7 +1231,7 @@ try {
     reply = 'open';
     assert.equal(await read(), false, 'Answers are reused for one second');
   }
-  console.log('PASS: availability reads ride out brief failures for 30 s but apply a lockdown at once and fail closed without an answer');
+  console.log('PASS: availability reads ride out failures for 15 minutes but apply a lockdown at once; a fresh host without an answer stays open');
   console.log('PASS: malformed URL, directory and traversal requests return 404 without crashing; real asset GET/HEAD and immutable caching');
   console.log('PASS: the HTTP server sends detail metadata, the robots header and the preview redirect');
 } finally {

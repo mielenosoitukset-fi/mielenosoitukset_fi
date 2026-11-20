@@ -24,7 +24,8 @@ export function headerProps(config: AppConfig, session: SessionSummary, text: Ca
       ...(session.hasAdminAccess
         ? [{ href: config.urls.admin, label: text.account.admin, icon: 'fa-gauge' }]
         : []),
-      { href: config.urls.logout, label: text.account.logout, icon: 'fa-sign-out-alt' },
+      { href: config.urls.logout, label: text.account.logout, icon: 'fa-sign-out-alt',
+        ...(session.logoutToken ? { post: session.logoutToken } : {}) },
     ],
     globalAdmin: session.globalAdmin,
   } : null;
@@ -38,7 +39,8 @@ export function headerProps(config: AppConfig, session: SessionSummary, text: Ca
       href: config.urls.login, label: text.account.login, icon: 'fa-sign-in-alt',
     }],
     languages: config.locales,
-    fundraising: session.fundraising ? config.urls.fundraising : null,
+    // The bar replaces the header link: with the bar flag on, the link never shows.
+    fundraising: session.fundraising && !session.fundraisingBar.enabled ? config.urls.fundraising : null,
     account,
     notifications: {
       list: config.urls.notifications.list, markRead: config.urls.notifications.markRead,

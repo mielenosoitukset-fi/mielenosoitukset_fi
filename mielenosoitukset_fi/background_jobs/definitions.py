@@ -25,6 +25,18 @@ from mielenosoitukset_fi.scripts.auto_close_cases import main as auto_close_case
 from mielenosoitukset_fi.scripts.process_support_tickets import main as process_support_tickets
 from mielenosoitukset_fi.scripts.process_email_queue import run as process_email_queue
 from mielenosoitukset_fi.scripts.escalate_city_assignments import main as escalate_city_assignments
+from mielenosoitukset_fi.scripts.deliver_city_admin_applications import main as deliver_city_admin_applications
+from mielenosoitukset_fi.scripts.purge_city_admin_applications import main as purge_city_admin_applications
+from mielenosoitukset_fi.scripts.deliver_case_notices import main as deliver_case_notices
+from mielenosoitukset_fi.scripts.deliver_fundraising_reminder_confirmations import main as deliver_fundraising_reminder_confirmations
+from mielenosoitukset_fi.scripts.send_fundraising_reminders import main as send_fundraising_reminders
+from mielenosoitukset_fi.scripts.purge_fundraising_reminders import main as purge_fundraising_reminders
+from mielenosoitukset_fi.scripts.purge_campaign_volunteers import main as purge_campaign_volunteers
+from mielenosoitukset_fi.scripts.purge_suggestion_ips import main as purge_suggestion_ips
+from mielenosoitukset_fi.scripts.deliver_pride_banner_confirmations import main as deliver_pride_banner_confirmations
+from mielenosoitukset_fi.scripts.purge_pride_banner_volunteers import main as purge_pride_banner_volunteers
+from mielenosoitukset_fi.scripts.deliver_opening_interest_confirmations import main as deliver_opening_interest_confirmations
+from mielenosoitukset_fi.scripts.purge_opening_interest import main as purge_opening_interest
 from mielenosoitukset_fi.scripts.process_urgent_review_alerts import run as process_urgent_review_alerts
 
 
@@ -167,6 +179,90 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         func=escalate_city_assignments,
         default_trigger=_interval(minutes=30),
         allow_interval_override=True,
+    ),
+    JobDefinition(
+        key="deliver_city_admin_applications",
+        name="City admin applications to cases",
+        description="Creates a review case and national team inbox notices for each city admin application stored by the Go API.",
+        func=deliver_city_admin_applications,
+        default_trigger=_interval(minutes=2),
+    ),
+    JobDefinition(
+        key="deliver_case_notices",
+        name="Demo suggestions and new case notices",
+        description="Opens a case for each open demonstration suggestion (DEMO_SUGGESTION_CASES_ENABLED) and sends a site inbox notice about each new case to the admins who may view it (CASE_NOTIFICATIONS_ENABLED). Does nothing unless a switch is set. Sends no e-mail.",
+        func=deliver_case_notices,
+        default_trigger=_interval(minutes=2),
+    ),
+    JobDefinition(
+        key="purge_city_admin_applications",
+        name="City admin application retention",
+        description="Erases the text of decided city admin applications after their retention period. Does nothing unless CITY_ADMIN_APPLICATION_RETENTION_ENABLED is set.",
+        func=purge_city_admin_applications,
+        default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="deliver_fundraising_reminder_confirmations",
+        name="Fundraising reminder confirmations",
+        description="Queues the confirmation mail for each fundraising reminder signup. Does nothing unless FUNDRAISING_REMINDER_MAILS_ENABLED is set.",
+        func=deliver_fundraising_reminder_confirmations,
+        default_trigger=_interval(minutes=2),
+    ),
+    JobDefinition(
+        key="send_fundraising_reminders",
+        name="Fundraising opening reminder (once)",
+        description="Queues the single opening reminder for confirmed signups from 16.11.2026 00:00 Helsinki. Does nothing without FUNDRAISING_REMINDER_MAILS_ENABLED and FUNDRAISING_REMINDER_BULK_SEND_APPROVED.",
+        func=send_fundraising_reminders,
+        default_trigger=_interval(minutes=5),
+    ),
+    JobDefinition(
+        key="purge_fundraising_reminders",
+        name="Fundraising reminder retention",
+        description="Deletes unconfirmed signups after two weeks and all reminder data 30 days after the collection ends (17.3.2027).",
+        func=purge_fundraising_reminders,
+        default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="purge_campaign_volunteers",
+        name="Campaign volunteer retention",
+        description="Deletes all campaign volunteer signups once 31.5.2027 has passed (from 1.6.2027 00:00 Helsinki). Does nothing before that.",
+        func=purge_campaign_volunteers,
+        default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="purge_suggestion_ips",
+        name="Suggestion IP retention",
+        description="Removes the IP address and User-Agent from organisation and demonstration suggestions (and their cases) older than 90 days. Never deletes the suggestions. Does nothing unless SUGGESTION_IP_PURGE_ENABLED is set.",
+        func=purge_suggestion_ips,
+        default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="deliver_pride_banner_confirmations",
+        name="Pride banner carrier confirmations",
+        description="Queues the confirmation mail for each Pride banner carrier signup. Does nothing unless PRIDE_BANNER_MAILS_ENABLED is set.",
+        func=deliver_pride_banner_confirmations,
+        default_trigger=_interval(minutes=2),
+    ),
+    JobDefinition(
+        key="purge_pride_banner_volunteers",
+        name="Pride banner carrier retention",
+        description="Deletes unconfirmed signups after two weeks and all carrier data from 31.10.2027 unless a later retention date is set.",
+        func=purge_pride_banner_volunteers,
+        default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="deliver_opening_interest_confirmations",
+        name="Campaign opening interest confirmations",
+        description="Queues the confirmation mail for each campaign opening interest signup. Does nothing unless OPENING_INTEREST_MAILS_ENABLED is set.",
+        func=deliver_opening_interest_confirmations,
+        default_trigger=_interval(minutes=2),
+    ),
+    JobDefinition(
+        key="purge_opening_interest",
+        name="Campaign opening interest retention",
+        description="Deletes unconfirmed signups after two weeks and all opening interest data from 13.3.2027 unless a later retention date is set.",
+        func=purge_opening_interest,
+        default_trigger=_interval(days=1),
     ),
 ]
 

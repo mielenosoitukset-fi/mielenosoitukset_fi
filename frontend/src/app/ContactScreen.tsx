@@ -1,4 +1,5 @@
-import { contactCopy, contactPath } from './contact-route';
+import { useEffect, useState } from 'react';
+import { contactCopy, contactNoticeFromSearch, contactPath, type ContactNotice } from './contact-route';
 import type { SessionSummary } from './session';
 import './information/information.css';
 import './contact/contact.css';
@@ -9,6 +10,9 @@ const subjects = [['Tuki', 'Tukipyyntö'], ['Yleinen kysymys', 'Yleinen kysymys'
 /** The contact page. The form posts to Flask, which validates the one-time token and sends the message. */
 export default function ContactScreen({ session }: { session: SessionSummary }) {
   const form = session.contactForm;
+  // Read after hydration so the server-rendered and first client render match.
+  const [notice, setNotice] = useState<ContactNotice | null>(null);
+  useEffect(() => setNotice(contactNoticeFromSearch(window.location.search)), []);
   const limits = form?.limits ?? { nameMax: 120, emailMax: 254, messageMin: 10, messageMax: 5000 };
   return <article className="public-page-shell information-page contact-page" aria-labelledby="contact-title">
     <header className="public-page-header">
@@ -18,6 +22,8 @@ export default function ContactScreen({ session }: { session: SessionSummary }) 
       </div>
     </header>
     <div className="public-content-stack">
+      {notice ? <div className={`flash-message flash-message--inline flash-${notice.category}`}
+        role={notice.category === 'success' ? 'status' : 'alert'}><span className="flash-text">{notice.message}</span></div> : null}
       {form?.messages.map(({ category, message }, index) =>
         <div key={index} className={`flash-message flash-message--inline flash-${category}`}
           role={category === 'error' || category === 'danger' ? 'alert' : 'status'}>
@@ -26,7 +32,7 @@ export default function ContactScreen({ session }: { session: SessionSummary }) 
 
       <section className="public-prose-card" aria-labelledby="contact-options-title">
         <h2 id="contact-options-title">Yhteystiedot</h2>
-        <p>Jos sinulla on kysyttävää, ehdotuksia tai haluat ottaa yhteyttä ylläpitäjiin, voit käyttää alla olevia yhteystapoja:</p>
+        <p>Jos sinulla on kysyttävää tai ehdotuksia tai haluat ottaa yhteyttä ylläpitäjiin, voit käyttää alla olevia yhteystapoja:</p>
         <div className="contact-options">
           <a className="contact-option" href={`mailto:${supportEmail}`}>
             <i className="fa-solid fa-envelope" aria-hidden="true" />
@@ -42,7 +48,7 @@ export default function ContactScreen({ session }: { session: SessionSummary }) 
       <section id="contact-form-section" className="public-prose-card" aria-labelledby="contact-form-title">
         <h2 id="contact-form-title">Ota yhteyttä lomakkeen kautta</h2>
         {form?.enabled && form.csrfToken ? <>
-          <p>Täytä alla oleva lomake ja lähetä, niin olemme sinuun yhteydessä!</p>
+          <p>Täytä alla oleva lomake ja lähetä, niin olemme sinuun yhteydessä.</p>
           <form id="contact-form" className="contact-form" action={contactPath} method="post">
             <input type="hidden" name="csrf_token" value={form.csrfToken} />
             <div hidden aria-hidden="true">

@@ -23,7 +23,7 @@ function Root(props: Bootstrap) {
       }
       // Detail/series views keep their separate demonstration-view collection.
       const name = routeForPath(path)?.name;
-      if (!name || !['home', 'listing', 'organization', 'cities', 'today', 'submit', 'calendar', 'calendar-year', 'pride', 'information', 'campaign', 'fundraising', 'contact', 'organization-fill', 'suggest-change', 'api-docs'].includes(name)
+      if (!name || !['home', 'listing', 'organization', 'cities', 'today', 'submit', 'calendar', 'calendar-year', 'pride', 'information', 'campaign', 'fundraising', 'contact', 'city-admin', 'organization-fill', 'suggest-change', 'api-docs'].includes(name)
         || !session.siteAnalyticsEnabled || tracked.current) return;
       tracked.current = true;
       try {
@@ -64,22 +64,47 @@ if (container) {
       void import('./SuggestChangeScreen').then(({ default: SuggestChangeScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<SuggestChangeScreen demo={demo} />} />);
       });
+    } else if (route?.name === 'cancel-link' && props.cancelLink) {
+      const link = props.cancelLink;
+      const token = route.token;
+      void import('./CancelLinkScreen').then(({ default: CancelLinkScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<CancelLinkScreen link={link} token={token} />} />);
+      }).catch(error => console.error('Could not start the cancellation page', error));
+    } else if (route?.name === 'developer') {
+      const appId = route.appId;
+      void import('./DeveloperScreen').then(({ default: DeveloperScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<DeveloperScreen config={props.config} session={props.session} appId={appId} />} />);
+      }).catch(error => console.error('Could not start the developer panel', error));
+    } else if (route?.name === 'account-settings') {
+      void import('./AccountSettingsScreen').then(({ default: AccountSettingsScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<AccountSettingsScreen config={props.config} session={props.session} />} />);
+      }).catch(error => console.error('Could not start the settings page', error));
+    } else if (route?.name === 'profile' && props.profile) {
+      const profile = props.profile;
+      const username = route.username;
+      void import('./ProfileScreen').then(({ default: ProfileScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<ProfileScreen config={props.config} session={props.session} username={username} initial={profile} />} />);
+      }).catch(error => console.error('Could not start the profile page', error));
     } else if (route?.name === 'organization-fill' && props.organizationFill) {
       const profile = props.organizationFill;
       void import('./OrganizationFillScreen').then(({ default: OrganizationFillScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<OrganizationFillScreen profile={profile} />} />);
       }).catch(error => console.error('Could not start the organization fill-in form', error));
+    } else if (route?.name === 'city-admin') {
+      void import('./CityAdminApplyScreen').then(({ default: CityAdminApplyScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<CityAdminApplyScreen session={props.session} apiBase={props.config.apiBase} />} />);
+      }).catch(error => console.error('Could not start the city admin application page', error));
     } else if (route?.name === 'contact') {
       void import('./ContactScreen').then(({ default: ContactScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<ContactScreen session={props.session} />} />);
       }).catch(error => console.error('Could not start the contact page', error));
     } else if (route?.name === 'fundraising') {
       void import('./FundraisingScreen').then(({ default: FundraisingScreen }) => {
-        hydrateRoot(container, <Root {...props} serverPage={<FundraisingScreen config={props.config} today={props.today ?? ''} />} />);
+        hydrateRoot(container, <Root {...props} serverPage={<FundraisingScreen config={props.config} today={props.today ?? ''} data={props.fundraising} />} />);
       }).catch(error => console.error('Could not start the fundraising page', error));
     } else if (route?.name === 'campaign') {
       void import('./CampaignScreen').then(({ default: CampaignScreen }) => {
-        hydrateRoot(container, <Root {...props} serverPage={<CampaignScreen config={props.config} />} />);
+        hydrateRoot(container, <Root {...props} serverPage={<CampaignScreen config={props.config} today={props.today ?? ''} data={props.fundraising} />} />);
       }).catch(error => console.error('Could not start campaign page forms', error));
     } else {
       createRoot(container).render(<Root {...props} />);

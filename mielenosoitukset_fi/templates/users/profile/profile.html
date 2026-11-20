@@ -734,7 +734,7 @@ Voimme myös lisätä toisemme ystäviksi!</textarea>
               <a class="follow-list-item" href="{{ person.url }}">
                 <img class="follow-list-avatar"
                   src="{{ person.profile_picture or 'https://cdn2.mielenosoitukset.fi/default-pfp.jpg' }}"
-                  alt="{{ person.displayname }}n profiilikuva"
+                  alt="Profiilikuva: {{ person.displayname }}"
                   loading="lazy"
                   onerror="this.onerror=null;this.src='https://cdn2.mielenosoitukset.fi/default-pfp.jpg'">
                 <span class="follow-list-name">
@@ -768,7 +768,7 @@ Voimme myös lisätä toisemme ystäviksi!</textarea>
     <div class="profile-info-container">
       <div class="profile-avatar-wrapper">
         <img src="{{ user.profile_picture or 'https://cdn2.mielenosoitukset.fi/default-pfp.jpg' }}"
-             class="profile-avatar" alt="{{ user.displayname or user.username }}n profiilikuva"
+             class="profile-avatar" alt="Profiilikuva: {{ user.displayname or user.username }}"
              onerror="this.onerror=null;this.src='https://cdn2.mielenosoitukset.fi/default-pfp.jpg'">
       </div>
 
@@ -990,7 +990,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const w = 500, h = 600;
             const left = (screen.width - w) / 2, top = (screen.height - h) / 2;
             window.open(
-              "{{ url_for('users.auth.login') }}?next=" + encodeURIComponent(location.href) + "&popup=1",
+              "{{ url_for('users.auth.login') }}?next=" + encodeURIComponent(location.pathname + location.search) + "&popup=1",
               "LoginPopup",
               `width=${w},height=${h},top=${top},left=${left},resizable=yes,scrollbars=yes`
             );

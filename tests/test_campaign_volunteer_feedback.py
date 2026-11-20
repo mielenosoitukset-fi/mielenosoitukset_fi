@@ -245,41 +245,20 @@ def test_campaign_volunteer_double_submit_starts_one_request(live_server, browse
 
 @pytest.mark.e2e
 @pytest.mark.integration
-def test_campaign_without_javascript_disables_both_signups(live_server, playwright_browser):
+def test_campaign_without_javascript_disables_the_signup(live_server, playwright_browser):
     context = playwright_browser.new_context(java_script_enabled=False)
     context.route("**/*", lambda route: route.continue_() if route.request.url.startswith(live_server) else route.abort())
     try:
         page = context.new_page()
         page.goto(f"{live_server}/kampanja/", wait_until="domcontentloaded")
         assert page.locator("#vol-submit").is_disabled()
-        assert page.locator('#newsletter-form button').is_disabled()
         assert page.locator("#vol-name").is_disabled()
         assert not page.locator("#vol-msg").is_visible()
-        assert not page.locator("#newsletter-msg").is_visible()
         assert "Tietojasi ei ole lähetetty" in page.locator("#vapaaehtoiseksi").inner_text()
         assert page.locator('#vapaaehtoiseksi a[href="mailto:tuki@mielenosoitukset.fi"]').count() >= 1
         assert not page.url.split("/kampanja/", 1)[1]
     finally:
         context.close()
-
-
-@pytest.mark.e2e
-@pytest.mark.integration
-def test_campaign_newsletter_preserves_signup_integration(live_server, browser_page):
-    import json
-    requests = []
-
-    def signup(route):
-        requests.append(route.request.post_data_json)
-        route.fulfill(status=200, content_type="application/json", body=json.dumps({"message": "ok"}))
-
-    browser_page.route("https://mailist.luova.club/signup", signup)
-    browser_page.goto(f"{live_server}/kampanja/", wait_until="domcontentloaded")
-    browser_page.locator("#email").fill("newsletter@example.test")
-    browser_page.locator('#newsletter-form button').click()
-    browser_page.locator("#newsletter-msg.show").wait_for()
-    assert requests == [{"email": "newsletter@example.test", "list_id": "68d26ca27f8e9dee7c846a22"}]
-    assert "Uutiskirjeen tilaus onnistui." in browser_page.locator("#newsletter-msg").inner_text()
 
 
 @pytest.mark.e2e
@@ -294,8 +273,10 @@ def test_react_volunteer_signup_preserves_payload_and_confirmation_flow(
     browser_page.goto(f"{live_server}/kampanja/", wait_until="domcontentloaded")
     values = {
         "name": "  Test Volunteer  ", "email": "react-volunteer@example.test",
-        "phone": " 040 123 4567 ", "city": " Turku ", "notes": " Tarrojen jakaminen ",
+        "city": " Turku ", "notes": " Tarrojen jakaminen ",
     }
+    browser_page.locator(".kv-more summary").click()
+    browser_page.get_by_label("Tarrojen jakaminen").check()
     for name, value in values.items():
         browser_page.locator(f"#vol-{name}").fill(value)
     browser_page.locator("#vol-submit").click()
@@ -305,11 +286,12 @@ def test_react_volunteer_signup_preserves_payload_and_confirmation_flow(
     assert volunteer is not None
     for name, value in values.items():
         assert volunteer[name] == value.strip()
+    assert volunteer["roles"] == ["stickers"] and "phone" not in volunteer
     assert volunteer["confirmed"] is False
     assert len(queued) == 1
     assert queued[0]["recipients"] == [values["email"]]
-    token = volunteer["confirmation_token"]
-    assert queued[0]["context"]["confirm_link"].endswith(f"/kampanja/confirm/{token}")
+    token = queued[0]["context"]["confirm_link"].rsplit("/", 1)[1]
+    assert "confirmation_token" not in volunteer and volunteer["confirmation_token_hash"]
     assert browser_page.locator("#vol-name").input_value() == ""
     browser_page.goto(f"{live_server}/kampanja/confirm/{token}")
     confirmed = db.volunteers.find_one({"_id": volunteer["_id"]})

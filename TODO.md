@@ -1,48 +1,69 @@
 # TODO
 
-Everything still to do, in one list. Updated 10 November 2026.
+Everything still to do, in one list. Updated 17 November 2026.
 
-- **Sources:** `roadmap.md` (IDs like UI-06), open GitHub issues (`#123`), open pull requests, review follow-ups and `BLOCKERS.md` on `claude/vibrant-gates-syjhk4`.
+This refresh checks current main, GitHub issue/PR states, the latest coordinator
+conversation and handover, and recorded production evidence. Checked means the
+specific item is done; it does not close its wider workstream. In-flight PRs are
+a dated snapshot: check their live state before acting.
+
+- **Sources:** `roadmap.md` (IDs like UI-06), `docs/decisions.md`, current GitHub issues and PRs, deployment evidence and coordinator notes. The old `BLOCKERS.md` on `claude/vibrant-gates-syjhk4` is historical context, not a current status source.
 - **Where status lives:** priorities, owners and acceptance evidence stay in `roadmap.md`; this file is the checklist. When an item lands, tick it here and update the roadmap entry.
 - **Approval:** merging and deploying need no separate approval once tests pass (plus a visual SHIP for UI). Items marked *(approval)* touch data, authentication, sessions, privileges or real email and need the maintainer's go-ahead (see `docs/development-workflow.md`).
 
 ## Now
 
-- [ ] **Production virtual environment, then the security dependency update.** Pillow 11.0.0 → 13.0.0, PyJWT 2.10.1 → 2.15.1 and PyMongo 4.6.3 → 4.19.0 (#1053) merged but could not deploy: Flask runs on the read-only system Python, and `deploy/install_dependencies.py` only installs into an app-owned venv (see `docs/production-deployment.md`). The pins were reverted to unblock deploys. Next: create the venv, point Gunicorn and `PRODUCTION_PYTHON` at it, verify, then re-apply #1053. Pillow decodes uploaded images and has a critical advisory. *(approval: production infrastructure)*
-- [ ] **#778 city admins and cases (P0):** #917 is merged and the issue says it was revalidated. Confirm on production that a city admin can open and act on their city's cases, then close the issue.
-- [x] **#1029 far-future events:** generation capped (#1064); on 10 November 2026 the cleanup removed 68,642 generated occurrences after 2028-11-10 from three series, backed up on the production host first. Helsinki now shows 238 upcoming events.
+- [ ] **Email approval is overwritten after success (#1172):** history confirms token approval, later `approved=false` with approval metadata retained, then manual approval. The earlier `.362` timestamp and exact `12:00`/empty-time to `12:00:00`/null transition strongly match a pre-geocode constructor save in the 11:41:50 Flask preview request. Later coordinates and `.628` match a second stale geocode save. **Very likely, not confirmed:** no Mongo write record or request/geocoder correlation proves that request executed both writes. See [final attribution assessment](docs/investigations/email-approval-write-paths-1172.md) and [sanitized history](tests/fixtures/email_approval_overwrite_1172.json). The offline test proves feasibility only. Related historical issue: #515. **Investigation only; fixes deferred by the maintainer.**
+- [x] **Production virtual environment and security dependencies:** production runs `/opt/mielenosoitukset-fi/venv`; Pillow 13.0.0, PyJWT 2.15.1 and PyMongo 4.19.0 are verified (#1118). The earlier system-Python blocker is resolved; see `docs/production-deployment.md`.
+- [x] **#778 city admins and cases (P0):** fixed and live; issue closed 11 November 2026. All eight active city grants received the case capabilities, tagged `case_access_granted_for: issue-778` for rollback. Broader role/audit acceptance remains SEC-03.
+- [x] **#1029 far-future events:** generation capped (#1064); on 10 November 2026 the cleanup removed 68,642 generated occurrences after 2028-11-10 from three series, backed up on the production host first. Helsinki showed 238 upcoming events after that cleanup.
 - [x] **#984 support replies:** acknowledge queue persistence before recording the queued reply and audit receipt; redact unconfirmed outcomes (DATA-04).
+
+## In flight (17 November snapshot)
+
+- [ ] **Campaign opening interest form (#1183 UI, #1185 backend):** both merged, off by default. Activation steps (backup, unique index script, mail flag, signup flag with Go deploy, Apache rule, then the `opening_interest_form` flag) are in [docs/campaign-opening-interest.md](docs/campaign-opening-interest.md). The maintainer has said to activate; production changes need their go typed in the target session.
+- [ ] **Fundraising opening reminder mail (#1146 / FUND-02):** signup is live. No real send is due until confirmed addresses exist; the first real bulk send still needs the maintainer's go. Optional results-message delivery remains undecided. See [docs/fundraising-reminder.md](docs/fundraising-reminder.md).
+- [ ] **Fundraising and campaign follow-ups:** remove the unused pre-launch reminder block (`FundraisingReminder.tsx`, `fundraisingIcs`, the Go reminder API for it); the maintainer reviews /keräys and the front page on a phone; campaign copy wording left to the maintainer.
 
 ## Public site in React (UI-06, due January 2027)
 
 Already on the React host: home, listings (all, city, tag, today), detail and series, calendar, cities, submit, organization profile, information pages, Pride, campaign, fundraising and contact.
 
 - [ ] `/report` error report form. It needs a session-scope token like `/contact`. *(approval: session change)*
-- [x] `/status`: React SSR with read-only Go `/api/status`, bounded cached database check and HTTP 200 on dependency/API failure. Routing prepared; visual acceptance BLOCKED (no socket/browser captures in this sandbox).
-- [ ] Token pages: `/cancel_demonstration/<token>`, `/confirm/<token>`, `/confirm_email/<token>`, `/accept_invite`.
+- [x] `/status`: React SSR with read-only Go `/api/status`, bounded cached database check and HTTP 200 on dependency/API failure. React routing is active (production Apache include checked 13 November). Keep outstanding real-data visual acceptance in the page-by-page review below; the original sandbox limitation is not a current activation blocker.
+- [x] Token pages, `/cancel_demonstration/<token>`: React page with a read-only Go `/api/cancellation-links/<token>`; routing active since 12 Nov 2026.
+- [ ] Token pages that write on GET: `/kampanja/confirm/<token>`, `/auth/confirm_email/<token>` and `/orgs/accept_invite` confirm or join in the GET itself and redirect (login needed for the invite). Moving them needs a decision: split into a React page plus a POST, or keep Flask.
 - [ ] Account pages: login, register and next steps, settings, password reset, forced password and identity change, MFA verification, public profile `/<username>`. *(approval: authentication flows)*
 - [x] `/api-docs/`: build-time Markdown on the React host; OpenAPI YAML stays in Flask (#1068).
-- [ ] Secondary tools: `/developer`, demo material download.
+- [x] `/developer` overview and app detail: React screens, Go reads/write controls and Apache routing are live (#1130, #1134, #1138, #1139, #1143, #1145; verified 13 November). Session-read failures no longer look like sign-out. Scope/access requests and the `/download_material/<id>` redirect remain Flask. See [developer controls](docs/developer-react-write-controls.md).
+- [ ] Hash `client_secret` for developer apps (Flask and Go both store it plaintext today). **Pre-approved by the maintainer on 13 November 2026; do it last, after every other page has moved to React and the Flask templates are retired (so after January 2027), as one planned change.** Plan: add a `client_secret_hash` schema marker, change `developer_bp.py` (create and rotate) and the Go write routes together to store only the hash, run a one-off migration, and tell owners of existing apps to rotate, since plaintext cannot be hashed back into a shown secret. Needs a backup, an independent security reviewer SHIP and a revert note first. Not urgent: tokens are already hashed, and the risk is only a database or backup leak.
+- [x] City-admin coverage/recruiting notes, Helsinki's national-team label and `/kaupunkiadmin` application/status flow are implemented (#1091, #1106, #1110); all Finnish cities except Helsinki are selectable, grouped by coverage. Duplicate-application index approval remains below.
 - [ ] Retire the Flask templates each migrated page leaves behind as rollback, once its React page has been stable for a while.
+- [ ] **FI-COPY-01: Finnish wording audit, UI first, emails second.** Work through [the source inventory](docs/finnish-copy-inventory.md) and [replacement proposals](docs/finnish-copy-audit.md). Review public and regular-user interfaces; exclude admin. Track each source individually, including shared components, generated messages, interpolation and legacy/fallback templates. Apply wording changes only; leave layouts, styles and functionality unchanged. Review user emails after the UI pass; do not send mail as part of the review.
+- [ ] **FI-COPY-02: Claude pre-merge Finnish check.** Add a workflow in which Claude asks `gpt-6.1-sol`, when available, to review changed Finnish user-facing text before merging. Include regular-user UI and, after FI-COPY-01’s UI pass, user emails; exclude admin. Give the model the surrounding sentence, interpolation/plural examples and terminology rules; request exact replacements with reasons. Record model availability and unresolved findings in the PR; do not mark unavailable-model checks as passed. This is a backlog item, not an installed merge gate.
 - [ ] Final page-by-page review of copy and generic UI patterns (#960, #770, #833).
+  - Done (12 November 2026): submit headings without icons, red conflict cancel, one `…` character, no exclamation marks, mielenosoitus instead of tapahtuma in the submit form.
+  - Retry buttons (12 November 2026): calendar notices now use `detail-button`. Kept as is with reason: the chat widget's compact buttons, Pride's `button-secondary` and the home page's `home-button`, which belong to their own page styles.
+  - Brand name written "Mielenosoitukset.fi" in page texts (#1135). Decision (12 November 2026): the demonstration detail page keeps "tapahtuma" in places, because its catalog must match the Flask msgids (`tests/test_public_detail_copy_parity.py`); changing it needs new msgids and human en/sv translation, to be done when `/demonstration/<id>` leaves Flask.
+  - Open: a detailed visual walk of the city, organization, status, privacy and cancel pages with real data (only grep checks so far); `scripts/submit_visual_capture.py` captures the legacy Flask page, not the React host, so React reviews need `frontend/server.mjs` captures.
 
 ## Move APIs to Go
 
 Proposal: [Public write API migration contracts, approval questions and rollout order](docs/go-write-api-proposal.md).
 
-- [ ] Status checks omitted from `/api/status`: Flask's configured cache `set("_status_ping", True, timeout=5)` and initialized S3 client's `list_buckets()`. Go has no equivalent Flask-owned cache/storage client; do not call Flask during rendering or substitute Go response-cache health. Migrate their ownership before restoring these checks.
+- [ ] Status checks omitted from `/api/status`: Flask's configured cache `set("_status_ping", True, timeout=5)` and initialized S3 client's `list_buckets()`. Go has no equivalent Flask-owned cache/storage client; do not call Flask during rendering or substitute Go response-cache health. Migrate their ownership before restoring these checks; Go-owned clients for both are built, off by default (`STATUS_CACHE_REDIS_URL`, `STATUS_S3_*`; see [docs/go-public-api.md](docs/go-public-api.md)). Open: confirm production Flask's `CACHE_TYPE`, set the values in the Go environment, and visually review `/status` with the extra rows.
 
 Maintainer direction, 10 November 2026: when a page is redesigned or moved to React, its Flask endpoints move to the Go API too, in the same work or later. Still on Flask:
 
-- [ ] `/api/session` and its scopes (`organization_id`, `translation_join`, `contact_form`). *(approval: session)*
+- [ ] `/api/session` and its scopes (`organization_id`, `translation_join`, `contact_form`). *(approval: session)* The read-only Go bridge and scopes were activated and verified 12 November ([auth-bridge.md](docs/auth-bridge.md)); the underlying session endpoint still lives in Flask.
 - [ ] `POST /contact`: rate limits, one-time token, honeypot, validation and email.
 - [ ] `POST /organization/<id>/save_suggestion`: stores the suggestion, opens a case and notifies moderators.
 - [ ] `POST /suggest_change/<demo_id>`: compares proposed fields and Markdown, stores a demonstration suggestion, opens a case and notifies moderators; GET/HEAD now belongs to the React host.
-- [ ] `POST /kampanja/api/volunteers` and `/kampanja/confirm/<token>`.
+- [ ] `POST /kampanja/api/volunteers` and `/kampanja/confirm/<token>`. Signup is in Go, dark, flag `CAMPAIGN_VOLUNTEERS_GO_ENABLED` ([go-campaign-volunteers.md](docs/go-campaign-volunteers.md)); the confirm route remains.
 - [ ] `POST /upcoming/translations/join`. *(approval: permissions)*
-- [ ] Analytics event `/api/analytics/event`: Go handler shipped dark (Flask still serves it). To activate: set `SITE_ANALYTICS_ENABLED=true` for the Go API on production, cross-check Go against Flask output, then add the POST rule; steps in `docs/go-public-api.md`. *(approval: production config)*
+- [x] Analytics event `POST /api/analytics/event`: Go activated 11 November; the Flask-equivalent counter cross-check and POST routing are complete (`SITE_ANALYTICS_ENABLED=true`; `docs/go-public-api.md`). Production routing rechecked 13 November.
 - [ ] Analytics pageview `/api/analytics/pageview`: still Flask; visitor-secret/locale decisions remain prerequisites.
-- [ ] Fundraising details: today bundled from `fundraising.json` into the host; a Go endpoint would let it change without a host deploy.
+- [x] Fundraising details: `GET /api/fundraising/details` serves a file-backed copy, the host falls back to the bundled `fundraising.json` ([docs/go-fundraising-details.md](docs/go-fundraising-details.md)). Open: database collection plus admin editing.
 
 ## UI follow-ups from reviews
 
@@ -65,37 +86,47 @@ From the visual reviews:
 - [x] Mobile "Suodattimet" toggle: show an open/closed chevron tied to `aria-expanded`.
 - [x] Listing buttons and links: use `:focus-visible`; text inputs retain `:focus`.
 
-The checked visual follow-ups above are implemented; visual acceptance remains **BLOCKED** until real captures and an independent reviewer SHIP are available. This checkout's sandbox cannot bind sockets, and captures were explicitly excluded from this task.
+The checked visual follow-ups above record implementation, not a blanket visual SHIP. Items without final-source captures and independent review remain in the page-by-page visual backlog; do not treat an old sandbox limitation as evidence about today's environment.
 
-- [x] Keep action menus outside the scroll viewport (#743). Implemented; visual acceptance remains **BLOCKED** as above.
-- [ ] Organization page: an anonymous visitor who sends a fill-in suggestion never sees the "Kiitos! Ehdotuksesi on tallennettu" message, because the React page only fetches flash messages for signed-in members of that organization. Needs the session endpoint to report pending messages for everyone (session change: maintainer approval).
+- [x] Keep action menus outside the scroll viewport (#743); issue closed. The per-snapshot visual acceptance rule above still applies.
+- [x] Anonymous organization suggestion feedback: the auth-bridge scopes were activated and verified in production 12 November, so the pending-message notice can reach anonymous visitors without exposing memberships (`docs/auth-bridge.md`).
 
 ## Security and permissions
 
 - [ ] **SEC-01:** release acceptance evidence for the MFA challenge (#901).
 - [ ] **SEC-03:** broader role and audit acceptance after #917/#918/#919.
-- [ ] **SEC-04:** token and approval lifecycle: revocation, expiry, replay, idempotent decisions.
+- [x] **SEC-04:** token and approval lifecycle: revocation, expiry, replay, idempotent decisions. Inventory and open questions in [docs/token-lifecycle.md](docs/token-lifecycle.md).
 - [ ] **SEC-05:** review incident #912/#913 protections before touching related code.
 - [ ] Harden privileged admin user actions (#547), organization membership and invites (#550, #342), and the organization admin panel (#549).
-- [ ] **QA-01:** finish the individual review of authentication and permission tests. Open: #979 identity test audit (rebase on `CHANGELOG.md`, then merge), QA-01j, QA-01k.
+- [ ] **QA-01:** finish the individual review of authentication and permission tests. QA-01j (#966), QA-01k (#973 via #964) and QA-01m (#1114, superseding #979) are merged. Remaining: other authentication and permission test files, see the roadmap.
 
 ## Data, jobs and integrations
 
 - [ ] **DATA-01:** public pagination and totals, verified with the API and the browser together.
 - [ ] **DATA-02:** fence analytics workers and coordinate rebuild pruning (#908).
 - [ ] **DATA-03:** analytics correctness, access and pagination (#551); `demonstrations` COLLSCAN slow queries; the admin overview rendering 28,604 rows.
-- [ ] **DATA-04:** email queue retries and idempotency, case reply history (#771), job leadership, database error handling (#176).
+- [ ] **DATA-04:** email queue retries and idempotency, queue/history crash consistency, job leadership and database error handling (#176).
+  - [x] #955/#956: bounded failed/abandoned email claims and per-message recovery receipts are implemented. Real SMTP/scheduler acceptance and ambiguous-delivery reconciliation remain open.
   - [x] #984: acknowledged support reply enqueue and correlated case receipt, without strict-mode retries.
+  - [x] #771: dedicated outgoing-reply history merged in #977; the issue is closed. Canonical audit references/content retention and queue/history crash consistency remain separate follow-ups.
 - [ ] **DATA-05:** preview images failing (#579), Cloudflare rate limiting on normal use (#580), Socket.IO reconnect storm (#640).
-- [ ] **DATA-06:** module TODO issues (#391–#394), settings and configuration (#196, #226), creating users from invites (#387).
+- [ ] **DATA-06:** module TODO issues (#391–#394) and creating users from invites (#387).
+  - [x] Settings/configuration issues #196 and #226 are closed as completed; do not list them as new implementation work.
 - [ ] **DATA-07:** multi-day demonstrations as their own duration, separate from recurring series.
-- [ ] **CITY-01:** city review dashboard with an authoritative deadline countdown (#967).
-- [ ] **CITY-02:** urgent pending-event alerts to Telegram through a durable outbox (#963).
+- [x] **CITY-01 dashboard/countdown:** #968 is merged; #967 was closed as implemented/deployed on 11 November.
+- [x] **CITY-01 in-app notices:** #975 is merged; stored deadlines/reset policy are implemented in #958.
+- [ ] **CITY-01 remaining:** live inbox/email/scheduler acceptance, deployed deadline configuration and any separately agreed reassignment follow-up. Do not rebuild the existing notices or countdown.
+- [x] **CITY-02 outbox implementation:** #964 is merged; #963 is closed. Bounded discovery/claims, same-message updates, backoff and unknown-send handling are implemented.
+- [ ] **CITY-02 release evidence:** verify provider staging send/edit, target permissions, sweep/query plans and production enablement. The issue-closing deployment note alone does not establish these earlier acceptance gates.
+- [ ] **Admin notifications and Bark:** notify the appropriate admins in the app's notification panel when new suggestions or other review items arrive. Explore Bark push notifications for urgent items, especially for super admins, so admins can notice them without checking the site. First inventory existing notifications and the CITY-02 alert flow; define event types, recipients, urgency, opt-in settings, privacy and reliable delivery before implementation. *(approval: production configuration and real notifications)*
 - [ ] **CASE-01/02:** let submitters answer case questions and follow progress (#976).
-- [ ] Recurring demonstration cancellation breaks: #620 is useful but over 1,000 commits behind; rebase or redo it.
+- [x] Recurring demonstration cancellation breaks: #620 redone on current main with inclusive date ranges, validation and frozen-child protection.
 - [ ] Production performance and hosting review (#859).
 
 ## Privacy and audit logging
+
+- [x] City-admin application retention: #1109 merged, privacy copy implemented, and the retention job enabled after backup/dry run on 12 November (coordinator rollout record). No application text was erased at enablement. Preserve the documented retention periods and backup-based recovery limits.
+- [ ] City-admin applications: proposed partial unique index for one open application per user still needs explicit approval and backup/rollback preparation; see `docs/city-admin-applications.md`.
 
 - [ ] **PRIV-03 / #596:** GDPR retention and consent review with the privacy owner. #597 (user deletion cleanup) is far behind and overlaps later deletion work (#887); redo it fresh.
 - [ ] **PRIV-01:** one versioned audit event schema for `admin_logs`, `super_audit_logs`, `demo_audit_logs`, `login_logs`, `board_audit_logs` and future sources, with stable event, actor, subject, time, outcome, source, request and correlation fields, plus adapters for legacy entries.
@@ -108,28 +139,31 @@ The checked visual follow-ups above are implemented; visual acceptance remains *
 
 ## Operations
 
-- [ ] **OPS-01:** backup coverage and freshness, failure alerts, recovery access and ownership. **Checked 11 Nov 2026: no database backup exists**; ready-to-install kit and runbook in `docs/backups.md`. *(approval: install on lc-main; choose off-site copy and alert channel)*
+- [ ] **OPS-01 remaining:** off-site copy and who holds the encryption key, failure alert channel, and evidence from the first weekly full run. `docs/backups.md` status updated 17 November.
+  - [x] Nightly core and weekly full backup timers are installed and active; core archives exist (read-only production check, 13 November). This is not proof of restoration.
 - [ ] **OPS-02:** authorized recovery exercises with recorded RPO and RTO.
 - [ ] **OPS-03:** review Web Vitals once there are enough samples.
-- [ ] **OPS-04:** keep exact-build deployment, rollback and CDN contracts.
+- [ ] **OPS-04:** keep exact-build deployment, rollback and CDN contracts; measure burst/coalescing behavior and rehearse held-admission recovery in isolation.
+  - [x] #1153 merged and deployed: native pending coalescing, immutable release reuse, exact-SHA test evidence, one locked deployment/routing transaction, migration readiness and successful-release receipt. Flask/Go/React health and receipt match `ecd86476…` on 13 November.
 - [ ] Watch the next deploys that change routing: confirm the new probe retries (#1050) and that no 503 appears after restarts.
 
 ## Localization and docs
 
-- [ ] **I18N-01:** inventory untranslated strings and catalog gaps per route family; English and Swedish copy comes from human translators.
+- [x] **I18N-01:** inventory untranslated strings and catalog gaps per route family in `docs/i18n-inventory.md` (regenerate with `scripts/i18n_inventory.py`); English and Swedish translation itself stays with human translators.
 - [ ] **I18N-02:** standardize backend, API, moderation and email messages (#582, #553).
 - [ ] **DOC-01:** user and moderator guides (#563).
 - [ ] **DOC-02:** keep `roadmap.md`, this file, issues and release evidence aligned. Refresh `BLOCKERS.md`.
 
 ## Product ideas (after core work)
 
-- [ ] Front page as a list of upcoming demonstrations.
+- [ ] Front page as a full list of upcoming demonstrations remains a product decision; #1100 already delivered the separate scroll-to-continue action and Today/Weekend shortcuts.
 - [ ] Demonstration categories with preset options (for example Palestiina, ilmasto, ihmisoikeudet) so people can filter by topic. Decide how they relate to the existing free-form tags first.
 - [ ] **ENGAGE-01:** optional newsletter of relevant upcoming events.
 - [ ] **ENGAGE-02:** optional email digest of a user's own notifications.
 - [ ] **PRODUCT-01:** broader societal events (#583), following tags (#117), city and tag email subscriptions (#121).
 - [ ] Count visitors who browse without JavaScript (a `<noscript>` pixel; filter bots) to decide how much the no-JS fallback matters.
-- [ ] **FUND-01:** fill in the official fundraising details when they are confirmed, then open donations.
+- [ ] **FUND-02:** reminder signup is merged in #1146 and off; see [docs/fundraising-reminder.md](docs/fundraising-reminder.md) and the activation checklist above. Do not reopen the old “calendar only or email?” design question. Activation, the first real send and optional results delivery remain separate gates.
+- [ ] **FUND-01:** confirm complete official/payment details and explicitly activate donations for the valid period. The page/purpose text (#1141/#1142) and optional header bar (#1147) are merged; `details_confirmed`, `show_bar` and `show_header_link` remain false in main. Merging UI does not authorize payments or opening the campaign.
 - [ ] **PREVIEW-02: organizer design templates for preview images.** Let organizations upload their own template for a demo's preview image:
   - Formats: InDesign, Photoshop and Illustrator, or the open-source alternatives the maintainer named ("design craft, photo craft, vector craft"). Decide which formats can be rendered server-side and how much of the file to support, for example named text layers for title, date and place.
   - Save templates in the organization panel. Organizers pick one when they submit a new demonstration, and it applies automatically to that organization's recurring demonstrations.
@@ -148,12 +182,22 @@ The checked visual follow-ups above are implemented; visual acceptance remains *
 
 ### Open pull requests to close or decide (CLEAN-03)
 
-- [ ] Close after the security update: #948, #527, #457, #445.
+- [x] Closed 17 November 2026: #948, #527, #457, #445.
 - [x] Closed as already done on main (10 November 2026): #351, #293, #477, #570, #585.
 - [x] Closed as outdated (10 November 2026): #911, #598 (thanked the contributor).
 - [ ] Decide: #440 (flask-limiter 4.0, a major version), #849 (project memory guidance), #617 (preview teardown; are previews still used?), #599 (`Config.reload` path, external contributor), #1011 (submit migration check; most of it is on main).
 
 ## Done recently
+
+- [x] Sign-out is a POST with a token (#1154), live.
+- [x] Campaign page v2.2 (#1161) and volunteer form v2 with roles, no phone number and hashed confirmation token (#1181), live.
+- [x] Pride banner carrier signup (#1155, #1157, #1163, #1182), live.
+- [x] Fundraising: reminder signup (#1146), sticky bar (#1147), one MobilePay button for the active box (#1180), /keräys rebuilt (#1184). The collection is open 16.11.2026–15.2.2027 (#1176).
+
+- [x] Organization repository migration and merge queue (#1148–#1151): live 8/8, ALLGREEN, minimum 1, wait 0; agents arm auto-merge, use `gh stack` for dependencies and dequeue before pushing fixes.
+- [x] #1100 home continuation/Today/Weekend shortcuts; #1115/#1133 cancellation-link React page and active routing.
+- [x] Developer panel Go writes/routing/resilient session reads (#1139/#1143/#1145), with client-secret hashing deliberately deferred until last.
+- [x] Fundraising prelaunch, purpose copy and optional header-bar implementation (#1141/#1142/#1147); publication and donation switches remain separate.
 
 - [x] Information pages, Pride, campaign, fundraising and contact moved to React (#1040, #1043, #1046, #1047, #1048).
 - [x] Contrast and shared listing states (#1045); richer `/info` layout (#1049).

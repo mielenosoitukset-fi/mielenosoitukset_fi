@@ -1,0 +1,32 @@
+{
+  "request": {
+    "account_id": "000000000000000000000001",
+    "city": "tampere",
+    "template": "city_admin_v1",
+    "expected_state": "synthetic-version",
+    "allow_city_enablement": false,
+    "decision_id": "synthetic-decision",
+    "decision_revision": 2,
+    "authority_attestation": "synthetic-fixture-only"
+  },
+  "pending": {
+    "operation_id": "synthetic-operation",
+    "account_id": "000000000000000000000001",
+    "decision_id": "synthetic-decision",
+    "decision_revision": 2,
+    "status": "reconciliation_required"
+  },
+  "confirmed": {
+    "operation_id": "synthetic-operation",
+    "account_id": "000000000000000000000001",
+    "decision_id": "synthetic-decision",
+    "decision_revision": 2,
+    "status": "confirmed",
+    "checked_at": "2026-01-01T12:00:00Z",
+    "effective": {
+      "city": "tampere",
+      "permissions": ["LIST_DEMOS", "VIEW_DEMO", "ACCEPT_DEMO"]
+    },
+    "resulted_in_city_enablement": false
+  }
+}

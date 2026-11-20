@@ -26,6 +26,9 @@ Privacy: `DNT: 1` suppresses every event. Inspection of `config.py` shows
 public-status/lockdown reader reads MongoDB `panic`, so it cannot supply this
 switch. Set Go environment `SITE_ANALYTICS_ENABLED=true` **only** when the
 Flask YAML switch is enabled; unset, false and invalid values disable Go writes.
+`deploy/go-api/configure_environment.py` writes it for every deployment when
+`config.yaml` does not set `SITE_ANALYTICS_ENABLED` to a false value; a missing key
+counts as enabled, exactly as in Flask.
 This is a startup setting: restart Go after changing it, and keep both settings
 aligned during mixed-version operation and rollback. Never infer enablement
 from a browser payload. No secrets, IPs, user agents, cookies or visitor hashes
@@ -53,8 +56,12 @@ need equivalent edge protection before routing activation.
 
 Apache's existing catch-all sends `/api/*` to Flask; the React host uses
 `PUBLIC_API_LOCAL` for its own Go reads, not as a blanket browser API proxy.
-**Status: shipped dark.** The routing include does not claim this path yet, so
-Flask still handles every analytics beacon. To activate:
+**Status: active since 11 November 2026.** `SITE_ANALYTICS_ENABLED=true` is set
+in the production Go environment (`/etc/mielenosoitukset-api/environment`;
+the previous file is kept as `environment.bak-before-analytics-20261111`). A
+cross-check event written by Go had exactly the same fields as Flask's
+`demo_search` documents, and the test document was then deleted. The routing
+include claims the POST path. The activation steps, kept for reference:
 
 1. Set `SITE_ANALYTICS_ENABLED=true` in the Go API service environment on the
    production host (matching Flask's `config.yaml`), and restart it.
@@ -103,10 +110,39 @@ initialized S3 client's `list_buckets()`. It showed the three names
 `Tietokanta`, `Välimuisti`, `Tiedostovarasto`; success messages `Yhteys kunnossa`
 or `Saavutettavissa`; failure `Ei vastaa`; overall state, UTC response timestamp
 and request latency. Its checks were cached for 60 seconds. Go retains the
-database probe, overall state and timing fields. The Flask-owned cache instance
-and initialized S3 client checks are omitted, not replaced with probes of
-different services. The page explicitly discloses this reduced coverage, and
-their ownership migration is recorded under “Move APIs to Go” in `TODO.md`.
+database probe, overall state and timing fields.
+
+### Optional cache and file storage rows (off by default)
+
+Go can now own the two checks Flask had, with its own clients
+(`go-api/status_checks.go`). Both are off unless their settings are in the Go
+service environment, and nothing in `deploy/` sets them yet:
+
+| Row | Setting | Probe |
+| --- | --- | --- |
+| `Välimuisti` | `STATUS_CACHE_REDIS_URL`, for example `redis://127.0.0.1:6379/0` | `SET moso:status-probe:v1 1 EX 5` on the Redis that Flask's cache uses. Flask's own keys are not touched. |
+| `Tiedostovarasto` | `STATUS_S3_ENDPOINT`, `STATUS_S3_ACCESS_KEY`, `STATUS_S3_SECRET_KEY`, optional `STATUS_S3_REGION` (default `us-east-1`, boto3's default) | SigV4-signed `GET /` of the endpoint, the request boto3's `list_buckets()` makes. Any 2xx is reachable; redirects are not followed. |
+
+`STATUS_CACHE_REDIS_URL` must point at Flask's cache Redis (`REDIS_HOST`,
+`REDIS_PORT`, `REDIS_DB` in `config.yaml`), never at `PUBLIC_REDIS_URL`: the Go
+response cache is a different dependency. Leave it unset if production Flask
+uses `CACHE_TYPE: SimpleCache`, which keeps its cache in process and has nothing
+for Go to reach. The S3 values are Flask's `S3.ENDPOINT_URI`, `S3.ACCESS_KEY`
+and `S3.SECRET_KEY`; the endpoint must be `https` (plain `http` only on a
+loopback host). An incomplete or invalid setting disables only that row, with a
+log line, and never stops the API.
+
+The configured rows follow `Tietokanta` in the order above, run in parallel
+with the database probe, share its one-second deadline and 60-second result,
+and use the Flask names and messages. `overall_ok` is false if any row fails.
+The React page accepts `[Tietokanta]` with optional `Välimuisti` then
+`Tiedostovarasto`, and its note names only the rows that are not checked
+(no note when all three are present). Any other shape renders as unavailable.
+
+Activation, when the maintainer decides it: confirm Flask's `CACHE_TYPE` and S3
+settings read-only, add the settings to the Go environment, restart Go, check
+`/api/status` and get a visual review of `/status` with the new rows. Rollback:
+remove the settings and restart; the page returns to the single database row.
 
 Current cache behavior: [public response caching](go-public-cache.md). The
 initial-slice and document-cache descriptions below are historical layer
@@ -412,3 +448,83 @@ or `max_days_till`), the home batch and the city event counts. An explicit
 `date_end`, a start/end range or `max_days_till` is used as given. The bound
 exists because recurring series once generated occurrences up to the year 3100
 (#1029); it also keeps listing totals and pagination meaningful.
+
+## Suggestion forms: `POST /organization/<id>/save_suggestion` and `POST /suggest_change/<demo_id>`
+
+Step 2 of the write migration (see `docs/go-write-api-proposal.md`, sections 2 and 3).
+Go handlers exist but ship **dark**: they answer only when the Go environment has
+`SUGGESTIONS_GO_ENABLED=true` and public submissions are configured
+(`PUBLIC_SUBMIT_ORIGIN`, `PUBLIC_SUBMIT_SECRET`). Unset, any other value or a
+missing origin means the requests fall through unchanged. Apache does not route to
+them.
+
+What Go does, matching Flask:
+
+- Same stored documents. Organisation: `org_edit_suggestions` (fields, `meta`
+  with IP, user agent and the untrimmed form email, pending status, `created`
+  audit entry) and a `cases` row of type `organization_edit_suggestion`
+  (running number = highest + 1, from 100001; top-level `organization_id` stays
+  null; the reporter's account id is read through the existing read-only
+  `/api/session` call, as for `/api/submissions`). Demonstration: `demo_suggestions`
+  with the string `demo_id` spelling kept, only changed fields, raw
+  `original_values`. No new schema, index, session or auth change.
+- Same normalisation: tags, route (including Python-literal lists), organizer
+  text, "same clock time" comparison, HTML-to-Markdown comparison of the
+  description and a port of the Python-Markdown (`sane_lists`, `nl2br`) plus
+  allowlist pipeline.
+- Moderator mail: Go inserts the finished HTML into `email_queue` in the existing
+  job shape (`status: pending`, null sender, recipient `tuki@mielenosoitukset.fi`).
+  Flask's worker sends it. Go never sends mail. Like Flask's non-strict
+  `queue_email`, an insert failure is logged and the visitor still sees success.
+- Same redirect targets, plus a notice flag because Go cannot set Flask's flash
+  cookie: 302 to `/organization/<id>?suggestion=saved` or
+  `/demonstration/<id>?suggestion=sent`; missing target and bad demonstration id to
+  `/`; an unchanged form with no comment, a failed save and an over-long
+  description back to `/suggest_change/<id>?suggestion=empty|failed|too_long`.
+  The React pages (`suggestion-notice.tsx`) turn the flag into the message Flask
+  flashes. A malformed organisation id is a plain 400 (Flask returned a 500).
+- Limits: Flask's shared defaults (10 per second, 3600 per hour per client, using
+  the existing Go rate buckets), the 500,000 byte form size Werkzeug enforces, the
+  outer lockdown gate and a panic check. Added for safety, not in Flask: a
+  same-origin check (`Origin` must match when sent, `Sec-Fetch-Site: cross-site`
+  refused) and a 50,000 byte cap on `description_markdown`.
+
+Known gaps (see the pull request for the open questions):
+
+1. Flask's flash message cannot be set by Go. The React notice above replaces it
+   (shipped with the follow-up pull request; it needs the visual reviewer SHIP).
+2. Case numbers are allocated read-then-write in both Flask and Go, so two
+   writers can pick the same number. Unchanged from Flask; a shared atomic
+   allocator needs a separate approval.
+3. The Markdown port matches Python-Markdown on the fixture corpus and on a seeded
+   differential corpus of 1,500 random inputs (regenerated with the fixture);
+   cases outside those are untested. Output is
+   always escaped and allowlisted.
+
+Parity is checked by `tests/test_go_suggestion_parity.py`, which runs the real Flask
+handlers and writes `go-api/testdata/suggestion_parity.json`; the Go tests
+(`suggestion_parity_test.go`, `suggestion_write_test.go`) replay it. After changing
+the Flask side run `UPDATE_GO_FIXTURES=1 python -m pytest tests/test_go_suggestion_parity.py`
+and update the Go port until `go test` passes. The store test against a real
+MongoDB runs when `REMINDER_TEST_MONGO` is set.
+
+### Activation (needs the maintainer's go)
+
+1. Set `SUGGESTIONS_GO_ENABLED=true` in `/etc/mielenosoitukset-api/environment` and restart
+   the Go service. Public submissions must already be configured.
+2. Ship the React notice (gap 1) first.
+3. Add to `deploy/apache/react-ssr-routing.conf`, using the submission upstream:
+
+   ```apache
+   RewriteCond %{REQUEST_METHOD} "^POST$"
+   RewriteRule "^/organization/[a-fA-F0-9]{24}/save_suggestion$" "http://127.0.0.1:8091%{REQUEST_URI}" [P,L]
+   RewriteCond %{REQUEST_METHOD} "^POST$"
+   RewriteRule "^/suggest_change/[a-fA-F0-9]{24}$" "http://127.0.0.1:8091%{REQUEST_URI}" [P,L]
+   ```
+
+4. Cross-check on a scratch database, then submit one of each and confirm the
+   documents, the case and one queued mail.
+
+**Revert:** remove the two rules and, optionally, unset the variable and restart.
+Flask's handlers are unchanged and write the same documents. Saved suggestions,
+cases and queued mail stay readable; nothing needs replaying.

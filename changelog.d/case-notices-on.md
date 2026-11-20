@@ -1,0 +1,1 @@
+- Demonstration change suggestions now show up as admin cases, and admins get an inbox notice (and e-mail) about new cases by default. Each part can still be switched off with its setting.

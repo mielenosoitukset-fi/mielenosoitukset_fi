@@ -1,11 +1,11 @@
 {
-  "publication_state": "preparation",
-  "details_confirmed": false,
+  "publication_state": "active",
+  "details_confirmed": true,
   "show_header_link": false,
+  "show_bar": true,
   "start_date": "2026-11-16",
-  "end_date": "2027-02-16",
-  "organizer": "",
-  "collection_number": "",
+  "end_date": "2027-02-15",
+  "collection_number": "RA/2026/1586",
   "recipient": "",
   "iban": "FI46 5723 0221 4975 19",
   "reference": "",
@@ -13,13 +13,28 @@
   "mobilepay_links": [
     {
       "label": "MobilePay 1",
-      "url": ""
+      "url": "https://qr.mobilepay.fi/box/f1106ca8-8e72-409b-9e05-db65e65df2ef/pay-in"
     },
     {
       "label": "MobilePay 2",
-      "url": ""
+      "url": "https://qr.mobilepay.fi/box/020be895-0757-4a22-9bcc-ef5a794730e7/pay-in"
+    },
+    {
+      "label": "MobilePay 3",
+      "url": "https://qr.mobilepay.fi/box/5a708674-b13d-41e4-bbb1-69a46ddc95fe/pay-in"
     }
   ],
   "planned_start_date": "2026-11-16",
-  "planned_end_date": "2027-02-16"
+  "planned_end_date": "2027-02-15",
+  "bic": "OKOYFIHH",
+  "area": "Koko Suomi Ahvenanmaata lukuun ottamatta",
+  "campaign_start_date": "2027-03-01",
+  "opening_date": "2027-03-06",
+  "opening_time": "18.00",
+  "opening_city": "Tampere",
+  "marketing_week_start": "2027-05-03",
+  "marketing_week_end": "2027-05-09",
+  "opening_city_in": "Tampereella",
+  "mobilepay_active": 1,
+  "opening_interest_form": true
 }

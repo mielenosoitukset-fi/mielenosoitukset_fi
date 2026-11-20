@@ -87,10 +87,37 @@ from mielenosoitukset_fi.demonstrations.rollback import (
 from .pagination import build_admin_pagination, parse_admin_pagination
 
 
-# Secret key for generating tokens
-SECRET_KEY = "your_secret_key"
+class _AppKeySerializer(URLSafeTimedSerializer):
+    """Sign magic links with the app's configured ``SECRET_KEY``, never a constant.
 
-serializer = URLSafeTimedSerializer(SECRET_KEY)
+    The key is read on every use, so links follow the deployed secret. A
+    missing or default key refuses to sign or verify instead of falling back.
+    """
+
+    def __init__(self):
+        super().__init__(b"unused: the key is read from the app config")
+
+    @property
+    def secret_keys(self) -> list[bytes]:
+        secret = current_app.config.get("SECRET_KEY")
+        if not secret or secret == "secret_key":
+            raise RuntimeError("SECRET_KEY must be configured to sign admin magic links")
+        return [secret.encode("utf-8") if isinstance(secret, str) else bytes(secret)]
+
+    @secret_keys.setter
+    def secret_keys(self, _value) -> None:
+        # Serializer.__init__ assigns the constructor key; ignore it.
+        pass
+
+
+serializer = _AppKeySerializer()
+
+
+def _magic_link_payload(demo_id) -> dict:
+    """Every link carries a random id, so it cannot be recomputed from public data."""
+    return {"demo_id": str(demo_id), "jti": secrets.token_urlsafe(24)}
+
+
 admin_demo_bp = Blueprint("admin_demo", __name__, url_prefix="/admin/demo")
 
 from mielenosoitukset_fi.emailer.EmailSender import EmailSender
@@ -919,8 +946,15 @@ def suggestion_apply(suggestion_id):
         flash_message('Mielenosoitusta ei löytynyt.', 'error')
         return redirect(url_for('admin_demo.suggestions_list'))
 
+    # A rejected or closed suggestion is decided. An applied one may still give
+    # other fields, but a field that was already applied is not applied again.
+    if s.get('status') in ('rejected', 'closed'):
+        flash_message('Ehdotus on jo käsitelty.', 'error')
+        return redirect(url_for('admin_demo.suggestion_view', suggestion_id=suggestion_id))
+    already_applied = set(s.get('applied_fields') or []) if s.get('status') == 'applied' else set()
+
     # fields selected by admin
-    selected = request.form.getlist('apply_field') or []
+    selected = [f for f in (request.form.getlist('apply_field') or []) if f not in already_applied]
     suggested = s.get('suggested_fields', {})
     update = {}
     for f in selected:
@@ -948,7 +982,7 @@ def suggestion_apply(suggestion_id):
     # Apply update
     try:
         mongo.demonstrations.update_one({'_id': ObjectId(demo_id)}, {'$set': update})
-        mongo.demo_suggestions.update_one({'_id': ObjectId(suggestion_id)}, {'$set': {'status': 'applied', 'applied_fields': selected, 'applied_by': str(getattr(current_user, '_id', 'unknown')), 'applied_at': utcnow()}})
+        mongo.demo_suggestions.update_one({'_id': ObjectId(suggestion_id)}, {'$set': {'status': 'applied', 'applied_fields': sorted(already_applied | set(selected)), 'applied_by': str(getattr(current_user, '_id', 'unknown')), 'applied_at': utcnow()}})
         flash_message('Ehdotuksen valitut kentät on päivitetty.', 'success')
     except Exception:
         logger.exception('Failed to apply suggestion to demo')
@@ -976,6 +1010,10 @@ def suggestion_status_update(suggestion_id):
         s_for_check = None
     if s_for_check:
         _abort_if_demo_forbidden(s_for_check.get('demo_id'), "EDIT_DEMO")
+
+    if s_for_check and s_for_check.get('status') in ('applied', 'rejected', 'closed'):
+        flash_message('Ehdotus on jo käsitelty.', 'error')
+        return redirect(url_for('admin_demo.suggestion_view', suggestion_id=suggestion_id))
 
     try:
         mongo.demo_suggestions.update_one({'_id': ObjectId(suggestion_id)}, {'$set': {'status': status, 'reviewed_by': str(getattr(current_user, '_id', 'unknown')), 'reviewed_at': utcnow()}})
@@ -1222,7 +1260,7 @@ def rollback_demo(history_id):
 
 # --- SECURITY HARDENED MAGIC LINK SYSTEM --------------------------------------
 # Requirements / assumptions:
-# - `serializer`: itsdangerous.URLSafeTimedSerializer instance
+# - `serializer`: signs with the app SECRET_KEY (see _AppKeySerializer)
 # - `mongo`: PyMongo db handle
 # - CSRF protection enabled (e.g., flask-wtf) for POST handlers rendering forms
 # - app config has PROXIES_COUNT if behind reverse proxy
@@ -1569,7 +1607,7 @@ def _load_demo_or_bust(demo_id: str):
 
 def generate_demo_preview_link(demo_id: str, *, recipient: dict | None = None) -> str:
     # Create signed token and registry doc
-    token = serializer.dumps({"demo_id": str(demo_id), "jti": secrets.token_urlsafe(24)} if recipient else str(demo_id), salt="preview-demo")
+    token = serializer.dumps(_magic_link_payload(demo_id), salt="preview-demo")
     actor = _get_actor_label()
     _registry_upsert_initial(_hash_token(token), "preview", str(demo_id), actor, recipient=recipient)
     demo = _load_demo_or_bust(demo_id)
@@ -1582,7 +1620,7 @@ def generate_demo_preview_link(demo_id: str, *, recipient: dict | None = None) -
     return url_for("admin_demo.preview_demo_with_token", token=token, _external=True)
 
 def generate_demo_approve_link(demo_id: str, *, recipient: dict | None = None) -> str:
-    token = serializer.dumps({"demo_id": str(demo_id), "jti": secrets.token_urlsafe(24)} if recipient else str(demo_id), salt="approve-demo")
+    token = serializer.dumps(_magic_link_payload(demo_id), salt="approve-demo")
     actor = _get_actor_label()
     _registry_upsert_initial(_hash_token(token), "approve", str(demo_id), actor, recipient=recipient)
     demo = _load_demo_or_bust(demo_id)
@@ -1595,7 +1633,7 @@ def generate_demo_approve_link(demo_id: str, *, recipient: dict | None = None) -
     return url_for("admin_demo.approve_demo_with_token", token=token, _external=True)
 
 def generate_demo_reject_link(demo_id: str, *, recipient: dict | None = None) -> str:
-    token = serializer.dumps({"demo_id": str(demo_id), "jti": secrets.token_urlsafe(24)} if recipient else str(demo_id), salt="reject-demo")
+    token = serializer.dumps(_magic_link_payload(demo_id), salt="reject-demo")
     actor = _get_actor_label()
     _registry_upsert_initial(_hash_token(token), "reject", str(demo_id), actor, recipient=recipient)
     demo = _load_demo_or_bust(demo_id)
@@ -3616,7 +3654,7 @@ def send_edit_link(demo_id):
 
     except Exception as e:
         logging.error("Error sending edit link email: %s", str(e))
-        return jsonify({"status": "ERROR", "message": "Internal server error."}), 500
+        return jsonify({"status": "ERROR", "message": _("Palvelimella tapahtui virhe.")}), 500
 
 @admin_demo_bp.route("/generate_edit_link/<demo_id>", methods=["POST"])
 @login_required
@@ -3658,7 +3696,7 @@ def generate_edit_link(demo_id):
     except Exception as e:
         logging.error("An error occurred while generating the edit link: %s", str(e))
         return (
-            jsonify({"status": "ERROR", "message": "An internal error has occurred."}),
+            jsonify({"status": "ERROR", "message": _("Palvelimella tapahtui virhe.")}),
             500,
         )
 
@@ -5554,7 +5592,7 @@ def geocode_address():
 def approve_demo(demo_id):
     demo = mongo.demonstrations.find_one({"_id": _require_valid_objectid(demo_id)})
     if not demo:
-        return jsonify({"success": False, "error": "Mielenosoitus ei löytynyt"}), 404
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
     _abort_if_demo_forbidden(demo["_id"], "ACCEPT_DEMO")
 
     result = _apply_demo_decision(demo_id, "approved", source="admin_api")
@@ -5577,7 +5615,7 @@ def approve_demo(demo_id):
 def reject_demo(demo_id):
     demo = mongo.demonstrations.find_one({"_id": _require_valid_objectid(demo_id)})
     if not demo:
-        return jsonify({"success": False, "error": "Mielenosoitus ei löytynyt"}), 404
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
     _abort_if_demo_forbidden(demo["_id"], "ACCEPT_DEMO")
 
     result = _apply_demo_decision(demo_id, "rejected", source="admin_api")
@@ -5655,7 +5693,7 @@ def admin_cancel_demo(demo_id):
 
     demo = mongo.demonstrations.find_one({"_id": demo_oid})
     if not demo:
-        return jsonify({"success": False, "error": "Mielenosoitus ei löytynyt"}), 404
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
     _abort_if_demo_forbidden(demo["_id"], "EDIT_DEMO")
 
     reason = None

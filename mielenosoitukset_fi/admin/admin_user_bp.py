@@ -9,6 +9,7 @@ from markupsafe import Markup
 import math
 import re
 
+from mielenosoitukset_fi.admin.permission_copy import PERMISSION_CATEGORY_LABELS, PERMISSION_DESCRIPTIONS
 from mielenosoitukset_fi.users.models import User
 from mielenosoitukset_fi.emailer.EmailSender import EmailSender
 from mielenosoitukset_fi.utils.wrappers import admin_required, permission_required
@@ -36,7 +37,7 @@ from .user_history import (
     FIELDS, PENDING_HISTORY, MAX_PENDING_HISTORY, commit_history_change,
     flush_user_history, history_event, history_query, present_history, user_snapshot,
 )
-from flask_babel import _
+from flask_babel import _, get_locale
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from datetime import datetime
 
@@ -679,6 +680,8 @@ def edit_user(user_id):
         f"{_ADMIN_TEMPLATE_FOLDER}user/edit.html",
         user=user,
         PERMISSIONS_GROUPS=PERMISSIONS_GROUPS,
+        permission_category_labels=PERMISSION_CATEGORY_LABELS if str(get_locale()) == "fi" else {},
+        permission_descriptions=PERMISSION_DESCRIPTIONS if str(get_locale()) == "fi" else {},
         global_permissions=user.global_permissions,
         can_change_status=can_change_account_status(current_user, user),
         can_manage_scope_grants=_can_manage_scope_grants(current_user),
@@ -1202,7 +1205,7 @@ def api_force_password_change():
     user_id = data.get("user_id")
 
     if not user_id:
-        return jsonify({"status": "ERROR", "message": "Käyttäjä ID puuttuu."}), 400
+        return jsonify({"status": "ERROR", "message": _("Käyttäjän tunniste puuttuu.")}), 400
 
     if not isinstance(user_id, str) or not ObjectId.is_valid(user_id):
         return jsonify({"status": "ERROR", "message": _("Virheellinen käyttäjän tunniste.")}), 400

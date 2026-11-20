@@ -120,13 +120,18 @@ func (s mongoStore) FindPublic(ctx context.Context, id bson.ObjectID) (bson.M, e
 
 func (s mongoStore) Ping(ctx context.Context) error { return s.client.Ping(ctx, nil) }
 
-type API struct{ store Store }
+type API struct {
+	store        Store
+	statusChecks []statusCheck
+}
 
 func (a *API) handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("GET /api/status", serviceStatusHandler(a.store.Ping))
+	mux.Handle("GET /api/status", serviceStatusHandler(a.store.Ping, a.statusChecks...))
 	mux.HandleFunc("GET /api/demonstrations", a.getListing)
 	mux.HandleFunc("GET /api/cities", a.getCities)
+	mux.HandleFunc("GET /api/cities/admin-status", a.getCityAdminCoverage)
+	mux.HandleFunc("GET /api/cities/{key}/admin-status", a.getCityAdminStatus)
 	mux.HandleFunc("GET /api/calendar/{year}/{month}", a.getCalendar)
 	mux.HandleFunc("GET /api/calendar/{year}", a.getCalendar)
 	mux.HandleFunc("GET /api/demonstrations/{id}", a.getDemonstrationCached)
@@ -226,7 +231,9 @@ func main() {
 	if err := cache.StartBatchRefresh(); err != nil {
 		log.Print("Batch refresh disabled: ", err)
 	}
-	a := &API{store: cache}
+	statusChecks, closeStatusChecks := statusChecksFromEnv()
+	defer closeStatusChecks()
+	a := &API{store: cache, statusChecks: statusChecks}
 	var shared responseCache
 	if rawURL := os.Getenv("PUBLIC_REDIS_URL"); rawURL != "" {
 		source, err := publicCacheSource(uri, database)
@@ -246,8 +253,26 @@ func main() {
 		log.Fatal("Public submission configuration is invalid")
 	}
 	handler := publicSubmissionHandler(publicResponseCache(a.handler(), shared), client.Database(database), submissionConfig)
+	handler = cityAdminApplicationHandler(handler, client.Database(database), submissionConfig)
+	reminder := startFundraisingReminder(client.Database(database), submissionConfig)
+	handler = fundraisingReminderHandler(handler, client.Database(database), submissionConfig, reminder)
+	handler = prideBannerHandler(handler, client.Database(database), submissionConfig, startPrideBannerSignup(client.Database(database), submissionConfig))
+	handler = openingInterestHandler(handler, client.Database(database), submissionConfig, startOpeningInterestSignup(client.Database(database), submissionConfig))
+	authConfig, err := authBridgeConfigFromEnv()
+	if err != nil {
+		// A bad bridge setting must not take the public API down: stay disabled.
+		log.Print("Auth bridge disabled: ", err)
+		authConfig = authBridgeConfig{}
+	}
+	handler = authBridgeHandler(handler, authConfig, client.Database(database))
+	handler = contactHandlerFromEnv(handler, client.Database(database), authConfig)
+	handler = campaignVolunteerHandlerFromEnv(handler, client.Database(database), authConfig)
+	handler = suggestionHandler(handler, client.Database(database), submissionConfig, suggestionsEnabledFromEnv())
+	handler = profileReadHandler(handler, client.Database(database), authConfig)
 	handler = analyticsEventHandler(handler, analyticsEnabledFromEnv(), incrementAnalyticsEvent(client.Database(database)))
+	handler = fundraisingDetails(handler, os.Getenv("FUNDRAISING_DETAILS_FILE"), reminder)
 	handler = campaignPublication(handler, readCampaignPublication(client.Database(database)))
+	handler = cancellationLinkHandler(handler, readCancellationLink(client.Database(database)))
 	handler = publicAvailability(handler, readPublicLockdown(client.Database(database)))
 	if submissionConfig.Origin != "" {
 		indexContext, cancelIndexCheck := context.WithTimeout(context.Background(), 3*time.Second)

@@ -9,11 +9,14 @@ import threading
 import time
 import uuid
 import hashlib
+from mielenosoitukset_fi.utils.public_gate import PublicGate
 from mielenosoitukset_fi.utils.time_utils import utcnow
+from mielenosoitukset_fi.utils.logout_token import make_logout_token
 from mielenosoitukset_fi.utils.demo_seo import _parse_clock
-from mielenosoitukset_fi.utils.fundraising import fundraising_details
+from mielenosoitukset_fi.utils.fundraising import fundraising_bar, fundraising_details
 from mielenosoitukset_fi.utils.campaign_publication import campaign_pages_public, campaign_preview_required
 from datetime import datetime, date, timedelta, timezone
+from zoneinfo import ZoneInfo
 from urllib.parse import parse_qs, urlencode, urlsplit
 from flask_babel import _, refresh, format_date, get_locale
 from babel.dates import format_date as babel_format_date, get_day_names
@@ -93,6 +96,8 @@ from mielenosoitukset_fi.utils.demo_cancellation import (
     cancel_demo,
     fetch_cancellation_token,
     mark_token_used,
+    claim_cancellation_token,
+    release_cancellation_token,
     queue_cancellation_links_for_demo,
     request_cancellation_case,
 )
@@ -180,6 +185,14 @@ def ensure_audit_pagination_indexes(database):
 ensure_audit_pagination_indexes(mongo)
 mongo["magic_links"].create_index("token_hash", unique=True, background=True)
 mongo["magic_links"].create_index("demo_id", background=True)
+# Additive. Revert: db.used_password_change_tokens.dropIndex("token_hash_unique")
+mongo["used_password_change_tokens"].create_index(
+    "token_hash",
+    unique=True,
+    partialFilterExpression={"token_hash": {"$type": "string"}},
+    name="token_hash_unique",
+    background=True,
+)
 mongo["cases"].create_index([("demo_id", ASCENDING), ("created_at", DESCENDING)], background=True)
 mongo["demo_attending"].create_index("demo_id", background=True)
 mongo["demo_invites"].create_index("demo_id", background=True)
@@ -1443,7 +1456,12 @@ def init_routes(app):
             ]
 
             if campaign_pages_public():
-                static_routes.extend([{"loc": "campaign.index"}, {"loc": "fundraising"}])
+                static_routes.append({"loc": "campaign.index"})
+                # The fundraising page is noindex until its first collection day
+                # (Helsinki), so it joins the sitemap only from then on.
+                opens = fundraising_details().get("display_start_date")
+                if not opens or opens <= datetime.now(ZoneInfo("Europe/Helsinki")).date():
+                    static_routes.append({"loc": "fundraising"})
 
             # Helper to add url + optional alternate links
             def _add_url_with_alternates(parent, endpoint, lastmod=None, **values):
@@ -1777,6 +1795,33 @@ def init_routes(app):
         )
 
 
+    import re as _auth_re  # `re` is rebound later in this function
+    AUTH_BRIDGE_PERMISSION = _auth_re.compile(r"[A-Z][A-Z0-9_]{1,63}")
+
+    def _add_auth_bridge_scopes(payload, organization_scope):
+        """Read-only scopes for the Go/React auth bridge (docs/auth-bridge.md).
+
+        Only active with AUTH_BRIDGE_SCOPES. They answer about the caller's own
+        session: boolean results for up to ten named permissions, and whether an
+        anonymous visitor has a pending flash message for an organization page.
+        Nothing here consumes a flash message or changes the session.
+        """
+        payload["auth_bridge"] = True
+        requested = request.args.getlist("permission")
+        if requested:
+            names = sorted({name for name in requested if AUTH_BRIDGE_PERMISSION.fullmatch(name)})[:10]
+            org_oid = ObjectId(organization_scope[0]) if organization_scope else None
+            payload["permissions"] = {
+                name: bool(current_user.is_authenticated and current_user.has_permission(name, org_oid))
+                if org_oid else bool(current_user.is_authenticated and current_user.has_permission(name))
+                for name in names
+            }
+        if organization_scope and not current_user.is_authenticated:
+            payload["organization"] = {
+                "id": organization_scope[0],
+                "has_messages": bool(session.get("_flashes")),
+            }
+
     @app.route("/api/session")
     def public_session_summary():
         """Account summary for the standalone React public host.
@@ -1800,6 +1845,8 @@ def init_routes(app):
         if locale not in supported:
             locale = "fi"
         details = fundraising_details()
+        # `/keräys` is public in pre-launch mode, so `show_bar` alone decides; it is the launch switch.
+        bar_settings = fundraising_bar()
         language_names = current_app.config.get("BABEL_LANGUAGES") or {}
         try:
             can_edit_demo = bool(current_user.is_authenticated and current_user.has_permission("EDIT_DEMO"))
@@ -1820,6 +1867,7 @@ def init_routes(app):
             "unread": 0,
             "fundraising": bool(details.get("show_header_link"))
             and (campaign_pages_public() or current_user.is_authenticated),
+            "fundraising_bar": bar_settings,
             "site_analytics_enabled": bool(current_app.config.get("SITE_ANALYTICS_ENABLED", True)),
             "matomo_enabled": bool(current_app.config.get("MATOMO_ENABLED", True)),
             "submission": {
@@ -1836,6 +1884,7 @@ def init_routes(app):
                 "global_admin": bool(getattr(current_user, "global_admin", False)),
                 "has_admin_access": bool(current_user.has_admin_access()),
                 "actor_id": str(current_user._id),
+                "logout_token": make_logout_token(current_user.get_id()),
             })
             try:
                 payload["unread"] = sum(
@@ -1869,6 +1918,8 @@ def init_routes(app):
                         )
                     },
                 }
+        if current_app.config.get("AUTH_BRIDGE_SCOPES", False):
+            _add_auth_bridge_scopes(payload, organization_scope)
         if request.args.get("contact_form") == "1":
             from flask import get_flashed_messages
 
@@ -1883,6 +1934,13 @@ def init_routes(app):
                     "message_max": app.config.get("CONTACT_MESSAGE_MAX_LENGTH", 5000),
                 },
             }
+        if (
+            current_app.config.get("AUTH_BRIDGE_SCOPES", False)
+            and request.headers.get("X-Contact-Form-Token") is not None
+        ):
+            payload["contact_token"] = _inspect_contact_form_token(
+                request.headers.get("X-Contact-Form-Token", "")
+            )
         response = jsonify(payload)
         response.headers["Cache-Control"] = "no-store"
         response.headers["Vary"] = "Cookie"
@@ -3583,7 +3641,13 @@ def init_routes(app):
             reporter_comment = (request.form.get('reporter_comment') or '').strip() or None
 
             if not suggested_fields and not reporter_comment:
-                flash_message("Kirjoita vähintään yksi kenttämuutos tai kommentti ennen lähettämistä.", "error")
+                # Keep the existing human translations while improving Finnish copy.
+                message = (
+                    "Muuta vähintään yhden kentän tietoja tai kirjoita kommentti ennen lähettämistä."
+                    if _current_demo_language() == "fi"
+                    else "Kirjoita vähintään yksi kenttämuutos tai kommentti ennen lähettämistä."
+                )
+                flash_message(message, "error")
                 return redirect(request.url)
 
             doc = {
@@ -3661,6 +3725,12 @@ def init_routes(app):
                 if request.method == "POST" and not token_error:
                     reason = (request.form.get("reason") or "").strip() or None
 
+                    # Claim the link atomically so two simultaneous submissions
+                    # cannot both act. Released again if the action fails.
+                    if not claim_cancellation_token(token_doc.get("_id")):
+                        token_error = _("Peruutuslinkki on jo käytetty.")
+
+                if request.method == "POST" and not token_error:
                     try:
                         if can_cancel_directly:
                             cancel_demo(
@@ -3686,6 +3756,7 @@ def init_routes(app):
                         mark_token_used(token_doc.get("_id"), reason or "submitted")
                         return redirect(url_for("demonstration_detail", demo_id=token_doc.get("demo_id")))
                     except Exception:
+                        release_cancellation_token(token_doc.get("_id"))
                         logger.exception("Failed to handle cancellation from token")
                         flash_message(_("Peruutusta ei voitu käsitellä."), "error")
 
@@ -3719,8 +3790,31 @@ def init_routes(app):
     def fetch_geocode_data(demo):
         coordinates = geocode_address_lookup(demo.address, demo.city)
         if coordinates:
-            demo.latitude, demo.longitude = coordinates
-            demo.save()
+            modified_at = utcnow()
+            result = demonstrations_collection.update_one(
+                {
+                    "_id": demo._id,
+                    "latitude": demo.latitude,
+                    "longitude": demo.longitude,
+                },
+                {
+                    "$set": {
+                        "latitude": coordinates[0],
+                        "longitude": coordinates[1],
+                        "last_modified": modified_at,
+                    }
+                },
+            )
+            if result.matched_count:
+                demo.latitude, demo.longitude = coordinates
+                demo.last_modified = modified_at
+            else:
+                current = demonstrations_collection.find_one(
+                    {"_id": demo._id}, {"latitude": 1, "longitude": 1}
+                )
+                if current:
+                    demo.latitude = current.get("latitude")
+                    demo.longitude = current.get("longitude")
 
     @app.route("/demonstration/<demo_id>/some", methods=["GET"])
     @permission_required("VIEW_DEMO")
@@ -3968,6 +4062,42 @@ def init_routes(app):
                 remaining.append(entry)
         session["contact_form_tokens"] = remaining
         return matched or {}
+
+    def _inspect_contact_form_token(supplied_token):
+        """Read-only answer for the Go contact handler (docs/go-contact.md).
+
+        Reports whether ``supplied_token`` is outstanding in this session and
+        within its age window, plus the limits Go must apply. It never removes
+        the token or changes the session: Go consumes the MongoDB hash, which is
+        what makes a token single-use. The token travels in a header so it does
+        not appear in access logs or query strings.
+        """
+        max_age = app.config.get("CONTACT_FORM_TOKEN_MAX_AGE_SECONDS", 7200)
+        now = int(time.time())
+        valid = False
+        for entry in session.get("contact_form_tokens", []):
+            candidate = entry.get("token", "") if isinstance(entry, dict) else ""
+            issued_at = entry.get("issued_at", 0) if isinstance(entry, dict) else 0
+            if (
+                supplied_token
+                and candidate
+                and hmac.compare_digest(candidate, supplied_token)
+                and isinstance(issued_at, int)
+                and app.config.get("CONTACT_MIN_FORM_SECONDS", 2) <= now - issued_at <= max_age
+            ):
+                valid = True
+                break
+        return {
+            "valid": valid,
+            "enabled": bool(app.config.get("CONTACT_FORM_ENABLED", True)),
+            "max_age_seconds": max_age,
+            "limits": {
+                "name_max": app.config.get("CONTACT_NAME_MAX_LENGTH", 120),
+                "email_max": app.config.get("CONTACT_EMAIL_MAX_LENGTH", 254),
+                "message_min": app.config.get("CONTACT_MESSAGE_MIN_LENGTH", 10),
+                "message_max": app.config.get("CONTACT_MESSAGE_MAX_LENGTH", 5000),
+            },
+        }
 
     def _consume_contact_form_token(token):
         """Atomically consume a token hash so restored cookies cannot replay it."""
@@ -4381,7 +4511,7 @@ def init_routes(app):
         if os.path.exists(local_path):
             return send_file(local_path, as_attachment=True)
 
-        flash_message(_("Esikatselukuva ei löytynyt."), "error")
+        flash_message(_("Esikatselukuvaa ei löytynyt."), "error")
         return redirect(url_for("index"))
 
     @app.before_request
@@ -4458,7 +4588,7 @@ def init_routes(app):
                 demo_id=demo_id,
                 user_agent=user_agent
             )
-            return jsonify({"status": "ERROR", "message": _("Liian monta pyyntöä tunnin sisällä, yritä myöhemmin.")})
+            return jsonify({"status": "ERROR", "message": _("Liian monta pyyntöä tunnin aikana. Yritä myöhemmin uudelleen.")})
 
         # Insert reminder
         reminders_collection.insert_one({
@@ -4784,11 +4914,14 @@ def init_routes(app):
         )
         return render_template("upcoming/translations.html", translation_join_csrf_token=token)
     
+    _public_gate = PublicGate(lambda: bool(
+        mongo.panic.find_one({"name": {"$in": ["global", "security"]}, "panic": True}, {"_id": 1})))
+
     @app.before_request
     def _check_panic_mode():
         # Administration, authentication and diagnostics remain available for
         # recovery. Read current shared state rather than a worker-local flag.
         if request.path.startswith(("/admin", "/board", "/users/auth", "/auth/god", "/static", "/health")):
             return None
-        if mongo.panic.find_one({"name": {"$in": ["global", "security"]}, "panic": True}, {"_id": 1}):
+        if _public_gate.locked():
             return render_template("heavy.html"), 503, {"Cache-Control": "no-store", "Retry-After": "60", "X-Robots-Tag": "noindex"}

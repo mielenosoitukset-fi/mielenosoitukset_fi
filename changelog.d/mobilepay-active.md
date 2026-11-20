@@ -1,0 +1,1 @@
+- The fundraising page now shows one MobilePay button for the box in use, and the next box can be switched on with one setting.

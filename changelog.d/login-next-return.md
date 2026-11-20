@@ -1,0 +1,1 @@
+- Kirjautuminen palauttaa nyt takaisin sivulle, josta lähdit: myös passkey-kirjautuminen, organisaatiokutsun hyväksyminen, profiilin kirjautumisikkuna ja MCP-yhteyden hyväksyntä noudattavat `next`-osoitetta. Vain saman sivuston suhteelliset polut hyväksytään. Vanha, kesken jäänyt paluuosoite ei enää ohjaa uutta kirjautumista.

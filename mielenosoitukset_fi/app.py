@@ -5,6 +5,7 @@ from flask import Flask, redirect, request, session, g, url_for
 from flask_babel import Babel
 from flask_login import LoginManager, current_user, user_logged_in
 import hashlib
+from pathlib import Path
 from bson.objectid import ObjectId
 from mielenosoitukset_fi.background_jobs import JOB_DEFINITIONS, init_background_jobs
 
@@ -156,9 +157,18 @@ def create_app(config_overrides=None) -> Flask:
     db_manager = DatabaseManager().get_instance()
     mongo = db_manager.get_db()
     if app.config.get("AUTO_RUN_MIGRATIONS", True):
-        from mielenosoitukset_fi.utils.migration_runner import run_auto_migrations
+        from mielenosoitukset_fi.utils.migration_runner import (
+            assert_migrations_ready, run_auto_migrations,
+        )
 
-        run_auto_migrations(mongo)
+        managed = Path(os.environ.get(
+            "PRODUCTION_MIGRATIONS_MANAGED_FILE",
+            "/etc/mielenosoitukset-fi/migrations-managed",
+        ))
+        if managed.exists():
+            assert_migrations_ready(mongo)
+        else:
+            run_auto_migrations(mongo)
 
     # Initialize Flask-Login
     login_manager = LoginManager()
@@ -239,6 +249,10 @@ def create_app(config_overrides=None) -> Flask:
     app.register_blueprint(user_bp, url_prefix="/users/")
     app.register_blueprint(api_bp, url_prefix="/api/")
     app.register_blueprint(mcp_admin_bp)
+    # The opt-in issuer is only configured through isolated test overrides.
+    if app.testing and app.config.get("HALLINTO_OIDC"):
+        from mielenosoitukset_fi.users.hallinto_issuer import register_hallinto_issuer
+        register_hallinto_issuer(app, mongo, app.config["HALLINTO_OIDC"])
     app.register_blueprint(developer_bp, url_prefix="/developer")
     
     

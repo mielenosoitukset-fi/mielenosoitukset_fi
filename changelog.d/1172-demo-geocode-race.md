@@ -1,0 +1,1 @@
+- Prevent detail-page geocoding from replacing a newer coordinate update or changing a demonstration's moderation state.

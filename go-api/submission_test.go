@@ -325,3 +325,28 @@ func TestMongoSubmissionConcurrencyAndRecovery(t *testing.T) {
 		t.Fatal("panic bypass", w.Code)
 	}
 }
+
+func TestSubmissionErrorsNameTheFailedCheck(t *testing.T) {
+	token := "0123456789abcdef0123456789abcdef"
+	cases := []struct {
+		override map[string]string
+		code     string
+		mention  string
+	}{
+		{map[string]string{"address": " "}, "SUBMIT_MISSING_FIELDS", "osoite"},
+		{map[string]string{"type": ""}, "SUBMIT_MISSING_FIELDS", "tyyppi"},
+		{map[string]string{"accept_terms": ""}, "SUBMIT_MISSING_FIELDS", "käyttöehdot"},
+		{map[string]string{"city": "Atlantis"}, "SUBMIT_INVALID_FIELD", "Kaupunkia"},
+		{map[string]string{"submitter_email": "person@localhost"}, "SUBMIT_INVALID_FIELD", "Sähköpostiosoitteesi"},
+		{map[string]string{"organizer_name_1": "Ryhmä", "organizer_email_1": "not-an-email"}, "SUBMIT_INVALID_FIELD", "Järjestäjän 1"},
+		{map[string]string{"submission_token": "short"}, "SUBMIT_INVALID_FIELD", "istunto"},
+		{map[string]string{"address": strings.Repeat("a", 2001)}, "SUBMIT_INVALID_FIELD", `"address"`},
+	}
+	for _, c := range cases {
+		_, err := readSubmission(httptest.NewRecorder(), submissionRequest(token, "Title", c.override), map[string]bool{"fi": true})
+		reason, ok := err.(submissionError)
+		if !ok || reason.Code != c.code || !strings.Contains(reason.Message, c.mention) {
+			t.Fatalf("%v: got %#v", c.override, err)
+		}
+	}
+}

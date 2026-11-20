@@ -1,17 +1,25 @@
 # Production deployment
 
-Every commit pushed to `main` triggers `.github/workflows/production-deploy.yml`.
-It builds, publishes and deploys all three production pieces: the Flask site, the
-standalone React public host and the Go public API. Nothing has to be built or
-uploaded from a workstation, and no service is deployed from a local checkout.
+Every push to `main` creates a deployment candidate, not a promise that every
+revision becomes live. The workflow keeps one active run and one replaceable
+pending run (`queue: single`, `cancel-in-progress: false`). Quiet-period releases
+start immediately; bursts coalesce pending candidates without canceling a release
+that has begun. Several PRs in one merge-group update require one deployment of
+the resulting revision, not separate deployments for each PR.
 
-The workflow has three jobs:
+The workflow has two jobs:
 
-| Job | Runs on | What it does |
-| --- | --- | --- |
-| `release` | every push to `main` | `npm run app:build` + `verify_public_host.mjs`, `tar` of `frontend/server.mjs` and `frontend/dist`, linux/amd64 `go build`, then publishes `api`, `app.tar.gz` and `release.json` as the assets of a `release-<commit>` GitHub release |
-| `deploy` | after `release` | one restricted SSH call, `deploy <sha>`, which runs Flask → Go API → React host on the server and verifies each service's reported `build_sha` |
-| `routing` | automatically after a successful main-push deployment and its health checks; manual dispatch defaults to enabled | one restricted SSH call, `deploy-routing <sha>`, which installs `deploy/apache/react-ssr-routing.conf`, runs `apache2ctl configtest`, gracefully reloads Apache and restores the previous include on any failure |
+| Job | Behavior |
+| --- | --- |
+| `release` | Require current `main` and a successful trusted full `python-tests` job for the exact SHA. Reuse a complete verified `release-<sha>`, or build, verify and publish React/Go artifacts once. Recheck admission after artifact preparation. Superseded candidates skip production activation explicitly. |
+| `deploy` | Run one restricted SSH transaction: Flask → Go API → React host → optional routing, under the existing host lock. Main pushes activate routing; manual dispatch defaults to activation. Verify origin health and exact SHA before returning, then retain the independent public HTTPS checks. |
+
+Full required tests remain on `pull_request` and `merge_group`. The duplicate
+post-push suite is removed: admission reuses successful evidence for the same
+SHA from the trusted Tests workflow and its successful `python-tests` job. A
+legacy successful main-push run can supply evidence for a manual retry; PR-only,
+wrong-repository, failed, skipped and wrong-SHA evidence cannot admit a release.
+No successful evidence means failure, never an unverified deployment.
 
 `release.json` names the commit and the source tree and records the size and
 SHA-256 of both artifacts. The server downloads the assets for the requested
@@ -21,7 +29,8 @@ come from the same GitHub repository the server already fetches from, and each
 one is tied to the commit by construction instead of by an operator's local
 `git rev-parse` check.
 
-The server script serializes deployments, refuses stale SHAs, fast-forwards the
+The server script serializes deployments, refuses stale SHAs before admission,
+checks ancestry against its successful-deployment receipt, fast-forwards the
 production checkout, verifies dependency deltas against an installation receipt,
 provisions the public pagination index before worker startup,
 atomically records the deployed commit in `.deploy-build-sha`, and asks
@@ -214,3 +223,181 @@ its matching interpreter/receipt and verified application revision. Do not point
 an old code revision at unverified newly installed dependencies. This helper is
 implemented/tested on the branch; actual production receipt adoption and venv
 migration remain unverified until performed and recorded separately.
+
+## Production virtual environment (12 November 2026)
+
+Flask no longer has to run on the read-only system Python. Production uses an
+application-owned virtual environment at `/opt/mielenosoitukset-fi/venv`, created
+by `deploy/create_production_venv.sh` (run once, as root). It is created with
+`--system-site-packages`, so Gunicorn, eventlet and other system packages that
+are not in `requirements.txt` keep working; the pinned packages are installed
+inside the venv and take precedence over the system copies. Root owns the venv;
+the `www-data` workers only read it.
+
+Wiring:
+
+- `mielenosoitukset_fi.service` starts Gunicorn as
+  `/opt/mielenosoitukset-fi/venv/bin/python -m gunicorn ...`.
+- `/etc/mielenosoitukset-fi/deploy.env` (root-owned, mode 0644 or stricter) sets
+  `PRODUCTION_PYTHON=/opt/mielenosoitukset-fi/venv/bin/python` and a new
+  `PRODUCTION_DEPENDENCY_RECEIPT` path, because a receipt from the system runtime
+  is rejected by design.
+- The first deploy after the switch installs and verifies the full manifest in
+  the venv, then writes the new receipt.
+
+Rollback: the previous unit and receipt are kept on the host in
+`/root/venv-migration-20261112/`. Restore the unit file from there,
+`systemctl daemon-reload`, restart the service, and remove
+`/etc/mielenosoitukset-fi/deploy.env`. The system Python was never modified, so
+this returns to the earlier state, except that the system copies of Pillow,
+PyJWT and PyMongo are the older versions. Revert the pins in `requirements.txt`
+only together with that rollback.
+
+## Immutable artifacts and failed publication
+
+`deploy/publish_release.py` checks the release tag, manifest commit/tree, asset
+sizes and SHA-256 values before reuse. A missing release is built once and uploaded
+as a draft without `--clobber`; only a complete verified draft is published.
+Existing partial releases or interrupted drafts fail with a repair-needed error.
+They are not overwritten, deleted or silently rebuilt. Preserve any published
+release for audit and rollback. Undeployed revisions remain in Git history; the
+separate changelog artifact still includes retained change notes.
+
+Go and React SHA-named release directories reject different bytes for an existing
+SHA. Matching API binaries are reused without overwriting the running inode.
+A service is skipped only when successful health reports `status: ok` and its
+exact full lowercase SHA. Publication success is distinct from deployment success.
+
+## Admission, failures and rollback holds
+
+`/var/lib/mielenosoitukset-fi-deploy/last-successful.json` records the last verified
+origin activation, its predecessor, release tag and whether routing was activated.
+It advances atomically only after successful service and requested routing checks.
+Independent public checks can still fail afterward; the workflow then stays failed
+and the origin receipt is not a claim of public reachability. The existing
+`.deploy-build-sha` remains the worker label, not a successful full-release receipt.
+Initial adoption uses that existing serving marker as the baseline; an invalid
+receipt never silently falls back to the marker.
+
+Before admission, a superseded candidate can be skipped. After admission, its SHA
+is pinned: a newer `main` update waits while all components and routing finish.
+An older or unrelated target cannot replace the successful revision. A duplicate
+healthy successful revision rechecks migration/service readiness and requested
+routing without repeating reloads. A failed or partial release retains the previous
+success receipt and fails visibly; retries verify the actual component state.
+
+For emergency recovery, take the existing deploy lock before creating the
+root-owned `/var/lib/mielenosoitukset-fi-deploy/hold` file. New admissions refuse
+while it exists; an already running transaction is allowed to finish. Keep the
+hold until the chosen compatible recovery and exact-SHA verification finish.
+Release the hold deliberately, then re-run the current verified main candidate.
+Do not cancel an unsafe active deployment or let a queued deployment undo a
+manual recovery. Normal rollback is a tested forward-revert PR. Restoring old
+Go/React pointers alone is not a full Flask/dependency/database rollback.
+
+## Explicit migration readiness
+
+Normal deployment runs `deploy/run_migrations.py --check --baseline <previous-sha>`
+under the host lock before index provisioning and reload. It writes no database
+data. The history check reads registries between the serving baseline and target;
+an unapplied ID introduced and subsequently removed blocks deployment and requires
+an approved bridge/manual procedure. Keep migrations cumulative and do not change
+an applied migration to implement a new transition: add a new ID instead.
+
+The root-owned, worker-readable `/etc/mielenosoitukset-fi/migrations-managed`
+marker switches Flask workers to read-only migration readiness checks. Pending
+migrations stop replacement workers rather than running in parallel on startup.
+The deploy creates this marker before exposing target source or dependencies, so worker respawns
+cannot independently execute a pending migration after a failed deployment.
+`PRODUCTION_MIGRATIONS_MANAGED_FILE` overrides its path consistently for isolated
+verification; production uses the default. Do not remove the marker to bypass a
+failed check. Local/legacy installations without the marker retain startup
+behavior, and test configuration can still disable automatic migrations.
+
+When a migration is required, obtain explicit approval and a verified backup or
+recovery plan first. Hold deployment admission and the same host lock, inspect the
+read-only plan, then use the application interpreter from the target checkout:
+
+```sh
+/opt/mielenosoitukset-fi/venv/bin/python deploy/run_migrations.py --check --baseline <previous-sha>
+/opt/mielenosoitukset-fi/venv/bin/python deploy/run_migrations.py --apply --approve <migration-id> --baseline <previous-sha>
+```
+
+Repeat `--approve` for every pending registered ID. The complete set is checked
+before any migration effect. The CLI does not create Flask or start scheduled jobs.
+Successful IDs are acknowledged in order; a failed callback is not acknowledged.
+Retries skip acknowledged IDs, but partially completed data/index work can remain:
+review the migration's idempotence and recovery before retrying. Automatic rollback
+never reverses TTL deletion, backfills or permission changes. Legacy unregistered
+migrations and external configuration changes require their own approved procedure.
+
+Backwards compatibility must cover the graceful Flask overlap and Flask → Go →
+React deployment order. This pipeline does not make the three services or MongoDB
+one atomic transaction. A migration needing a particular intermediate application
+version must use an approved bridge instead of relying on every PR becoming live.
+
+## Deploying to moso-prod through Cloudflare Tunnel and Access
+
+Since 20 Nov 2026 the site runs on moso-prod (VM behind hypervisor lc-moso-01).
+No inbound SSH port is opened for CI. A `cloudflared` tunnel on moso-prod dials
+out to Cloudflare and exposes only `ssh-ci.mielenosoitukset.fi` (to the VM's
+sshd). A Cloudflare Access application with a Service Auth policy admits one
+service token, `github-ci-deploy`. Behind it, the `deploy-ci` account's key is
+locked to `deploy/production_ssh_entrypoint.sh` (`deploy <sha>` and
+`deploy-routing <sha>` only). Never use raw IPs or port 22 on 65.109.65.236.
+
+The job installs a pinned `cloudflared` (version and SHA-256 are in the workflow
+`env`; bump both together, taking the checksum from the release notes), then runs
+`ssh -o ProxyCommand="cloudflared access ssh --hostname %h"` with
+`TUNNEL_SERVICE_TOKEN_ID`/`TUNNEL_SERVICE_TOKEN_SECRET` from secrets. It fails
+before connecting if `PRODUCTION_SSH_HOST` is still a raw IP of the old or new
+host, or if either token secret is empty.
+
+`PRODUCTION_SSH_KNOWN_HOSTS` holds the moso-prod host key under the Access
+hostname, which is what ssh looks up (`%h`):
+
+```text
+ssh-ci.mielenosoitukset.fi ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlVX+3AKN3rmTtfCs5nxBJm23V45iIFd/bQoVtbAZOD
+```
+
+(SHA256:BnYr2vOE1EpNZ6L/hXLaAbEPK7YxbsQCO0cCQuY0ZXo.) Do not use `ssh-keyscan`
+on 65.109.65.236.
+
+**Server side:** the `deploy-ci` key's `authorized_keys` line is
+`restrict,command="/usr/local/sbin/moso-github-deploy"`. That file is the
+wrapper installed on moso-prod from `deploy/production_ssh_entrypoint.sh` (same
+contract as the lc-main install above: `deploy <sha>` and `deploy-routing <sha>`
+only).
+
+**MUST DO BEFORE SETTING ANY SECRET:** restrict the GitHub environment
+`production` to deployments from `main`, so no other branch can read the SSH key
+or Access token. The maintainer runs this (the PR does not):
+
+```sh
+gh api -X PUT repos/mielenosoitukset-fi/mielenosoitukset_fi/environments/production \
+  --input - <<'JSON'
+{"deployment_branch_policy": {"protected_branches": false, "custom_branch_policies": true}}
+JSON
+gh api -X POST repos/mielenosoitukset-fi/mielenosoitukset_fi/environments/production/deployment-branch-policies \
+  -f name=main -f type=branch
+```
+
+Check with `gh api repos/mielenosoitukset-fi/mielenosoitukset_fi/environments/production/deployment-branch-policies`.
+The Access token env is set only on the deploy step, and the job fails unless the
+host is exactly `ssh-ci.mielenosoitukset.fi` and the user exactly `deploy-ci`.
+
+The maintainer then sets, before the workflow is re-enabled or this PR merges
+(merging runs the first deploy):
+
+```sh
+gh variable set PRODUCTION_SSH_HOST --env production --body ssh-ci.mielenosoitukset.fi
+gh variable set PRODUCTION_SSH_USER --env production --body deploy-ci
+gh secret set PRODUCTION_SSH_PRIVATE_KEY --env production < deploy-ci-key   # new key
+gh secret set PRODUCTION_SSH_KNOWN_HOSTS --env production < known_hosts.moso
+gh secret set CF_ACCESS_CLIENT_ID --env production      # service token id
+gh secret set CF_ACCESS_CLIENT_SECRET --env production  # service token secret
+```
+
+Revert: `gh workflow disable production-deploy.yml`, then delete the
+`github-ci-deploy` service token (and, if wanted, the Access application and
+tunnel) in Cloudflare; remove the `deploy-ci` key line on moso-prod.

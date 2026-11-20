@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -60,18 +61,43 @@ func submissionClientAddress(r *http.Request) string {
 	return submissionVisitorAddress(r, host)
 }
 
+// submissionClient is the per-visitor rate limit key for Go's own write
+// routes. IPv6 visitors are grouped by /64: one home or server connection
+// normally gets a whole /64, so counting each address separately would let a
+// single visitor rotate past the limit.
 func submissionClient(r *http.Request, secret string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte("submission-rate\x00" + submissionClientAddress(r)))
+	mac.Write([]byte("submission-rate\x00" + rateLimitAddress(submissionClientAddress(r))))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
+// rateLimitAddress keeps IPv4 addresses as they are (an IPv4-mapped IPv6
+// address counts as IPv4) and reduces IPv6 addresses to their /64 prefix.
+// Anything that is not an address is returned unchanged.
+func rateLimitAddress(address string) string {
+	parsed, err := netip.ParseAddr(address)
+	if err != nil {
+		return address
+	}
+	parsed = parsed.Unmap()
+	if parsed.Is4() {
+		return parsed.String()
+	}
+	return netip.PrefixFrom(parsed.WithZone(""), 64).Masked().String()
+}
+
 func submissionRate(ctx context.Context, db *mongo.Database, key string) (bool, error) {
+	return windowedRate(ctx, db, key, 5, 30)
+}
+
+// windowedRate counts a request against per-minute and per-hour buckets for
+// key and reports whether it is still within both limits.
+func windowedRate(ctx context.Context, db *mongo.Database, key string, minuteLimit, hourLimit int64) (bool, error) {
 	now := time.Now().UTC()
 	for _, window := range []struct {
 		name           string
 		seconds, limit int64
-	}{{"minute", 60, 5}, {"hour", 3600, 30}} {
+	}{{"minute", 60, minuteLimit}, {"hour", 3600, hourLimit}} {
 		bucket := now.Unix() / window.seconds
 		filter := bson.M{"token": "go-rate:" + window.name + ":" + strconv.FormatInt(bucket, 10) + ":" + key}
 		var record struct {
@@ -152,7 +178,13 @@ func publicSubmissionHandler(next http.Handler, db *mongo.Database, config submi
 		}
 		input, err := readSubmission(w, r, config.Locales)
 		if err != nil {
-			submissionFailure(w, 400, "SUBMIT_MISSING_FIELDS", err.Error())
+			var reason submissionError
+			if !errors.As(err, &reason) {
+				reason = submissionError{"SUBMIT_INVALID_FIELD", "Tarkista lomakkeen tiedot."}
+			}
+			// Log the check that failed, never the submitted values.
+			log.Printf("submission rejected: %s: %s", reason.Code, reason.Message)
+			submissionFailure(w, 400, reason.Code, reason.Message)
 			return
 		}
 		actor, err := submissionActor(ctx, r, config)

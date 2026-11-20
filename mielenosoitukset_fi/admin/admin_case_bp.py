@@ -17,19 +17,21 @@ from mielenosoitukset_fi.utils.admin.demonstration import collect_tags
 from mielenosoitukset_fi.utils.database import DEMO_FILTER, stringify_object_ids
 from mielenosoitukset_fi.utils.flashing import flash_message
 from mielenosoitukset_fi.utils.variables import CITY_LIST
+from mielenosoitukset_fi.utils.cities import normalize_city_key
+from mielenosoitukset_fi.utils import case_reasons
 from mielenosoitukset_fi.utils.wrappers import admin_required, permission_required
 from .utils import mongo, log_admin_action_V2, AdminActParser, _ADMIN_TEMPLATE_FOLDER
 from mielenosoitukset_fi.utils.demo_cancellation import cancel_demo
 from mielenosoitukset_fi.utils.case_access import (
     case_scope_query, can_access_case, global_case_permission,
 )
+from mielenosoitukset_fi.utils import city_admin_applications as applications
+from mielenosoitukset_fi.utils import case_notifications
 
 from mielenosoitukset_fi.emailer.EmailSender import EmailSender
 from mielenosoitukset_fi.utils.logger import logger
 
 # --- init ---
-SECRET_KEY = "your_secret_key"
-serializer = URLSafeTimedSerializer(SECRET_KEY)
 email_sender = EmailSender()
 
 admin_case_bp = Blueprint("admin_case", __name__, url_prefix="/admin/case")
@@ -100,15 +102,17 @@ def _case_type_label(case_type):
     labels = {
         "new_demo": _("Uusi mielenosoitus"),
         "demo_error_report": _("Virheilmoitus"),
+        "demo_edit_suggestion": _("Muutosehdotus"),
         "organization_edit_suggestion": _("Organisaation muutospyyntö"),
         "demo_cancellation_request": _("Peruutuspyyntö"),
         "demo_cancelled": _("Peruttu mielenosoitus"),
         "support_ticket": _("Tukipyyntö"),
+        "city_admin_application": _("Kaupunkiadminhakemus"),
     }
     return labels.get(case_type, str(case_type).replace("_", " ").capitalize())
 
 
-def _case_resolution_reason(case_obj, demo_doc=None, org_doc=None):
+def _case_resolution_reason(case_obj, demo_doc=None, org_doc=None, suggestion_doc=None):
     if case_obj.case_type == "new_demo" and demo_doc:
         if _demo_is_approved(demo_doc):
             return _("Demo hyväksytty")
@@ -120,6 +124,10 @@ def _case_resolution_reason(case_obj, demo_doc=None, org_doc=None):
     if case_obj.case_type in {"demo_cancellation_request", "demo_cancelled"} and demo_doc:
         if demo_doc.get("cancelled"):
             return _("Peruutus käsitelty")
+
+    if case_obj.case_type == "demo_edit_suggestion" and suggestion_doc:
+        if suggestion_doc.get("status") in {"applied", "rejected", "closed"}:
+            return _("Ehdotus käsitelty")
 
     if case_obj.case_type == "organization_edit_suggestion" and org_doc and case_obj.created_at:
         updated_at = org_doc.get("updated_at")
@@ -179,6 +187,31 @@ def _stringify_demo(demo):
     return payload
 
 
+def _suggestion_for_case(case_obj, projection=None):
+    """The demo suggestion behind a demo_edit_suggestion case (same _id)."""
+    suggestion_id = (case_obj.meta or {}).get("suggestion_id") or case_obj._id
+    return mongo.demo_suggestions.find_one({"_id": _safe_objectid(suggestion_id)}, projection)
+
+
+def _can_edit_suggested_demo(demo_doc):
+    """Suggestion details (reporter e-mail, comment) follow demo edit rights.
+
+    Before suggestions became cases only EDIT_DEMO holders saw them, so an
+    admin with case rights but no edit right for the demo's city sees the
+    case without those details.
+    """
+    if current_user.has_full_permissions() or "EDIT_DEMO" in (current_user.global_permissions or []):
+        return True
+    if not demo_doc:
+        return False
+    city_key = demo_doc.get("city_key") or normalize_city_key(demo_doc.get("city") or "")
+    return bool(city_key) and city_key in current_user.scoped_city_keys_for("EDIT_DEMO")
+
+
+def _hide_suggestion_reporter(case_obj):
+    case_obj.submitter = {}
+
+
 def _build_case_row(case_obj, demo_doc=None, org_doc=None):
     submitter = case_obj.submitter or {}
     urgency = (case_obj.meta or {}).get("urgency")
@@ -192,11 +225,11 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
 
     if case_obj.case_type == "new_demo":
         title = (demo_doc or {}).get("title") or _("Uusi mielenosoitus")
-        description = (demo_doc or {}).get("address") or _("Ei lisatietoja")
+        description = (demo_doc or {}).get("address") or _("Ei lisätietoja")
         meta_line = " · ".join(part for part in [(demo_doc or {}).get("city"), (demo_doc or {}).get("date")] if part)
     elif case_obj.case_type in {"demo_cancellation_request", "demo_cancelled"}:
-        title = _("Peruutuspyynto")
-        description = (demo_doc or {}).get("title") or _("Liittyvaa mielenosoitusta ei loytynyt")
+        title = _("Peruutuspyyntö")
+        description = (demo_doc or {}).get("title") or _("Liittyvää mielenosoitusta ei löytynyt")
         meta_line = " · ".join(
             part
             for part in [
@@ -208,10 +241,17 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         )
     elif case_obj.case_type == "demo_error_report":
         title = _("Virheilmoitus")
-        description = (case_obj.error_report or {}).get("error") or _("Ei lisatietoja")
-        meta_line = (demo_doc or {}).get("title") or _("Demoa ei loytynyt")
+        description = (case_obj.error_report or {}).get("error") or _("Ei lisätietoja")
+        meta_line = (demo_doc or {}).get("title") or _("Demoa ei löytynyt")
+    elif case_obj.case_type == "demo_edit_suggestion":
+        title = (demo_doc or {}).get("title") or _("Liittyvää mielenosoitusta ei löytynyt")
+        fields = (case_obj.meta or {}).get("fields") or []
+        description = (
+            _("Ehdotetut kentät") + ": " + ", ".join(fields) if fields else _("Ei kenttämuutoksia")
+        )
+        meta_line = " · ".join(part for part in [(demo_doc or {}).get("city"), (demo_doc or {}).get("date")] if part)
     elif case_obj.case_type == "organization_edit_suggestion":
-        title = (org_doc or {}).get("name") or _("Organisaation muutospyynto")
+        title = (org_doc or {}).get("name") or _("Organisaation muutospyyntö")
         description = _("Organisaation tiedoista ehdotetaan muutoksia.")
         meta_line = (submitter.get("submitter_name") or submitter.get("email") or _("Ei ilmoittajaa"))
     elif case_obj.case_type == "support_ticket":
@@ -219,9 +259,13 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         description = (case_obj.suggestion or {}).get("message") or _("Ei viestiä")
         meta_line = submitter.get("submitter_email") or submitter.get("email") or _("Ei ilmoittajaa")
         title = _("Tukipyyntö: {subject}").format(subject=ticket_subject[:100]) if ticket_subject else _("Tukipyyntö")
+    elif case_obj.case_type == "city_admin_application":
+        title = _("Kaupunkiadminhakemus")
+        description = ", ".join(applications.city_names((case_obj.meta or {}).get("city_keys")))
+        meta_line = submitter.get("submitter_name") or ""
     else:
         title = _case_type_label(case_obj.case_type)
-        description = _("Ei lisatietoja")
+        description = _("Ei lisätietoja")
         meta_line = ""
 
     return {
@@ -260,17 +304,20 @@ def cases():
         demo_doc = None
         org_doc = None
 
-        if case.case_type in {"new_demo", "demo_cancellation_request", "demo_cancelled", "demo_error_report"} and case.demo_id:
+        suggestion_doc = None
+        if case.case_type in {"new_demo", "demo_cancellation_request", "demo_cancelled", "demo_error_report", "demo_edit_suggestion"} and case.demo_id:
             demo_doc = mongo.demonstrations.find_one(
                 {"_id": _safe_objectid(case.demo_id)},
-                {"approved": 1, "accepted": 1, "rejected": 1, "cancelled": 1, "title": 1, "date": 1, "city": 1, "address": 1},
+                {"approved": 1, "accepted": 1, "rejected": 1, "cancelled": 1, "title": 1, "date": 1, "city": 1, "city_key": 1, "address": 1},
             )
         if case.case_type == "organization_edit_suggestion" and case.organization_id:
             org_doc = mongo.organizations.find_one({"_id": _safe_objectid(case.organization_id)}, {"name": 1, "updated_at": 1})
+        if case.case_type == "demo_edit_suggestion" and not (case.meta or {}).get("closed"):
+            suggestion_doc = _suggestion_for_case(case, {"status": 1})
 
         can_edit = edit_scope is not None and (edit_ids is None or case._id in edit_ids)
         if not bool((case.meta or {}).get("closed")) and can_edit:
-            reason = _case_resolution_reason(case, demo_doc=demo_doc, org_doc=org_doc)
+            reason = _case_resolution_reason(case, demo_doc=demo_doc, org_doc=org_doc, suggestion_doc=suggestion_doc)
             if reason:
                 _auto_close_case(case, reason, actor)
                 case.meta = case.meta or {}
@@ -285,16 +332,42 @@ def cases():
         if case.meta and case.meta.get("superior_needed"):
             escalated_count += 1
 
+        if case.case_type == "demo_edit_suggestion" and not _can_edit_suggested_demo(demo_doc):
+            _hide_suggestion_reporter(case)
         case_rows.append(_build_case_row(case, demo_doc=demo_doc, org_doc=org_doc))
 
+    always_emailed = global_case_permission(current_user, "VIEW_CASE")
+    user_doc = mongo.users.find_one({"_id": _safe_objectid(current_user.id)}, {"case_notice_emails": 1}) or {}
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}cases/all.html",
         case_rows=case_rows,
+        case_email_always=always_emailed,
+        case_emails_enabled=case_notifications.is_enabled() and case_notifications.emails_enabled(),
+        case_email_opt_in=user_doc.get("case_notice_emails") is True,
         open_count=open_count,
         closed_count=closed_count,
         escalated_count=escalated_count,
         auto_closed=auto_closed,
     )
+
+@admin_case_bp.route("/email_notices/", methods=["POST"])
+@login_required
+@case_permission("LIST_CASES", allow_city=True)
+def email_notices():
+    """Let an admin with city-scoped case rights opt in or out of case e-mails.
+
+    Admins with case rights everywhere always get them (maintainer decision
+    20 Nov 2026), so the choice only matters for city-scoped admins.
+    """
+    enabled = request.form.get("enabled") == "1"
+    mongo.users.update_one({"_id": _safe_objectid(current_user.id)}, {"$set": {"case_notice_emails": enabled}})
+    flash_message(
+        _("Saat jatkossa sähköpostin uusista tapauksista.") if enabled
+        else _("Et saa enää sähköpostia uusista tapauksista."),
+        "success",
+    )
+    return redirect(url_for("admin_case.cases"))
+
 
 @admin_case_bp.route("/demo_search/", methods=["GET"])
 @login_required
@@ -432,6 +505,31 @@ def single_case(case_id):
         case_data["demo"] = _stringify_demo(demo)
         case_data["error_report"] = stringify_object_ids(case.error_report or {})
 
+    elif case.case_type == "demo_edit_suggestion":
+        demo = mongo.demonstrations.find_one({"_id": _safe_objectid(case.demo_id)}) if case.demo_id else None
+        case_data["demo"] = _stringify_demo(demo)
+        suggestion = _suggestion_for_case(case) or {}
+        status = suggestion.get("status") or "new"
+        can_edit_demo = _can_edit_suggested_demo(demo)
+        if not can_edit_demo:
+            _hide_suggestion_reporter(case)
+            case_data["submitter_label"] = _("Ei tiedossa")
+        case_data["demo_suggestion"] = {
+            "can_edit_demo": can_edit_demo,
+            "found": bool(suggestion),
+            "id": str(suggestion.get("_id") or ""),
+            "fields": sorted((suggestion.get("suggested_fields") or {}).keys()),
+            "comment": (suggestion.get("reporter_comment") or "") if can_edit_demo else "",
+            "reporter_email": (suggestion.get("reporter_email") or "") if can_edit_demo else "",
+            "created_at": suggestion.get("created_at"),
+            "status": status,
+            "status_label": {
+                "applied": _("Hyväksytty"),
+                "rejected": _("Hylätty"),
+                "closed": _("Suljettu"),
+            }.get(status, _("Odottaa käsittelyä")),
+        }
+
     elif case.case_type == "organization_edit_suggestion" and case.organization_id:
         org = mongo.organizations.find_one({"_id": _safe_objectid(case.organization_id)})
         suggestion = case.suggestion or {}
@@ -492,12 +590,37 @@ def single_case(case_id):
             org = mongo.organizations.find_one({"_id": _safe_objectid(case.organization_id)})
             case_data["organization"] = stringify_object_ids(org) if org else {}
 
+    elif case.case_type == applications.CASE_TYPE:
+        application = mongo.city_admin_applications.find_one({"_id": _safe_objectid((case.meta or {}).get("application_id"))})
+        if application:
+            activism = application.get("activism") or {}
+            case_data["application"] = {
+                "status": application.get("status"),
+                "status_label": applications.STATUS_LABELS.get(application.get("status"), application.get("status")),
+                "cities": applications.city_names(application.get("city_keys")),
+                "about": application.get("about") or "",
+                "active_cities": applications.city_names(activism.get("cities")),
+                "organizations": activism.get("organizations") or "",
+                "experience": applications.EXPERIENCE_LABELS.get(activism.get("experience"), "-"),
+                "experience_details": activism.get("experience_details") or "",
+                "references": application.get("references") or "",
+                "created_at": application.get("created_at"),
+                "user_id": str(application.get("user_id") or ""),
+                "decision_statuses": [(key, applications.STATUS_LABELS[key]) for key in applications.DECISION_STATUSES],
+            }
+
+    notice_doc = mongo.cases.find_one({"_id": case._id}, {"notified_users": 1, "notified_at": 1}) or {}
+    case_data["notified_users"] = notice_doc.get("notified_users") or []
+    case_data["notified_at"] = notice_doc.get("notified_at")
+
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}cases/case.html",
         case=case,
         case_data=case_data,
         can_edit_case=can_access_case(current_user, "EDIT_CASE", case._id),
         global_case_controls=global_case_permission(current_user, "EDIT_CASE"),
+        reject_reasons=case_reasons.choices(case_reasons.REJECT_KEYS),
+        close_reasons=case_reasons.choices(case_reasons.CLOSE_KEYS),
     )
 
 
@@ -557,7 +680,7 @@ def link_demo(case_id):
         return redirect(url_for("admin_case.single_case", case_id=case_id))
 
     if not global_case_permission(current_user, "EDIT_CASE"):
-        scoped_demo_ids = case_scope_query(current_user, "EDIT_CASE")["demo_id"]["$in"]
+        scoped_demo_ids = case_scope_query(current_user, "EDIT_CASE")["$or"][0]["demo_id"]["$in"]
         if ObjectId(demo_id) not in scoped_demo_ids:
             abort(403)
 
@@ -719,6 +842,29 @@ def reply_to_ticket(case_id):
     return redirect(url_for("admin_case.single_case", case_id=case_id))
 
 
+@admin_case_bp.route("/<case_id>/application_status/", methods=["POST"])
+@login_required
+@admin_required
+@case_permission("EDIT_CASE", allow_city=True)
+def set_application_status(case_id):
+    """Record a decision. Local city admins can comment but only global admins decide."""
+    if not global_case_permission(current_user, "EDIT_CASE"):
+        abort(403)
+    case = Case.get(case_id)
+    if not case or case.case_type != applications.CASE_TYPE:
+        abort(404)
+    status = request.form.get("status", "")
+    if status not in applications.DECISION_STATUSES:
+        flash_message(_("Tuntematon tila."), "warning")
+        return redirect(url_for("admin_case.single_case", case_id=case_id))
+    if not applications.set_status(mongo, case._id, status, current_user.username):
+        flash_message(_("Hakemusta ei löytynyt tai se on peruttu."), "error")
+        return redirect(url_for("admin_case.single_case", case_id=case_id))
+    log_admin_action_V2(f"{current_user.username} asetti kaupunkiadminhakemuksen tilaksi {status}", case_id)
+    flash_message(_("Hakemuksen tila päivitetty."), "success")
+    return redirect(url_for("admin_case.single_case", case_id=case_id))
+
+
 @admin_case_bp.route("/<case_id>/close/", methods=["POST"])
 @login_required
 @admin_required
@@ -728,27 +874,28 @@ def close_case(case_id):
     if not case:
         return jsonify({"success": False, "error": "Tapausta ei löydy."}), 404
 
-    reason = (request.json.get("reason") or "").strip()
     if case.meta.get("closed", False):
         return jsonify({"success": False, "error": "Tapaus on jo suljettu."}), 400
-    if not reason:
-        return jsonify({"success": False, "error": "Syytä ei annettu."}), 400
+    try:
+        metadata, schema = case_reasons.parse_reason(
+            request.get_json(silent=True), case_reasons.CLOSE_KEYS, mongo, case_id=case._id,
+            can_view_case=lambda other_id: can_access_case(current_user, "VIEW_CASE", other_id),
+        )
+    except case_reasons.ReasonError as error:
+        return jsonify({"success": False, "error": str(error)}), 400
 
     case._add_history_entry({
         "timestamp": utcnow(),
         "action": "Tapaus suljettu",
         "user": current_user.username,
         "mech_action": "close_case",
-        "metadata": {
-            "reason": reason,
-            "permitted_by": current_user.username
-        },
-        "meta_schema": {"reason": "string", "permitted_by": "string"}
+        "metadata": {**metadata, "permitted_by": current_user.username},
+        "meta_schema": {**schema, "permitted_by": "string"},
     })
 
     mongo.cases.update_one(
         {"_id": ObjectId(case_id)},
-        {"$set": {"meta.closed": True, "updated_at": utcnow()}}
+        {"$set": {"meta.closed": True, "meta.closed_reason": metadata["reason"], "updated_at": utcnow()}}
     )
 
     flash_message(_("Tapaus suljettu."), "success")
@@ -785,7 +932,7 @@ def reopen_case(case_id):
 
     mongo.cases.update_one(
         {"_id": ObjectId(case_id)},
-        {"$set": {"meta.closed": False, "updated_at": utcnow()}}
+        {"$set": {"meta.closed": False, "updated_at": utcnow()}, "$unset": {"meta.closed_reason": ""}}
     )
 
     flash_message(_("Tapaus avattu uudelleen."), "success")
@@ -887,11 +1034,11 @@ def demo_action(case_id):
 
     data = request.get_json()
     if not data or "action" not in data:
-        return jsonify({"error": "Invalid request"}), 400
+        return jsonify({"error": _("Virheellinen pyyntö.")}), 400
 
     demo = mongo.demonstrations.find_one({"_id": ObjectId(case.demo_id)})
     if not demo:
-        return jsonify({"error": "Demo not found"}), 404
+        return jsonify({"error": _("Mielenosoitusta ei löytynyt.")}), 404
 
     response_status = ""
 
@@ -900,31 +1047,42 @@ def demo_action(case_id):
         response_status = "accepted"
 
     elif data["action"] == "reject":
-        reason = data.get("reason", "").strip()
-        if not reason:
-            return jsonify({"error": "Rejection reason required"}), 400
+        try:
+            metadata, schema = case_reasons.parse_reason(
+                data, case_reasons.REJECT_KEYS, mongo, demo_id=case.demo_id,
+            )
+        except case_reasons.ReasonError as error:
+            return jsonify({"error": str(error)}), 400
 
         reject_demo(case.demo_id)
         response_status = "rejected"
-
-        if reason:
-            mongo.cases.update_one(
-                {"_id": ObjectId(case_id)},
-                {
-                    "$push": {
-                        "action_logs": {
-                            "user": current_user.username,
-                            "action_type": "reject_reason",
-                            "reason": reason,
-                            "timestamp": utcnow(),
-                        }
-                    }
+        now = utcnow()
+        mongo.cases.update_one(
+            {"_id": case._id},
+            {
+                "$push": {
+                    "action_logs": {
+                        "user": current_user.username,
+                        "action_type": "reject_reason",
+                        "reason": metadata["reason"],
+                        "timestamp": now,
+                    },
+                    "case_history": {
+                        "timestamp": now,
+                        "action": "Mielenosoitus hylätty",
+                        "user": current_user.username,
+                        "mech_action": "reject_demo",
+                        "metadata": metadata,
+                        "meta_schema": schema,
+                    },
                 },
-            )
+                "$set": {"updated_at": now},
+            },
+        )
 
     else:
-        return jsonify({"error": "Unknown action"}), 400
-    flash_message(_("Mielenosoituksen tila paivitettiin."), "success")
+        return jsonify({"error": _("Tuntematon toiminto.")}), 400
+    flash_message(_("Mielenosoituksen tila päivitettiin."), "success")
     return jsonify({"success": True, "status": response_status})
 
 
@@ -1004,7 +1162,7 @@ def demo_escalate(case_id):
 
     demo = mongo.demonstrations.find_one({"_id": ObjectId(case.demo_id)})
     if not demo:
-        return jsonify({"error": "Demo not found"}), 404
+        return jsonify({"error": _("Mielenosoitusta ei löytynyt.")}), 404
 
     # Reset demo status
     mongo.demonstrations.update_one(
@@ -1035,7 +1193,7 @@ def demo_escalate(case_id):
         },
     )
 
-    flash_message(_("Demo status reset – requires superior review."), "warning")
+    flash_message(_("Mielenosoituksen tila palautettiin. Ylemmän tason käsittelijän on tarkistettava mielenosoitus."), "warning")
     return jsonify({"success": True})
 
 @admin_case_bp.route("/<case_id>/deescalate", methods=["POST"])
@@ -1047,7 +1205,7 @@ def deescalate_case(case_id):
 
     case = mongo.cases.find_one({"_id": ObjectId(case_id)})
     if not case:
-        return jsonify({"success": False, "error": "Case not found."}), 404
+        return jsonify({"success": False, "error": _("Tapausta ei löytynyt.")}), 404
 
     try:
         timestamp = utcnow()
@@ -1082,4 +1240,4 @@ def deescalate_case(case_id):
 
     except Exception as e:
         logger.error(f"De-escalation failed for case {case_id}: {e}")
-        return jsonify({"success": False, "error": "Internal server error."}), 500
+        return jsonify({"success": False, "error": _("Palvelimella tapahtui virhe.")}), 500

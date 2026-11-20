@@ -9,11 +9,11 @@
 export type AppLocale = 'fi' | 'en' | 'sv';
 
 export type AppUrls = {
-  home: string; demonstrations: string; cities: string; submit: string; calendar: string;
-  info: string; pride: string; privacy: string; contact: string; guides: string; developer: string;
+  home: string; demonstrations: string; today: string; cities: string; submit: string; calendar: string;
+  info: string; pride: string; privacy: string; contact: string; cityAdmin: string; guides: string; developer: string;
   login: string; register: string; logout: string; profile: string; settings: string; admin: string;
   notifications: { list: string; markRead: string; all: string };
-  attendance: string; session: string; rss: string; fundraising: string;
+  attendance: string; session: string; authMe: string; rss: string; fundraising: string;
   detail: string; series: string; tag: string;
   language: (code: AppLocale) => string;
 };
@@ -35,14 +35,14 @@ export function isLocale(value: unknown): value is AppLocale {
 
 /** Existing public route paths. Changing one here must change the route too. */
 const ROUTES = {
-  home: '/', demonstrations: '/demonstrations', cities: '/cities', submit: '/submit',
+  home: '/', demonstrations: '/demonstrations', today: '/mielenosoitukset-tanaan', cities: '/cities', submit: '/submit',
   calendar: '/calendar/', info: '/info', pride: '/pride-nakyvaksi', privacy: '/privacy',
-  contact: '/contact', guides: '/ohjeet', developer: '/developer', fundraising: '/keräys',
+  contact: '/contact', cityAdmin: '/kaupunkiadmin', guides: '/ohjeet', developer: '/developer', fundraising: '/keräys',
   login: '/users/auth/login', register: '/users/auth/register', logout: '/users/auth/logout',
   profile: '/users/profile/', settings: '/users/auth/settings', admin: '/admin/dashboard',
   notificationsList: '/api/notifications/', notificationsMarkRead: '/api/notifications/mark-read',
   notificationsAll: '/api/notifications/all', attendance: '/api/friends-attending',
-  session: '/api/session', rss: '/demonstrations.rss',
+  session: '/api/session', authMe: '/api/auth/me', rss: '/demonstrations.rss',
   detail: '/demonstration/__ID__', series: '/demonstration/__ID__/children', tag: '/tag/__TAG__',
 } as const;
 
@@ -71,15 +71,15 @@ export function appConfig(options: {
       href: `/set_language/${item.code}?next=${encodeURIComponent(next)}`,
     })),
     urls: {
-      home: ROUTES.home, demonstrations: ROUTES.demonstrations, cities: ROUTES.cities,
+      home: ROUTES.home, demonstrations: ROUTES.demonstrations, today: ROUTES.today, cities: ROUTES.cities,
       submit: ROUTES.submit, calendar: ROUTES.calendar, info: ROUTES.info, pride: ROUTES.pride,
-      privacy: ROUTES.privacy, contact: ROUTES.contact, guides: ROUTES.guides,
+      privacy: ROUTES.privacy, contact: ROUTES.contact, cityAdmin: ROUTES.cityAdmin, guides: ROUTES.guides,
       developer: ROUTES.developer, fundraising: ROUTES.fundraising,
       login: ROUTES.login, register: ROUTES.register, logout: ROUTES.logout,
       profile: ROUTES.profile, settings: ROUTES.settings, admin: ROUTES.admin,
       notifications: { list: ROUTES.notificationsList, markRead: ROUTES.notificationsMarkRead,
         all: ROUTES.notificationsAll },
-      attendance: ROUTES.attendance, session: ROUTES.session, rss: ROUTES.rss,
+      attendance: ROUTES.attendance, session: ROUTES.session, authMe: ROUTES.authMe, rss: ROUTES.rss,
       detail: ROUTES.detail, series: ROUTES.series, tag: ROUTES.tag,
       language: (code: AppLocale) => `/set_language/${code}`,
     },

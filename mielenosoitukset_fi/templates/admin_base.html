@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='fa/css/all.css') }}">
     {% block styles %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/product-tokens.css', v='20261110-pride-contrast-1') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/workspace.css', v='20261110-admin-ui-85') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/workspace.css', v='20261110-admin-ui-86') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/analytics.css', v='20261001-analytics-58') }}">
 </head>
 
@@ -45,7 +45,7 @@
   toastEl.innerHTML = `
     <div class="d-flex">
       <div class="toast-body">${message}</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="{{ _('Sulje') }}"></button>
     </div>
   `;
 
@@ -327,7 +327,7 @@ function confirmAction(action, taskId) {
 
   <!-- Theme toggle -->
   <div class="admin-theme-control">
-    <button id="theme-toggle" class="btn admin-theme-toggle w-100" title="{{ _('Vaihtele teema') }}">
+    <button id="theme-toggle" class="btn admin-theme-toggle w-100" title="{{ _('Vaihda teemaa') }}">
       <i class="fas fa-moon me-2"></i><span id="theme-label">{{ _('Tumma tila') }}</span>
     </button>
   </div>
@@ -369,7 +369,7 @@ function confirmAction(action, taskId) {
             <div class="alert alert-{{ 'warning' if category in ('error','danger') else category }} alert-dismissible fade show"
                 role="alert">
                 {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ _('Sulje') }}"></button>
             </div>
             {% endfor %}
             {% endif %}
@@ -469,7 +469,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (countdownValue <= 0) {
         clearInterval(countdownTimer);
         // Automaattisesti siirrytään logout-linkkiin
-        window.location.href = confirmLogoutBtn.href;
+        document.getElementById("logoutForm").submit();
       }
     }, 1000);
   }
@@ -512,8 +512,11 @@ document.addEventListener("DOMContentLoaded", () => {
         <p id="countdown" class="fw-bold text-center fs-4">5</p>
       </div>
       <div class="modal-footer">
-        <button type="button" id="cancelLogoutBtn" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Peruuta') }}</button>
-        <a href="{{ url_for('users.auth.logout') }}" id="confirmLogoutBtn" class="btn btn-danger">{{ _('Kirjaudu ulos nyt') }}</a>
+        <button type="button" id="cancelLogoutBtn" class="btn btn-danger" data-bs-dismiss="modal">{{ _('Peruuta') }}</button>
+        <form method="post" action="{{ url_for('users.auth.logout') }}" id="logoutForm" class="d-inline">
+          <input type="hidden" name="logout_token" value="{{ logout_form_token() }}" />
+        <button type="submit" id="confirmLogoutBtn" class="btn btn-primary">{{ _('Kirjaudu ulos nyt') }}</button>
+        </form>
       </div>
     </div>
   </div>

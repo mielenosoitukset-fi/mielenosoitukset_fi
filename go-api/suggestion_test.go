@@ -39,7 +39,7 @@ func TestSuggestionHTTPAndCachedRendering(t *testing.T) {
 		{nil, http.StatusOK}, {mongo.ErrNoDocuments, http.StatusNotFound}, {errors.New("unavailable"), http.StatusServiceUnavailable},
 	} {
 		response := httptest.NewRecorder()
-		(&API{&fakeStore{doc: doc, err: example.err}}).handler().ServeHTTP(response,
+		(&API{store: &fakeStore{doc: doc, err: example.err}}).handler().ServeHTTP(response,
 			httptest.NewRequest(http.MethodGet, "/api/demonstrations/"+demoID, nil))
 		if response.Code != example.status {
 			t.Fatalf("got %d, want %d: %s", response.Code, example.status, response.Body.String())

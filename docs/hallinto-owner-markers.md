@@ -1,0 +1,11 @@
+# Hallinto owner login markers
+
+This slice adds disconnected Mongo persistence and a synthetic Flask-Login test. The maintainer approved isolated development on 19 November 2026. The module registers no route and the current application does not call it.
+
+The user record remains the authority for current identity and account status. The marker records the verified account ID, account-wide session epoch, an opaque owner-supplied version of relevant credentials, and a finite expiry. Flask checks the marker against a freshly validated account. If the owner cannot validate the account, the marker is unusable. The collection stores a digest of the opaque marker. Revocation updates only the matching marker and user. Replaying sign-out does not recreate a marker or affect another browser. Expiry remains a query predicate regardless of cleanup.
+
+The next slice must derive the account version from the real login owner, bind the marker to a single signed-in Flask browser before issuing codes, and revoke that marker before accepting logout. Create the marker once per owner login to avoid concurrent authorization requests issuing separate active markers for the same browser. Never recreate a marker from a stale session cookie. Recheck live suspension, active status, passkey/password and MFA changes, and the account-wide epoch. Existing privileged-account checks apply. Fail closed when the owner cannot confirm a marker. Keep the raw marker out of URLs and logs.
+
+Before any real activation, test token exchange and ordinary logout racing each other, browser relogin, account-wide revocation, credential changes, owner outage, and failover. Confirm absolute expiry and gated cleanup of expired/revoked records. Legacy Mongo schema/index changes and production routing require separate approval. No cleanup or collection migration runs in this slice.
+
+Local validation uses the repository's disposable Mongo test database. Run `python -m pytest -q tests/test_hallinto_sessions.py tests/test_logout_post.py`. The fixture invokes Flask-Login with synthetic identities and covers separate browser markers, repeat logout, expiry, changed credential version and an advanced epoch. The existing logout suite covers the real route's current behavior.

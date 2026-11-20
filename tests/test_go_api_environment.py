@@ -26,3 +26,253 @@ def test_submission_locales_follow_nested_flask_configuration(tmp_path, babel, e
     module.configure(source, target)
     values = dict(line.split("=", 1) for line in target.read_text().splitlines())
     assert json.loads(values["PUBLIC_SUBMIT_LOCALES"]).split(",") == expected
+
+
+@pytest.mark.parametrize("flag, expected", [(True, "true"), (None, "true"), (False, None)])
+def test_event_analytics_switch_follows_the_flask_default_and_yaml_flag(tmp_path, flag, expected):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    source, target = tmp_path / "config.yaml", tmp_path / "environment"
+    config = {"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated"}
+    if flag is not None:
+        config["SITE_ANALYTICS_ENABLED"] = flag
+    source.write_text(yaml.safe_dump(config))
+    module.configure(source, target)
+    values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+    assert (json.loads(values["SITE_ANALYTICS_ENABLED"]) if "SITE_ANALYTICS_ENABLED" in values else None) == expected
+
+
+def test_auth_bridge_flag_is_written_from_config_and_off_by_default(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    for flag, expected in ((None, False), (False, False), (True, True)):
+        source, target = tmp_path / f"c{flag}.yaml", tmp_path / f"e{flag}"
+        config = {"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated"}
+        if flag is not None:
+            config["AUTH_BRIDGE_SCOPES"] = flag
+        source.write_text(yaml.safe_dump(config))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("AUTH_BRIDGE_ENABLED" in values) is expected
+        if expected:
+            assert json.loads(values["AUTH_BRIDGE_ENABLED"]) == "true"
+            assert json.loads(values["AUTH_BRIDGE_SESSION_SOCKET"]).endswith("mielenosoitus.sock")
+            assert json.loads(values["AUTH_BRIDGE_ORIGIN"]).startswith("https://")
+
+
+def test_developer_writes_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    cases = (
+        ({}, False),
+        ({"AUTH_BRIDGE_SCOPES": True}, False),
+        ({"DEVELOPER_WRITES": True}, False),  # no bridge, no writes
+        ({"AUTH_BRIDGE_SCOPES": True, "DEVELOPER_WRITES": False}, False),
+        ({"AUTH_BRIDGE_SCOPES": True, "DEVELOPER_WRITES": True}, True),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"c{index}.yaml", tmp_path / f"e{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated", **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("DEVELOPER_WRITES_ENABLED" in values) is expected
+
+
+def test_account_settings_reads_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    cases = (
+        ({}, False),
+        ({"AUTH_BRIDGE_SCOPES": True}, False),
+        ({"ACCOUNT_SETTINGS_READS": True}, False),  # no bridge, no route
+        ({"AUTH_BRIDGE_SCOPES": True, "ACCOUNT_SETTINGS_READS": False}, False),
+        ({"AUTH_BRIDGE_SCOPES": True, "ACCOUNT_SETTINGS_READS": True}, True),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"a{index}.yaml", tmp_path / f"ae{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated", **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("ACCOUNT_SETTINGS_READS_ENABLED" in values) is expected
+
+
+def test_account_settings_writes_need_the_bridge_and_the_reads(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    bridge = {"AUTH_BRIDGE_SCOPES": True}
+    cases = (
+        ({"ACCOUNT_SETTINGS_WRITES": True}, False),
+        ({**bridge, "ACCOUNT_SETTINGS_WRITES": True}, False),  # no reads
+        ({"ACCOUNT_SETTINGS_READS": True, "ACCOUNT_SETTINGS_WRITES": True}, False),  # no bridge
+        ({**bridge, "ACCOUNT_SETTINGS_READS": True}, False),
+        ({**bridge, "ACCOUNT_SETTINGS_READS": True, "ACCOUNT_SETTINGS_WRITES": False}, False),
+        ({**bridge, "ACCOUNT_SETTINGS_READS": True, "ACCOUNT_SETTINGS_WRITES": True}, True),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"w{index}.yaml", tmp_path / f"we{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated", **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("ACCOUNT_SETTINGS_WRITES_ENABLED" in values) is expected
+
+
+def test_profile_reads_flag_is_independent_of_the_bridge_and_off_by_default(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    cases = (
+        ({}, False),
+        ({"PROFILE_READS": False}, False),
+        ({"PROFILE_READS": True}, True),
+        ({"AUTH_BRIDGE_SCOPES": True, "PROFILE_READS": True}, True),
+        ({"AUTH_BRIDGE_SCOPES": True}, False),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"p{index}.yaml", tmp_path / f"pe{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated", **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("PROFILE_READS_ENABLED" in values) is expected
+
+
+def test_national_admin_org_id_is_passed_only_with_profile_reads_and_validated(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    org = "0123456789abcdef01234567"
+    base = {"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated"}
+    for index, (extra, expected) in enumerate((
+        ({"PROFILE_READS": True, "NATIONAL_ADMIN_ORG_ID": org}, org),
+        ({"NATIONAL_ADMIN_ORG_ID": org}, None),
+        ({"PROFILE_READS": True}, None),
+    )):
+        source, target = tmp_path / f"n{index}.yaml", tmp_path / f"ne{index}"
+        source.write_text(yaml.safe_dump({**base, **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert (json.loads(values["NATIONAL_ADMIN_ORG_ID"]) if "NATIONAL_ADMIN_ORG_ID" in values else None) == expected
+    source = tmp_path / "bad.yaml"
+    source.write_text(yaml.safe_dump({**base, "PROFILE_READS": True, "NATIONAL_ADMIN_ORG_ID": "nothex"}))
+    with pytest.raises(ValueError):
+        module.configure(source, tmp_path / "bad-env")
+
+
+def test_fundraising_reminder_flag_needs_public_submissions_and_is_off_by_default(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    secret = "test-secret-not-for-production-" * 2
+    cases = (
+        ({}, False),
+        ({"GO_SUBMIT_ENABLED": True}, False),
+        ({"FUNDRAISING_REMINDER": True}, False),  # no submissions, no reminder
+        ({"GO_SUBMIT_ENABLED": True, "FUNDRAISING_REMINDER": False}, False),
+        ({"GO_SUBMIT_ENABLED": True, "FUNDRAISING_REMINDER": True}, True),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"c{index}.yaml", tmp_path / f"e{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated",
+                                          "SECRET_KEY": secret, **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("FUNDRAISING_REMINDER_ENABLED" in values) is expected
+
+
+def test_pride_banner_signup_flag_needs_public_submissions_and_is_off_by_default(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment_banner", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    secret = "test-secret-not-for-production-" * 2
+    cases = (
+        ({}, False),
+        ({"PRIDE_BANNER_SIGNUP": True}, False),  # no submissions, no signup
+        ({"GO_SUBMIT_ENABLED": True}, False),
+        ({"GO_SUBMIT_ENABLED": True, "PRIDE_BANNER_SIGNUP": False}, False),
+        ({"GO_SUBMIT_ENABLED": True, "PRIDE_BANNER_SIGNUP": True}, True),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"c{index}.yaml", tmp_path / f"e{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated",
+                                          "SECRET_KEY": secret, **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("PRIDE_BANNER_SIGNUP_ENABLED" in values) is expected
+
+
+def test_fundraising_details_file_is_kept_only_when_it_exists(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    details = tmp_path / "fundraising.json"
+    for present, expected in ((False, False), (True, True)):
+        if present:
+            details.write_text("{}")
+        source, target = tmp_path / f"c{present}.yaml", tmp_path / f"e{present}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated",
+                                          "FUNDRAISING_DETAILS_FILE": str(details)}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("FUNDRAISING_DETAILS_FILE" in values) is expected
+
+
+def test_contact_go_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    cases = (
+        ({}, False),
+        ({"AUTH_BRIDGE_SCOPES": True}, False),
+        ({"CONTACT_GO_ENABLED": True}, False),  # no bridge, no contact route
+        ({"AUTH_BRIDGE_SCOPES": True, "CONTACT_GO_ENABLED": False}, False),
+        ({"AUTH_BRIDGE_SCOPES": True, "CONTACT_GO_ENABLED": True}, True),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"c{index}.yaml", tmp_path / f"e{index}"
+        config = {"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated", **extra}
+        if expected:
+            config.update({"CONTACT_PER_IP_LIMIT": "2 per 10 minutes", "CONTACT_MAX_REQUEST_BYTES": 8192})
+        source.write_text(yaml.safe_dump(config))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("CONTACT_GO_ENABLED" in values) is expected
+        if expected:
+            assert json.loads(values["CONTACT_GO_ENABLED"]) == "true"
+            assert json.loads(values["CONTACT_PER_IP_LIMIT"]) == "2 per 10 minutes"
+            assert json.loads(values["CONTACT_MAX_REQUEST_BYTES"]) == "8192"
+            assert "CONTACT_GLOBAL_LIMIT" not in values
+
+
+def test_campaign_volunteers_go_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    cases = (
+        ({}, False),
+        ({"AUTH_BRIDGE_SCOPES": True}, False),
+        ({"CAMPAIGN_VOLUNTEERS_GO_ENABLED": True}, False),  # no bridge, no route
+        ({"AUTH_BRIDGE_SCOPES": True, "CAMPAIGN_VOLUNTEERS_GO_ENABLED": False}, False),
+        ({"AUTH_BRIDGE_SCOPES": True, "CAMPAIGN_VOLUNTEERS_GO_ENABLED": True}, True),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"v{index}.yaml", tmp_path / f"w{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated", **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("CAMPAIGN_VOLUNTEERS_GO_ENABLED" in values) is expected

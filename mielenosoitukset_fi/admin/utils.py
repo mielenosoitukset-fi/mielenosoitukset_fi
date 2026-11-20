@@ -133,6 +133,23 @@ def dictify_object(obj):
     return obj
 
 
+_LOG_USER_FIELDS = ("username", "displayname", "profile_picture", "email")
+
+
+def _log_user_summary(user) -> dict:
+    """The fields the admin log view shows, without credentials or secrets."""
+    # AnonymousUser answers every attribute with None, so read fields one by one.
+    summary = {}
+    user_id = getattr(user, "_id", None) or getattr(user, "id", None)
+    if user_id:
+        summary["_id"] = user_id
+    for field in _LOG_USER_FIELDS:
+        value = getattr(user, field, None)
+        if isinstance(value, str) and value:
+            summary[field] = value
+    return summary
+
+
 def capture_actor_context() -> dict:
     if not has_request_context():
         return {
@@ -286,11 +303,12 @@ class AdminActParser:
             A dictionary with parsed request and user data.
         """
         try:
-            import json
-
-            request_data = json.loads(json.dumps({**request}, skipkeys=True, default=str))
-            user_data = user.to_dict() if hasattr(user, "to_dict") else dictify_object(user)
-            return {"request": request_data, "user": user_data}
+            # Never store the raw request or user object: the request environ
+            # carries the session cookie and Authorization header, and the user
+            # dict carries the password hash. Keep only redacted, display fields.
+            # ``request`` is accepted for compatibility; the context is read from
+            # the active request.
+            return {"request": capture_request_context() or {}, "user": _log_user_summary(user)}
         except Exception as e:
             logger.exception(f"Error parsing request info: {e}")
             return {}

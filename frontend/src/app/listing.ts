@@ -6,7 +6,8 @@ import { ttlCache } from './server-cache';
 import { listingQuery as parseQuery } from '../components/listings/query';
 
 export type ListingRoute = { name: 'listing'; scope: 'all' | 'city' | 'tag' | 'organization' | 'today' | 'city-today'; value?: string };
-export type ListingBootstrap = { query: string; page: Page | null };
+export type CityAdminStatus = 'none' | 'single' | 'team' | 'national';
+export type ListingBootstrap = { query: string; page: Page | null; cityAdminStatus?: CityAdminStatus };
 const cities = cityCatalog.map(city => city.name);
 
 export function listingFixed(route: ListingRoute): Record<string, string> {
@@ -22,18 +23,18 @@ export function listingFixed(route: ListingRoute): Record<string, string> {
 }
 
 const messages: ListingMessages = {
-  search: 'Hae mielenosoituksia', searchPlaceholder: 'Hae mielenosoituksia...', city: 'Kaupunki',
+  search: 'Hae mielenosoituksia', searchPlaceholder: 'Hae mielenosoituksia…', city: 'Kaupunki',
   location: 'Sijainti', startDate: 'Alkupäivä (pp.kk.vvvv)', endDate: 'Loppupäivä (pp.kk.vvvv)',
   dateError: 'Valitse kelvollinen päivämääräväli tulevaisuudesta', year: 'Vuosi', month: 'Kuukausi',
-  submitSearch: 'Hae', removeFilter: 'Poista suodatin', loading: 'Ladataan mielenosoituksia...',
-  loadMore: 'Näytä lisää', loadingMore: 'Ladataan...', previous: 'Edellinen',
-  summary: 'Näytetään __START__–__END__ / __COUNT__ mielenosoituksesta',
+  submitSearch: 'Hae', removeFilter: 'Poista suodatin', loading: 'Ladataan mielenosoituksia…',
+  loadMore: 'Näytä lisää', loadingMore: 'Ladataan…', previous: 'Edellinen',
+  summary: 'Näytetään mielenosoitukset __START__–__END__ (yhteensä __COUNT__).',
   loadError: 'Mielenosoitusten lataaminen epäonnistui. Yritä uudelleen.', retry: 'Yritä uudelleen',
   emptyTitle: 'Ei löytynyt mielenosoituksia', empty: 'Tällä hetkellä ei ole mielenosoituksia. Tarkista myöhemmin.',
   filteredEmpty: 'Kokeile poistaa suodattimia tai hakea toisella sanalla.',
   filters: 'Suodattimet', clearFilters: 'Poista suodattimet', submitEvent: 'Ilmoita uusi mielenosoitus', cancelled: 'Peruttu', today: 'Tänään',
   startingFrom: 'alkaen', endTime: 'Päättymisaika', loginPrompt: 'Kirjaudu sisään käyttääksesi sosiaalisia toimintoja',
-  attendingSuffix: 'osallistuu', loadingFriends: 'Ladataan kavereita...', invite: 'Kutsu kavereita',
+  attendingSuffix: 'osallistuu', loadingFriends: 'Ladataan kavereita…', invite: 'Kutsu kavereita',
   allEvents: 'Kaikki mielenosoitukset',
 };
 
@@ -86,6 +87,24 @@ const pages = ttlCache<Page>(30_000, 64);
 const pending = new Map<string, Promise<Page | null>>();
 
 /** Successful public batches only; private header state never enters this cache. */
+/** Whether a city still needs city admins. Only the coverage band is public. */
+export async function loadCityAdminStatus(readBase: string, cityKey: string): Promise<CityAdminStatus | undefined> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 800);
+  try {
+    const response = await fetch(`${readBase}/cities/${encodeURIComponent(cityKey)}/admin-status`, {
+      signal: controller.signal, credentials: 'omit', headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) return undefined;
+    const status = (await response.json() as { status?: unknown }).status;
+    return status === 'none' || status === 'single' || status === 'team' || status === 'national' ? status : undefined;
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function loadListingPage(readBase: string, query: string): Promise<Page | null> {
   if (query.length > 4096) return null;
   const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());

@@ -90,7 +90,9 @@ async function signInWithPasskey(username, credentialOptions = {}) {
   const verifyRes = await fetch("/users/auth/api/v2/passkeys/login/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ credential: credential })
+    body: JSON.stringify(credentialOptions.next
+      ? { credential: credential, next: credentialOptions.next }
+      : { credential: credential })
   });
   const verifyData = await verifyRes.json();
   if (verifyData.status !== "success") {

@@ -293,3 +293,50 @@ def test_user_from_db_defaults_active_true(db, seeded_data):
     doc = db.users.find_one({"_id": oid})
     user = User.from_db(doc)
     assert user.active is True
+
+
+def test_editor_copy_preserves_permission_values_catalog_and_target(
+    app, admin_client, db, seeded_data
+):
+    from copy import deepcopy
+    from html.parser import HTMLParser
+
+    from mielenosoitukset_fi.utils.variables import PERMISSIONS_GROUPS
+
+    class PermissionInputs(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.values = []
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if tag == "input" and attrs.get("name") == "permissions[global][]":
+                self.values.append((attrs["name"], attrs["value"], "checked" in attrs))
+
+    catalog = deepcopy(PERMISSIONS_GROUPS)
+    target = db.users.find_one({"_id": seeded_data["user_id"]})
+    expected = [
+        ("permissions[global][]", permission["name"],
+         permission["name"] in target["global_permissions"])
+        for permissions in catalog.values()
+        for permission in permissions
+    ]
+    app.config["BABEL_PUBLIC_LOCALES"] = ["fi", "en", "sv"]
+    for locale in ("fi", "en", "sv"):
+        with admin_client.session_transaction() as session:
+            session["locale"] = locale
+        response = admin_client.get(f"/admin/user/edit_user/{seeded_data['user_id']}")
+        assert response.status_code == 200
+        page = response.get_data(as_text=True)
+        inputs = PermissionInputs()
+        inputs.feed(page)
+        assert inputs.values == expected
+        if locale == "fi":
+            assert "Toistuvien mielenosoitusten hallinta" in page
+            assert "Luo toistuvia mielenosoituksia." in page
+            assert "Create recurring demos." not in page
+        else:
+            assert "Recurring Demonstration Management" in page
+            assert "Create recurring demos." in page
+        assert PERMISSIONS_GROUPS == catalog
+        assert db.users.find_one({"_id": seeded_data["user_id"]}) == target

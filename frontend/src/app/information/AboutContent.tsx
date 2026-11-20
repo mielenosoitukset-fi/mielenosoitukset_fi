@@ -18,8 +18,8 @@ export function AboutContent({ campaign = false }: { campaign?: boolean }) {
     {campaign && <section className="about-campaign" aria-labelledby="about-campaign-title">
       <i className="fa-solid fa-bullhorn about-campaign__icon" aria-hidden="true" />
       <div>
-        <h2 id="about-campaign-title">Tule mukaan valtakunnalliseen kampanjaan!</h2>
-        <p>Tule mukaan levittämään tietoa mielenosoitukset.fi:stä kaikkialle Suomeen. Rahoita kampanjaa, levitä markkinointimateriaaleja, tule vapaaehtoiseksi tai jaa tietoa sosiaalisessa mediassa.</p>
+        <h2 id="about-campaign-title">Tule mukaan valtakunnalliseen kampanjaan</h2>
+        <p>Tule mukaan levittämään tietoa Mielenosoitukset.fi:stä kaikkialle Suomeen. Rahoita kampanjaa, levitä markkinointimateriaaleja, tule vapaaehtoiseksi tai jaa tietoa sosiaalisessa mediassa.</p>
         <div className="detail-actions">
           <a className="detail-button detail-button--primary" href="/kampanja/">Tutustu kampanjaan</a>
           <a className="detail-button" href="/kampanja/#vapaaehtoiseksi">Tule vapaaehtoiseksi</a>
@@ -37,7 +37,7 @@ export function AboutContent({ campaign = false }: { campaign?: boolean }) {
         </section>
         <section className="public-prose-card" aria-labelledby="about-submit-title">
           <h2 id="about-submit-title">Kuinka ilmoitan mielenosoituksesta?</h2>
-          <p>Huomasitko, ettei jokin mielenosoitus vielä ole sivustolla? Voit ilmoittaa siitä itse! Täytä <a href="/submit">ilmoituslomake</a> ja varmista, että kaikki tiedot ovat oikein ja ajankohtaisia. Mielenosoitus näkyy sivustolla heti hyväksynnän jälkeen.</p>
+          <p>Huomasitko, ettei jokin mielenosoitus vielä ole sivustolla? Voit ilmoittaa siitä itse. Täytä <a href="/submit">ilmoituslomake</a> ja varmista, että kaikki tiedot ovat oikein ja ajankohtaisia. Mielenosoitus näkyy sivustolla heti hyväksynnän jälkeen.</p>
           <div className="about-questions">
             <div>
               <h3>Voinko ilmoittaa jonkun muun kuin itseni järjestämän mielenosoituksen?</h3>
@@ -45,7 +45,7 @@ export function AboutContent({ campaign = false }: { campaign?: boolean }) {
             </div>
             <div>
               <h3>Kauanko hyväksyntä kestää?</h3>
-              <p>Hyväksyntä kestää yleensä noin yhdestä tunnista 48 tuntiin. Ethän huolestu, jos hyväksynnässä menee kauemmin. Mikäli ilmoitus tarvitsee käsitellä nopeasti, voit ottaa yhteyttä!</p>
+              <p>Hyväksyntä kestää yleensä noin yhdestä tunnista 48 tuntiin. Ethän huolestu, jos hyväksynnässä menee kauemmin. Jos ilmoitus on käsiteltävä nopeasti, voit ottaa yhteyttä.</p>
             </div>
           </div>
           <div className="detail-actions">
@@ -58,7 +58,7 @@ export function AboutContent({ campaign = false }: { campaign?: boolean }) {
       <aside className="about-side" aria-label="Ylläpito ja yhteystiedot">
         <section className="public-prose-card" aria-labelledby="about-who-title">
           <h2 id="about-who-title">Kuka ylläpitää sivustoa?</h2>
-          <p>Mielenosoitukset.fi ylläpidetään riippumattomana projektina vapaaehtoisten toimesta. Emme ole sidoksissa mihinkään poliittiseen puolueeseen tai organisaatioon. Pyrimme tarjoamaan neutraalin alustan, joka tukee monimuotoista ja vapaata mielipiteenilmaisua kaikille.</p>
+          <p>Vapaaehtoiset ylläpitävät Mielenosoitukset.fi-palvelua riippumattomana projektina. Emme ole sidoksissa mihinkään poliittiseen puolueeseen tai organisaatioon. Pyrimme tarjoamaan neutraalin alustan, joka tukee monimuotoista ja vapaata mielipiteenilmaisua kaikille.</p>
           <h3>Miten alusta rahoitetaan?</h3>
           <p>Mielenosoitukset.fi pyörii voittoa tavoittelemattomana ja riippumattomana projektina. Alustan infrakulut, kuten palvelinvuokrat ja verkkotunnus, rahoitetaan yksityishenkilöiden tuella.</p>
           <h3>Yksityisyys ja evästeet</h3>

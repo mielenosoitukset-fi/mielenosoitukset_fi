@@ -382,6 +382,7 @@
       </div>
     </header>
     <div class="admin-section-card__body">
+      <div class="admin-workspace-table" role="region" aria-label="{{ _('Katsotuimmat sivut') }}" tabindex="0">
       <table class="admin-data-view__table">
         <thead>
           <tr>
@@ -406,6 +407,40 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="admin-section-card" aria-labelledby="site-recovered-pages-title">
+    <header class="admin-section-card__header">
+      <div class="admin-section-card__title">
+        <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
+        <div>
+          <h2 id="site-recovered-pages-title">{{ _('Apache-lokeista palautetut sivupyynnöt') }}</h2>
+          <p>{{ _('Tunnettujen sivujen onnistuneet GET-pyynnöt valitulla aikavälillä. Tunnistetut botit on rajattu pois. Luvut eivät ole kävijämääriä eivätkä samoja kuin seurannan sivunäytöt. Niitä ei lisätä yllä oleviin lukuihin. Välimuistista palvellut sivut ja Reactin sisäinen navigointi voivat puuttua. Seurantaestoja ei voida tunnistaa lokeista.') }}</p>
+          {% if recovered_pages %}
+          <p>{{ _('Lokien kattama aika (Helsingin aika):') }} {{ recovered_pages.first_request }} – {{ recovered_pages.last_request }}. {{ _('Ensimmäinen ja viimeinen päivä voivat olla vajaita.') }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </header>
+    <div class="admin-section-card__body">
+      {% if recovery_error %}
+      <p role="alert">{{ _('Lokitietoja ei voitu ladata. Yritä myöhemmin uudelleen.') }}</p>
+      {% elif not recovered_pages or not recovered_pages.rows %}
+      <p>{{ _('Valitulta aikaväliltä ei ole palautettuja lokitietoja.') }}</p>
+      {% else %}
+      <div class="admin-workspace-table" role="region" aria-label="{{ _('Apache-lokeista palautetut sivupyynnöt') }}" tabindex="0">
+      <table class="admin-data-view__table">
+        <thead><tr><th scope="col">{{ _('Sivu') }}</th><th scope="col">{{ _('Osoite') }}</th><th scope="col">{{ _('Pyyntöjä') }}</th></tr></thead>
+        <tbody>
+          {% for row in recovered_pages.rows %}
+          <tr><td>{{ row.title }}</td><td>{{ row.path }}</td><td>{{ row.count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
     </div>
   </section>
 

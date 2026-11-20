@@ -767,7 +767,7 @@ def delete_organization(org_id):
 
     if not organization:
         _log_org_event("organization_delete_missing", org_id=org_id)
-        flash_message("Organisatiota ei löytynyt.", "error")
+        flash_message("Organisaatiota ei löytynyt.", "error")
         return redirect(request.referrer or url_for("admin_org.organization_control"))
 
     if "confirm_delete" in request.form:
@@ -1325,7 +1325,7 @@ def force_accept_invite() -> Tuple[Response, int]:
     if not org:
         _log_org_event("organization_invite_force_accept_error", reason="organization_not_found", organization_id=org_id, email=email)
         return (
-            jsonify({"status": "error", "error": "Organization not found."}),
+            jsonify({"status": "error", "error": _("Organisaatiota ei löytynyt.")}),
             404,
         )
 
@@ -1443,7 +1443,7 @@ def cancel_invite() -> Tuple[Response, int]:
     org = mongo.organizations.find_one({"_id": ObjectId(org_id)})
     if not org:
         _log_org_event("organization_invite_cancel_error", reason="organization_not_found", organization_id=org_id, email=email)
-        return jsonify({"status": "error", "error": "Organization not found."}), 404
+        return jsonify({"status": "error", "error": _("Organisaatiota ei löytynyt.")}), 404
     if not _can_invite_to_organization(current_user, org) or not _can_edit_organization(current_user, org):
         _log_org_event(
             "organization_invite_cancel_error",
@@ -1451,7 +1451,7 @@ def cancel_invite() -> Tuple[Response, int]:
             organization_id=org_id,
             email=email,
         )
-        return jsonify({"status": "error", "error": "Forbidden."}), 403
+        return jsonify({"status": "error", "error": _("Sinulla ei ole oikeutta tähän toimintoon.")}), 403
 
     # --- Process invitations ---
     invitations = org.get("invitations", [])
@@ -1468,7 +1468,7 @@ def cancel_invite() -> Tuple[Response, int]:
 
     if not removed:
         _log_org_event("organization_invite_cancel_error", reason="invite_not_found", organization_id=org_id, email=email)
-        return jsonify({"status": "error", "error": "Invitation not found."}), 404
+        return jsonify({"status": "error", "error": _("Kutsua ei löytynyt.")}), 404
 
     # --- Update organization ---
     mongo.organizations.update_one(
@@ -1533,20 +1533,20 @@ def set_invite_role() -> Tuple[Response, int]:
 
     if not email or not org_id or not role:
         _log_org_event("organization_invite_role_error", reason="missing_fields")
-        return jsonify({"status": "error", "error": "Missing required fields."}), 400
+        return jsonify({"status": "error", "error": _("Pakollisia tietoja puuttuu.")}), 400
 
     if role not in ["owner", "admin", "member"]:
         _log_org_event("organization_invite_role_error", reason="invalid_role", role=role)
-        return jsonify({"status": "error", "error": "Invalid role."}), 400
+        return jsonify({"status": "error", "error": _("Virheellinen rooli.")}), 400
 
     # --- Fetch organization ---
     org = mongo.organizations.find_one({"_id": ObjectId(org_id)})
     if not org:
         _log_org_event("organization_invite_role_error", reason="organization_not_found", organization_id=org_id, email=email)
-        return jsonify({"status": "error", "error": "Organization not found."}), 404
+        return jsonify({"status": "error", "error": _("Organisaatiota ei löytynyt.")}), 404
     if not _can_invite_to_organization(current_user, org):
         _log_org_event("organization_invite_role_error", reason="forbidden", organization_id=org_id, email=email)
-        return jsonify({"status": "error", "error": "Forbidden."}), 403
+        return jsonify({"status": "error", "error": _("Sinulla ei ole oikeutta tähän toimintoon.")}), 403
 
     # --- Process invitations ---
     invitations = org.get("invitations", [])
@@ -1560,13 +1560,13 @@ def set_invite_role() -> Tuple[Response, int]:
 
         # Legacy format: invite stored as just email string
         if isinstance(invite, str) and _invite_matches_email(invite, email):
-            invitations[invitations.index(invite)] = {"email": email, "role": role}
+            invitations[invitations.index(invite)] = {"email": email, "role": role, "invited_at": utcnow()}
             updated = True
             break
 
     if not updated:
         # No existing invite → add a new one
-        invitations.append({"email": email, "role": role})
+        invitations.append({"email": email, "role": role, "invited_at": utcnow()})
 
     # --- Update organization ---
     mongo.organizations.update_one(
@@ -1644,7 +1644,7 @@ def change_access_level() -> Tuple[Response, int]:
         )
         return (
             jsonify({
-                "error": "Invalid role. Role must be one of these: 'member', 'admin', 'owner'"
+                "error": _("Virheellinen rooli. Roolin on oltava 'member', 'admin' tai 'owner'.")
             }),
             400,
         )
@@ -1668,7 +1668,7 @@ def change_access_level() -> Tuple[Response, int]:
             user_id=user_id,
             role=role,
         )
-        return jsonify({"status": "error", "error": "Forbidden."}), 403
+        return jsonify({"status": "error", "error": _("Sinulla ei ole oikeutta tähän toimintoon.")}), 403
 
     organization = Organization.from_dict(org_doc)
 

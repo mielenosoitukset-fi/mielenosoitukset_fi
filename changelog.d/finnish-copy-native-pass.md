@@ -1,0 +1,1 @@
+- Fix awkward or anglicised Finnish on the campaign page, the Pride banner carrier form and email, the privacy text and the logout confirmation, and add a short Finnish style guide in `docs/finnish-style.md`.

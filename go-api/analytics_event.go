@@ -83,6 +83,9 @@ func analyticsJSONValue(decoder *json.Decoder) (any, error) {
 	return value, nil
 }
 
+// analyticsMaxBody bounds every event body, JSON and form alike.
+const analyticsMaxBody = 16 << 10
+
 func analyticsEnabledFromEnv() bool {
 	return os.Getenv("SITE_ANALYTICS_ENABLED") == "true"
 }
@@ -94,6 +97,9 @@ func analyticsEventHandler(next http.Handler, enabled bool, increment func(conte
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
+		// Beacons are a few hundred bytes. A larger body is not counted and is
+		// never held in memory; the answer stays the usual {"ok":true}.
+		r.Body = http.MaxBytesReader(w, r.Body, analyticsMaxBody)
 		if enabled && r.Header.Get("DNT") != "1" {
 			if key := analyticsEventKey(r, clock()); key != nil {
 				ctx, cancel := context.WithTimeout(r.Context(), time.Second)
@@ -280,26 +286,7 @@ func analyticsEventKey(r *http.Request, now time.Time) bson.M {
 	if event != "map_interaction" && event != "external_link" && event != "demo_search" {
 		return nil
 	}
-	host, scheme := r.Host, "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	peer, _, _ := net.SplitHostPort(r.RemoteAddr)
-	if address := net.ParseIP(peer); address != nil && address.IsLoopback() {
-		if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
-			parts := strings.Split(forwarded, ",")
-			host = strings.TrimSpace(parts[len(parts)-1])
-		}
-		if forwarded := r.Header.Get("X-Forwarded-Proto"); forwarded != "" {
-			parts := strings.Split(forwarded, ",")
-			scheme = strings.TrimSpace(parts[len(parts)-1])
-		}
-	}
-	if scheme == "https" {
-		host = strings.TrimSuffix(host, ":443")
-	} else if scheme == "http" {
-		host = strings.TrimSuffix(host, ":80")
-	}
+	host, scheme := analyticsRequestHost(r)
 	landing, err := url.Parse(r.Header.Get("Referer"))
 	if err != nil {
 		return nil
@@ -343,4 +330,31 @@ func analyticsEventKey(r *http.Request, now time.Time) bson.M {
 		key["resource_id"] = string(resource)
 	}
 	return key
+}
+
+// analyticsRequestHost is the request's host and scheme as Flask sees them
+// behind ProxyFix: forwarded values count only from a loopback proxy, and a
+// default port is dropped.
+func analyticsRequestHost(r *http.Request) (host, scheme string) {
+	host, scheme = r.Host, "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	peer, _, _ := net.SplitHostPort(r.RemoteAddr)
+	if address := net.ParseIP(peer); address != nil && address.IsLoopback() {
+		if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
+			parts := strings.Split(forwarded, ",")
+			host = strings.TrimSpace(parts[len(parts)-1])
+		}
+		if forwarded := r.Header.Get("X-Forwarded-Proto"); forwarded != "" {
+			parts := strings.Split(forwarded, ",")
+			scheme = strings.TrimSpace(parts[len(parts)-1])
+		}
+	}
+	if scheme == "https" {
+		host = strings.TrimSuffix(host, ":443")
+	} else if scheme == "http" {
+		host = strings.TrimSuffix(host, ":80")
+	}
+	return host, scheme
 }

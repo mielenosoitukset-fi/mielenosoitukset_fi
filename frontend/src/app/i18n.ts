@@ -1,8 +1,8 @@
 import type { HeaderMessages } from '../components/header/types';
 import type { CardProps } from '../components/listings/DemonstrationCard';
-import type { HomeProps } from '../pages/HomePage';
-import type { HomeContinuationProps } from '../pages/HomeContinuation';
+import type { HomeProps, QuickText } from '../pages/HomePage';
 import type { AppLocale } from './config';
+import type { FundraisingBarText } from './fundraising-bar';
 
 /**
  * Public application copy.
@@ -15,6 +15,30 @@ import type { AppLocale } from './config';
 
 type CardMessages = CardProps['messages'];
 
+/**
+ * City admin application form: how cities are grouped by admin coverage.
+ * Finnish only; en/sv are left to human translators.
+ */
+export const cityAdminApplyCopy = {
+  choose: 'Valitse paikkakunta',
+  groupNone: 'Tarvitsemme adminia',
+  groupSingle: 'Tarvitsemme lisää admineja',
+  groupTeam: 'Admintiimi on jo, varahenkilöt tervetulleita',
+  chipNone: 'tarvitsee adminia',
+  chipSingle: 'tarvitsee lisää admineja',
+  privacyTitle: 'Miten hakemustasi käsitellään',
+  privacyItems: [
+    'Hakemuksesi näkevät valtakunnallinen ylläpitotiimi ja niiden paikkakuntien kaupunkiadminit, joille haet. Vain valtakunnallinen ylläpito päättää hakemuksesta.',
+    'Käsittelemme tekstikenttiin kirjoittamasi tiedot, valitsemasi paikkakunnat ja käyttäjätilisi tiedot. Älä kirjoita hakemukseen muita henkilötietoja kuin suosittelijoiden nimet tai käyttäjänimet.',
+    'Käytämme tietoja vain kaupunkiadmin-tehtävän arviointiin. Hyväksyminen ei anna oikeuksia itsestään: tehtävä annetaan erikseen ylläpidon hallintapaneelissa.',
+    'Käsittelemätöntä hakemusta säilytetään, kunnes se on käsitelty. Hylätyn tai perutun hakemuksen tekstit poistetaan 90 päivän kuluttua päätöksestä ja hyväksytyn 365 päivän kuluttua. Jäljelle jää vain tieto hakemuksen paikkakunnista, tilasta ja päivämääristä.',
+    'Voit pyytää hakemuksesi poistamista aiemmin ottamalla yhteyttä ylläpitoon.',
+  ],
+  privacyLinkLead: 'Lisätietoa on',
+  privacyLinkText: 'tietosuojaselosteessa',
+  coverageHint: 'Listan alussa ovat paikkakunnat, joilla ei vielä ole kaupunkiadminia. Voit hakea myös paikkakunnalle, jolla on jo admineja: tarvitsemme varahenkilöitä ja kierrätämme tehtäviä.',
+};
+
 export type Catalog = {
   meta: { title: string; description: string };
   nav: { home: string; demonstrations: string; cities: string; submit: string };
@@ -25,10 +49,13 @@ export type Catalog = {
     guides: string; developer: string; social: string; account: string;
   };
   fundraising: string;
+  fundraisingBar: FundraisingBarText;
   home: HomeProps['text'];
   /** Finnish only for now; en/sv inherit it until human translators supply copy. */
-  homeMore: HomeContinuationProps['text'];
+  homeQuick: QuickText;
   cards: CardMessages;
+  /** City listing note where a city has fewer than two active city admins. */
+  cityAdmin: { label: string; none: string; single: string; action: string; national: string; nationalNote: string };
 };
 
 const fi: Catalog = {
@@ -41,13 +68,13 @@ const fi: Catalog = {
     login: 'Kirjaudu sisään', register: 'Rekisteröidy' },
   header: {
     skip: 'Siirry sisältöön', home: 'Mielenosoitukset.fi - Etusivu', navigation: 'Päävalikko',
-    languages: 'Kielivalinta', changeLanguage: 'Vaihda kieleksi', menu: 'Valikko',
+    languages: 'Kielivalinta', changeLanguage: 'Vaihda kieli:', menu: 'Valikko',
     openMenu: 'Avaa navigaatiovalikko', closeMenu: 'Sulje navigaatiovalikko', close: 'Sulje valikko',
     userMenu: 'Käyttäjävalikko', theme: 'Vaihda teemaa', lightTheme: 'Vaihda vaaleaan teemaan',
     darkTheme: 'Vaihda tummaan teemaan',
     adminWarning: 'Olet mobiililaitteella. Siirry PC:lle admintoimintojen käyttöä varten',
     notifications: 'Ilmoitukset', markRead: 'Merkitse luetuiksi', all: 'Näytä kaikki',
-    empty: 'Ei ilmoituksia', loading: 'Ladataan…', loadError: 'Virhe ladattaessa',
+    empty: 'Ei ilmoituksia', loading: 'Ladataan…', loadError: 'Ilmoitusten lataaminen epäonnistui.',
     markError: 'Ilmoituksia ei voitu merkitä luetuiksi.',
   },
   footer: {
@@ -57,37 +84,42 @@ const fi: Catalog = {
     account: 'Käyttäjätili',
   },
   fundraising: 'Tutustu pienkeräykseen',
+  fundraisingBar: {
+    label: 'Pienkeräys', opens: 'Pienkeräys aukeaa {date}', openUntil: 'Pienkeräys on käynnissä {date} asti',
+    openShort: 'Keräys on käynnissä', readMore: 'Lue lisää', donate: 'Lahjoita', close: 'Sulje ilmoitus',
+  },
   home: {
     title: 'Tulevat mielenosoitukset',
     intro: 'Mielenosoitukset.fi tarjoaa ajankohtaiset tiedot mielenosoituksista ympäri Suomen.',
-    search: 'Hae mielenosoituksia', searchPlaceholder: 'Hae mielenosoituksia...', submitSearch: 'Hae',
+    search: 'Hae mielenosoituksia', searchPlaceholder: 'Hae mielenosoituksia…', submitSearch: 'Hae',
     all: 'Kaikki mielenosoitukset', submit: 'Ilmoita mielenosoituksesta',
     calendar: 'Kalenterinäkymä', info: 'Tietoa sivustosta',
-    eventsTitle: 'Poimintoja ajankohtaisista mielenosoituksista.', recommendedTitle: 'Suosittelemme',
+    eventsTitle: 'Poimintoja ajankohtaisista mielenosoituksista', recommendedTitle: 'Suosittelemme',
     emptyTitle: 'Ei mielenosoituksia näytettäväksi',
-    empty: 'Uusia mielenosoituksia lisätään jatkuvasti. Tarkista myöhemmin uudelleen!',
+    empty: 'Uusia mielenosoituksia lisätään jatkuvasti. Tarkista myöhemmin uudelleen.',
     prideTitle: 'Pride näkyväksi koko Suomessa',
     prideIntro: 'Tutustu Pride näkyväksi -sivuun, katso Pride-mielenosoitukset kartalla ja lisää myös oma tapahtumasi mukaan.',
     prideLink: 'Avaa Pride näkyväksi',
-    loading: 'Ladataan mielenosoituksia...',
+    loading: 'Ladataan mielenosoituksia…',
     loadError: 'Mielenosoitusten lataaminen epäonnistui. Yritä uudelleen.',
     retry: 'Yritä uudelleen',
   },
-  homeMore: {
-    title: 'Kaikki tulevat mielenosoitukset',
-    intro: 'Jatka selaamista: lisää mielenosoituksia latautuu aikajärjestyksessä.',
-    loading: 'Ladataan lisää mielenosoituksia...',
-    loaded: 'Lisää mielenosoituksia ladattu: __COUNT__.',
-    loadMore: 'Näytä lisää mielenosoituksia',
-    loadError: 'Lisää mielenosoituksia ei voitu ladata. Yritä uudelleen.',
-    retry: 'Yritä uudelleen',
-    all: 'Kaikki mielenosoitukset ja haku',
-    end: 'Olet selannut kaikki tulevat mielenosoitukset.',
+  homeQuick: {
+    nav: 'Pikavalinnat', today: 'Tänään', weekend: 'Viikonloppuna',
+    all: 'Kaikki tulevat mielenosoitukset',
   },
   cards: {
     startingFrom: 'alkaen', endTime: 'Päättymisaika', cancelled: 'Peruttu', today: 'Tänään',
     loginPrompt: 'Kirjaudu sisään käyttääksesi sosiaalisia toimintoja',
-    loadingFriends: 'Ladataan kavereita...', attendingSuffix: 'osallistuu', invite: 'Kutsu kavereita',
+    loadingFriends: 'Ladataan kavereita…', attendingSuffix: 'osallistuu', invite: 'Kutsu kavereita',
+  },
+  cityAdmin: {
+    label: 'Kaupunkiadminit',
+    none: 'Paikkakunnalla ei vielä ole omaa kaupunkiadminia, joten valtakunnallinen ylläpitotiimi tarkistaa täkäläiset ilmoitukset. Haluatko auttaa?',
+    single: 'Paikkakunnalle haetaan toista kaupunkiadminia. Kiinnostaako?',
+    action: 'Hae kaupunkiadminiksi',
+    national: 'Valtakunnallinen tiimi',
+    nationalNote: 'tarkistaa tämän paikkakunnan ilmoitukset.',
   },
 };
 
@@ -118,6 +150,8 @@ const en: Catalog = {
     social: 'Mielenosoitukset.fi on social media', account: 'User account',
   },
   fundraising: 'Read about the fundraiser',
+  // Finnish until a human translator provides this copy.
+  fundraisingBar: fi.fundraisingBar,
   home: {
     title: 'Upcoming demonstrations',
     intro: 'Mielenosoitukset.fi lists current demonstrations around Finland.',
@@ -139,6 +173,8 @@ const en: Catalog = {
     loginPrompt: 'Sign in to use social features', loadingFriends: 'Loading friends...',
     attendingSuffix: 'is attending', invite: 'Invite friends',
   },
+  // Finnish until human translators provide English copy.
+  cityAdmin: fi.cityAdmin,
 };
 
 const sv: Catalog = {
@@ -168,6 +204,8 @@ const sv: Catalog = {
     developer: 'För utvecklare', social: 'Mielenosoitukset.fi i sociala medier', account: 'Användarkonto',
   },
   fundraising: 'Läs om insamlingen',
+  // Finnish until a human translator provides this copy.
+  fundraisingBar: fi.fundraisingBar,
   home: {
     title: 'Kommande demonstrationer',
     intro: 'Mielenosoitukset.fi samlar aktuella demonstrationer runt om i Finland.',
@@ -189,6 +227,8 @@ const sv: Catalog = {
     loginPrompt: 'Logga in för att använda sociala funktioner', loadingFriends: 'Laddar vänner...',
     attendingSuffix: 'deltar', invite: 'Bjud in vänner',
   },
+  // Finnish until human translators provide Swedish copy.
+  cityAdmin: fi.cityAdmin,
 };
 
 const catalogs: Record<AppLocale, Catalog> = { fi, en, sv };

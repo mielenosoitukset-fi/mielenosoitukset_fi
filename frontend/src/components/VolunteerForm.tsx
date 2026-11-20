@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 
-type FieldName = 'name' | 'email' | 'phone' | 'city' | 'notes';
+type FieldName = 'name' | 'email' | 'city' | 'area' | 'notes';
+
+/** Keys the Flask endpoint accepts; the labels are the page's copy. */
+export const volunteerRoles = [
+  { key: 'stickers', label: 'Tarrojen jakaminen' },
+  { key: 'pride_banner', label: 'Banderollin kantaminen Pridessa' },
+  { key: 'events', label: 'Tapahtumat ja markkinointiviikko' },
+  { key: 'communications', label: 'Viestintä ja somejako' },
+] as const;
 type Feedback = { kind: 'success' | 'error'; message: string };
 
 export interface VolunteerFormProps {
@@ -20,6 +28,7 @@ export function VolunteerForm({ endpoint, messages }: VolunteerFormProps) {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [invalid, setInvalid] = useState<string[]>([]);
   const [pending, setPending] = useState(false);
+  const [roles, setRoles] = useState<string[]>([]);
   // State updates are batched: the ref also guards two submits in the same tick.
   const requestPending = useRef(false);
   const message = useRef<HTMLDivElement>(null);
@@ -59,7 +68,8 @@ export function VolunteerForm({ endpoint, messages }: VolunteerFormProps) {
       return;
     }
 
-    const payload = Object.fromEntries(fields.map((field) => [field.name, field.value.trim()]));
+    const text = Object.fromEntries(fields.filter((field) => field.type !== 'checkbox').map((field) => [field.name, field.value.trim()]));
+    const payload = { ...text, roles, ...(roles.includes('stickers') ? {} : { area: '' }) };
     requestPending.current = true;
     setPending(true);
     setFeedback(null);
@@ -76,6 +86,7 @@ export function VolunteerForm({ endpoint, messages }: VolunteerFormProps) {
       if (response.ok && result?.success === true) {
         setFeedback({ kind: 'success', message: messages.success });
         form.reset();
+        setRoles([]);
       } else {
         setFeedback({
           kind: 'error',
@@ -100,44 +111,49 @@ export function VolunteerForm({ endpoint, messages }: VolunteerFormProps) {
 
   return (
     <form id="volunteer-form" method="post" action={endpoint} noValidate
-      aria-describedby="vol-help vol-msg" aria-busy={pending || undefined}
+      aria-describedby="vol-msg" aria-busy={pending || undefined}
       onSubmit={submit} onInput={clearInvalid}>
-      <div id="vol-msg" ref={message} className={`flash-message flash-message--inline${feedback ? ` flash-${feedback.kind}` : ''}`}
+      <p id="vol-msg" ref={message} className={`kv-banner${feedback?.kind === 'error' ? ' kv-banner--err' : ''}`}
         role={feedback?.kind === 'error' ? 'alert' : 'status'} aria-live="polite" aria-atomic="true" tabIndex={-1} hidden={!feedback}>
-        <span className="flash-icon" aria-hidden="true">
-          <i className={`fa-solid ${feedback?.kind === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'}`} />
-        </span>
-        <span className="flash-content"><span id="vol-msg-text" className="flash-text">{feedback?.message}</span></span>
-      </div>
+        <i className={`fa-solid ${feedback?.kind === 'error' ? 'fa-circle-exclamation' : 'fa-check'}`} aria-hidden="true" />
+        <span id="vol-msg-text">{feedback?.message}</span>
+      </p>
       <fieldset id="vol-fields" disabled={pending}>
         <legend className="visually-hidden">Ilmoittautumistiedot</legend>
         <div className="form-row">
           <div className="form-group">
-            <label htmlFor="vol-name" className="form-label">Nimi <span style={{ color: 'var(--secondary-orange)' }}>*</span></label>
-            <input {...fieldProps('name')} autoComplete="name" placeholder="Etunimi Sukunimi" required aria-required="true" />
+            <label htmlFor="vol-name" className="form-label">Nimi <span className="kv-req">*</span></label>
+            <input {...fieldProps('name')} autoComplete="name" required aria-required="true" />
           </div>
           <div className="form-group">
-            <label htmlFor="vol-email" className="form-label">Sähköposti <span style={{ color: 'var(--secondary-orange)' }}>*</span></label>
-            <input {...fieldProps('email')} type="email" autoComplete="email" placeholder="nimi@esimerkki.fi" required aria-required="true" />
-          </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="vol-phone" className="form-label">Puhelin</label>
-            <input {...fieldProps('phone')} type="tel" autoComplete="tel" placeholder="040 123 4567" />
-          </div>
-          <div className="form-group">
-            <label htmlFor="vol-city" className="form-label">Kaupunki</label>
-            <input {...fieldProps('city')} autoComplete="address-level2" placeholder="Helsinki" />
+            <label htmlFor="vol-email" className="form-label">Sähköposti <span className="kv-req">*</span></label>
+            <input {...fieldProps('email')} type="email" autoComplete="email" required aria-required="true" />
           </div>
         </div>
         <div className="form-group">
-          <label htmlFor="vol-notes" className="form-label">Mikä sinua kiinnostaa?</label>
-          <textarea {...fieldProps('notes')} rows={4}
-            placeholder="Esim. tarrojen jakaminen Turussa, somesisällöt tai muutama tunti silloin tällöin." />
+          <label htmlFor="vol-city" className="form-label">Kaupunki <span className="kv-opt">(valinnainen)</span></label>
+          <input {...fieldProps('city')} autoComplete="address-level2" />
         </div>
+        <div className="form-group">
+          <span className="form-label kv-block" id="vol-roles-label">Missä haluaisit auttaa? <span className="kv-opt">(valinnainen)</span></span>
+          <div className="kv-roles" role="group" aria-labelledby="vol-roles-label">
+            {volunteerRoles.map((role) => <label key={role.key} className="kv-chipcheck">
+              <input type="checkbox" name="roles" value={role.key} checked={roles.includes(role.key)}
+                onChange={(event) => setRoles((previous) => event.target.checked ? [...previous, role.key] : previous.filter((key) => key !== role.key))} />
+              <span>{role.label}</span>
+            </label>)}
+          </div>
+        </div>
+        {roles.includes('stickers') && <div className="form-group">
+          <label htmlFor="vol-area" className="form-label">Alue, jossa jakaisit tarroja <span className="kv-opt">(valinnainen)</span></label>
+          <input {...fieldProps('area')} placeholder="Esimerkiksi Tampereen keskusta" />
+          <p className="kv-small kv-note">Sovimme jakamisesta yhdessä ja otamme sinuun yhteyttä myöhemmin. Tämä ei ole lupaus tarrojen toimituksesta tai aikataulusta.</p>
+        </div>}
+        <details className="kv-more">
+          <summary>Haluatko kertoa jotain lisää?</summary>
+          <div><textarea {...fieldProps('notes')} rows={3} aria-label="Lisätiedot" /></div>
+        </details>
         <button className="btn btn-primary" id="vol-submit" type="submit" disabled={pending} aria-busy={pending || undefined}>
-          <i className="fa-solid fa-paper-plane" aria-hidden="true" />
           <span id="vol-submit-label">{pending ? messages.sending : 'Lähetä ilmoittautuminen'}</span>
         </button>
       </fieldset>

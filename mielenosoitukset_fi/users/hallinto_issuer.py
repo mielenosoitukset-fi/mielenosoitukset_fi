@@ -1,0 +1,343 @@
+"""Isolated, first-party OIDC issuer for the Hallinto confidential client."""
+
+import hashlib
+import json
+import logging
+import re
+from dataclasses import dataclass
+from datetime import UTC, timedelta
+from hmac import compare_digest
+from time import time
+from urllib.parse import unquote_plus, urlsplit
+
+from authlib.integrations.flask_oauth2 import AuthorizationServer
+from authlib.oauth2.rfc6749 import AuthorizationCodeMixin, ClientMixin
+from authlib.oauth2.rfc6749.errors import InvalidGrantError, InvalidRequestError, OAuth2Error
+from authlib.oauth2.rfc6749.grants import AuthorizationCodeGrant
+from authlib.oauth2.rfc7636 import CodeChallenge
+from authlib.oidc.core import UserInfo
+from authlib.oidc.core.grants import OpenIDCode
+from bson import ObjectId
+from flask import Blueprint, jsonify, redirect, request, session, url_for
+from flask_login import current_user, user_logged_in
+from joserfc.jwk import RSAKey
+from pymongo.errors import DuplicateKeyError, PyMongoError
+
+from mielenosoitukset_fi.users.hallinto_sessions import AccountVersion, issue_marker, revoke_marker
+from mielenosoitukset_fi.users.models import User
+from mielenosoitukset_fi.utils.time_utils import utcnow
+from mielenosoitukset_fi.utils.webauthn_utils import PASSKEY_COLLECTION
+
+ISSUER_PATH = "/hallinto-oidc"
+SESSION_MARKER = "hallinto_owner_login"
+_CODE_LIFETIME = timedelta(minutes=2)
+_ID_TOKEN_SECONDS = 120
+_REFERENCE = re.compile(r"[0-9a-f]{64}\Z")
+
+
+def _digest(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _account_version(db, subject: str, authenticated_user: User | None = None) -> AccountVersion | None:
+    if not isinstance(subject, str) or not ObjectId.is_valid(subject) or str(ObjectId(subject)) != subject:
+        return None
+    account_id = ObjectId(subject)
+    doc = db.users.find_one({"_id": account_id})
+    if not doc:
+        return None
+    user = User.from_db(doc)
+    if authenticated_user is not None and (
+        user.auth_epoch != authenticated_user.auth_epoch
+        or user.password_hash != authenticated_user.password_hash
+        or user.mfa_enabled != authenticated_user.mfa_enabled
+    ):
+        return None
+    # A future relying party for god accounts requires its own assurance model.
+    if (not user.is_active or not user.confirmed or user.role == "god"
+            or user.forced_pwd_reset or user.forced_identity_change):
+        return None
+    # IDs, not factor secrets or mutable last-use counters, bind this browser
+    # login to the factors that were present when Flask authenticated it.
+    mfa_ids = sorted(str(row["_id"]) for row in db.mfas.find({"user_id": {"$in": [account_id, subject]}}, {"_id": 1}))
+    passkey_ids = sorted(str(row["_id"]) for row in db[PASSKEY_COLLECTION].find({"user_id": {"$in": [account_id, subject]}}, {"_id": 1}))
+    version = _digest(json.dumps([user.password_hash, user.mfa_enabled, mfa_ids, passkey_ids]))
+    return AccountVersion(account_id, user.auth_epoch, version)
+
+
+def _live_marker(db, reference: str, subject: str) -> dict | None:
+    if not isinstance(reference, str) or not _REFERENCE.fullmatch(reference):
+        return None
+    account = _account_version(db, subject)
+    if account is None:
+        return None
+    return db.hallinto_login_markers.find_one(
+        {
+            "_id": reference, "user_id": account.user_id,
+            "auth_epoch": account.auth_epoch, "credential_version": account.credential_version,
+            "revoked_at": None, "expires_at": {"$gt": utcnow()},
+        },
+        {"issued_at": 1},
+    )
+
+
+@dataclass(frozen=True)
+class _Client(ClientMixin):
+    client_id: str
+    client_secret: str
+    redirect_uri: str
+
+    def get_client_id(self):
+        return self.client_id
+
+    def get_default_redirect_uri(self):
+        return None
+
+    def get_allowed_scope(self, scope):
+        return "openid" if scope == "openid" else None
+
+    def check_redirect_uri(self, redirect_uri):
+        return redirect_uri == self.redirect_uri
+
+    def check_client_secret(self, client_secret):
+        return compare_digest(client_secret.encode(), self.client_secret.encode())
+
+    def check_endpoint_auth_method(self, method, endpoint):
+        return endpoint == "token" and method == "client_secret_basic"
+
+    def check_response_type(self, response_type):
+        return response_type == "code"
+
+    def check_grant_type(self, grant_type):
+        return grant_type == "authorization_code"
+
+
+@dataclass(frozen=True)
+class _Code(AuthorizationCodeMixin):
+    document: dict
+
+    def get_redirect_uri(self):
+        return self.document["redirect_uri"]
+
+    def get_scope(self):
+        return "openid"
+
+    def get_nonce(self):
+        return self.document["nonce"]
+
+    def get_auth_time(self):
+        return int(self.document["issued_at"].replace(tzinfo=UTC).timestamp())
+
+    def get_acr(self):
+        return None
+
+    def get_amr(self):
+        return None
+
+
+class _S256(CodeChallenge):
+    def validate_code_challenge(self, grant, redirect_uri):
+        payload = grant.request.payload.data
+        if not payload.get("code_challenge") or payload.get("code_challenge_method") != "S256":
+            raise InvalidRequestError("S256 is required")
+        super().validate_code_challenge(grant, redirect_uri)
+
+    def get_authorization_code_challenge(self, authorization_code):
+        return authorization_code.document["challenge"]
+
+    def get_authorization_code_challenge_method(self, authorization_code):
+        return "S256"
+
+
+def _https_url(value: str):
+    parsed = urlsplit(value)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.query or parsed.fragment:
+        raise ValueError("Hallinto OIDC URLs need HTTPS without credentials, query or fragment")
+    return parsed
+
+
+def register_hallinto_issuer(app, db, settings: dict) -> None:
+    issuer = settings["issuer"]
+    origin = _https_url(issuer)
+    if origin.path != ISSUER_PATH:
+        raise ValueError("Hallinto issuer must be mounted at " + ISSUER_PATH)
+    client = _Client(settings["client_id"], settings["client_secret"], settings["redirect_uri"])
+    if _https_url(client.redirect_uri).path != "/auth/callback" or not client.client_id or len(client.client_secret) < 32:
+        raise ValueError("Hallinto issuer client configuration is incomplete")
+    key = RSAKey.import_key(settings["private_key"], parameters={"kid": settings["key_id"]})
+    if not key.is_private or key.raw_value.key_size < 2048 or not settings["key_id"]:
+        raise ValueError("Hallinto issuer needs an identified RSA private key of at least 2048 bits")
+
+    # Authlib's grant debug logger includes bearer tokens in messages.
+    logging.getLogger("authlib.oauth2.rfc6749.grants.authorization_code").setLevel(logging.WARNING)
+    auth = AuthorizationServer(
+        app,
+        query_client=lambda identifier: client if identifier == client.client_id else None,
+        save_token=lambda *_: None,
+    )
+    codes = db.hallinto_oidc_codes
+
+    class Grant(AuthorizationCodeGrant):
+        def save_authorization_code(self, code, oauth_request):
+            payload = oauth_request.payload.data
+            reference = _digest(session[SESSION_MARKER])
+            marker = _live_marker(db, reference, current_user.get_id())
+            if not marker:
+                raise InvalidGrantError("Owner login ended")
+            try:
+                # The nonce hash is Mongo's unique key. Concurrent authorization
+                # requests cannot reuse a nonce even on different workers.
+                codes.insert_one({
+                    "_id": _digest(payload["nonce"]),
+                    "code_digest": _digest(code),
+                    "redirect_uri": payload["redirect_uri"],
+                    "nonce": payload["nonce"],
+                    "challenge": payload["code_challenge"],
+                    "subject": current_user.get_id(),
+                    "sid": reference,
+                    "issued_at": marker["issued_at"],
+                    "expires_at": utcnow() + _CODE_LIFETIME,
+                    "used_at": None,
+                })
+            except DuplicateKeyError as exc:
+                raise InvalidRequestError("Nonce already used") from exc
+
+        def query_authorization_code(self, code, oauth_client):
+            doc = codes.find_one({"code_digest": _digest(code), "used_at": None, "expires_at": {"$gt": utcnow()}})
+            return _Code(doc) if doc else None
+
+        def authenticate_user(self, authorization_code):
+            # Authlib already validated the client, redirect and S256 verifier.
+            doc = authorization_code.document
+            now = utcnow()
+            consumed = codes.update_one(
+                {"_id": doc["_id"], "used_at": None, "expires_at": {"$gt": now}},
+                {"$set": {"used_at": now}},
+            )
+            if consumed.matched_count != 1 or not _live_marker(db, doc["sid"], doc["subject"]):
+                return None
+            return doc["subject"]
+
+        def delete_authorization_code(self, authorization_code):
+            # The atomic consume above preserves the nonce tombstone for expiry.
+            pass
+
+    class Identity(OpenIDCode):
+        def exists_nonce(self, nonce, oauth_request):
+            return codes.find_one({"_id": _digest(nonce)}, {"_id": 1}) is not None
+
+        def get_client_claims(self, oauth_client):
+            return {"iss": issuer, "aud": [client.client_id], "exp": int(time()) + _ID_TOKEN_SECONDS}
+
+        def get_encode_header(self, oauth_client):
+            return {"alg": "RS256", "kid": settings["key_id"]}
+
+        def resolve_client_private_key(self, oauth_client):
+            return key
+
+        def get_authorization_code_claims(self, authorization_code):
+            return {
+                **super().get_authorization_code_claims(authorization_code),
+                "sid": authorization_code.document["sid"],
+            }
+
+        def generate_user_info(self, user, scope):
+            return UserInfo(sub=user)
+
+    auth.register_grant(Grant, extensions=[_S256(), Identity(require_nonce=True)])
+    bp = Blueprint("hallinto_issuer", __name__, url_prefix=ISSUER_PATH)
+
+    @user_logged_in.connect_via(app)
+    def start_owner_login(sender, user, **kwargs):
+        previous = session.pop(SESSION_MARKER, None)
+        if previous is not None:
+            # The previous account ID is independent of Flask's overwritten
+            # _user_id when the browser signs in as a different account.
+            old = db.hallinto_login_markers.find_one({"_id": _digest(previous)}, {"user_id": 1})
+            if old:
+                revoke_marker(db.hallinto_login_markers, previous, old["user_id"])
+        account = _account_version(db, user.get_id(), user)
+        if account:
+            session[SESSION_MARKER] = issue_marker(
+                db.hallinto_login_markers, account, utcnow() + app.permanent_session_lifetime,
+            )
+
+    def end_owner_login(subject):
+        marker = session.get(SESSION_MARKER)
+        if marker:
+            try:
+                revoke_marker(db.hallinto_login_markers, marker, ObjectId(subject))
+            except PyMongoError:
+                return False
+            session.pop(SESSION_MARKER, None)
+        return True
+
+    app.extensions["hallinto_owner_logout"] = end_owner_login
+
+    @bp.before_request
+    def require_canonical_origin():
+        if not request.is_secure or request.host != origin.netloc:
+            return jsonify(error="invalid_request"), 400
+
+    @bp.after_request
+    def no_store(response):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return response
+
+    @bp.errorhandler(PyMongoError)
+    def owner_unavailable(_error):
+        return jsonify(error="temporarily_unavailable"), 503
+
+    @bp.get("/.well-known/openid-configuration")
+    def discovery():
+        return jsonify(
+            issuer=issuer, authorization_endpoint=issuer + "/authorize",
+            token_endpoint=issuer + "/token", jwks_uri=issuer + "/jwks",
+            response_types_supported=["code"], grant_types_supported=["authorization_code"],
+            subject_types_supported=["public"], id_token_signing_alg_values_supported=["RS256"],
+            scopes_supported=["openid"], code_challenge_methods_supported=["S256"],
+            token_endpoint_auth_methods_supported=["client_secret_basic"],
+        )
+
+    @bp.get("/jwks")
+    def jwks():
+        return jsonify(keys=[key.as_dict(private=False)])
+
+    @bp.get("/authorize")
+    def authorize():
+        oauth_request = auth.create_oauth2_request(None)
+        subject = current_user.get_id()
+        try:
+            if (request.args.get("scope") != "openid" or not request.args.get("state")
+                    or not 1 <= len(request.args.get("nonce", "")) <= 128):
+                raise InvalidRequestError("OpenID scope, state and nonce are required")
+            grant = auth.get_consent_grant(oauth_request, end_user=subject)
+        except OAuth2Error as error:
+            return auth.handle_error_response(oauth_request, error)
+        if not subject:
+            return redirect(url_for("users.auth.login", next=request.full_path))
+        marker = session.get(SESSION_MARKER)
+        if not marker or not _live_marker(db, _digest(marker), subject):
+            return jsonify(error="access_denied", error_description="Sign out and sign in again"), 403
+        return auth.create_authorization_response(oauth_request, grant_user=subject, grant=grant)
+
+    @bp.post("/token")
+    def token():
+        request.max_content_length = 4096
+        return auth.create_token_response()
+
+    @bp.post("/session")
+    def owner_session():
+        request.max_content_length = 4096
+        credentials = request.authorization
+        if (not credentials or credentials.type != "basic"
+                or unquote_plus(credentials.username or "") != client.client_id
+                or not client.check_client_secret(unquote_plus(credentials.password or ""))):
+            return jsonify(error="invalid_client"), 401, {"WWW-Authenticate": "Basic"}
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify(error="invalid_request"), 400
+        return jsonify(active=bool(_live_marker(db, payload.get("sid"), payload.get("sub"))))
+
+    app.register_blueprint(bp)

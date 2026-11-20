@@ -13,7 +13,7 @@ import { loadDetailHead, loadSeries, selectOccurrence, seriesNavigation, seriesP
 import type { DetailBootstrap, DetailSeries } from './detail-route';
 import { catalog } from './i18n';
 import { ttlCache } from './server-cache';
-import { listingProps, listingQuery, loadListingPage } from './listing';
+import { listingProps, listingQuery, loadCityAdminStatus, loadListingPage } from './listing';
 import type { ListingBootstrap } from './listing';
 import { loadOrganization } from './organization';
 import type { OrganizationBootstrap } from './organization';
@@ -29,15 +29,28 @@ import { PrideDetails, prideCopy, prideRoute } from './PrideScreen';
 import CampaignScreen from './CampaignScreen';
 import FundraisingScreen from './FundraisingScreen';
 import ContactScreen from './ContactScreen';
+import CityAdminApplyScreen from './CityAdminApplyScreen';
 import OrganizationFillScreen from './OrganizationFillScreen';
 import SuggestChangeScreen from './SuggestChangeScreen';
 import ApiDocsScreen from './ApiDocsScreen';
 import apiDocs from 'virtual:api-docs';
 import StatusScreen from './StatusScreen';
+import CancelLinkScreen from './CancelLinkScreen';
+import DeveloperScreen from './DeveloperScreen';
+import ProfileScreen from './ProfileScreen';
+import AccountSettingsScreen from './AccountSettingsScreen';
+import { accountCopy } from './account-settings-route';
+import { loadProfile, profileTitle } from './profile-route';
+import type { ProfileInitial } from './profile-route';
+import { loadCancelLink, cancelLinkTitle, type CancelLinkState } from './cancel-link';
 import { loadStatus, statusTitle, type ServiceStatus } from './status';
 import { loadSuggestion, suggestionTitle, suggestionLead, type SuggestionDemo } from './suggest-change';
-import { helsinkiToday } from './fundraising';
-export { fundraisingDetails } from './fundraising';
+import { helsinkiToday, loadFundraisingData, fundraisingExtras, withoutAccount } from './fundraising';
+import { fundraisingData as fundraisingBundled } from './FundraisingScreen';
+export { fundraisingDetails, fundraisingExtras, activeMobilepayUrl } from './fundraising';
+export { readReminderLink } from './fundraising-reminder';
+import { BAR_STYLESHEET, barMilestone, dismissScript } from './fundraising-bar';
+export { barPhase, barMilestone, isDismissed, normalizeBar, dismissScript, shortDate } from './fundraising-bar';
 import { campaignPath, loadCampaignPublication } from './campaign-route';
 import { routeForPath, routeMeta } from './routes';
 import type { RouteMeta } from './routes';
@@ -74,7 +87,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; organizationFill?: string; suggestChange?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; accountSettings?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -102,6 +115,9 @@ const DETAIL_STYLESHEET = '/static/css/public-detail.css?v=20261110-detail-butto
  */
 const HOME_CACHE_TTL_MS = 30_000;
 const HOME_TIMEOUT_MS = 1200;
+/** Opts the home page and the listings into the cross-document transition
+ * between them. Pages without it navigate normally. */
+const PAGE_TRANSITION_STYLESHEET = '<link rel="stylesheet" href="/static/css/page-transition.css?v=20261112-1">';
 const homeBatches = ttlCache<HomeData>(HOME_CACHE_TTL_MS, 4);
 
 function validHomeData(value: unknown): value is HomeData {
@@ -205,9 +221,9 @@ ${options.jsonLd ? `<script type="application/ld+json">${serialize(options.jsonL
 <noscript><link rel="stylesheet" href="/static/fa/css/all.css"></noscript>
 <link rel="preload" href="https://cdn2.mielenosoitukset.fi/vendor/bootstrap/5.3.0/bootstrap.min.css" as="style" crossorigin onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://cdn2.mielenosoitukset.fi/vendor/bootstrap/5.3.0/bootstrap.min.css" crossorigin></noscript>
-<link rel="stylesheet" href="/static/css/home.css?v=20261111-continuation-2">
+<link rel="stylesheet" href="/static/css/home.css?v=20261112-quick-picks">
 <link rel="stylesheet" href="/static/css/product-tokens.css?v=20261110-pride-contrast-1">
-<link rel="stylesheet" href="/static/css/user-workspace.css?v=20261110-user-workspace-7">
+<link rel="stylesheet" href="/static/css/user-workspace.css?v=20261110-user-workspace-8">
 <link rel="stylesheet" href="/static/css/public-header.css?v=20261027-react-header-1">
 <link rel="stylesheet" href="/static/css/flash.css?v=20261110-inline-spacing-1">
 <link rel="stylesheet" href="/static/css/public_hero.css?v=20261015-hero-width-1">
@@ -316,6 +332,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
   if (responseCookies.length) headers['Set-Cookie'] = responseCookies;
   let appMarkup = '';
   let today: string | undefined;
+  let fundraisingData: Record<string, unknown> | null | undefined;
   let campaignVisible: boolean | undefined;
   if (route.name === 'api-docs') {
     extraHead = '<link rel="stylesheet" href="/static/css/public-api-docs.css?v=20261110-2">';
@@ -337,35 +354,61 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
       serverPage={<InformationScreen page={route.page} session={session} campaign={campaignVisible} />} />);
   }
 
-  if (route.name === 'campaign' || route.name === 'fundraising') {
+  if (route.name === 'fundraising') {
+    // Public from the start; it has its own pre-launch state. Until the first
+    // collection day (Helsinki time) it is not indexed. Not part of the campaign gate.
+    today = helsinkiToday();
+    fundraisingData = await loadFundraisingData(readBase);
+    headers['Cache-Control'] = 'private, no-store';
+    if (fundraisingExtras(fundraisingData ?? fundraisingBundled, today).pre_launch) {
+      headers['X-Robots-Tag'] = 'noindex, follow';
+      meta = { ...meta, robots: 'noindex, follow' };
+    }
+    // Confirmation and removal links from the reminder mails carry a one-time token: never indexed.
+    if (new URLSearchParams(input.search ?? '').has('muistutus')) {
+      headers['X-Robots-Tag'] = 'noindex, nofollow';
+      meta = { ...meta, robots: 'noindex, nofollow' };
+    }
+    extraHead = (assets.fundraising ?? '')
+      + '<link rel="stylesheet" href="/static/css/public-content.css?v=20261116-fundraising-ux-3">'
+      + '<link rel="stylesheet" href="/static/css/campaign.css?v=20261110-volunteer-message-1">';
+    // The whole page is in the server-rendered document; no fallback is needed.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<FundraisingScreen config={config} today={today} data={fundraisingData} />} />);
+  }
+
+  if (route.name === 'campaign') {
     // The Flask gate: signed-in preview until the campaign is published.
     const published = await loadCampaignPublication(readBase);
-    const gatedPath = route.name === 'campaign' ? campaignPath : config.urls.fundraising;
+    const gatedPath = campaignPath;
     if (!published && !session.authenticated) {
       return { status: 302, html: '', redirect: `${config.urls.login}?next=${encodeURIComponent(gatedPath)}`,
         headers: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' } };
     }
+    // The phase depends on the Helsinki date, so the page is never cached across a phase boundary.
+    today = helsinkiToday();
+    fundraisingData = (await loadFundraisingData(readBase)) ?? { ...(fundraisingBundled as Record<string, unknown>) };
     headers['Cache-Control'] = 'private, no-store';
+    // Confirmation and removal links carry a one-time token: never indexed.
+    const privateLink = new URLSearchParams(input.search ?? '').has('avajaiset');
+    if (privateLink) {
+      headers['X-Robots-Tag'] = 'noindex, nofollow';
+      meta = { ...meta, robots: 'noindex, nofollow' };
+    }
     if (!published) {
       headers['X-Robots-Tag'] = 'noindex, nofollow';
       meta = { ...meta, robots: 'noindex, nofollow' };
     }
-    if (route.name === 'campaign') {
+    {
       extraHead = (assets.campaign ?? '')
-        + '<link rel="stylesheet" href="/static/css/campaign.css?v=20261110-volunteer-message-1">';
+        + '<link rel="stylesheet" href="/static/css/campaign.css?v=20261110-volunteer-message-1">'
+        + '<link rel="stylesheet" href="/static/css/campaign-v2.css?v=20261113-campaign-v2-7">'
+        + '<link rel="stylesheet" href="/static/css/campaign-opening.css?v=20261116-opening-1">';
       noscript = '<noscript><p class="container-main-content">Sivu toimii parhaiten, kun JavaScript on käytössä. '
-        + 'Ilmoittautuminen ja uutiskirjeen tilaus tarvitsevat sen.</p></noscript>';
+        + 'Ilmoittautuminen tarvitsee sen.</p></noscript>';
       appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
-        serverPage={<CampaignScreen config={config} />} />);
-    } else {
-      today = helsinkiToday();
-      extraHead = (assets.fundraising ?? '')
-        + '<link rel="stylesheet" href="/static/css/public-content.css?v=20261026-fundraising-2">'
-        + '<link rel="stylesheet" href="/static/css/campaign.css?v=20261110-volunteer-message-1">';
-      // The whole page is in the server-rendered document; no fallback is needed.
-      noscript = '';
-      appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
-        serverPage={<FundraisingScreen config={config} today={today} />} />);
+        serverPage={<CampaignScreen config={config} today={today} data={fundraisingData} />} />);
     }
   }
 
@@ -381,6 +424,23 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<StatusScreen status={serviceStatus} />} />);
+  }
+  let cancelLink: CancelLinkState | undefined;
+  if (route.name === 'cancel-link') {
+    // The link is a bearer secret: never cached, never indexed, no referrer to other sites.
+    const loaded = await loadCancelLink(readBase, route.token);
+    if (loaded.state === 'unavailable') {
+      return { status: 503, html: unavailableDocument(), headers: { 'Cache-Control': 'no-store', 'Retry-After': '30', 'X-Robots-Tag': 'noindex' } };
+    }
+    cancelLink = loaded;
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    meta = { title: `${cancelLinkTitle} | Mielenosoitukset.fi`, description: cancelLinkTitle,
+      canonical: null, robots: 'noindex, nofollow' };
+    extraHead = (assets.cancelLink ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<CancelLinkScreen link={cancelLink} token={route.token} />} />);
   }
   if (route.name === 'suggest-change') {
     const loaded = await loadSuggestion(readBase, route.id);
@@ -411,6 +471,56 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<OrganizationFillScreen profile={organizationFill} />} />);
+  }
+
+  if (route.name === 'city-admin') {
+    headers['Cache-Control'] = 'private, no-store';
+    extraHead = (assets.cityAdmin ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The page renders its own no-JavaScript fallback inside the form card.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<CityAdminApplyScreen session={session} apiBase={config.apiBase} />} />);
+  }
+
+  if (route.name === 'developer') {
+    // Per-account page: never cached or indexed. The data loads in the browser from the Go read routes.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    extraHead = (assets.developer ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<DeveloperScreen config={config} session={session} appId={route.appId} />} />);
+  }
+
+  if (route.name === 'account-settings') {
+    // Per-account page: never cached or indexed. The data loads in the browser from the Go read route.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    extraHead = (assets.accountSettings ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${accountCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<AccountSettingsScreen config={config} session={session} />} />);
+  }
+
+  let profile: ProfileInitial | undefined;
+  if (route.name === 'profile') {
+    // The public part, read without the visitor's cookie. The browser reads again with its own cookie
+    // to learn whether this is the owner or another signed-in visitor.
+    const loaded = await loadProfile(readBase, route.username);
+    if (loaded.status === 'unavailable') {
+      return { status: 503, html: unavailableDocument(), headers: { 'Cache-Control': 'no-store', 'Retry-After': '30', 'X-Robots-Tag': 'noindex' } };
+    }
+    profile = loaded;
+    headers['X-Robots-Tag'] = 'noindex, follow';
+    meta = loaded.status === 'ready'
+      ? { ...meta, title: `${profileTitle(loaded.profile.displayname)} | Mielenosoitukset.fi` }
+      : { ...meta, title: 'Käyttäjäprofiilia ei löytynyt | Mielenosoitukset.fi' };
+    if (loaded.status === 'not-found') status = 404;
+    extraHead = (assets.profile ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The page itself is server-rendered; this only covers a failed script load.
+    noscript = '<noscript><p class="container-main-content">Tämä sivu toimii parhaiten JavaScriptin kanssa.</p></noscript>';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<ProfileScreen config={config} session={session} username={route.username} initial={profile} />} />);
   }
 
   if (route.name === 'contact') {
@@ -542,7 +652,10 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
       + `</article></noscript>`;
   }
 
-  if (route.name === 'home') home = await loadHomeBatch(readBase, config.locale);
+  if (route.name === 'home') {
+    home = await loadHomeBatch(readBase, config.locale);
+    extraHead = PAGE_TRANSITION_STYLESHEET;
+  }
   if (calendarRoute) {
     const data = await calendarRead;
     const search = new URLSearchParams(input.search ?? '');
@@ -566,11 +679,11 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     meta = { title: `${label}: Mielenosoituskalenteri${route.city ? `, ${findCity(route.city)!.name}` : ''} | Mielenosoitukset.fi`,
       description: `Mielenosoitukset ${calendarPlace(route)}, ${label}. Valitse päivä ja katso tapahtumien ajat ja paikat.`,
       canonical: `${config.origin}${monthPath(route)}`, robots: !data || search.size > 0 ? 'noindex, follow' : 'index, follow' };
-    const items = route.month ? (data?.days ?? []).map(row => ({ name: `${dayLabel(row.date)}: ${row.count} mielenosoitusta`,
+    const items = route.month ? (data?.days ?? []).map(row => ({ name: `${dayLabel(row.date)}: ${row.count} ${row.count === 1 ? 'mielenosoitus' : 'mielenosoitusta'}`,
       url: `${config.origin}${monthPath(route)}?day=${Number(row.date.slice(8))}#calendar-agenda` }))
       : Array.from({length:12},(_,index)=>({ name:monthName({...route,month:index+1}), url:`${config.origin}${monthPath({...route,month:index+1})}` }));
     jsonLd = discoveryStructuredData(meta, items);
-    extraHead = (route.month ? assets.calendar : assets.calendarYear) ?? '';
+    extraHead = ((route.month ? assets.calendar : assets.calendarYear) ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
     noscript = `<noscript>${renderToStaticMarkup(<CalendarFallback calendar={calendar} config={config} />)}</noscript>`;
     if (!data || calendar.events === null) { status = 503; headers['Retry-After'] = '30'; headers['X-Robots-Tag'] = 'noindex, follow'; }
   }
@@ -609,11 +722,16 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
   if (route.name === 'listing') {
     const props = listingProps(route, config, session);
     const query = listingQuery(route, input.search ?? '', config.locale);
-    listing = { query: input.search ?? '', page: await loadListingPage(readBase, query) };
+    const recruitingCity = route.scope === 'city' ? findCity(route.value!)?.key : undefined;
+    const [page, cityAdminStatus] = await Promise.all([
+      loadListingPage(readBase, query),
+      recruitingCity ? loadCityAdminStatus(readBase, recruitingCity) : Promise.resolve(undefined),
+    ]);
+    listing = { query: input.search ?? '', page, ...(cityAdminStatus ? { cityAdminStatus } : {}) };
     meta = { title: `${props.title} | Mielenosoitukset.fi`, description: props.title,
       canonical: `${config.origin}${input.path}`, robots: 'index, follow' };
     extraHead = '<link rel="stylesheet" href="/static/vendor/flatpickr/4.6.13/flatpickr.min.css">'
-      + (assets.listing ?? '');
+      + PAGE_TRANSITION_STYLESHEET + (assets.listing ?? '');
     noscript = `<noscript><p class="container-main-content">Lista avautuu JavaScriptillä. `
       + `<a href="${escapeHtml(props.rssUrl!)}">RSS</a> · <a href="/calendar/">Kalenteri</a></p></noscript>`;
   }
@@ -624,7 +742,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
       canonical: `${config.origin}${config.urls.pride}`, robots: input.search ? 'noindex, follow' : 'index, follow' };
     extraHead = '<link rel="stylesheet" href="/static/vendor/flatpickr/4.6.13/flatpickr.min.css">'
       + '<link rel="stylesheet" href="/static/leaflet/leaflet.css">'
-      + '<link rel="stylesheet" href="/static/css/pride.css?v=20261110-pride-labels-1">'
+      + '<link rel="stylesheet" href="/static/css/pride.css?v=20261113-pride-volunteers-4">'
       + '<script src="/static/leaflet/leaflet.js" defer></script>'
       + (assets.pride ?? '');
     const prideProps = listingProps(prideRoute, config, session);
@@ -687,11 +805,17 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
       + (profile.email ? `<p><a href="mailto:${escapeHtml(profile.email)}">${escapeHtml(profile.email)}</a></p>` : '')
       + `<a href="/demonstrations">Kaikki mielenosoitukset</a></article></noscript>`;
   }
+  // The fundraising bar: its stylesheet, plus the pre-paint script that hides it for visitors who dismissed it.
+  const barMilestoneNow = route.name === 'fundraising' ? null : barMilestone(session.fundraisingBar);
+  const barHead = barMilestoneNow ? BAR_STYLESHEET + dismissScript(barMilestoneNow) : '';
   const url = `${config.origin}${input.path === '/' ? '/' : input.path}`;
   const bootstrap = serialize({ config, session, path: input.path, route, ...(today ? { today } : {}),
+    ...(fundraisingData ? { fundraising: route.name === 'campaign' || fundraisingExtras(fundraisingData, today).pre_launch ? withoutAccount(fundraisingData) : fundraisingData } : {}),
     ...(campaignVisible !== undefined ? { campaignVisible } : {}),
     ...(organizationFill ? { organizationFill } : {}),
     ...(suggestionDemo ? { suggestionDemo } : {}),
+    ...(cancelLink ? { cancelLink } : {}),
+    ...(profile ? { profile } : {}),
     ...(route.name === 'status' ? { serviceStatus } : {}),
     ...(detail ? { detail } : {}), ...(series ? { series } : {}), ...(home ? { home } : {}),
     ...(listing ? { listing } : {}), ...(organization ? { organization } : {}), ...(cities !== undefined ? { cities } : {}),
@@ -702,7 +826,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
 ${headMarkup({
     title: meta.title, description: meta.description, robots: meta.robots,
     canonical: meta.canonical, url, origin: config.origin, locale: config.locale,
-    assets: assets.head, image: meta.image ?? null, jsonLd, extraHead,
+    assets: assets.head, image: meta.image ?? null, jsonLd, extraHead: extraHead + barHead,
     siteAnalyticsEnabled: session.siteAnalyticsEnabled,
   })}
 </head>

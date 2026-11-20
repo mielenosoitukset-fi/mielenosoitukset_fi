@@ -31,7 +31,7 @@
       <span class="admin-workspace-summary-icon"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i></span>
       <div>
         <strong>{{ avg_views_per_minute }}</strong>
-        <span>{{ _('Keskimäärin näytöksiä/minuutti') }}</span>
+        <span>{{ _('Keskimäärin näyttöjä/minuutti') }}</span>
       </div>
     </div>
   </div>
@@ -39,23 +39,23 @@
   <div class="admin-row-actions admin-analytics__actions" data-export-actions>
     <button type="button" class="btn btn-outline-primary" onclick="downloadChart('viewsPerMinuteChart', 'views_per_minute.png')">
       <i class="fa-solid fa-download" aria-hidden="true"></i>
-      {{ _('Lataa per minuutti PNG') }}
+      {{ _('Lataa minuuttikohtainen kaavio PNG-kuvana') }}
     </button>
     <button type="button" class="btn btn-outline-primary" onclick="downloadChart('viewsPerDayChart', 'views_per_day.png')">
       <i class="fa-solid fa-download" aria-hidden="true"></i>
-      {{ _('Lataa per päivä PNG') }}
+      {{ _('Lataa päiväkohtainen kaavio PNG-kuvana') }}
     </button>
     <button type="button" class="btn btn-outline-primary" onclick="downloadChart('viewsPerWeekChart', 'views_per_week.png')">
       <i class="fa-solid fa-download" aria-hidden="true"></i>
-      {{ _('Lataa per viikko PNG') }}
+      {{ _('Lataa viikkokohtainen kaavio PNG-kuvana') }}
     </button>
     <button type="button" class="btn btn-outline-primary" onclick="downloadAllCharts()">
       <i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i>
-      {{ _('Lataa kaikki PNG') }}
+      {{ _('Lataa kaikki kaaviot PNG-kuvina') }}
     </button>
     <button type="button" class="btn btn-primary" onclick="downloadDashboard()">
       <i class="fa-solid fa-camera" aria-hidden="true"></i>
-      {{ _('Lataa koko dashboard PNG') }}
+      {{ _('Lataa koko näkymä PNG-kuvana') }}
     </button>
   </div>
 
