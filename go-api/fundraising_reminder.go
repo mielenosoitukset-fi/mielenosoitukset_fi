@@ -239,11 +239,7 @@ func reminderListHandler(next http.Handler, db *mongo.Database, config submissio
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 		defer cancel()
-		var panicMode struct {
-			Panic bool `bson:"panic"`
-		}
-		err := db.Collection("panic").FindOne(ctx, bson.M{"name": bson.M{"$in": bson.A{"global", "security"}}}).Decode(&panicMode)
-		if (err != nil && !errors.Is(err, mongo.ErrNoDocuments)) || panicMode.Panic {
+		if active, err := panicSwitchActive(ctx, db); err != nil || active {
 			reminderFailure(w, http.StatusServiceUnavailable, "REMINDER_UNAVAILABLE", "Palvelu ei ole juuri nyt käytettävissä.")
 			return
 		}
@@ -261,6 +257,13 @@ func reminderListHandler(next http.Handler, db *mongo.Database, config submissio
 			if err != nil {
 				reminderFailure(w, http.StatusServiceUnavailable, "REMINDER_UNAVAILABLE", "Yritä uudelleen hetken kuluttua.")
 				return
+			}
+			if allowed && path == list.signupPath {
+				allowed, err = signupMailCapAllowed(ctx, db, list.rateScope, signupMailCapAdminLog(db))
+				if err != nil {
+					reminderFailure(w, http.StatusServiceUnavailable, "REMINDER_UNAVAILABLE", "Yritä uudelleen hetken kuluttua.")
+					return
+				}
 			}
 			if !allowed {
 				w.Header().Set("Retry-After", "60")

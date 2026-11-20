@@ -293,3 +293,28 @@ def render_demo_preview(demo, locale, embed=False):
     response.headers["Referrer-Policy"] = "same-origin"
     response.headers["X-Detail-Renderer"] = "react-preview"
     return response
+
+
+TAKEN_DOWN_PROJECTION = {"title": 1, "taken_down_reason": 1, "taken_down_at": 1}
+
+
+def resolve_taken_down(db, identifier):
+    """Return a taken-down demo for the public notice, or None.
+
+    A take-down keeps the public URL alive with a short notice and the reason
+    (maintainer decision, 20 Nov 2026). Hidden demos stay 404.
+    """
+    identifier = str(identifier)
+    if len(identifier) > 200:
+        return None
+    base = {"taken_down": True, "hide": {"$ne": True}}
+    if ObjectId.is_valid(identifier):
+        oid = ObjectId(identifier)
+        found = db.demonstrations.find_one({**base, "$or": [{"_id": oid}, {"aliases": oid}]}, TAKEN_DOWN_PROJECTION)
+        if found:
+            return found
+    if identifier.isascii() and identifier.isdigit() and len(identifier) <= 18:
+        found = db.demonstrations.find_one({**base, "running_number": int(identifier)}, TAKEN_DOWN_PROJECTION)
+        if found:
+            return found
+    return db.demonstrations.find_one({**base, "slug": identifier}, TAKEN_DOWN_PROJECTION)

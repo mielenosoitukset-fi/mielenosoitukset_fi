@@ -3524,3 +3524,20 @@ Three added definitions on real Flask, indexed Mongo and the actual god-login en
 - [x] `test_wrong_final_secret_does_not_sign_in`: wrong and too-short final secrets leave no user or receipt session, no governance access and no audit row; the right secret on the same proof completes with one audit row. The proof is placed at the final stage directly, so earlier stages are not re-proven.
 
 Production authentication is unchanged.
+
+## tests/test_auth_bridge_session.py (QA-01, 2026-11-20)
+
+All nine existing definitions reviewed individually, two added. Real Flask app and test MongoDB; `AUTH_BRIDGE_SCOPES` is toggled per test.
+
+- [x] `test_flag_is_off_by_default`: pins the default. Config only; says nothing about production settings.
+- [x] `test_flag_off_ignores_new_scopes`: with the flag off, neither anonymous nor signed-in callers get `organization`/`permissions` from the bridge path. Meaningful rollback check.
+- [x] `test_anonymous_flash_flag_for_organization`: no-message and has-message states, `authenticated` false, and the flash survives the read. Good negative and positive control.
+- [x] `test_anonymous_gets_no_invitation_or_permission_data`: anonymous organization block holds only `id` and `has_messages`; the permission answer is false.
+- [x] `test_permission_scope_is_bounded_and_boolean`: cap of ten names, invalid names dropped, values boolean.
+- [x] `test_permission_scope_matches_has_permission`: one granted and one refused permission for the member's own organization. Before this review nothing checked another organization, so a scope that ignored `organization_id` passed every test (see below).
+- [x] `test_responses_stay_uncacheable`: `no-store` and `Vary: Cookie`.
+- [x] `test_marker_tells_react_the_bridge_is_on` / `test_marker_absent_when_flag_off`: marker on and off.
+- [x] Added `test_organization_scope_does_not_leak_to_another_organization`: the same member gets both permissions for their organization (positive control) and none for an unrelated one, in both the bridge `permissions` and the organization block. Mutation check: dropping `org_oid` from the bridge's `has_permission` call fails this test and no other.
+- [x] Added `test_malformed_organization_scope_is_refused`: non-hex, short and repeated `organization_id` answer 400 without a permission answer.
+
+Production code unchanged.

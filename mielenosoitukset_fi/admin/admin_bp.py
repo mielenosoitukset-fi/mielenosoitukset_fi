@@ -44,7 +44,6 @@ from mielenosoitukset_fi.utils.flashing import flash_message
 from mielenosoitukset_fi.utils.city_assignment import NOT_ESCALATED_ASSIGNMENT_CLAUSE, CITY_ASSIGNMENT_FIELD
 from mielenosoitukset_fi.utils.cities import normalize_city_key
 from mielenosoitukset_fi.utils.variables import CITY_LIST
-from mielenosoitukset_fi.utils.analytics import count_views_per_demo
 from mielenosoitukset_fi.utils.aggregate_analytics import bucket_keys
 from mielenosoitukset_fi.utils.cache import cache
 from mielenosoitukset_fi.utils.operational_metrics import collect_operational_metrics
@@ -2015,11 +2014,18 @@ def _collect_infra_health() -> dict:
 
     # S3
     try:
-        from mielenosoitukset_fi.utils.s3 import _s3_client
-        if _s3_client is None:
+        from botocore.exceptions import ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError
+        from mielenosoitukset_fi.utils.s3 import s3_probe_client
+
+        probe = s3_probe_client()
+        if probe is None:
             raise RuntimeError("S3 client not initialised")
-        _s3_client.list_buckets()
-        services.append({"name": "S3 / Tiedostovarasto", "status": "ok", "message": "Saavutettavissa"})
+        try:
+            probe.list_buckets()
+        except (ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError):
+            services.append({"name": "S3 / Tiedostovarasto", "status": "err", "message": _("S3 ei vastaa")})
+        else:
+            services.append({"name": "S3 / Tiedostovarasto", "status": "ok", "message": "Saavutettavissa"})
     except Exception as exc:
         services.append({"name": "S3 / Tiedostovarasto", "status": "err", "message": str(exc)})
 
@@ -2333,14 +2339,59 @@ def admin_analytics():
     return render_analytics_overview()
 
 
-def render_analytics_overview():
-    """Render the admin analytics overview with aggregated per-demo view counts."""
-    data = [
-        DemoViewCount(row["demo_id"], row["views"])
-        for row in count_views_per_demo()
-    ]
+ANALYTICS_OVERVIEW_PER_PAGE = 50
 
-    return render_template(f"{_ADMIN_TEMPLATE_FOLDER}analytics.html", data=data)
+
+def render_analytics_overview():
+    """Render the most viewed demonstrations, one page at a time.
+
+    Reads the per-demo counts the ``prep`` job keeps in ``prepped_analytics``
+    (every 15 minutes) instead of grouping every raw view event per request,
+    and renders one page instead of every demonstration that was ever viewed.
+    """
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
+    per_page = ANALYTICS_OVERVIEW_PER_PAGE
+    total = mongo.prepped_analytics.count_documents({})
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    rows = list(
+        mongo.prepped_analytics.find({}, {"demo_id": 1, "views": 1})
+        .sort([("views", -1), ("demo_id", 1)])
+        .skip((page - 1) * per_page)
+        .limit(per_page)
+    )
+    titles = {
+        doc["_id"]: doc.get("title")
+        for doc in mongo.demonstrations.find(
+            {"_id": {"$in": [row.get("demo_id") for row in rows]}}, {"title": 1}
+        )
+    }
+    data = []
+    for row in rows:
+        entry = DemoViewCount(row.get("demo_id"), row.get("views", 0))
+        entry.title = titles.get(row.get("demo_id")) or _("Poistettu mielenosoitus")
+        data.append(entry)
+
+    def page_url(number):
+        return url_for("admin.admin_analytics", page=number)
+
+    window = range(max(1, page - 2), min(total_pages, page + 2) + 1)
+    return render_template(
+        f"{_ADMIN_TEMPLATE_FOLDER}analytics.html",
+        data=data,
+        total=total,
+        page=page,
+        total_pages=total_pages,
+        rank_offset=(page - 1) * per_page,
+        prev_page_url=page_url(page - 1) if page > 1 else None,
+        next_page_url=page_url(page + 1) if page < total_pages else None,
+        first_page_url=page_url(1),
+        last_page_url=page_url(total_pages),
+        visible_pages=[{"number": number, "url": page_url(number)} for number in window],
+    )
 
 
 

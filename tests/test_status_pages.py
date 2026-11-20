@@ -186,3 +186,30 @@ def test_admin_status_shows_disk_info(app, seeded_data, admin_client):
     resp = admin_client.get("/admin/status")
     html = resp.get_data(as_text=True)
     assert "Levytila" in html
+
+
+def test_admin_status_reports_unreachable_s3_quickly(app, seeded_data, admin_client, monkeypatch):
+    """A storage outage shows as "S3 ei vastaa" instead of a raw error."""
+    from botocore.exceptions import ConnectTimeoutError
+
+    from mielenosoitukset_fi.utils import s3
+
+    class Unreachable:
+        def list_buckets(self):
+            raise ConnectTimeoutError(endpoint_url="https://s3.invalid")
+
+    monkeypatch.setattr(s3, "s3_probe_client", lambda: Unreachable())
+    html = admin_client.get("/admin/status").get_data(as_text=True)
+    assert "S3 ei vastaa" in html
+    assert "s3.invalid" not in html
+
+
+def test_s3_probe_client_uses_short_timeouts(monkeypatch):
+    from mielenosoitukset_fi.utils import s3
+
+    monkeypatch.setattr(s3, "_s3_probe_client", None)
+    monkeypatch.setattr(s3, "_s3_client", object())
+    client = s3.s3_probe_client()
+    assert client.meta.config.connect_timeout == s3.S3_PROBE_CONNECT_TIMEOUT
+    assert client.meta.config.read_timeout == s3.S3_PROBE_READ_TIMEOUT
+    assert client.meta.config.retries["total_max_attempts"] == 1

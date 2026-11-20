@@ -6,7 +6,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
-from pymongo import MongoClient, UpdateOne
+from pymongo import MongoClient, UpdateOne  # noqa: F401 (type hints)
+from mielenosoitukset_fi.utils.audit_trail import mongo_client
 from tqdm import tqdm
 import pytz  # <-- you need to install this: pip install pytz
 from config import Config
@@ -49,7 +50,7 @@ def _collections():
     name = Config.MONGO_DBNAME or DB_NAME
     client = _clients.get(uri)
     if client is None:
-        client = MongoClient(uri)
+        client = mongo_client(uri)
         _clients[uri] = client
     database = client[name]
     return database[RAW_COLL], database[AGGR_COLL], database[META_COLL]
