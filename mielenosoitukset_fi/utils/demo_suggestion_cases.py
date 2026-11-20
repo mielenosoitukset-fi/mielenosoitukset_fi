@@ -1,0 +1,106 @@
+"""Open demonstration suggestions as admin cases (issue #1217).
+
+Suggestions are stored in ``demo_suggestions`` by Flask's ``suggest_change``
+or by the Go handler. Both keep writing only that collection; this module
+turns each open suggestion into a ``demo_edit_suggestion`` case so it shows up
+in the case list next to new demonstrations and support tickets, instead of
+only on the separate suggestions page.
+
+The case reuses the suggestion's ``_id``, so delivery is idempotent and safe to
+rerun after a crash. The case holds no copy of the IP address, User-Agent or
+suggested values; the suggestion page remains the place where changes are
+reviewed and applied.
+"""
+import os
+
+from mielenosoitukset_fi.utils.classes import Case
+from mielenosoitukset_fi.utils.logger import logger
+from mielenosoitukset_fi.utils.time_utils import utcnow
+
+CASE_TYPE = "demo_edit_suggestion"
+ENV_FLAG = "DEMO_SUGGESTION_CASES_ENABLED"
+OPEN_STATUSES = ("new", "pending", "", None)
+DECIDED_STATUSES = ("applied", "rejected", "closed")
+
+
+def is_enabled(environ=None):
+    environ = os.environ if environ is None else environ
+    return str(environ.get(ENV_FLAG, "")).strip().lower() in {"1", "true", "yes"}
+
+
+def _open_without_case():
+    return {
+        "$and": [
+            {"$or": [
+                {"status": {"$in": [status for status in OPEN_STATUSES if status is not None]}},
+                {"status": None},
+                {"status": {"$exists": False}},
+            ]},
+            {"$or": [{"case_id": {"$exists": False}}, {"case_id": None}]},
+        ]
+    }
+
+
+def _case_document(suggestion):
+    reporter_email = suggestion.get("reporter_email")
+    case = Case(
+        case_type=CASE_TYPE,
+        demo_id=suggestion.get("demo_id"),
+        submitter={"submitter_email": reporter_email} if reporter_email else {},
+        meta={
+            "suggestion_id": suggestion["_id"],
+            "fields": sorted((suggestion.get("suggested_fields") or {}).keys()),
+        },
+        # Keep the suggestion's own time so the case list stays in order.
+        created_at=suggestion.get("created_at"),
+        _id=suggestion["_id"],
+    )
+    return case.to_dict()
+
+
+def deliver_pending(db, limit=100):
+    """Create a case for each open suggestion that has none yet."""
+    delivered = 0
+    for suggestion in db.demo_suggestions.find(_open_without_case()).sort("created_at", 1).limit(limit):
+        if not suggestion.get("demo_id"):
+            continue
+        case_id = suggestion["_id"]
+        try:
+            if not db.cases.find_one({"_id": case_id}, {"_id": 1}):
+                db.cases.update_one({"_id": case_id}, {"$setOnInsert": _case_document(suggestion)}, upsert=True)
+            db.demo_suggestions.update_one({"_id": case_id}, {"$set": {"case_id": case_id}})
+            delivered += 1
+        except Exception:
+            logger.exception("Failed to open a case for demo suggestion %s", case_id)
+    return delivered
+
+
+def close_decided(db, limit=200):
+    """Close open suggestion cases whose suggestion was applied, rejected or closed."""
+    closed = 0
+    open_cases = db.cases.find(
+        {"type": CASE_TYPE, "meta.closed": {"$ne": True}}, {"_id": 1, "meta.suggestion_id": 1}
+    ).limit(limit)
+    for case in open_cases:
+        suggestion_id = (case.get("meta") or {}).get("suggestion_id") or case["_id"]
+        suggestion = db.demo_suggestions.find_one({"_id": suggestion_id}, {"status": 1})
+        if suggestion and suggestion.get("status") not in DECIDED_STATUSES:
+            continue
+        reason = "Ehdotus käsitelty" if suggestion else "Ehdotus poistettu"
+        now = utcnow()
+        result = db.cases.update_one(
+            {"_id": case["_id"], "meta.closed": {"$ne": True}},
+            {
+                "$set": {"meta.closed": True, "meta.closed_reason": reason, "meta.closed_at": now, "updated_at": now},
+                "$push": {
+                    "case_history": {
+                        "timestamp": now, "action": "Tapaus suljettu automaattisesti", "user": "system",
+                        "mech_action": "auto_close", "metadata": {"reason": reason},
+                        "meta_schema": {"reason": "string"},
+                    },
+                    "action_logs": {"timestamp": now, "admin": "system", "action_type": "auto_close", "note": reason},
+                },
+            },
+        )
+        closed += result.modified_count
+    return closed

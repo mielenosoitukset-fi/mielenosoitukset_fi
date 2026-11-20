@@ -101,6 +101,7 @@ def _case_type_label(case_type):
     labels = {
         "new_demo": _("Uusi mielenosoitus"),
         "demo_error_report": _("Virheilmoitus"),
+        "demo_edit_suggestion": _("Muutosehdotus"),
         "organization_edit_suggestion": _("Organisaation muutospyyntö"),
         "demo_cancellation_request": _("Peruutuspyyntö"),
         "demo_cancelled": _("Peruttu mielenosoitus"),
@@ -110,7 +111,7 @@ def _case_type_label(case_type):
     return labels.get(case_type, str(case_type).replace("_", " ").capitalize())
 
 
-def _case_resolution_reason(case_obj, demo_doc=None, org_doc=None):
+def _case_resolution_reason(case_obj, demo_doc=None, org_doc=None, suggestion_doc=None):
     if case_obj.case_type == "new_demo" and demo_doc:
         if _demo_is_approved(demo_doc):
             return _("Demo hyväksytty")
@@ -122,6 +123,10 @@ def _case_resolution_reason(case_obj, demo_doc=None, org_doc=None):
     if case_obj.case_type in {"demo_cancellation_request", "demo_cancelled"} and demo_doc:
         if demo_doc.get("cancelled"):
             return _("Peruutus käsitelty")
+
+    if case_obj.case_type == "demo_edit_suggestion" and suggestion_doc:
+        if suggestion_doc.get("status") in {"applied", "rejected", "closed"}:
+            return _("Ehdotus käsitelty")
 
     if case_obj.case_type == "organization_edit_suggestion" and org_doc and case_obj.created_at:
         updated_at = org_doc.get("updated_at")
@@ -181,6 +186,12 @@ def _stringify_demo(demo):
     return payload
 
 
+def _suggestion_for_case(case_obj, projection=None):
+    """The demo suggestion behind a demo_edit_suggestion case (same _id)."""
+    suggestion_id = (case_obj.meta or {}).get("suggestion_id") or case_obj._id
+    return mongo.demo_suggestions.find_one({"_id": _safe_objectid(suggestion_id)}, projection)
+
+
 def _build_case_row(case_obj, demo_doc=None, org_doc=None):
     submitter = case_obj.submitter or {}
     urgency = (case_obj.meta or {}).get("urgency")
@@ -212,6 +223,15 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         title = _("Virheilmoitus")
         description = (case_obj.error_report or {}).get("error") or _("Ei lisätietoja")
         meta_line = (demo_doc or {}).get("title") or _("Demoa ei löytynyt")
+    elif case_obj.case_type == "demo_edit_suggestion":
+        title = _("Muutosehdotus")
+        description = (demo_doc or {}).get("title") or _("Liittyvää mielenosoitusta ei löytynyt")
+        fields = (case_obj.meta or {}).get("fields") or []
+        meta_line = " · ".join(
+            part
+            for part in [(demo_doc or {}).get("city"), ", ".join(fields) if fields else _("Kommentti")]
+            if part
+        )
     elif case_obj.case_type == "organization_edit_suggestion":
         title = (org_doc or {}).get("name") or _("Organisaation muutospyyntö")
         description = _("Organisaation tiedoista ehdotetaan muutoksia.")
@@ -266,17 +286,20 @@ def cases():
         demo_doc = None
         org_doc = None
 
-        if case.case_type in {"new_demo", "demo_cancellation_request", "demo_cancelled", "demo_error_report"} and case.demo_id:
+        suggestion_doc = None
+        if case.case_type in {"new_demo", "demo_cancellation_request", "demo_cancelled", "demo_error_report", "demo_edit_suggestion"} and case.demo_id:
             demo_doc = mongo.demonstrations.find_one(
                 {"_id": _safe_objectid(case.demo_id)},
                 {"approved": 1, "accepted": 1, "rejected": 1, "cancelled": 1, "title": 1, "date": 1, "city": 1, "address": 1},
             )
         if case.case_type == "organization_edit_suggestion" and case.organization_id:
             org_doc = mongo.organizations.find_one({"_id": _safe_objectid(case.organization_id)}, {"name": 1, "updated_at": 1})
+        if case.case_type == "demo_edit_suggestion" and not (case.meta or {}).get("closed"):
+            suggestion_doc = _suggestion_for_case(case, {"status": 1})
 
         can_edit = edit_scope is not None and (edit_ids is None or case._id in edit_ids)
         if not bool((case.meta or {}).get("closed")) and can_edit:
-            reason = _case_resolution_reason(case, demo_doc=demo_doc, org_doc=org_doc)
+            reason = _case_resolution_reason(case, demo_doc=demo_doc, org_doc=org_doc, suggestion_doc=suggestion_doc)
             if reason:
                 _auto_close_case(case, reason, actor)
                 case.meta = case.meta or {}
@@ -437,6 +460,26 @@ def single_case(case_id):
         demo = mongo.demonstrations.find_one({"_id": _safe_objectid(case.demo_id)})
         case_data["demo"] = _stringify_demo(demo)
         case_data["error_report"] = stringify_object_ids(case.error_report or {})
+
+    elif case.case_type == "demo_edit_suggestion":
+        demo = mongo.demonstrations.find_one({"_id": _safe_objectid(case.demo_id)}) if case.demo_id else None
+        case_data["demo"] = _stringify_demo(demo)
+        suggestion = _suggestion_for_case(case) or {}
+        status = suggestion.get("status") or "new"
+        case_data["demo_suggestion"] = {
+            "found": bool(suggestion),
+            "id": str(suggestion.get("_id") or ""),
+            "fields": sorted((suggestion.get("suggested_fields") or {}).keys()),
+            "comment": suggestion.get("reporter_comment") or "",
+            "reporter_email": suggestion.get("reporter_email") or "",
+            "created_at": suggestion.get("created_at"),
+            "status": status,
+            "status_label": {
+                "applied": _("Hyväksytty"),
+                "rejected": _("Hylätty"),
+                "closed": _("Suljettu"),
+            }.get(status, _("Odottaa käsittelyä")),
+        }
 
     elif case.case_type == "organization_edit_suggestion" and case.organization_id:
         org = mongo.organizations.find_one({"_id": _safe_objectid(case.organization_id)})
