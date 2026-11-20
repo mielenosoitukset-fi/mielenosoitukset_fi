@@ -48,3 +48,17 @@ def test_volunteer_confirm_request_helper():
     assert out["badToken"] == out["emptyToken"] == "invalid"
     assert out["callCount"] == 8  # the two malformed tokens made no request
     assert out["first"] == ["/api/campaign-volunteers/confirm", "POST", "omit", '{"token":"abcDEF123_-abcDEF123_-"}', "no-referrer"]
+
+
+FOCUS_SCRIPT = """
+import { focusTargetFor } from './frontend/src/app/confirm-focus.ts';
+console.log(JSON.stringify(['error', 'rate-limited', 'session', 'success', 'invalid', 'expired', 'confirmed', 'joined', 'idle', 'working', 'nonsense', null].map(focusTargetFor)));
+"""
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node is required")
+def test_focus_returns_to_the_button_after_a_failure_and_to_the_heading_after_an_answer():
+    result = subprocess.run(["node", "--experimental-strip-types", "--input-type=module", "-e", FOCUS_SCRIPT],
+                            cwd=ROOT, capture_output=True, text=True, check=True)
+    out = json.loads(result.stdout.strip().splitlines()[-1])
+    assert out == ["button", "button", "button", "heading", "heading", "heading", "heading", "heading", None, None, None, None]
