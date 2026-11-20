@@ -75,6 +75,11 @@ if (container) {
       void import('./VolunteerConfirmScreen').then(({ default: VolunteerConfirmScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<VolunteerConfirmScreen token={token} />} />);
       }).catch(error => console.error('Could not start the volunteer confirmation page', error));
+    } else if (route?.name === 'email-confirm') {
+      const token = route.token;
+      void import('./EmailConfirmScreen').then(({ default: EmailConfirmScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<EmailConfirmScreen token={token} loginUrl={props.config.urls.login} />} />);
+      }).catch(error => console.error('Could not start the e-mail confirmation page', error));
     } else if (route?.name === 'developer') {
       const appId = route.appId;
       void import('./DeveloperScreen').then(({ default: DeveloperScreen }) => {

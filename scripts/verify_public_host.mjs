@@ -946,6 +946,38 @@ try {
   assert(apacheRouting.includes('#RewriteRule "^/kampanja/confirm/[A-Za-z0-9_-]{1,128}$" "http://127.0.0.1:8090$0" [P,L]'));
   console.log('PASS: volunteer confirmation page is read-only, noindex, no referrer, and unrouted');
 
+  // E-mail confirmation: same shape, signed token in the path, nothing read or written on GET.
+  const emailToken = 'aaaaaaaa.bbbbbbbb.cccccccc';
+  const emailFetch = globalThis.fetch;
+  let emailRequests = 0;
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes('/account/confirm-email')) { emailRequests++; throw new Error('The page must not call the confirm route on GET'); }
+    return emailFetch(url, options);
+  };
+  try {
+    const confirm = await detailPage({ path: `/users/auth/confirm_email/${emailToken}` });
+    assert.equal(confirm.status, 200);
+    const confirmBody = confirm.html.split('<body>')[1].split('<script type="application/json"')[0];
+    for (const text of ['Vahvista sähköpostiosoite', 'painamalla painiketta']) assert(confirmBody.includes(text), text);
+    assert(/<button[^>]*type="button"/.test(confirmBody) && !confirmBody.includes('<form'), 'A button, no GET-submitted form');
+    assert(!confirmBody.includes('on vahvistettu. Voit nyt'), 'A GET never claims the address was confirmed');
+    assert.match(confirm.html, /<meta name="robots" content="noindex, nofollow" \/>/);
+    assert(!/rel="canonical"/.test(confirm.html));
+    const emailHeaders = Object.fromEntries(Object.entries(confirm.headers ?? {}).map(([key, value]) => [key.toLowerCase(), value]));
+    assert.equal(emailHeaders['x-robots-tag'], 'noindex, nofollow');
+    assert.equal(emailHeaders['cache-control'], 'private, no-store');
+    assert.equal(emailHeaders['referrer-policy'], 'no-referrer');
+    assert.equal(emailRequests, 0, 'Rendering the page made no confirm request');
+    for (const path of ['/users/auth/confirm_email/', '/users/auth/confirm_email/a%20b', `/users/auth/confirm_email/${'a'.repeat(3101)}`, `/users/auth/confirm_email/${emailToken}/`]) {
+      assert.equal((await detailPage({ path })).status, 404, path);
+    }
+  } finally {
+    globalThis.fetch = emailFetch;
+  }
+  assert(!/^RewriteRule .*confirm_email/m.test(apacheRouting) && !/^RewriteRule .*confirm-email/m.test(apacheRouting), 'The e-mail confirm route stays unrouted until the maintainer activates it');
+  assert(apacheRouting.includes('#RewriteRule "^/api/account/confirm-email$" "http://127.0.0.1:8091$0" [P,L]'));
+  console.log('PASS: e-mail confirmation page is read-only, noindex, no referrer, and unrouted');
+
   // Developer panel: the shell is server-rendered, the data is read in the browser from Go.
   const developerAppId = 'a'.repeat(24);
   for (const [path, next] of [['/developer', '%2Fdeveloper'], [`/developer/apps/${developerAppId}`, `%2Fdeveloper%2Fapps%2F${developerAppId}`]]) {
