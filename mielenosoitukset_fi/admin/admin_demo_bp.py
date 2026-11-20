@@ -724,6 +724,9 @@ def unrecommend_demo(demo_id):
     return jsonify({"status": "OK", "message": _(u"Suositus poistettu.")})
 
 
+AUDIT_ROWS_ON_DEMO_HISTORY = 50
+
+
 @admin_demo_bp.route("/edit_history/<demo_id>", methods=["GET"])
 @login_required
 @admin_required
@@ -768,8 +771,16 @@ def demo_edit_history(demo_id):
     )
     demo = Demonstration.from_dict(demo_data)
     demo_name = demo.title
+    # Every write from any path (Go API, jobs, links, scripts), not only the
+    # saves that store a full version above.
+    from mielenosoitukset_fi.admin.audit_history import load_history
+
+    audit = load_history(mongo, "demonstrations", demo_data["_id"])
     return render_template(
         "admin/demonstrations/edit_history.html",
+        audit_rows=audit["rows"][:AUDIT_ROWS_ON_DEMO_HISTORY],
+        audit_total=len(audit["rows"]),
+        audit_limit=AUDIT_ROWS_ON_DEMO_HISTORY,
         history=history,
         demo_id=str(demo_data["_id"]),
         demo_name=demo_name,
