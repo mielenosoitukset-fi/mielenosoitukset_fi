@@ -9,8 +9,10 @@ def test_volunteer_signup_post_routes_to_go_only_with_a_release_check():
     lines = include.splitlines()
     index = lines.index(rule)
     assert lines[index - 1] == 'RewriteCond %{REQUEST_METHOD} "^POST$"'
-    # The confirm link and other campaign paths stay in Flask.
-    assert "/kampanja/confirm" not in include
+    # The confirm link and other campaign paths stay in Flask: the React confirm
+    # page rules ship commented out (docs/volunteer-confirm-react.md).
+    active = [line for line in lines if not line.lstrip().startswith("#")]
+    assert not any("/kampanja/confirm" in line for line in active)
 
     release = (ROOT / "deploy/release_routing.sh").read_text()
     assert 'RewriteRule "\\^/kampanja/api/volunteers\\$" "http://127.0.0.1:8091/' in release
