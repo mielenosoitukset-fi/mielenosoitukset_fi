@@ -179,6 +179,12 @@ def _auto_close_case(case_obj, reason, actor):
     )
 
 
+def _can_take_down(demo):
+    from mielenosoitukset_fi.utils.demo_takedown import can_take_down_demo
+
+    return bool(demo) and can_take_down_demo(current_user, demo)
+
+
 def _stringify_demo(demo):
     if not demo:
         return {}
@@ -633,6 +639,7 @@ def single_case(case_id):
         case_data=case_data,
         can_edit_case=can_access_case(current_user, "EDIT_CASE", case._id),
         global_case_controls=global_case_permission(current_user, "EDIT_CASE"),
+        can_take_down=_can_take_down(case_data.get("demo")),
         reject_reasons=case_reasons.choices(case_reasons.REJECT_KEYS),
         close_reasons=case_reasons.choices(case_reasons.CLOSE_KEYS),
     )
@@ -1093,6 +1100,22 @@ def demo_action(case_id):
                 "$set": {"updated_at": now},
             },
         )
+
+    elif data["action"] == "take_down":
+        from mielenosoitukset_fi.admin.admin_demo_bp import _apply_demo_decision
+        from mielenosoitukset_fi.demonstrations.decisions import DemoNotPublished
+        from mielenosoitukset_fi.utils.demo_takedown import can_take_down_demo
+
+        if not can_take_down_demo(current_user, demo):
+            return jsonify({"error": _("Käyttöoikeutesi eivät riitä poistamaan mielenosoitusta julkaisusta.")}), 403
+        reason = str(data.get("reason") or "").strip()
+        if not reason:
+            return jsonify({"error": _("Kirjoita syy. Se näytetään mielenosoituksen sivulla ja lähetetään ilmoittajalle.")}), 400
+        try:
+            _apply_demo_decision(case.demo_id, "taken_down", source="case_take_down", reason=reason)
+        except DemoNotPublished:
+            return jsonify({"error": _("Vain julkaistun mielenosoituksen voi poistaa julkaisusta.")}), 409
+        response_status = "taken_down"
 
     else:
         return jsonify({"error": _("Tuntematon toiminto.")}), 400

@@ -1,0 +1,1 @@
+- Admin: the demonstration edit form no longer has the "Hyväksytty" checkbox, so saving never publishes or unpublishes. It shows the current status and a link to the case, where decisions are made. On the create form, "Julkaise heti" approves through the same decision path as the case.

@@ -36,6 +36,8 @@ type fakeVolunteerStore struct {
 	queueErr    error
 	attemptErr  error
 	deleted     int
+	siteCapLeft *int
+	siteCapErr  error
 }
 
 func newFakeVolunteerStore() *fakeVolunteerStore {
@@ -46,6 +48,22 @@ func (s *fakeVolunteerStore) Published(context.Context) (bool, error) {
 	return s.published, s.publishedEr
 }
 func (s *fakeVolunteerStore) PurgeAttempts(context.Context, time.Time) error { return nil }
+func (s *fakeVolunteerStore) SiteCap(context.Context) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.siteCapErr != nil {
+		return false, s.siteCapErr
+	}
+	if s.siteCapLeft == nil {
+		return true, nil
+	}
+	if *s.siteCapLeft <= 0 {
+		return false, nil
+	}
+	*s.siteCapLeft--
+	return true, nil
+}
+
 func (s *fakeVolunteerStore) Attempt(_ context.Context, key string, now time.Time, window time.Duration) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -446,6 +464,26 @@ func TestVolunteerRateLimitPerIP(t *testing.T) {
 	*h.clock = h.clock.Add(61 * time.Minute)
 	if w := h.post(`{"name":"A","email":"later@example.test"}`); w.Code != 201 {
 		t.Fatalf("after window %d", w.Code)
+	}
+}
+
+func TestVolunteerSiteWideCapRefusesEveryClient(t *testing.T) {
+	h := newVolunteerHarness(false)
+	left := 2
+	h.store.siteCapLeft = &left
+	for i, address := range []string{"203.0.113.1:1", "203.0.113.2:1"} {
+		addr := address
+		if w := h.post(`{"name":"A","email":"cap`+string(rune('a'+i))+`@example.test"}`, func(r *http.Request) { r.RemoteAddr = addr }); w.Code != 201 {
+			t.Fatalf("request %d: %d", i, w.Code)
+		}
+	}
+	w := h.post(`{"name":"A","email":"capz@example.test"}`, func(r *http.Request) { r.RemoteAddr = "203.0.113.3:1" })
+	if w.Code != 429 || volunteerBody(w)["error"] != campaignErrRate || len(h.store.volunteers) != 2 || len(h.store.jobs) != 2 {
+		t.Fatalf("%d %s stored %d jobs %d", w.Code, w.Body, len(h.store.volunteers), len(h.store.jobs))
+	}
+	h.store.siteCapErr = errors.New("down")
+	if w := h.post(`{"name":"A","email":"capy@example.test"}`, func(r *http.Request) { r.RemoteAddr = "203.0.113.4:1" }); w.Code != 503 {
+		t.Fatalf("cap storage failure: %d", w.Code)
 	}
 }
 

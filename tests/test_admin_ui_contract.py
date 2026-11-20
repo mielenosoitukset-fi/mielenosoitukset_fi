@@ -450,7 +450,7 @@ def test_submitter_modal_keeps_stable_dom_across_reopens():
         "mielenosoitukset_fi/templates/admin_V2/demonstrations/dashboard.html"
     ).read_text(encoding="utf-8")
     handler = dashboard.split("window.showSubmitterInfoModal = async", 1)[1].split(
-        "// Initial button text update", 1
+        "</script>", 1
     )[0]
 
     assert 'class="modal fade admin-modal" id="submitterInfoModal"' in dashboard
@@ -1494,8 +1494,9 @@ def test_admin_boolean_controls_do_not_inherit_text_field_geometry():
     assert 'input[type="radio"].form-check-input' in workspace
     assert ".form-check-input:indeterminate" in workspace
     assert ".form-check-input:focus-visible" in workspace
+    assert "{% elif can_approve_demo|default(false) %}" in demo_form
+    assert "{% if can_approve_demo|default(false) %}" in recurring_form
     for template in (demo_form, recurring_form):
-        assert "{% if can_approve_demo|default(false) %}" in template
         assert 'class="admin-check-row"' in template
         assert "data-admin-boolean" in template
         assert 'aria-live="polite"' in template
