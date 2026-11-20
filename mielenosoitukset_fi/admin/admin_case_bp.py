@@ -1164,11 +1164,13 @@ def demo_escalate(case_id):
     if not demo:
         return jsonify({"error": _("Mielenosoitusta ei löytynyt.")}), 404
 
-    # Reset demo status
-    mongo.demonstrations.update_one(
-        {"_id": ObjectId(case.demo_id)},
-        {"$set": {"approved": False, "rejected": False}}
-    )
+    # Escalation only asks a superior to decide. It must not change the
+    # demo's status: approve and reject go through the decision service, and
+    # an already decided demo is not silently returned to the pending queue.
+    if demo.get("approved") or demo.get("rejected"):
+        return jsonify({
+            "error": _("Mielenosoituksesta on jo tehty päätös, joten sitä ei voi eskaloida."),
+        }), 409
 
     # Set meta flag
     timestamp = utcnow()
@@ -1193,7 +1195,7 @@ def demo_escalate(case_id):
         },
     )
 
-    flash_message(_("Mielenosoituksen tila palautettiin. Ylemmän tason käsittelijän on tarkistettava mielenosoitus."), "warning")
+    flash_message(_("Ylemmän tason käsittelijän on tarkistettava mielenosoitus."), "warning")
     return jsonify({"success": True})
 
 @admin_case_bp.route("/<case_id>/deescalate", methods=["POST"])
