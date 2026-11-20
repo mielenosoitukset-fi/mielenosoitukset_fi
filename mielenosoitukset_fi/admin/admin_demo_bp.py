@@ -26,7 +26,7 @@ from flask import (
 from flask_login import current_user, login_required
 from pymongo import DESCENDING, ReturnDocument
 
-from flask_babel import _, force_locale, gettext as babel_gettext
+from flask_babel import _, force_locale, get_locale, gettext as babel_gettext
 from urllib.parse import quote_plus
 
 from mielenosoitukset_fi.utils.classes import Demonstration, MemberShip, Case
@@ -1788,11 +1788,9 @@ def preview_demo_with_token(token):
     # If you prefer multi-view by same IP until expiry, move this to a POST confirm or omit.
     _mark_used(doc["_id"])
 
-    # Make ObjectId JSON-friendly
-    if isinstance(demo.get("_id"), ObjectId):
-        demo["_id"] = str(demo["_id"])
-
-    return render_template("detail.html", demo=stringify_object_ids(demo), preview_mode=True)
+    # The same React page the public will see, not the retired Flask template.
+    from mielenosoitukset_fi.utils.react_detail import render_demo_preview
+    return render_demo_preview(demo, _preview_language())
 
 # ------------------------------------------------------------------------------
 # APPROVE / REJECT – require POST confirm to avoid link prefetch/GET abuse
@@ -3345,6 +3343,32 @@ def review_demo(demo_id):
         "admin_V2/demonstrations/review.html", demo=content, state=state,
         review_csrf_token=_edit_link_csrf_token(),
     )
+
+
+@admin_demo_bp.route("/<demo_id>/preview")
+@login_required
+@admin_required
+@permission_required("VIEW_DEMO", _type="DEMONSTRATION")
+def preview_demo(demo_id):
+    """The public detail page as it will look, for any review state.
+
+    Same React screen and public API payload as the live page, read-only. Meant
+    to be framed by the case view with ``?embed=1``; the response allows
+    same-origin framing only.
+    """
+    demo_data = _find_demo_with_alias_support(demo_id)
+    if not demo_data:
+        abort(404)
+    _abort_if_demo_forbidden(demo_data["_id"], "VIEW_DEMO")
+    from mielenosoitukset_fi.utils.react_detail import render_demo_preview
+    return render_demo_preview(demo_data, _preview_language(), embed=request.args.get("embed") == "1")
+
+
+def _preview_language():
+    try:
+        return str(get_locale() or "fi").strip().lower()
+    except Exception:
+        return "fi"
 
 
 @admin_demo_bp.route("/command-center/<demo_id>")

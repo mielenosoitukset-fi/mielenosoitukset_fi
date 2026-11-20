@@ -1,7 +1,8 @@
 """Thin public HTML shell; the browser reads event content from the Go API.
 
 No model construction, geocoding, organization joins or upstream HTTP request
-belongs here. Authentication/private previews keep the existing Flask view.
+belongs here. Events that are not public yet render through
+``render_demo_preview``: the same React screen with the API payload preloaded.
 """
 from copy import deepcopy
 from datetime import date
@@ -15,6 +16,7 @@ from flask_login import current_user
 from mielenosoitukset_fi.utils.database import DEMO_FILTER
 from mielenosoitukset_fi.utils.demo_localization import get_demo_localized_fields
 from mielenosoitukset_fi.utils.demo_seo import demo_is_beyond_future_horizon, parse_demo_date
+from mielenosoitukset_fi.utils.public_payload import public_payload
 
 # Only metadata needed before first byte; event body comes from the browser API.
 METADATA_PROJECTION = {key: 1 for key in (
@@ -59,6 +61,24 @@ def resolve_metadata(db, identifier):
         if found:
             return found
     return db.demonstrations.find_one(public_metadata_query({"slug": identifier}), METADATA_PROJECTION)
+
+
+def resolve_any(db, identifier):
+    """Staff lookup by the same identifiers, whatever the review state."""
+    identifier = str(identifier)
+    if len(identifier) > 200:
+        return None
+    if ObjectId.is_valid(identifier):
+        oid = ObjectId(identifier)
+        found = (db.demonstrations.find_one({"_id": oid})
+                 or db.demonstrations.find_one({"aliases": {"$in": [oid]}}))
+        if found:
+            return found
+    if identifier.isascii() and identifier.isdigit() and len(identifier) <= 18:
+        found = db.demonstrations.find_one({"running_number": int(identifier)})
+        if found:
+            return found
+    return db.demonstrations.find_one({"slug": identifier})
 
 
 def _api_endpoint():
@@ -126,11 +146,36 @@ def detail_messages():
     }
 
 
+def detail_urls():
+    """Same-origin routes the detail screen links to; ids are filled in by the browser."""
+    # Keep user/account operations on the existing same-origin routes in this slice.
+    return {
+        "trackView": url_for("track_demo_view"),
+        "listing": url_for("demonstrations"),
+        "login": url_for("users.auth.login", next=request.full_path.rstrip("?")),
+        "calendar": url_for("download_demo_ics", demo_id="__EVENT_ID__"),
+        "reminder": url_for("subscribe_reminder", demo_id="__EVENT_ID__"),
+        "report": url_for("report"),
+        # Existing Flask page for structured edits; opened from the report dialog.
+        "suggestChange": url_for("suggest_change", demo_id="__EVENT_ID__"),
+        "invite": url_for("api.invite_friends", demo_id="__EVENT_ID__"),
+        "friends": url_for("users.profile.api_friends_list"),
+        "like": url_for("api.like_demo", demo_id="__EVENT_ID__"),
+        "unlike": url_for("api.unlike_demo", demo_id="__EVENT_ID__"),
+        "attendance": url_for("api.demo_attending", demo_id="__EVENT_ID__"),
+        "followOrganization": url_for("api_follow_organization", org_id="__ORGANIZATION_ID__"),
+        "unfollowOrganization": url_for("api_unfollow_organization", org_id="__ORGANIZATION_ID__"),
+        "followRecurring": url_for("api_follow_recurring", demo_id="__EVENT_ID__"),
+        "unfollowRecurring": url_for("api_unfollow_recurring", demo_id="__EVENT_ID__"),
+        "organizationPrefix": url_for("org", org_id="__ORGANIZATION_ID__").replace("__ORGANIZATION_ID__", ""), "tagPrefix": "/tag/",
+    }
+
+
 def render_public_detail(db, identifier, locale, recurring_context=None):
     metadata = resolve_metadata(db, identifier)
     if not metadata:
         if current_user.is_authenticated and current_user.has_permission("VIEW_DEMO"):
-            return None  # Internal nonpublic preview keeps its privileged workflow.
+            return None  # Caller renders the read-only staff preview instead.
         abort(404)
     translations = metadata.get("translations")
     metadata["translations"] = {
@@ -154,27 +199,7 @@ def render_public_detail(db, identifier, locale, recurring_context=None):
     description = localized.get("description") if isinstance(localized.get("description"), str) else None
     canonical = (recurring_context or {}).get("canonical_url") or url_for(
         "demonstration_detail", demo_id=metadata.get("slug") or metadata.get("running_number") or event_id, _external=True)
-    # Keep user/account operations on the existing same-origin routes in this slice.
-    urls = {
-        "trackView": url_for("track_demo_view"),
-        "listing": url_for("demonstrations"),
-        "login": url_for("users.auth.login", next=request.full_path.rstrip("?")),
-        "calendar": url_for("download_demo_ics", demo_id="__EVENT_ID__"),
-        "reminder": url_for("subscribe_reminder", demo_id="__EVENT_ID__"),
-        "report": url_for("report"),
-        # Existing Flask page for structured edits; opened from the report dialog.
-        "suggestChange": url_for("suggest_change", demo_id="__EVENT_ID__"),
-        "invite": url_for("api.invite_friends", demo_id="__EVENT_ID__"),
-        "friends": url_for("users.profile.api_friends_list"),
-        "like": url_for("api.like_demo", demo_id="__EVENT_ID__"),
-        "unlike": url_for("api.unlike_demo", demo_id="__EVENT_ID__"),
-        "attendance": url_for("api.demo_attending", demo_id="__EVENT_ID__"),
-        "followOrganization": url_for("api_follow_organization", org_id="__ORGANIZATION_ID__"),
-        "unfollowOrganization": url_for("api_unfollow_organization", org_id="__ORGANIZATION_ID__"),
-        "followRecurring": url_for("api_follow_recurring", demo_id="__EVENT_ID__"),
-        "unfollowRecurring": url_for("api_unfollow_recurring", demo_id="__EVENT_ID__"),
-        "organizationPrefix": url_for("org", org_id="__ORGANIZATION_ID__").replace("__ORGANIZATION_ID__", ""), "tagPrefix": "/tag/",
-    }
+    urls = detail_urls()
     props = {"id": event_id, "endpoint": _api_endpoint(), "locale": locale,
              "canonicalUrl": canonical, "urls": urls,
              "messages": detail_messages(),
@@ -220,4 +245,37 @@ def render_public_detail(db, identifier, locale, recurring_context=None):
     response.headers["X-Detail-Renderer"] = "react"
     if noindex:
         response.headers["X-Robots-Tag"] = "noindex, follow"
+    return response
+
+
+def render_demo_preview(demo, locale, embed=False):
+    """Show a demonstration exactly as the public detail page will show it.
+
+    For staff reviewing an event the public API does not serve yet (pending,
+    rejected or hidden). The caller has already checked access. The browser gets
+    the public API payload (``public_payload``, pinned to the Go API by a parity
+    test) instead of fetching it, sees the page as a signed-out visitor, and the
+    screen is inert: no view is counted and no reminder, report or attendance can
+    be sent. The page may be framed by the admin case view (same origin only);
+    ``embed`` leaves out the site header, footer and chat, which belong to the
+    viewer's own session rather than to the event.
+    """
+    event_id = str(demo["_id"])
+    # The browser would ask the API for ?lang=<locale>; the API knows fi/en/sv.
+    event = public_payload(demo, locale if locale in ("fi", "en", "sv") else "")
+    props = {"id": event_id, "endpoint": _api_endpoint(), "locale": locale,
+             "canonicalUrl": url_for("demonstration_detail", demo_id=event_id, _external=True),
+             "urls": detail_urls(), "messages": detail_messages(), "authenticated": False,
+             "followedOrganizations": [], "followableOrganizations": [],
+             "recurringTargetId": None, "recurringFollowing": False,
+             "preview": {"event": event}}
+    response = make_response(render_template(
+        "admin_V2/demonstrations/public_preview.html", props=props,
+        metadata_title=event.get("title") or _("Mielenosoitus"), embed=embed))
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'self'"
+    response.headers["Referrer-Policy"] = "same-origin"
+    response.headers["X-Detail-Renderer"] = "react-preview"
     return response
