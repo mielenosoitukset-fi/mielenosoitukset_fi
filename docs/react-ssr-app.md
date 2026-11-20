@@ -191,7 +191,10 @@ GET/HEAD lines in `deploy/apache/react-ssr-routing.conf`. Revert: re-comment the
   the flash message and the redirect. A failed POST still re-renders the Flask
   template, because Apache only claims GET/HEAD.
 
-Not migrated: `/confirm/<token>` (`/kampanja/confirm/<token>`), `/auth/confirm_email/<token>`
+Volunteer confirmation `/kampanja/confirm/<token>` now has a dark React page plus a Go POST
+([volunteer-confirm-react.md](volunteer-confirm-react.md)); Flask still serves it until Apache is switched.
+
+Not migrated yet: `/auth/confirm_email/<token>`
 and `/orgs/accept_invite`. Their GET is itself the write (it confirms the email or
 joins the organization) and the last two redirect after login or confirmation, so a
 read-only React page cannot replace them without changing the handler's behaviour;

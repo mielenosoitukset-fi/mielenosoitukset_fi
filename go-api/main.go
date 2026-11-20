@@ -259,6 +259,7 @@ func main() {
 		log.Print("Auth bridge disabled: ", err)
 		authConfig = authBridgeConfig{}
 	}
+	handler = volunteerConfirmFromEnv(handler, client.Database(database), submissionConfig)
 	handler = authBridgeHandler(handler, authConfig, client.Database(database))
 	handler = contactHandlerFromEnv(handler, client.Database(database), authConfig)
 	handler = suggestionHandler(handler, client.Database(database), submissionConfig, suggestionsEnabledFromEnv())

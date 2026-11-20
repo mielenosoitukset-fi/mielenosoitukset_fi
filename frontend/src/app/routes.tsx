@@ -8,6 +8,7 @@ import { contactCopy, contactPath } from './contact-route';
 import { campaignCopy, campaignPath } from './campaign-route';
 import { cityAdminCopy, cityAdminPath } from './city-admin-route';
 import { developerCopy, developerPath } from './developer-route';
+import { volunteerConfirmCopy } from './volunteer-confirm';
 import type { InformationPage } from './information';
 
 /**
@@ -39,6 +40,7 @@ export type AppRoute =
   | { name: 'organization-fill'; id: string }
   | { name: 'suggest-change'; id: string }
   | { name: 'cancel-link'; token: string }
+  | { name: 'volunteer-confirm'; token: string }
   | { name: 'developer'; appId?: string }
   | { name: 'profile'; username: string }
   | { name: 'account-settings' }
@@ -116,6 +118,8 @@ export function routeForPath(path: string): AppRoute | null {
   if (profile) return profile[1] === 'edit' ? null : { name: 'profile', username: profile[1] };
   const cancelLink = /^\/cancel_demonstration\/([A-Za-z0-9_-]{1,128})$/.exec(path);
   if (cancelLink) return { name: 'cancel-link', token: cancelLink[1] };
+  const volunteerConfirm = /^\/kampanja\/confirm\/([A-Za-z0-9_-]{1,128})$/.exec(path);
+  if (volunteerConfirm) return { name: 'volunteer-confirm', token: volunteerConfirm[1] };
   const organization = /^\/organization\/([a-f\d]{24})$/i.exec(path);
   if (organization) return { name: 'organization', id: organization[1].toLowerCase() };
   if (path === '/demonstrations') return { name: 'listing', scope: 'all' };
@@ -152,6 +156,10 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   }
   if (route.name === 'developer') {
     return { title: `${developerCopy.title} | Mielenosoitukset.fi`, description: developerCopy.description,
+      robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'volunteer-confirm') {
+    return { title: `${volunteerConfirmCopy.title} | Mielenosoitukset.fi`, description: volunteerConfirmCopy.title,
       robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'account-settings') {

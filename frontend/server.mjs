@@ -79,6 +79,7 @@ function assetTags(manifest) {
     suggestChange: routeAssets('src/app/SuggestChangeScreen.tsx'),
     status: routeAssets('src/app/StatusScreen.tsx'),
     cancelLink: routeAssets('src/app/CancelLinkScreen.tsx'),
+    volunteerConfirm: routeAssets('src/app/VolunteerConfirmScreen.tsx'),
     developer: routeAssets('src/app/DeveloperScreen.tsx'),
     profile: routeAssets('src/app/ProfileScreen.tsx'),
     accountSettings: routeAssets('src/app/AccountSettingsScreen.tsx'),
