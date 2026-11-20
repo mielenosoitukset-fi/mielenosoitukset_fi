@@ -2952,6 +2952,16 @@ def merge_demos():
             ),
             "warning",
         )
+    elif any_copy_approved and not original_primary.get("approved") and not has_demo_approval_permission(
+        current_user, original_primary
+    ):
+        flash_message(
+            _(
+                "Yhdistetty kopio oli hyväksytty, mutta käyttöoikeutesi eivät riitä "
+                "hyväksymään säilytettyä mielenosoitusta. Se odottaa käsittelyä tapauksessa."
+            ),
+            "warning",
+        )
     elif any_copy_approved and not original_primary.get("approved"):
         try:
             _apply_demo_decision(primary_id, "approved", source="admin_merge")
