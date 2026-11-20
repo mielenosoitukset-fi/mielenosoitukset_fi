@@ -116,6 +116,19 @@ export const accountCopy = {
   sessionExpired: 'Istunto vanhentui.',
   reloadPage: 'Lataa sivu uudelleen',
   charsLeft: 'merkkiä jäljellä',
+  deleteTitle: 'Tilin poistaminen',
+  deleteLead: 'Voit pyytää tilisi poistamista. Ylläpito käsittelee pyynnön ja poistaa tilin. Kirjautumistiedot ja asetukset poistetaan. Väärinkäytösten selvittämiseen tarvittavat tiedot säilytetään ilman suoraa yhteyttä sinuun.',
+  deletePrivacy: 'Lue lisää tietosuojaselosteesta',
+  deleteReason: 'Syy',
+  deleteReasonHelp: 'Voit kertoa, miksi haluat poistaa tilin. Ylläpito näkee tekstin.',
+  deleteConfirm: 'Ymmärrän, että poistettua tiliä ei voi palauttaa.',
+  deleteSubmit: 'Pyydä tilin poistamista',
+  deleteSending: 'Lähetetään…',
+  deleteNeedsConfirm: 'Vahvista ensin, että ymmärrät poiston seuraukset.',
+  deleteCreated: 'Poistopyyntö on lähetetty. Ylläpito käsittelee sen.',
+  deletePending: 'Poistopyyntösi on jo käsittelyssä.',
+  deleteFailed: 'Poistopyynnön lähettäminen epäonnistui.',
+  deleteByEmail: 'Voit pyytää tilin poistamista ottamalla yhteyttä osoitteeseen',
 } as const;
 
 export type AccountGeneral = { displayName: string; city: string | null; language: string | null; darkMode: boolean | null };
@@ -284,6 +297,16 @@ async function postToGo(url: string, csrf: string, payload: unknown, fallback: s
 /** Save only the bio through Go. */
 export function postBioToGo(csrf: string, bio: string, fallback: string, fetcher: typeof fetch = fetch): Promise<FlaskResult> {
   return postToGo(accountBioWriteApi, csrf, { bio }, fallback, fetcher);
+}
+
+export const accountDeletionApi = '/api/account/deletion-request';
+export const accountDeletionReasonMax = 1000;
+
+/** Ask the admins to delete this account (Go opens one case; docs/account-erasure.md). */
+export async function postDeletionRequestToGo(csrf: string, reason: string, fetcher: typeof fetch = fetch): Promise<{ ok: true; pending: boolean } | { ok: false; message: string }> {
+  const result = await postToGo(accountDeletionApi, csrf, { confirm: true, reason: reason.trim() }, accountCopy.deleteFailed, fetcher);
+  if (!result.ok) return result;
+  return { ok: true, pending: result.body.state === 'pending' };
 }
 
 /** Save the general settings through Go (docs/account-pages-react.md, step 3b). */

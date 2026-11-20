@@ -108,6 +108,7 @@ def _case_type_label(case_type):
         "demo_cancelled": _("Peruttu mielenosoitus"),
         "support_ticket": _("Tukipyyntö"),
         "city_admin_application": _("Kaupunkiadminhakemus"),
+        "account_deletion_request": _("Tilin poistopyyntö"),
     }
     return labels.get(case_type, str(case_type).replace("_", " ").capitalize())
 
@@ -263,6 +264,10 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         title = _("Kaupunkiadminhakemus")
         description = ", ".join(applications.city_names((case_obj.meta or {}).get("city_keys")))
         meta_line = submitter.get("submitter_name") or ""
+    elif case_obj.case_type == "account_deletion_request":
+        title = _("Tilin poistopyyntö")
+        description = ((case_obj.meta or {}).get("reason") or _("Ei perustelua"))[:200]
+        meta_line = ""
     else:
         title = _case_type_label(case_obj.case_type)
         description = _("Ei lisätietoja")
