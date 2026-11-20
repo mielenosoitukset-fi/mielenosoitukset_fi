@@ -78,6 +78,16 @@ def markdown_to_plain_text(value):
     return parser.text()
 
 
+def safe_href(value):
+    """Return ``value`` when it is an http(s) or mailto link, otherwise ""."""
+    if not isinstance(value, str):
+        return ""
+    target = value.strip()
+    if any(ord(char) < 32 or ord(char) == 127 for char in target):
+        return ""
+    return _safe_link_target(target)
+
+
 def _safe_link_target(value):
     target = (value or "").strip()
     parsed = urlparse(target)

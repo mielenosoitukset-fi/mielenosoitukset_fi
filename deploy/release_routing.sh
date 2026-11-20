@@ -106,6 +106,19 @@ if grep -q '^RewriteRule "\^/contact\$" "http://127.0.0.1:8091/contact"' "$revie
   fi
 fi
 
+# Campaign volunteers: Go answers a GET to the signup path with 405 (Allow:
+# POST) before any database work; without the flag the route falls through.
+if grep -q '^RewriteRule "\^/kampanja/api/volunteers\$" "http://127.0.0.1:8091/' "$reviewed"; then
+  volunteers_ready() {
+    [[ $(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' \
+      http://127.0.0.1:8091/kampanja/api/volunteers || true) == 405 ]]
+  }
+  if ! retry 5 2 volunteers_ready; then
+    log "Go campaign volunteer signup is not enabled/ready; keeping the current routing"
+    exit 1
+  fi
+fi
+
 # Settings writes: with the write flag Go answers a GET to /api/account/profile
 # with 405 (Allow: POST) before any session or database work; without it the
 # path is unknown (404). The settings page only posts to Go when the flag is on.
