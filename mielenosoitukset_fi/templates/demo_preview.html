@@ -2,18 +2,11 @@
     with the public API payload preloaded (utils/react_detail.render_demo_preview). -#}
 {% extends 'base.html' %}
 {% from '_macros/frontend.html' import frontend_entry %}
-{% block main_class %}public-detail-main{% endblock %}
+{% block main_class %}public-detail-main{% if embed %} demo-preview-embed{% endif %}{% endblock %}
 {% block title %}{{ metadata_title }} | Mielenosoitukset.fi{% endblock %}
 {% block robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/public-detail.css', v='20261110-detail-buttons-1') }}">
-{% if embed %}<style>
-  /* Framed in a case: only the event, no viewer-specific site chrome or page frame. */
-  [data-react-island="site-header"], .public-site-footer, .message-cont, .flash-messages { display: none !important; }
-  html, body { margin: 0 !important; padding: 0 !important; }
-  main#main-content { margin: 0 !important; padding: 0 !important; min-height: 0 !important;
-    box-shadow: none !important; border-radius: 0 !important; background: transparent !important; }
-  main#main-content > [data-react-island] .public-detail { margin-top: 1rem; }
-</style>{% endif %}{% endblock %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/demo-preview.css', v='20261120-1') }}">{% endblock %}
 {% block content %}
 <div data-react-island="demonstration-detail" data-props-id="demonstration-detail-props">
   <div class="public-detail public-detail-boot" role="status"><p>{{ props.messages.loading }}</p></div>
