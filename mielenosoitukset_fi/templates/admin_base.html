@@ -322,6 +322,21 @@ function confirmAction(action, taskId) {
           </a>
         </li>
       {% endif %}
+      {% if current_user.is_authenticated %}
+        <li class="admin-sidebar-heading">{{ _('Ohje') }}</li>
+        {% if manual_help_url %}
+        <li class="nav-item">
+          <a class="nav-link admin-sidebar-link" href="{{ manual_help_url }}">
+            <i class="fas fa-circle-question me-2"></i>{{ _('Ohje tähän näkymään') }}
+          </a>
+        </li>
+        {% endif %}
+        <li class="nav-item">
+          <a class="nav-link admin-sidebar-link {% if admin_endpoint.startswith('admin.manual') %}active{% endif %}" href="{{ url_for('admin.manual') }}" {% if admin_endpoint.startswith('admin.manual') %}aria-current="page"{% endif %}>
+            <i class="fas fa-book-open me-2"></i>{{ _('Käyttöohje') }}
+          </a>
+        </li>
+      {% endif %}
     </ul>
   </nav>
 

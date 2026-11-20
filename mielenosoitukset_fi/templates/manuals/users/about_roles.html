@@ -1,11 +1,8 @@
 {% extends 'manual_base.html' %}
 
-{% block content %}
-<div class="manual-breadcrumb">
-  <i class="fa-solid fa-house me-1"></i> <a href="{{ url_for('admin.manual_page', page='index') }}">Ohje</a> / <a href="{{ url_for('admin.manual_page', page='users') }}">Käyttäjät</a> / <a href="{{ url_for('admin.manual_page', page='users/about_roles') }}">Roolit &amp; oikeudet</a>
-</div>
-<section class="manual-section">
-    <h2><i class="fa-solid fa-id-badge me-2"></i>Käyttäjäroolit</h2>
+{% block manual_content %}
+<section>
+    <h2 id="roolit">Käyttäjäroolit</h2>
     <p>
         Käyttäjäroolit määrittelevät, mitä oikeuksia käyttäjällä on järjestelmässä. Jokainen rooli
         vastaa tiettyä käyttöoikeustasoa, ja rooliin kuuluvat oikeudet myönnetään automaattisesti.
@@ -15,13 +12,13 @@
     <!-- Role hierarchy overview -->
     <div class="mb-3">
         <div class="d-flex flex-wrap align-items-center gap-2">
-            <span class="badge bg-dark fs-6">god</span>
+            <span class="badge text-bg-secondary fs-6">god</span>
             <i class="fa-solid fa-chevron-right"></i>
             <span class="badge bg-danger fs-6">global_admin</span>
             <i class="fa-solid fa-chevron-right"></i>
             <span class="badge bg-primary fs-6">admin</span>
             <i class="fa-solid fa-chevron-right"></i>
-            <span class="badge bg-info fs-6 text-dark">city_admin</span>
+            <span class="badge text-bg-info fs-6">city_admin</span>
             <i class="fa-solid fa-chevron-right"></i>
             <span class="badge bg-secondary fs-6">translator</span>
             <i class="fa-solid fa-chevron-right"></i>
@@ -70,7 +67,7 @@
                 <div class="card-body">
                     <h5 class="card-title">
                         <i class="fa-solid fa-city me-2"></i>Kaupunkiadmin
-                        <span class="badge bg-info text-dark ms-1">city_admin</span>
+                        <span class="badge text-bg-info ms-1">city_admin</span>
                     </h5>
                     <p class="card-text">
                         Rajatut oikeudet vain tietyille paikkakunnille: listata, katsella, muokata,
@@ -120,7 +117,7 @@
                 <div class="card-body">
                     <h5 class="card-title">
                         <i class="fa-solid fa-star-of-life me-2"></i>Järjestelmärooli
-                        <span class="badge bg-dark ms-1">god</span>
+                        <span class="badge text-bg-secondary ms-1">god</span>
                     </h5>
                     <p class="card-text">
                         Korkein käyttöoikeustaso, tarkoitettu vain erityistilanteisiin. Kaikki oikeudet
@@ -132,15 +129,15 @@
     </div>
 
     <!-- Roles Comparison Table -->
-    <div class="manual-section mt-5">
-        <h3><i class="fa-solid fa-table me-2"></i>Roolien vertailutaulukko</h3>
+    <div class="mt-5">
+        <h3 id="vertailu">Roolien vertailutaulukko</h3>
         <p>
             Alla olevasta taulukosta näet, mitä oikeuksia eri rooleihin kuuluu. Tämä auttaa sinua
             valitsemaan sopivimman roolin käyttäjälle.
         </p>
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover align-middle shadow-sm bg-white">
-                <thead class="table-primary text-center">
+        <div class="admin-workspace-table">
+            <table class="table manual-table align-middle">
+                <thead class="text-center">
                     <tr>
                         <th>Toiminto</th>
                         <th>Käyttäjä</th>
@@ -170,7 +167,7 @@
                     </tr>
 
                     <!-- User Management -->
-                    <tr class="table-light">
+                    <tr>
                         <td colspan="6"><strong><i class="fa-solid fa-users me-2"></i>Käyttäjien hallinta</strong></td>
                     </tr>
                     <tr>
@@ -215,7 +212,7 @@
                     </tr>
 
                     <!-- Demonstration Management -->
-                    <tr class="table-light">
+                    <tr>
                         <td colspan="6"><strong><i class="fa-solid fa-flag me-2"></i>Mielenosoitusten hallinta</strong></td>
                     </tr>
                     <tr>
@@ -276,7 +273,7 @@
                     </tr>
 
                     <!-- Translation -->
-                    <tr class="table-light">
+                    <tr>
                         <td colspan="6"><strong><i class="fa-solid fa-language me-2"></i>Käännökset</strong></td>
                     </tr>
                     <tr>
@@ -289,7 +286,7 @@
                     </tr>
 
                     <!-- Organization Management -->
-                    <tr class="table-light">
+                    <tr>
                         <td colspan="6"><strong><i class="fa-solid fa-building me-2"></i>Organisaatioiden hallinta</strong></td>
                     </tr>
                     <tr>
@@ -310,7 +307,7 @@
                     </tr>
 
                     <!-- System / Misc -->
-                    <tr class="table-light">
+                    <tr>
                         <td colspan="6"><strong><i class="fa-solid fa-ellipsis me-2"></i>Muut oikeudet</strong></td>
                     </tr>
                     <tr>
@@ -349,20 +346,19 @@
                 </tbody>
             </table>
         </div>
-        <div class="manual-note">
-            <i class="fa-solid fa-circle-info me-2"></i>
-            <strong>Huomio:</strong> Roolikohtaiset oikeudet on esitetty yksinkertaistettuna taulukkona.
+        <div class="manual-callout manual-callout--tip">
+            <i class="fas fa-circle-info" aria-hidden="true"></i>
+            <p class="mb-0"><strong>Huomio:</strong> Roolikohtaiset oikeudet on esitetty yksinkertaistettuna taulukkona.
             Todelliset oikeudet määräytyvät roolin lisäksi organisaatiojäsenyyksien ja erikseen myönnettyjen
             oikeuksien perusteella. <code>god</code>-rooli on korkein taso, eikä sitä esitetä taulukossa
-            (se lisää kaikki oikeudet). Kaupunkien hallinta ja turvaluokitustoiminnot on rajoitettu.
+            (se lisää kaikki oikeudet). Kaupunkien hallinta ja turvaluokitustoiminnot on rajoitettu.</p>
         </div>
     </div>
 
     <!-- Role Suggestion Form -->
     <div class="card shadow-sm mt-5">
         <div class="card-body">
-            <h4 class="card-title"><i class="fa-solid fa-question-circle me-2"></i>Mikä rooli sopii käyttäjälle?
-            </h4>
+            <h3 class="card-title" id="valitsin">Mikä rooli sopii käyttäjälle?</h3>
             <p>
                 Vastaa muutamaan kysymykseen, niin saat ehdotuksen sopivasta roolista.
             </p>
@@ -402,7 +398,7 @@
 
 {% endblock %}
 
-{% block scripts %}
+{% block manual_scripts %}
 <script>
     document.getElementById("role-checker-form").addEventListener("submit", function (e) {
         e.preventDefault();

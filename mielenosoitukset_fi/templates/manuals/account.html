@@ -1,0 +1,60 @@
+{% extends 'manual_base.html' %}
+{% import 'manuals/_macros.html' as m with context %}
+{% set settings_url = url_for('users.auth.settings') ~ '#tab-security' %}
+
+{% block manual_content %}
+<section id="miksi">
+  <h2>{{ _('Suojaa ylläpitotunnuksesi') }}</h2>
+  <p>{{ _('Ylläpitotunnuksella voi julkaista, muokata ja poistaa sisältöä. Jos joku saa salasanasi, hän voi tehdä samoin. Ota siksi käyttöön kaksivaiheinen tunnistus tai passkey. Molemmat löytyvät tilin asetusten') }} {{ m.ui(_('Turvallisuus')) }}{{ _('-välilehdeltä.') }}</p>
+  {% call m.callout('tip') %}
+  <p>{{ _('Passkey on helpoin: kirjaudut sormenjäljellä, kasvoilla tai laitteen PIN-koodilla, eikä sitä voi kalastella väärälle sivulle.') }}</p>
+  {% endcall %}
+</section>
+
+<section id="mfa-osio">
+  <h2>{{ _('Kaksivaiheinen tunnistus (MFA)') }}</h2>
+  {% call m.task('mfa', _('Ota kaksivaiheinen tunnistus käyttöön'), _('Tarvitset puhelimeen tunnistussovelluksen, esimerkiksi Google Authenticator, Microsoft Authenticator tai jonkin salasanojen hallintaohjelman.'), settings_url, _('Avaa tilin asetukset')) %}
+    {% call m.step() %}<p>{{ _('Avaa tilin asetukset ja välilehti') }} {{ m.ui(_('Turvallisuus')) }}.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Valitse kohdassa') }} {{ m.ui(_('Kaksivaiheinen tunnistus (MFA)')) }} {{ m.ui(_('Ota käyttöön MFA')) }} {{ _('tai, jos sinulla on jo laite,') }} {{ m.ui(_('Lisää laite')) }}.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Vahvista henkilöllisyytesi passkeyllä tai salasanalla, jos sitä kysytään. Katso') }} <a href="#vahvistus">{{ _('henkilöllisyyden vahvistus') }}</a>.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Skannaa QR-koodi tunnistussovelluksella. Jos et voi skannata, kirjoita koodin alla näkyvä avain sovellukseen.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Anna laitteelle nimi, kirjoita sovelluksen näyttämä 6-numeroinen koodi ja valitse') }} {{ m.ui(_('Vahvista MFA')) }}.</p>{% endcall %}
+  {% endcall %}
+  <p>{{ _('Kun MFA on käytössä, kirjautuminen kysyy salasanan jälkeen sovelluksen koodin. Voit lisätä useamman laitteen, nimetä ne uudelleen ja poistaa vanhat. Pidä vähintään kaksi tapaa kirjautua, ettet jää ulos, jos puhelin katoaa.') }}</p>
+</section>
+
+<section id="passkey-osio">
+  <h2>{{ _('Passkeyt') }}</h2>
+  {% call m.task('passkey', _('Lisää passkey'), _('Passkey tallentuu laitteeseesi tai salasanojen hallintaan. Lisää se jokaiselle laitteelle, jolla kirjaudut.'), settings_url, _('Avaa tilin asetukset')) %}
+    {% call m.step() %}<p>{{ _('Avaa tilin asetukset ja välilehti') }} {{ m.ui(_('Turvallisuus')) }}.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Valitse kohdassa') }} {{ m.ui(_('Passkeyt')) }} {{ m.ui(_('Lisää passkey')) }} {{ _('ja anna sille nimi, esimerkiksi laitteen nimi.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Vahvista henkilöllisyytesi, jos sitä kysytään.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Hyväksy selaimen tai laitteen kysymys sormenjäljellä, kasvoilla tai PIN-koodilla. Passkey näkyy listalla.') }}</p>{% endcall %}
+  {% endcall %}
+  {% call m.callout('warning') %}
+  <p>{{ _('Jos selain sanoo, ettei se tue passkeyjä, päivitä selain tai käytä toista laitetta.') }}</p>
+  {% endcall %}
+</section>
+
+<section id="vahvistus">
+  <h2>{{ _('Henkilöllisyyden vahvistus') }}</h2>
+  <p>{{ _('Kun lisäät, nimeät uudelleen tai poistat MFA-laitteen tai passkeyn tai vaihdat salasanan, palvelu kysyy') }} {{ m.ui(_('Vahvista henkilöllisyytesi')) }}. {{ _('Näin kukaan ei voi muuttaa tilisi suojauksia, vaikka jättäisit koneen hetkeksi auki.') }}</p>
+  <ul>
+    <li>{{ m.ui(_('Vahvista passkeyllä')) }} {{ _('on nopein tapa.') }}</li>
+    <li>{{ m.ui(_('Vahvista salasanalla')) }} {{ _('kysyy salasanan ja, jos MFA on käytössä, myös MFA-koodin.') }}</li>
+    <li>{{ _('Jos annat väärän salasanan tai koodin monta kertaa, odota hetki ennen kuin yrität uudelleen.') }}</li>
+  </ul>
+</section>
+
+<section id="kirjautuminen">
+  <h2>{{ _('Kirjautuminen ja paluu sivulle') }}</h2>
+  <ul>
+    <li>{{ _('Jos avaat hallintapaneelin linkin kirjautumatta tai istunto on vanhentunut, palvelu pyytää kirjautumaan ja vie sen jälkeen takaisin samalle sivulle. Tämä toimii myös passkey-kirjautumisessa.') }}</li>
+    <li>{{ _('Paluu toimii vain saman palvelun sivuille. Linkki, joka yrittää ohjata kirjautumisen jälkeen toiselle sivustolle, vie etusivulle.') }}</li>
+    <li>{{ _('Tapausilmoitusten linkit avautuvat siis suoraan oikeaan tapaukseen, vaikka joutuisit kirjautumaan välissä.') }}</li>
+  </ul>
+  {% call m.callout('danger') %}
+  <p>{{ _('Älä koskaan anna salasanaa, MFA-koodia tai muokkauslinkkiä sähköpostilla tai puhelimessa kenellekään. Palvelun ylläpito ei kysy niitä.') }}</p>
+  {% endcall %}
+</section>
+{% endblock %}
