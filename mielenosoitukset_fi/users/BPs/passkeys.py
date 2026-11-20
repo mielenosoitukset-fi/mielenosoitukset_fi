@@ -22,8 +22,12 @@ from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.users.models import User, UserMFA
 from mielenosoitukset_fi.utils import webauthn_utils as webauthn
 from mielenosoitukset_fi.utils.step_up import (
+    clear_step_up_failures,
     create_fresh_step_up_token,
     grant_elevation,
+    record_step_up_failure,
+    step_up_attempts_exhausted,
+    step_up_throttled_response,
     sudo_required,
 )
 from mielenosoitukset_fi.utils.request_ip import get_client_ip
@@ -268,9 +272,13 @@ def step_up_password():
     if not isinstance(password, str) or not password:
         return jsonify({"status": "error", "message": "Salasana vaaditaan."}), 400
 
+    if step_up_attempts_exhausted():
+        return step_up_throttled_response()
+
     user_doc = _get_user_doc(current_user._id)
     user = User.from_db(user_doc) if user_doc else current_user
     if not user.check_password(password):
+        record_step_up_failure("password")
         return jsonify({"status": "error", "message": "Väärä salasana."}), 403
 
     if _user_requires_totp():
@@ -280,8 +288,10 @@ def step_up_password():
                 {"status": "error", "message": "Syötä myös MFA-koodi.", "error": "totp_required"}
             ), 400
         if not UserMFA(user._id).verify_token(totp_code.strip()):
+            record_step_up_failure("totp")
             return jsonify({"status": "error", "message": "Väärä MFA-koodi."}), 403
 
+    clear_step_up_failures()
     grant_elevation("password_totp")
     return jsonify({"status": "success", "message": "Henkilöllisyys vahvistettu."})
 
@@ -444,9 +454,13 @@ def fresh_step_up_password():
     if not isinstance(password, str) or not password:
         return jsonify({"status": "error", "message": _("Salasana vaaditaan.")}), 400
 
+    if step_up_attempts_exhausted():
+        return step_up_throttled_response()
+
     user_doc = _get_user_doc(current_user._id)
     user = User.from_db(user_doc) if user_doc else current_user
     if not user.check_password(password):
+        record_step_up_failure("password")
         return jsonify({"status": "error", "message": _("Väärä salasana.")}), 403
 
     if _user_requires_totp():
@@ -456,7 +470,10 @@ def fresh_step_up_password():
                 {"status": "error", "message": _("Syötä myös MFA-koodi."), "error": "totp_required"}
             ), 400
         if not UserMFA(user._id).verify_token(totp_code.strip()):
+            record_step_up_failure("totp")
             return jsonify({"status": "error", "message": _("Väärä MFA-koodi.")}), 403
+
+    clear_step_up_failures()
 
     # Clear session binding
     session.pop("fresh_step_up_action", None)

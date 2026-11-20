@@ -88,6 +88,72 @@ def is_elevated(timeout_seconds: Optional[float] = None) -> bool:
     return has_elevation(timeout_seconds=timeout_seconds)
 
 
+def step_up_required_response():
+    """The answer a guarded request gets when the session is not elevated."""
+    return (
+        jsonify(
+            {
+                "error": "step_up_required",
+                "message": "Vahvista henkilöllisyytesi uudelleen ennen tätä toimintoa.",
+            }
+        ),
+        403,
+    )
+
+
+# Password step-up attempts: a signed-in session may guess the password (and
+# MFA code) only a few times per window before it has to wait.
+STEP_UP_FAILURE_COLLECTION = "step_up_failures"
+STEP_UP_MAX_FAILURES = 5
+STEP_UP_FAILURE_WINDOW_SECONDS = 15 * 60
+
+
+def _step_up_failures():
+    return DatabaseManager.get_instance().get_db()[STEP_UP_FAILURE_COLLECTION]
+
+
+def step_up_attempts_exhausted() -> bool:
+    """True when the current user has used up the password step-up attempts."""
+    since = utcnow() - timedelta(seconds=STEP_UP_FAILURE_WINDOW_SECONDS)
+    count = _step_up_failures().count_documents(
+        {"user_id": ObjectId(str(current_user._id)), "created_at": {"$gte": since}},
+        limit=STEP_UP_MAX_FAILURES,
+    )
+    return count >= STEP_UP_MAX_FAILURES
+
+
+def record_step_up_failure(reason: str) -> None:
+    """Store one failed password step-up for the current user."""
+    from mielenosoitukset_fi.utils.request_ip import get_client_ip
+
+    _step_up_failures().insert_one(
+        {
+            "user_id": ObjectId(str(current_user._id)),
+            "reason": reason,
+            "ip": get_client_ip(),
+            "created_at": utcnow(),
+        }
+    )
+
+
+def clear_step_up_failures() -> None:
+    """Forget failed attempts after a successful step-up."""
+    _step_up_failures().delete_many({"user_id": ObjectId(str(current_user._id))})
+
+
+def step_up_throttled_response():
+    return (
+        jsonify(
+            {
+                "status": "error",
+                "error": "step_up_throttled",
+                "message": _("Liian monta yritystä. Yritä hetken kuluttua uudelleen."),
+            }
+        ),
+        429,
+    )
+
+
 def sudo_required(timeout_seconds: Optional[float] = None):
     """
     Guard a route behind recent step-up authentication.
@@ -111,15 +177,7 @@ def sudo_required(timeout_seconds: Optional[float] = None):
                 )
             if is_elevated(timeout_seconds=timeout_seconds):
                 return func(*args, **kwargs)
-            return (
-                jsonify(
-                    {
-                        "error": "step_up_required",
-                        "message": "Vahvista henkilöllisyytesi uudelleen ennen tätä toimintoa.",
-                    }
-                ),
-                403,
-            )
+            return step_up_required_response()
         return wrapper
 
     return decorator
