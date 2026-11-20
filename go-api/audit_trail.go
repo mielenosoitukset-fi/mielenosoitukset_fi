@@ -443,8 +443,12 @@ func auditChangedNothing(op string, outcome bson.M) bool {
 	if _, upserted := outcome["upserted"]; upserted {
 		return false
 	}
-	n, has := outcome["n"].(int64)
-	return (op == "update" || op == "delete") && has && n == 0
+	if n, has := outcome["n"].(int64); has && n == 0 && (op == "update" || op == "delete") {
+		return true
+	}
+	// Matched but changed nothing: MongoDB left the document as it was.
+	m, has := outcome["modified"].(int64)
+	return op == "update" && has && m == 0
 }
 
 // ---------------------------------------------------------------------------

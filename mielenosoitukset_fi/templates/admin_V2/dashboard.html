@@ -367,9 +367,19 @@
       updatePanicState(Boolean(data.panic_mode));
     }
 
+    // Signed out (session ended, the request was sent to the login page): stop polling
+    // instead of asking every few seconds.
+    const pollTimers = [];
+    function stopPollingIfSignedOut(res) {
+      if (res.status !== 401 && !res.redirected) return false;
+      pollTimers.splice(0).forEach((timer) => clearInterval(timer));
+      return true;
+    }
+
     async function refreshSnapshot() {
       try {
         const res = await fetch(snapshotEndpoint);
+        if (stopPollingIfSignedOut(res)) return;
         if (!res.ok) throw new Error('Snapshot request failed');
         const data = await res.json();
         applySnapshot(data);
@@ -434,6 +444,7 @@
     async function refreshLoginFeed() {
       try {
         const res = await fetch(loginEndpoint + '?limit=25');
+        if (stopPollingIfSignedOut(res)) return;
         if (!res.ok) throw new Error('Login feed failed');
         const data = await res.json();
         renderLoginFeed(data.logs || []);
@@ -445,6 +456,7 @@
     async function refreshPanicStatus() {
       try {
         const res = await fetch(panicEndpoint);
+        if (stopPollingIfSignedOut(res)) return;
         if (res.ok) {
           const data = await res.json();
           updatePanicState(Boolean(data.panic_mode));
@@ -479,9 +491,11 @@
     refreshLoginFeed();
     startClock();
 
-    setInterval(refreshSnapshot, 15000);
-    setInterval(refreshLoginFeed, 8000);
-    setInterval(refreshPanicStatus, 20000);
+    pollTimers.push(
+      setInterval(refreshSnapshot, 15000),
+      setInterval(refreshLoginFeed, 8000),
+      setInterval(refreshPanicStatus, 20000),
+    );
   });
 </script>
 {% endblock %}

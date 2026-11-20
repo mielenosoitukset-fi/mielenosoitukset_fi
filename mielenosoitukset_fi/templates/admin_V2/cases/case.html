@@ -246,6 +246,12 @@
             </button>
             {% endif %}
             {% elif demo.approved %}
+            {% if undo_deadline %}
+            <button class="btn btn-outline-secondary" type="button" onclick="undoApproval()">
+              <i class="fa-solid fa-rotate-left me-1"></i>{{ _('Peru hyväksyntä') }}
+              <span class="muted">({{ _('klo') }} {{ undo_deadline }} {{ _('asti') }})</span>
+            </button>
+            {% endif %}
             {% if can_take_down %}
             <button class="btn btn-outline-danger" type="button" onclick="takeDownDemo()">
               <i class="fa-solid fa-eye-slash me-1"></i>{{ _('Poista julkaisusta') }}
@@ -776,6 +782,24 @@
       if (result.isConfirmed && await window.MosoDemoDecision.confirm(caseDemoId, "rejected")) {
         sendDemoAction("reject", result.value);
       }
+    });
+  }
+
+  function undoApproval() {
+    Swal.fire({
+      title: "{{ _('Peru hyväksyntä') }}",
+      html: `<div class="text-start admin-stack">
+          <p>{{ _('Mielenosoitus poistuu heti julkiselta sivustolta ja palaa odottamaan käsittelyä. Tämä tapaus avataan uudelleen, ja ilmoittajan muokkauslinkki toimii taas.') }}</p>
+          <p>{{ _('Ilmoittajalle ei lähetetä viestiä. Hän on jo voinut saada hyväksyntäviestin. Jos hyväksyt mielenosoituksen myöhemmin, viestiä ei lähetetä toista kertaa.') }}</p>
+          <p class="muted">{{ _('Se palaa valtakunnalliseen jonoon, ei kaupungin ylläpitäjille.') }}</p>
+        </div>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "{{ _('Peru hyväksyntä') }}",
+      cancelButtonText: "{{ _('Takaisin') }}",
+      focusCancel: true,
+    }).then((result) => {
+      if (result.isConfirmed) sendDemoAction("undo_approval");
     });
   }
 

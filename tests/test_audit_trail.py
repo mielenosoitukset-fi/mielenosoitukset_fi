@@ -140,6 +140,17 @@ def test_listener_skips_writes_that_matched_nothing_but_keeps_failures():
     assert sink.events[0]["outcome"]["errors"] == [11000]
 
 
+def test_listener_skips_updates_that_changed_nothing():
+    sink = _Sink()
+    listener = AuditCommandListener(sink=sink)
+    cmd = {"update": "demonstrations", "updates": [{"q": {"_id": 1}, "u": {"$set": {"in_past": True}}}]}
+    _run(listener, "update", cmd, {"ok": 1, "n": 1, "nModified": 0})
+    assert sink.events == []
+    _run(listener, "update", cmd, {"ok": 1, "n": 1, "nModified": 0, "upserted": [{"index": 0, "_id": 2}]},
+         request_id=2)
+    assert len(sink.events) == 1
+
+
 def test_listener_without_flask_names_the_script():
     sink = _Sink()
     listener = AuditCommandListener(sink=sink)

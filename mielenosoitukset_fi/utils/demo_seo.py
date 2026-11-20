@@ -83,6 +83,10 @@ def occurrence_end_at(document: dict[str, Any], timezone) -> datetime | None:
     occurrence_date = parse_demo_date(document.get("date"))
     if occurrence_date is None:
         return None
+    # A multi-day demonstration ends on its last day, not its first.
+    last_day = parse_demo_date(document.get("end_date"))
+    if last_day is not None and last_day > occurrence_date:
+        occurrence_date = last_day
 
     raw_end = document.get("end_time") or document.get("start_time")
     end_time = time(23, 59, 59)

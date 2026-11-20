@@ -259,10 +259,10 @@ func listingProjection() bson.M {
 func listingCard(doc bson.M, lang string) bson.M {
 	payload := publicPayload(doc, lang)
 	card := bson.M{}
-	for _, field := range []string{"_id", "title", "date", "start_time", "end_time", "city", "address", "tags", "cancelled", "parent", "slug", "running_number", "latitude", "longitude"} {
+	for _, field := range []string{"_id", "title", "date", "end_date", "start_time", "end_time", "city", "address", "tags", "cancelled", "parent", "slug", "running_number", "latitude", "longitude"} {
 		card[field] = payload[field]
 	}
-	if day, valid := cardDate(payload["date"]); valid {
+	if day, valid := cardDateRange(payload["date"], payload["end_date"]); valid {
 		card["date_display"] = day
 	}
 	card["cover_image"] = cardImage(doc)

@@ -77,6 +77,7 @@ from mielenosoitukset_fi.utils.database import stringify_object_ids
 
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from mielenosoitukset_fi.demonstrations.audit import (
+    meaningful_history_query,
     record_demo_change,
     log_demo_audit_entry,
     save_demo_history,
@@ -786,7 +787,7 @@ def demo_edit_history(demo_id):
 
     if not flush_rollback_history(mongo, demo_data["_id"]):
         abort(503)
-    history_query = {"demo_id": str(demo_data["_id"])}
+    history_query = meaningful_history_query(demo_data["_id"])
     page, per_page = parse_admin_pagination(request.args)
     total_count = mongo.demo_edit_history.count_documents(history_query)
     pagination = build_admin_pagination(
@@ -1973,6 +1974,7 @@ def reject_demo_with_token(token):
     )
     return redirect(url_for("index"))
 from flask import request, render_template
+from mielenosoitukset_fi.utils.multi_day import normalize_end_date
 from flask_login import login_required, current_user
 from datetime import datetime, date
 from bson.objectid import ObjectId as BsonObjectId
@@ -2121,44 +2123,66 @@ def demo_control():
     filter_query = query_from(filter_clauses)
 
     # --- Count total documents ---
+    # The four filtered counts come from one pass over the filtered rows
+    # instead of one collection scan each.
     total_count = mongo.demonstrations.count_documents(scope_query)
-    filtered_count = mongo.demonstrations.count_documents(filter_query)
-    pending_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"approved": False}]))
-    approved_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"approved": True}]))
-    recurring_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"recurs": True}]))
+    counts = next(
+        mongo.demonstrations.aggregate(
+            [
+                {"$match": filter_query},
+                {
+                    "$group": {
+                        "_id": None,
+                        "filtered": {"$sum": 1},
+                        "pending": {"$sum": {"$cond": [{"$eq": ["$approved", False]}, 1, 0]}},
+                        "approved": {"$sum": {"$cond": [{"$eq": ["$approved", True]}, 1, 0]}},
+                        "recurring": {"$sum": {"$cond": [{"$eq": ["$recurs", True]}, 1, 0]}},
+                    }
+                },
+            ]
+        ),
+        {},
+    )
+    filtered_count = counts.get("filtered", 0)
+    pending_count = counts.get("pending", 0)
+    approved_count = counts.get("approved", 0)
+    recurring_count = counts.get("recurring", 0)
     total_pages = max(1, (filtered_count + per_page - 1) // per_page)
     page = min(page, total_pages)
     # --- Fetch current page ---
     skip_count = (page - 1) * per_page
 
-    # Use aggregation to sort unapproved demos first, then approved, all within MongoDB
-    # (avoids loading entire collection into Python memory)
-    sort_key_stage = {
-        "$addFields": {
-            "_sort_priority": {
-                "$cond": [{"$eq": ["$approved", False]}, 0, 1]
-            }
-        }
-    }
+    # "priority" lists demos waiting for approval first, then the rest, each
+    # by date. It is read as two date-ordered queries so MongoDB can walk the
+    # date index and stop at the page instead of sorting every matching row.
     sort_specs = {
-        "priority": {"_sort_priority": 1, "date": 1, "_id": 1},
-        "date_asc": {"date": 1, "_id": 1},
-        "date_desc": {"date": -1, "_id": -1},
-        "title_asc": {"title": 1, "_id": 1},
+        "priority": [("date", 1), ("_id", 1)],
+        "date_asc": [("date", 1), ("_id", 1)],
+        "date_desc": [("date", -1), ("_id", -1)],
+        "title_asc": [("title", 1), ("_id", 1)],
     }
-    sort_stage = {"$sort": sort_specs[sort_filter]}
-    project_stage = {"$project": {"_sort_priority": 0}}
-
-    pipeline = [
-        {"$match": filter_query},
-        sort_key_stage,
-        sort_stage,
-        {"$skip": skip_count},
-        {"$limit": per_page},
-        project_stage,
-    ]
-
-    demos = list(mongo.demonstrations.aggregate(pipeline))
+    order = sort_specs[sort_filter]
+    if sort_filter == "priority":
+        demos = []
+        if skip_count < pending_count:
+            demos = list(
+                mongo.demonstrations.find(query_from(filter_clauses + [{"approved": False}]))
+                .sort(order)
+                .skip(skip_count)
+                .limit(per_page)
+            )
+        remaining = per_page - len(demos)
+        if remaining > 0:
+            demos += list(
+                mongo.demonstrations.find(query_from(filter_clauses + [{"approved": {"$ne": False}}]))
+                .sort(order)
+                .skip(max(0, skip_count - pending_count))
+                .limit(remaining)
+            )
+    else:
+        demos = list(
+            mongo.demonstrations.find(filter_query).sort(order).skip(skip_count).limit(per_page)
+        )
 
     recommended_lookup = {
         doc.get("demo_id"): True for doc in mongo.recommended_demos.find({}, {"demo_id": 1})
@@ -4319,6 +4343,10 @@ def handle_demo_form(
                     abort(403)
                 demonstration_data.pop("approved", None)
                 merged_data = _deep_merge(prev_demo, demonstration_data)
+                # An emptied end date makes the demonstration one day again;
+                # _deep_merge would otherwise keep the old value.
+                if "end_date" in demonstration_data:
+                    merged_data["end_date"] = demonstration_data["end_date"]
                 demo = Demonstration.from_dict(merged_data)
                 # The status is whatever the database holds now.
                 demo.save(write_approval=False)
@@ -4707,6 +4735,7 @@ def collect_demo_data(request, existing_organizers=None):
     # Validate required fields
     if not title or not date or not city:
         raise ValueError(_("Otsikko, päivämäärä ja kaupunki ovat pakollisia kenttiä."))
+    end_date = normalize_end_date(date, request.form.get("end_date"))
 
     # Process organizers and tags
     organizers = collect_organizers(
@@ -4755,6 +4784,7 @@ def collect_demo_data(request, existing_organizers=None):
     return {
         "title": title,
         "date": date,
+        "end_date": end_date,
         "start_time": start_time,
         "end_time": end_time,
         "facebook": facebook,
