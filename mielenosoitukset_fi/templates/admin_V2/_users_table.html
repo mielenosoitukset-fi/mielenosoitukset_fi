@@ -86,13 +86,13 @@
               {% endif %}
               {% endif %}
               {% if current_user.has_permission("FORCE_PASSWORD_CHANGE") %}
-              <li><button class="dropdown-item text-warning" type="button" onclick="openForcePwdModal('{{ user.displayname or user.username }}', '{{ user._id }}')"><i class="fas fa-key me-2"></i>{{ _('Pakota salasananvaihto') }}</button></li>
+              <li><button class="dropdown-item text-warning" type="button" data-user-name="{{ user.displayname or user.username }}" onclick="openForcePwdModal(this.dataset.userName, '{{ user._id }}')"><i class="fas fa-key me-2"></i>{{ _('Pakota salasananvaihto') }}</button></li>
               {% endif %}
               {% if current_user.has_permission("VIEW_USER") %}
               <li><button class="dropdown-item" type="button" onclick='openLoginHistoryModal("{{ user._id }}", {{ (user.displayname or user.username)|tojson|e }}, {{ user.username|tojson|e }})'><i class="fas fa-clock-rotate-left me-2"></i>{{ _('Kirjautumishistoria') }}</button></li>
               {% endif %}
               {% if current_user.has_permission("DELETE_USER") %}
-              <li><button class="dropdown-item text-danger" type="button" onclick="openDeleteModal(event, '{{ user.displayname or user.username }}', '{{ user._id }}', 'user')"><i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}</button></li>
+              <li><button class="dropdown-item text-danger" type="button" data-user-name="{{ user.displayname or user.username }}" onclick="openDeleteModal(event, this.dataset.userName, '{{ user._id }}', 'user')"><i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}</button></li>
               {% endif %}
             </ul>
           </div>

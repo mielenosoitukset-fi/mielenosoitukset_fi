@@ -265,6 +265,9 @@ def create_app(config_overrides=None) -> Flask:
                                 locale=str(get_locale()),
                                 granularity='minute')
     app.jinja_env.filters["timeago"] = timeago
+    from markupsafe import Markup
+    from mielenosoitukset_fi.utils.content_formatting import sanitize_stored_html
+    app.jinja_env.filters["stored_html"] = lambda value: Markup(sanitize_stored_html(value))
     app.register_blueprint(board_bp)
 
     if app.config.get("ENABLE_CHAT", True):

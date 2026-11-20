@@ -46,6 +46,7 @@ import argparse
 from typing import Union, Optional
 from config import Config
 from mielenosoitukset_fi.utils.classes import Demonstration, RecurringDemonstration
+from mielenosoitukset_fi.utils.classes.Demonstration import has_mixed_decisions
 from traceback import format_exc
 from mielenosoitukset_fi.utils import VERSION
 from mielenosoitukset_fi.utils.classes.RepeatSchedule import RepeatSchedule
@@ -511,6 +512,10 @@ def merge_duplicates() -> int:
     merged_count = 0
     for group in duplicates:
         ids = group["ids"]
+        group_docs = list(demonstrations_collection.find({"_id": {"$in": ids}}, {"approved": 1, "rejected": 1}))
+        if has_mixed_decisions(group_docs):
+            logger.warning(f"Skipping duplicate group with different moderation decisions: {[str(i) for i in ids]}")
+            continue
         base_demo = Demonstration.from_dict(demonstrations_collection.find_one({"_id": ids[0]}))
         for dup_id in ids[1:]:
             try:

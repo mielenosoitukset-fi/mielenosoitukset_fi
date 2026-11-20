@@ -83,6 +83,10 @@ if (container) {
       void import('./NotificationsScreen').then(({ default: NotificationsScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<NotificationsScreen config={props.config} session={props.session} />} />);
       }).catch(error => console.error('Could not start the notifications page', error));
+    } else if (route?.name === 'login') {
+      void import('./LoginScreen').then(({ default: LoginScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<LoginScreen config={props.config} search={window.location.search} />} />);
+      }).catch(error => console.error('Could not start the login page', error));
     } else if (route?.name === 'password-reset-request') {
       void import('./PasswordResetRequestScreen').then(({ default: PasswordResetRequestScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<PasswordResetRequestScreen config={props.config} />} />);

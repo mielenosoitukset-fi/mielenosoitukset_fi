@@ -1,80 +1,106 @@
 {% extends 'manual_base.html' %}
+{% import 'manuals/_macros.html' as m with context %}
+{% set demos_url = url_for('admin_demo.demo_control') if manual_can_open('demos') else none %}
 
-{% block content %}
-<div class="manual-breadcrumb">
-  <i class="fa-solid fa-house me-1"></i> <a href="{{ url_for('admin.manual_page', page='index') }}">Ohje</a> / Mielenosoitukset
-</div>
-
-<section class="manual-section">
-  <h2><i class="fa-solid fa-flag me-2"></i>Mielenosoitusten hallinta</h2>
-  <p>
-    Mielenosoitukset (engl. demonstrations, lyh. demo) ovat sivuston keskeinen sisältö. Hallintanäkymä
-    löytyy osoitteesta <strong>/admin/demo</strong> ja se on jaettu useaan osioon listanäkymän ja
-    komentokeskuksen ympärille.
-  </p>
-
-  <h3>Lista- &amp; hallintanäkymä (demo_control)</h3>
-  <p>Keskeinen työpöytä, jossa voit:</p>
+{% block manual_content %}
+<section id="lista">
+  <h2>{{ _('Lista ja suodattimet') }}</h2>
+  <p>{{ m.open_link('demos', 'admin_demo.demo_control', _('Mielenosoitukset')) }}{{ _('-näkymä listaa mielenosoitukset, joihin sinulla on oikeus. Kaupunkiadmin näkee vain omat kaupunkinsa.') }}</p>
   <ul>
-    <li><strong>Listata ja suodattaa</strong> mielenosoituksia, hakea tekstillä ja jakaa sivuille.</li>
-    <li><strong>Nähdä odottavat ja hyväksytyt</strong> mielenosoitukset erillisinä ryhminä.</li>
-    <li>Suorittaa <strong>katselu-, muokkaus-, hyväksymis-</strong> ja <strong>komentokeskustoimintoja</strong> suoraan listalta.</li>
-    <li><strong>Merkitä suositelluksi</strong> tai poistaa suosituksen (superkäyttäjä).</li>
-    <li>Luoda uuden mielenosoituksen käyttäen <strong>“Uusi mielenosoitus”</strong> -painiketta.</li>
+    <li>{{ _('Hae nimellä, paikalla, osoitteella tai tunnisteella.') }}</li>
+    <li>{{ m.ui(_('Lisäsuodattimet')) }} {{ _('rajaa kaupungin, hyväksyntätilan, toistuvuuden ja tunnisteiden mukaan.') }} {{ m.ui(_('Sisällytä menneet')) }} {{ _('näyttää myös päättyneet.') }}</li>
+    <li>{{ _('Rivin toiminnot näkyvät vain, jos sinulla on oikeus juuri siihen mielenosoitukseen.') }}</li>
+    <li>{{ _('Valitse useita rivejä neliöruuduista, niin voit perua ne kerralla tai yhdistää ne.') }}</li>
   </ul>
-  <div class="manual-note">
-    <i class="fa-solid fa-circle-info me-2"></i>
-    <strong>Huomio:</strong> Kaupunkiadminit näkevät toiminnot vain kyseisiin kaupunkeihin myönnettyjen
-    oikeuksien (esim. <code>ACCEPT_DEMO</code>, <code>EDIT_DEMO</code>) perusteella. Toiminnot näkyvät listalla
-    vain silloin, kun sinulla on oikeus kyseiseen mielenosoitukseen.
-  </div>
+</section>
 
-  <h3>Komentokeskus (command center)</h3>
-  <p>
-    Komentokeskus tarjoaa laajemman hallintanäkymän, jossa voit käsitellä mielenosoituksia tehokkaasti.
-    Tänne pääset esimerkiksi demon nimen yhteydestä tai listanäkymän toimintovalikon kautta.
-  </p>
-
-  <h3>Hyväksyminen ja hylkääminen</h3>
+<section id="hyvaksy">
+  <h2>{{ _('Hyväksy tai hylkää') }}</h2>
+  <p>{{ _('Uudet ilmoitukset odottavat hyväksyntää. Helpoin tapa käsitellä ne on') }} <a href="{{ manual_url('cases', 'kasittele-uusi') }}">{{ _('tapauksen kautta') }}</a>{{ _(', koska hylkäämisen syy tallentuu silloin historiaan.') }}</p>
   <ul>
-    <li>Odottavia mielenosoituksia voit <strong>hyväksyä</strong> (ACCEPT_DEMO) tai <strong>hylätä</strong> (peruutus) listalta.</li>
-    <li>Hyväksyminen voidaan tehdä myös <strong>taikamerkkilinkin</strong> kautta ilman, että hyväksyjän tarvitsee kirjautua sisään – linkki on kertakäyttöinen ja IP-sidottu, ja se vanhenee 24 tunnissa.</li>
+    <li>{{ m.ui(_('Hyväksy')) }} {{ _('julkaisee mielenosoituksen heti.') }}</li>
+    <li>{{ m.ui(_('Hylkää')) }} {{ _('listalla piilottaa mielenosoituksen, mutta ei kysy syytä.') }}</li>
+    <li>{{ m.ui(_('Suosittele')) }} {{ _('nostaa mielenosoituksen etusivulle.') }} {{ m.ui(_('Poista suositus')) }} {{ _('poistaa sen sieltä.') }}</li>
   </ul>
-
-  <h3>Muokkaus &amp; muutoshistoria</h3>
-  <p>
-    Jokaista mielenosoitusta voit muokata (<code>EDIT_DEMO</code>). Kaikki muutokset tallentuvat
-    <strong>muutoshistoriaan</strong> (<code>/admin/demo/edit_history/&lt;demo_id&gt;</code>), josta voit
-    tarkastella merkkitarkkoja eroja (<code>view_demo_diff</code>) ja tarvittaessa <strong>palauttaa</strong>
-    aikaisemman version (<code>rollback_demo</code>).
-  </p>
-
-  <h3>Muokkauslinkit (magic-link tokenit)</h3>
-  <p>
-    Voit luoda <strong>muokkauslinkin</strong> (<code>GENERATE_EDIT_LINK</code>), jonka kautta organisaation
-    edustaja voi muokata tai hyväksyä mielenosoitusta ilman admin-tunnusta. Linkit ovat kertakäyttöisiä,
-    IP-sidottuja ja vanhenevat 24 tunnissa. Superkäyttäjät voivat hallita ja peruuttaa kaikki tokenit
-    <strong>“Hallinnoi taikamerkkilippuja”</strong>-näkymässä.
-  </p>
-
-  <h3>Käännöstyö</h3>
-  <p>
-    <strong>Käännöstyöjonossa</strong> (<code>TRANSLATE_DEMO</code> / <code>REVIEW_DEMO_TRANSLATIONS</code>)
-    voit kääntää mielenosoituksen sisältöä eri kielille tai hyväksyä kääntäjien ehdotuksia.
-  </p>
-
-  <h3>Ehdotukset, virheet ja yhdistäminen</h3>
+  <h3>{{ _('Mitä päätös tekee') }}</h3>
+  <p>{{ _('Hyväksyminen ja hylkääminen toimivat samoin, teitpä päätöksen listalta, komentokeskuksesta, tapauksen sivulta tai sähköpostin linkistä:') }}</p>
   <ul>
-    <li><strong>Ehdotukset:</strong> Käyttäjien tekemät muokkausehdotukset (<code>suggestions</code>) voidaan tarkastaa ja hyväksyä/hylätä kenttäkohtaisesti.</li>
-    <li><strong>Ilmoitusvirheet:</strong> <code>submission_errors</code>-näkymä kerää virheelliset ilmoitukset käsittelyä varten.</li>
-    <li><strong>Yhdistäminen:</strong> Päällekkäiset mielenosoitukset voidaan yhdistää yhdeksi.</li>
-    <li><strong>Kuvakaappaus:</strong> Demoista voidaan pakottaa uusi kuvakaappaus (<code>trigger_screenshot</code>).</li>
+    <li>{{ _('ilmoittaja saa sähköpostin päätöksestä') }}</li>
+    <li>{{ _('mielenosoitukseen liittyvät avoimet tapaukset sulkeutuvat') }}</li>
+    <li>{{ _('käyttämättömät esikatselu-, hyväksymis-, hylkäämis- ja muokkauslinkit mitätöidään') }}</li>
+    <li>{{ _('kaupunkiadminin käsittelyjonon määräaika poistuu') }}</li>
   </ul>
+  {% call m.callout('tip') %}
+  <p>{{ _('Kaupunkiadminin etusivulla on oma käsittelyjono. Katso') }} <a href="{{ manual_url('dashboard', 'kaupunkiadmin') }}">{{ _('kaupunkiadminin käsittelyjono') }}</a>.</p>
+  {% endcall %}
+</section>
 
-  <h3>Tarkastusloki (audit)</h3>
-  <p>
-    <strong>Audit-timeline</strong> ja <strong>super-audit-lokit</strong> näyttävät, kuka on tehnyt mitä ja milloin,
-    mikä auttaa jäljittämään muutokset ja ongelmat.
-  </p>
+<section id="komentokeskus">
+  <h2>{{ _('Komentokeskus') }}</h2>
+  <p>{{ _('Komentokeskus kokoaa yhden mielenosoituksen kaiken tiedon samalle sivulle: tilan, aikataulun ja sijainnin, järjestäjät, muokkausoikeudet, tapaukset ja pyynnöt, ehdotukset, analytiikan sekä lokit ja historian. Pääset sinne listan toimintovalikosta tai mielenosoituksen nimestä.') }}</p>
+  <ul>
+    <li>{{ m.ui(_('Pikatoiminnot')) }}: {{ _('hyväksy, hylkää, merkitse perutuksi, suosittele, luo esikatselukuva tai kopioi pohjaksi.') }}</li>
+    <li>{{ m.ui(_('Tapaukset ja pyynnöt')) }}: {{ _('kaikki tähän mielenosoitukseen liittyvät tapaukset linkkeineen.') }}</li>
+  </ul>
+</section>
+
+<section id="muokkaa-osio">
+  <h2>{{ _('Muokkaa ja palauta') }}</h2>
+  <p>{{ _('Jokainen muutos tallentuu muokkaushistoriaan. Historiasta näet, kuka muutti mitä ja milloin.') }}</p>
+  {% call m.task('muokkaa', _('Palauta aiempi versio'), _('Joku on muuttanut tietoja väärin, ja haluat palauttaa aiemman version.'), demos_url, _('Avaa mielenosoitukset')) %}
+    {% call m.step() %}<p>{{ _('Etsi mielenosoitus listalta ja avaa') }} {{ m.ui(_('Muokkaushistoria')) }}.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Valitse muutos, jota ennen tiedot olivat oikein, ja avaa') }} {{ m.ui(_('Näytä muutos')) }}. {{ _('Vertailu näyttää vanhan ja uuden arvon rinnakkain.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Valitse') }} {{ m.ui(_('Palauta tähän versioon')) }}. {{ _('Palautuskin tallentuu historiaan, joten sen voi tarvittaessa perua samalla tavalla.') }}</p>{% endcall %}
+  {% endcall %}
+</section>
+
+<section id="muokkauslinkki-osio">
+  <h2>{{ _('Muokkauslinkit') }}</h2>
+  {% call m.task('muokkauslinkki', _('Anna järjestäjälle muokkauslinkki'), _('Järjestäjä voi korjata oman mielenosoituksensa tiedot ilman tunnuksia.'), demos_url, _('Avaa mielenosoitukset')) %}
+    {% call m.step() %}<p>{{ _('Etsi mielenosoitus listalta ja valitse rivin toiminnoista') }} {{ m.ui(_('Luo ja kopioi muokkauslinkki')) }}.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Valitse voimassaoloaika: 1 tunti, 24 tuntia tai 7 vuorokautta. Valitse lyhin aika, joka riittää.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Kopioi linkki heti. Turvallisuussyistä linkkiä ei näytetä uudelleen, kun ikkuna suljetaan. Mielenosoituksen muokkauslomakkeelta voit myös lähettää uuden linkin suoraan sähköpostilla.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Lähetä linkki vain järjestäjälle, jonka tiedät oikeaksi.') }}</p>{% endcall %}
+  {% endcall %}
+  {% call m.callout('warning') %}
+  <p>{{ _('Linkin saanut voi muokata mielenosoitusta koko voimassaoloajan, eikä aikaa voi pidentää. Jos linkki joutuu vääriin käsiin, avaa mielenosoituksen muokkauslomake ja mitätöi linkki sen muokkauslinkkien listasta. Voit mitätöidä yhden tai kaikki linkit kerralla. Hyväksyminen ja hylkääminen mitätöivät käyttämättömät linkit itsestään, joten luo linkki vasta päätöksen jälkeen.') }}</p>
+  {% endcall %}
+</section>
+
+<section id="moderointilinkit">
+  <h2>{{ _('Moderointilinkit ja tokenit') }}</h2>
+  <p>{{ _('Ylläpitäjien sähköposteissa on linkkejä, joilla mielenosoituksen voi esikatsella, hyväksyä tai hylätä kirjautumatta.') }}</p>
+  <ul>
+    <li>{{ _('Linkki on kertakäyttöinen ja vanhenee 24 tunnissa.') }}</li>
+    <li>{{ _('Linkki sidotaan ensimmäisen avaajan IP-osoitteeseen.') }}</li>
+    <li>{{ _('Linkit allekirjoitetaan palvelun omalla salaisella avaimella. Ennen 20.11.2026 lähetetyt linkit eivät enää toimi; pyydä tarvittaessa uusi.') }}</li>
+  </ul>
+  <p>{{ _('Superkäyttäjä näkee kaikki linkit ja voi mitätöidä niitä sivupalkin') }} {{ m.ui(_('Tokenit')) }}{{ _('-painikkeesta.') }}</p>
+</section>
+
+<section id="yhdista">
+  <h2>{{ _('Yhdistä päällekkäiset') }}</h2>
+  <p>{{ _('Jos sama mielenosoitus on julkaistu kahdesti, valitse molemmat listalta ja valitse') }} {{ m.ui(_('Yhdistä valitut mielenosoitukset')) }}.</p>
+  <ol>
+    <li>{{ _('Valitse päätapahtuma. Sen tunniste ja julkinen osoite säilyvät.') }}</li>
+    <li>{{ _('Valitse jokaiselle kentälle, mistä mielenosoituksesta arvo säilytetään.') }}</li>
+    <li>{{ _('Tarkista yhteenveto ja vahvista.') }}</li>
+  </ol>
+  {% call m.callout('tip') %}
+  <p>{{ _('Jos toinen ilmoituksista odottaa vielä hyväksyntää, on helpompaa hylätä se kaksoiskappaleena. Katso') }} <a href="{{ manual_url('cases', 'kaksoiskappale') }}">{{ _('Hylkää kaksoiskappale') }}</a>.</p>
+  {% endcall %}
+</section>
+
+<section id="kaannokset">
+  <h2>{{ _('Käännökset') }}</h2>
+  <p>{{ m.open_link('translations', 'admin_demo.demo_translation_dashboard', _('Käännöstyöjonossa')) }} {{ _('voit kääntää mielenosoituksen tiedot muille kielille tai hyväksyä kääntäjien ehdotuksia. Käyttöliittymän tekstit käännetään omassa näkymässään') }} {{ m.ui(_('Käyttöliittymäkäännökset')) }}.</p>
+</section>
+
+<section id="virheet">
+  <h2>{{ _('Ilmoitusvirheet ja ehdotussivu') }}</h2>
+  <ul>
+    <li>{{ m.open_link('submission_errors', 'admin_demo.submission_errors_dashboard', _('Ilmoitusvirheet')) }}: {{ _('ilmoituslomakkeen lähetykset, jotka epäonnistuivat. Näkymä auttaa selvittämään, miksi ilmoitus ei mennyt perille.') }}</li>
+    <li>{{ m.ui(_('Ehdotukset')) }}: {{ _('kaikki muutosehdotukset listana. Ehdotukset tulevat myös tapauksiksi, joten käsittele ne mieluiten') }} <a href="{{ manual_url('cases', 'muutosehdotus') }}">{{ _('tapauksina') }}</a>.</li>
+  </ul>
 </section>
 {% endblock %}

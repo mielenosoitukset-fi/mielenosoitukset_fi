@@ -1,0 +1,1 @@
+- Admin pages render stored demonstration descriptions and e-mailed support messages through the formatting allowlist, and pass titles and names to page scripts as data.

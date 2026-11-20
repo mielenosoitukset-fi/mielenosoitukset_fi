@@ -81,7 +81,10 @@ from mielenosoitukset_fi.demonstrations.audit import (
     save_demo_history,
     log_super_audit,
 )
-from mielenosoitukset_fi.demonstrations.decisions import apply_demo_decision
+from mielenosoitukset_fi.demonstrations.decisions import (
+    apply_demo_decision,
+    preview_demo_decision,
+)
 from mielenosoitukset_fi.demonstrations.rollback import (
     PENDING_ROLLBACK_HISTORY, commit_rollback, flush_rollback_history, restore_merge_conflict,
 )
@@ -141,14 +144,15 @@ MERGE_FIELD_DEFINITIONS = [
     {"key": "tags", "label": _("Tunnisteet"), "type": "list"},
     {"key": "facebook", "label": _("Facebook-linkki"), "type": "text"},
     {"key": "cover_picture", "label": _("Kansikuva"), "type": "text"},
-    {"key": "approved", "label": _("Hyväksytty"), "type": "bool"},
     {"key": "hide", "label": _("Piilotettu"), "type": "bool"},
     {"key": "slug", "label": _("Lyhytlinkki"), "type": "text"},
     {"key": "parent", "label": _("Toistuvan demon vanhempi"), "type": "objectid"},
     {"key": "recurs", "label": _("Merkitty toistuvaksi"), "type": "bool"},
 ]
 
-MERGE_BOOL_FIELDS = {"recurs", "approved", "hide"}
+# Approval is not a mergeable field: it changes only through the decision
+# service (see merge_demos, which approves the kept demo there if needed).
+MERGE_BOOL_FIELDS = {"recurs", "hide"}
 
 
 MAX_MERGE_COUNT = 10
@@ -2976,6 +2980,42 @@ def merge_demos():
     if not set_merge_phase("completed", state="completed", history_id=history_id):
         abort(503)
 
+    # A merge must not unpublish an event that was public under another copy.
+    # The kept demo is approved through the same decision service as every
+    # other path (audit, case closing), never by copying the flag.
+    any_copy_approved = any(doc.get("approved") for doc in doc_map.values())
+    if any_copy_approved and original_primary.get("rejected"):
+        flash_message(
+            _(
+                "Säilytetty mielenosoitus on hylätty, joten se ei näy sivustolla, "
+                "vaikka yhdistetty kopio oli hyväksytty."
+            ),
+            "warning",
+        )
+    elif any_copy_approved and not original_primary.get("approved") and not has_demo_approval_permission(
+        current_user, original_primary
+    ):
+        flash_message(
+            _(
+                "Yhdistetty kopio oli hyväksytty, mutta käyttöoikeutesi eivät riitä "
+                "hyväksymään säilytettyä mielenosoitusta. Se odottaa käsittelyä tapauksessa."
+            ),
+            "warning",
+        )
+    elif any_copy_approved and not original_primary.get("approved"):
+        try:
+            _apply_demo_decision(primary_id, "approved", source="admin_merge")
+        except Exception:
+            logger.exception("Merge approval failed for %s", primary_id)
+            flash_message(
+                _(
+                    "Mielenosoitukset yhdistettiin, mutta hyväksyntä epäonnistui. "
+                    "Hyväksy mielenosoitus tapauksessa."
+                ),
+                "warning",
+            )
+            return redirect(url_for("admin_demo.edit_demo", demo_id=primary_id))
+
     flash_message(_("Mielenosoitukset yhdistettiin onnistuneesti."), "success")
     return redirect(url_for("admin_demo.edit_demo", demo_id=primary_id))
 
@@ -4211,7 +4251,9 @@ def handle_demo_form(
                     demonstration_data["approved"] = bool(prev_demo.get("approved"))
                 merged_data = _deep_merge(prev_demo, demonstration_data)
                 demo = Demonstration.from_dict(merged_data)
-                demo.save()
+                # Only an approver's form value is authoritative for approval;
+                # otherwise keep whatever the database holds now.
+                demo.save(write_approval=can_change_approval)
                 hist_id = record_demo_change(
                     demo_id,
                     prev_demo,
@@ -5638,6 +5680,24 @@ def geocode_address():
 
     latitude, longitude = coordinates
     return jsonify({"latitude": latitude, "longitude": longitude})
+
+@admin_demo_api_bp.route("/<demo_id>/decision_preview", methods=["GET"])
+@login_required
+@admin_required
+@permission_required("ACCEPT_DEMO", _type="DEMONSTRATION")
+def preview_demo_decision_effects(demo_id):
+    """Read-only list of what approving or rejecting would do, for the confirm dialog."""
+    decision = request.args.get("decision")
+    if decision not in {"approved", "rejected"}:
+        return jsonify({"success": False, "error": _("Virheellinen päätös")}), 400
+    demo_oid = _require_valid_objectid(demo_id)
+    _abort_if_demo_forbidden(demo_oid, "ACCEPT_DEMO")
+    try:
+        preview = preview_demo_decision(mongo, demo_oid, decision)
+    except LookupError:
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
+    return jsonify({"success": True, **preview})
+
 
 @admin_demo_api_bp.route("/<demo_id>/approve", methods=["POST"])
 @login_required

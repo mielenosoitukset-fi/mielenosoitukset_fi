@@ -69,7 +69,9 @@ def configure(source, target):
         # the bridge on, because the one-time token lives in Flask's session.
         # Quotas and the body bound follow the Flask settings of the same name
         # so both runtimes enforce the same numbers.
-        if config.get("CONTACT_GO_ENABLED") is True:
+        # On by default since 20 November 2026 (maintainer's go); an explicit
+        # `CONTACT_GO_ENABLED: false` keeps Flask's handler.
+        if config.get("CONTACT_GO_ENABLED", True) is True:
             values["CONTACT_GO_ENABLED"] = "true"
             for key in ("CONTACT_PER_IP_LIMIT", "CONTACT_GLOBAL_LIMIT", "CONTACT_MAX_REQUEST_BYTES"):
                 if config.get(key) is not None:
