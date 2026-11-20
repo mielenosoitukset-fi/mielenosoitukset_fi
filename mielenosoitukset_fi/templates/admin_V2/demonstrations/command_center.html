@@ -287,8 +287,8 @@
                   {% if organizer.email %}
                   <div class="text-muted small">{{ organizer.email }}</div>
                   {% endif %}
-                  {% if organizer.website %}
-                  <div><a href="{{ organizer.website }}" target="_blank" rel="noopener noreferrer">{{ organizer.website }}</a></div>
+                  {% if organizer.website|safe_href %}
+                  <div><a href="{{ organizer.website|safe_href }}" target="_blank" rel="noopener noreferrer">{{ organizer.website }}</a></div>
                   {% endif %}
                 </div>
               </li>
@@ -502,8 +502,8 @@
       <section class="info-card admin-section-card">
         <h3>{{ _('Linkit ja media') }}</h3>
         <div class="media-links">
-          {% if demo.facebook %}
-          <a href="{{ demo.facebook }}" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-facebook"></i> Facebook</a>
+          {% if demo.facebook|safe_href %}
+          <a href="{{ demo.facebook|safe_href }}" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-facebook"></i> Facebook</a>
           {% endif %}
           {% if demo.facebook_import %}
           <div class="mt-2 fb-import-provenance">
@@ -511,8 +511,8 @@
             <strong>{{ _('Tuotu Facebookista') }}</strong>
             <p class="mb-0 text-muted">
               {{ _('Ilmoittaja täytti lomakkeen Facebook-tuonnilla') }}
-              {% if demo.facebook_import.get('url') %}
-              — <a href="{{ demo.facebook_import.get('url') }}" target="_blank" rel="noopener noreferrer">{{ demo.facebook_import.get('url') }}</a>
+              {% if demo.facebook_import.get('url')|safe_href %}
+              — <a href="{{ demo.facebook_import.get('url')|safe_href }}" target="_blank" rel="noopener noreferrer">{{ demo.facebook_import.get('url') }}</a>
               {% endif %}
               {% if demo.facebook_import.get('imported_at') %}
               <small>({{ demo.facebook_import.get('imported_at') }})</small>
@@ -533,7 +533,7 @@
         {% if demo_raw.get('external_links') %}
         <div class="mt-2">
           {% for link in demo_raw.get('external_links') %}
-          <a href="{{ link }}" target="_blank" rel="noopener noreferrer">{{ link }}</a>
+          {% if link|safe_href %}<a href="{{ link|safe_href }}" target="_blank" rel="noopener noreferrer">{{ link }}</a>{% else %}<span>{{ link }}</span>{% endif %}
           {% endfor %}
         </div>
         {% endif %}

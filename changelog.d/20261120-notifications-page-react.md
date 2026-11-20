@@ -1,0 +1,1 @@
+- The "Kaikki ilmoitukset" page (`/api/notifications/all`) is now served by the React app. It shows up to 50 notifications, marks unread ones, and its "Merkitse kaikki luetuiksi" button now works in place instead of opening a raw JSON answer.

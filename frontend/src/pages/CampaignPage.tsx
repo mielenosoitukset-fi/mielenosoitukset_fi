@@ -63,7 +63,7 @@ function Timeline({ schedule, milestones, urls, openingForm }: { schedule: Campa
         <time dateTime={milestone.key === 'collectionEnds' ? schedule.collectionEnd : milestone.from}>{item.time}</time>
         <h3>{item.title}</h3>
         <p>{item.text}</p>
-        {item.link && <a className="campaign-text-link" href={item.link.href}>{item.link.label} <Arrow /></a>}
+        {item.link && <a className="campaign-text-link" href={item.link.href}>{item.link.label}{'\u00a0'}<Arrow /></a>}
       </li>;
     })}
   </ol>;

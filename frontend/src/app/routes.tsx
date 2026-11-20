@@ -11,6 +11,7 @@ import { developerCopy, developerPath } from './developer-route';
 import { volunteerConfirmCopy } from './volunteer-confirm';
 import { emailConfirmCopy } from './email-confirm';
 import { orgInviteCopy } from './org-invite';
+import { notificationsCopy, notificationsPath } from './notifications-route';
 import type { InformationPage } from './information';
 import { passwordResetRequestCopy, passwordResetRequestPath } from './password-reset-route';
 import { loginCopy, loginPath } from './login-route';
@@ -50,6 +51,7 @@ export type AppRoute =
   | { name: 'developer'; appId?: string }
   | { name: 'profile'; username: string }
   | { name: 'account-settings' }
+  | { name: 'notifications' }
   | { name: 'password-reset-request' }
   | { name: 'login' }
   | { name: 'detail'; identifier: string }
@@ -122,6 +124,7 @@ export function routeForPath(path: string): AppRoute | null {
   const developerApp = /^\/developer\/apps\/([a-f\d]{24})$/i.exec(path);
   if (developerApp) return { name: 'developer', appId: developerApp[1].toLowerCase() };
   if (path === '/users/auth/settings' || path === '/users/auth/settings/') return { name: 'account-settings' };
+  if (path === notificationsPath) return { name: 'notifications' };
   if (path === passwordResetRequestPath) return { name: 'password-reset-request' };
   if (path === loginPath) return { name: 'login' };
   const profile = PROFILE_PATH.exec(path);
@@ -185,6 +188,10 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   }
   if (route.name === 'account-settings') {
     return { title: 'Asetukset | Mielenosoitukset.fi', description: 'Hallinnoi tilisi tietoja, turvallisuutta, profiilia ja API-avaimia yhdessä paikassa.',
+      robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'notifications') {
+    return { title: `${notificationsCopy.title} | Mielenosoitukset.fi`, description: notificationsCopy.lead,
       robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'login') {
