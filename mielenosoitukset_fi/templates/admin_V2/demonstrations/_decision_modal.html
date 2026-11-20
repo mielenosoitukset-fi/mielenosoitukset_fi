@@ -1,0 +1,48 @@
+{#
+  Shared approve/reject confirmation. Every admin decision button opens this
+  dialog, which lists what the decision really does before anything changes.
+  Include once per page and load js/admin_demo_decision.js.
+#}
+{% macro demo_decision_modal() %}
+<div class="modal fade admin-modal" id="demoDecisionModal" tabindex="-1"
+    aria-labelledby="demoDecisionModalLabel" aria-hidden="true"
+    data-demo-decision-modal
+    data-preview-url-template="{{ url_for('admin_demo_api.preview_demo_decision_effects', demo_id='__DEMO_ID__') }}"
+    data-title-approved="{{ _('Hyväksytäänkö mielenosoitus?') }}"
+    data-title-rejected="{{ _('Hylätäänkö mielenosoitus?') }}"
+    data-confirm-approved="{{ _('Hyväksy') }}"
+    data-confirm-rejected="{{ _('Hylkää') }}"
+    data-public-approved="{{ _('Mielenosoitus näkyy julkisesti.') }}"
+    data-public-rejected="{{ _('Mielenosoitus ei näy julkisesti.') }}"
+    data-email-yes="{{ _('Ilmoittaja saa päätöksestä sähköpostin.') }}"
+    data-email-no-address="{{ _('Ilmoittajalle ei lähetetä sähköpostia, koska osoitetta ei ole.') }}"
+    data-email-unchanged="{{ _('Tila ei muutu, joten ilmoittajalle ei lähetetä sähköpostia.') }}"
+    data-cases="{{ _('Avoimia tapauksia suljetaan: %(count)s.', count='__COUNT__') }}"
+    data-links="{{ _('Käyttämättömiä linkkejä lakkaa toimimasta: %(count)s.', count='__COUNT__') }}"
+    data-edit-links="{{ _('Myös järjestäjälle lähetetyt muokkauslinkit lakkaavat toimimasta.') }}"
+    data-city-queue="{{ _('Mielenosoitus poistuu kaupunkiadminien jonosta.') }}"
+    data-cancelled="{{ _('Mielenosoitus on peruttu.') }}"
+    data-loading="{{ _('Haetaan vaikutuksia…') }}"
+    data-load-error="{{ _('Vaikutuksia ei saatu haettua. Voit silti jatkaa.') }}">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <p class="admin-modal-kicker">{{ _('Mielenosoituksen hallinta') }}</p>
+                    <h2 class="modal-title" id="demoDecisionModalLabel" data-demo-decision-title></h2>
+                    <p class="mb-0 text-muted" data-demo-decision-demo></p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Sulje') }}"></button>
+            </div>
+            <div class="modal-body admin-form">
+                <p class="mb-2"><strong>{{ _('Kun vahvistat päätöksen, tapahtuu heti seuraavaa:') }}</strong></p>
+                <ul class="mb-0" data-demo-decision-effects aria-live="polite"></ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('Peruuta') }}</button>
+                <button type="button" class="btn" data-demo-decision-confirm></button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}

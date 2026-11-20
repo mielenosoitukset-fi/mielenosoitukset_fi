@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -58,6 +59,10 @@ func flaskAnswer(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`not json`))
 	case "session=error":
 		w.WriteHeader(500)
+	case "session=identity":
+		// enforce_required_identity_change answers every /api/ request of a flagged account like this.
+		w.WriteHeader(428)
+		w.Write([]byte(`{"status":"error","message":"Käyttäjänimi ja näyttönimi on vaihdettava ennen palvelun käyttöä.","redirect":"https://evil.example/steal"}`))
 	case "session=nobool":
 		w.Write([]byte(`{"role":"admin"}`))
 	case "session=badactor":
@@ -298,5 +303,41 @@ func TestCachedPrincipalCannotBeChangedByCallers(t *testing.T) {
 	second, _ := resolver.Resolve(r.Context(), r, scope)
 	if !second.Has("EDIT_DEMO") {
 		t.Fatal("cached answer was changed through a returned map")
+	}
+}
+
+func TestForcedIdentityChangeIsRefusedWithAFixedRedirect(t *testing.T) {
+	config, _ := fakeFlask(t, flaskAnswer)
+	resolver, _ := newSessionResolver(config)
+	ok := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Error("handler must not run"); w.WriteHeader(204) })
+	handlers := map[string]http.Handler{
+		"authenticated": resolver.RequireAuthenticated(ok),
+		"permission":    resolver.RequirePermission("EDIT_DEMO", nil, ok),
+		"auth/me":       authBridgeHandlerWith(ok, resolver),
+	}
+	for name, h := range handlers {
+		target := "/x"
+		if name == "auth/me" {
+			target = "/api/auth/me"
+		}
+		w := get(h, target, "session=identity")
+		if w.Code != 403 {
+			t.Errorf("%s: got %d want 403", name, w.Code)
+		}
+		var body map[string]string
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil || body["redirect"] != "/users/auth/forced_identity_change/" ||
+			body["error"] != "identity change required" {
+			t.Errorf("%s: body %q", name, w.Body.String())
+		}
+		if strings.Contains(w.Body.String(), "evil.example") {
+			t.Errorf("%s: the redirect was copied from Flask", name)
+		}
+		if w.Header().Get("Cache-Control") != "no-store" || w.Header().Get("Vary") != "Cookie" {
+			t.Errorf("%s: missing no-store or Vary", name)
+		}
+	}
+	// Other failures stay 503, anonymous visitors stay 401.
+	if w := get(resolver.RequireAuthenticated(ok), "/x", "session=error"); w.Code != 503 {
+		t.Errorf("a 500 from Flask must stay 503, got %d", w.Code)
 	}
 }

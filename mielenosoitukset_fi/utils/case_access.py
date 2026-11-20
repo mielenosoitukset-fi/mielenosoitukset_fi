@@ -28,7 +28,7 @@ def case_scope_query(user, permission):
         "demo_id": {"$in": demo_ids + [str(value) for value in demo_ids]},
         "type": {"$in": [
             "new_demo", "demo_error_report", "demo_cancellation_request",
-            "demo_cancelled", "support_ticket",
+            "demo_cancelled", "support_ticket", "demo_edit_suggestion",
         ]},
     }
     # Local admins see applications for their own cities so they can vouch in

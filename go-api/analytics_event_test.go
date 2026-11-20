@@ -224,3 +224,44 @@ func TestAnalyticsMongoCounter(t *testing.T) {
 		t.Fatal(collections, err)
 	}
 }
+
+func TestAnalyticsEventBodyIsBounded(t *testing.T) {
+	counted := 0
+	handler := analyticsEventHandler(http.NotFoundHandler(), true, func(context.Context, bson.M) error { counted++; return nil })
+	padding := `,"pad":"` + strings.Repeat("x", analyticsMaxBody) + `"`
+	for _, test := range []struct{ body, contentType string }{
+		{`{"event":"map_interaction"` + padding + `}`, "application/json"},
+		{"event=map_interaction&pad=" + strings.Repeat("x", analyticsMaxBody), "application/x-www-form-urlencoded"},
+		{"--b\r\nContent-Disposition: form-data; name=\"event\"\r\n\r\nmap_interaction\r\n--b\r\nContent-Disposition: form-data; name=\"pad\"\r\n\r\n" + strings.Repeat("x", analyticsMaxBody) + "\r\n--b--\r\n", "multipart/form-data; boundary=b"},
+	} {
+		var read int64
+		body := &countingReader{Reader: strings.NewReader(test.body + strings.Repeat(" ", 4<<20)), read: &read}
+		request := httptest.NewRequest("POST", "https://site.test/api/analytics/event", body)
+		request.Header.Set("Content-Type", test.contentType)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != 200 || response.Body.String() != "{\"ok\":true}\n" || read > 2*analyticsMaxBody {
+			t.Fatal(test.contentType, response.Code, response.Body.String(), read)
+		}
+	}
+	if counted != 0 {
+		t.Fatal("oversized events must not be counted", counted)
+	}
+	request := httptest.NewRequest("POST", "https://site.test/api/analytics/event", strings.NewReader(`{"event":"map_interaction"}`))
+	request.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(httptest.NewRecorder(), request)
+	if counted != 1 {
+		t.Fatal("a normal beacon is still counted", counted)
+	}
+}
+
+type countingReader struct {
+	*strings.Reader
+	read *int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.Reader.Read(p)
+	*c.read += int64(n)
+	return n, err
+}

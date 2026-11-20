@@ -1,0 +1,1 @@
+- The new settings page can now set up two-step sign-in (MFA), add a device, rename it and remove it in the Security tab. Renaming and removing ask you to confirm your identity first, as the old page does.

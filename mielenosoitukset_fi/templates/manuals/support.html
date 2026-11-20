@@ -1,65 +1,41 @@
 {% extends 'manual_base.html' %}
+{% import 'manuals/_macros.html' as m with context %}
 
-{% block content %}
-<div class="manual-breadcrumb">
-  <i class="fa-solid fa-house me-1"></i> <a href="{{ url_for('admin.manual_page', page='index') }}">Ohje</a> / Ylläpito &amp; tuki
-</div>
+{% block manual_content %}
+<section id="lokit">
+  <h2>{{ _('Lokit ja tapahtumat') }}</h2>
+  <p>{{ m.open_link('logs', 'admin.logs', _('Lokit ja tapahtumat')) }} {{ _('näyttää ylläpidon toiminnan. Voit selata eri lähteitä välilehdillä, suodattaa ja hakea tapahtumia sekä viedä lokit JSON-muodossa.') }}</p>
+</section>
 
-<section class="manual-section">
-  <h2><i class="fa-solid fa-tools me-2"></i>Ylläpito &amp; tuki</h2>
-  <p>
-    Ylläpito-osioon kuuluvat lokit, taustatehtävät, järjestelmän tila ja kehittäjähallinta, joita
-    tarvitaan ongelmien jäljittämiseen ja järjestelmän seurantaan.
-  </p>
-
-  <h3>Lokit ja tapahtumat</h3>
-  <p>
-    <strong>/admin/logs</strong> (<code>VIEW_LOGS</code>) näyttää admin-toiminnan lokin. Voit:
-  </p>
+<section id="taustatyot">
+  <h2>{{ _('Taustatyöt') }}</h2>
+  <p>{{ m.open_link('jobs', 'admin.background_jobs', _('Taustatyöt')) }} {{ _('näyttää ajastetut työt, kuten tapausilmoitusten lähetyksen ja tukipyyntöjen haun. Hallintaoikeudella voit:') }}</p>
   <ul>
-    <li>Selata tapahtumia useista lähteistä välilehdillä.</li>
-    <li>Suodattaa ja hakea tapahtumia.</li>
-    <li>Viedä lokit JSON-muodossa jatkokäsittelyä varten.</li>
+    <li>{{ _('käynnistää työn heti') }}</li>
+    <li>{{ _('ottaa työn käyttöön tai pois käytöstä') }}</li>
+    <li>{{ _('muuttaa ajastusta ja katsoa suoritushistorian') }}</li>
   </ul>
+  {% call m.callout('tip') %}
+  <p>{{ _('Jos tapausilmoituksia ei tule, tarkista ensin, että työ') }} <code>deliver_case_notices</code> {{ _('on käytössä ja sen viimeisin ajo onnistui.') }}</p>
+  {% endcall %}
+</section>
 
-  <h3>Taustatehtävät</h3>
-  <p>
-    <strong>/admin/background-jobs</strong> (<code>VIEW_BACKGROUND_JOBS</code>) näyttää käynnissä olevat
-    ja ajastetut taustatehtävät. <code>MANAGE_BACKGROUND_JOBS</code>-oikeudella voit:
-  </p>
+<section id="tila">
+  <h2>{{ _('Järjestelmän tila') }}</h2>
+  <p>{{ m.open_link('status', 'admin.admin_status', _('Järjestelmän tila')) }} {{ _('näyttää tietokannan, välimuistin ja tiedostovaraston kunnon, palvelimen tiedot ja viimeisimmät virheet. Käytä sitä, kun jokin ei toimi.') }}</p>
+</section>
+
+<section id="kehittajat">
+  <h2>{{ _('Kehittäjähallinta') }}</h2>
+  <p>{{ m.open_link('developer', 'admin_dev.list_requests', _('Kehittäjähallinnassa')) }} {{ _('käsittelet API-avainten ja laajempien oikeuksien hakemukset sekä näet käyttäjien kehittäjäsovellukset.') }}</p>
+</section>
+
+<section id="muut">
+  <h2>{{ _('Muut hallintaosiot') }}</h2>
   <ul>
-    <li>Käynnistää tehtävän manuaalisesti.</li>
-    <li>Ottaa tehtävän käyttöön tai pois käytöstä.</li>
-    <li>Muuttaa tehtävän ajastusta ja tarkastella suoritushistoriaa.</li>
+    <li>{{ _('Kaupungit: ota kaupunkeja käyttöön tai pois käytöstä ja katso niiden mielenosoitus- ja ylläpitäjämäärät. Löytyy Hallinto-näkymästä.') }}</li>
+    <li>{{ m.open_link('governance', 'admin_governance.dashboard', _('Hallinto')) }}: {{ _('turvaluokitukset, turvatoimet, audit-loki ja kaupunkien yleiskuva.') }}</li>
+    <li>{{ _('Kampanja: kampanjan vapaaehtoisten lista, vahvistus ja CSV-vienti.') }}</li>
   </ul>
-
-  <h3>Järjestelmän tila</h3>
-  <p>
-    <strong>/admin/status</strong> näyttää infrastruktuurin kunnon (MongoDB, Redis, S3), palvelimen
-    tilastot, kokoelmat ja virheet. Hyödyllinen ongelmatilanteiden selvittämiseen.
-  </p>
-
-  <h3>Kehittäjähallinta</h3>
-  <p>
-    <strong>/admin/developer</strong> (<code>EDIT_USER</code>) käsittelee:
-  </p>
-  <ul>
-    <li>Hakemukset API-avaimille ja laajennetuille oikeuksille (scope).</li>
-    <li>Käyttäjien kehittäjäsovellusten tarkastelun ja API-pääsyn hyväksymisen/hylkäämisen.</li>
-  </ul>
-
-  <h3>Muut hallintaosiot</h3>
-  <ul>
-    <li><strong>Kaupungit</strong> (<code>MANAGE_CITIES</code>, /admin/cities): ota kaupunkeja käyttöön/pois ja katso demo- ja käyttöoikeusmäärät.</li>
-    <li><strong>Hallinto/governance</strong>: turvaluokitukset, audit-loki ja kaupunkien yleiskatsaus.</li>
-    <li><strong>Tapaukset</strong> (<code>LIST_CASES</code>, /admin/case): käsittelyjonot uusille mielenosoituksille, virheilmoituksille, organisaation muutospyynnöille ja peruutuspyynnöille, mukaan lukien eskalointi ylemmälle tasolle.</li>
-    <li><strong>Media</strong>: kuvien lataus S3-tallennustilaan.</li>
-  </ul>
-
-  <h3>Kampanjat</h3>
-  <p>
-    <strong>/admin/kampanja</strong> (<code>KAMPANJA</code>) hallinnoi vapaaehtoisia: listaus, päivitys,
-    vahvistus ja CSV-vienti.
-  </p>
 </section>
 {% endblock %}

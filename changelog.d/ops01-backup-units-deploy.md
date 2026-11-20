@@ -1,0 +1,1 @@
+- Backups: every production deploy now installs the backup timers and their failure alerts, and a new daily check alerts when the newest local backup is more than about a day old (or the weekly full one is a week late). The encrypted off-site copy stays switched off until the maintainer's public key is on the server. Operator-only; nothing changes for visitors (docs/backups.md).

@@ -8,9 +8,16 @@
   15 November). The archives are on lc-main's `/var/backups` disk, a different
   machine from the database.
 - Restoring from them is still **unproven** until the OPS-02 drill.
-- **Off-site copy and e-mail alerts** (below) are built but installed only after
-  the maintainer's go; until then the archives exist on lc-main alone and a
-  failed backup only writes a journal line.
+- **Units ship with every production deploy (20 November 2026).**
+  `production_deploy.sh` runs `deploy/backup/install_units.sh`, which copies
+  changed backup units into `/etc/systemd/system`, reloads systemd and enables
+  the timers. Nobody copies units by hand any more. So the failure alerts (Bark,
+  then e-mail) and the daily local freshness check are live after the first
+  deploy that contains this change.
+- **Off-site copy** (below) is installed with them but **skipped until the
+  maintainer's public age key** is in `/etc/mielenosoitukset/backup-recipients.txt`
+  (`ConditionPathExists=`; a skipped unit is not a failure and does not alert).
+  Until the homelab side and the key exist, the archives are on lc-main alone.
 - lc-main's `luovasec-snapshot-mielenosoitukset` timer is a *static HTML
   snapshot* of public pages for a fallback site, not a data backup. It fails
   every night in its own link check (missing `/app-assets/*` files and links to
@@ -52,6 +59,13 @@ The archives therefore live on a different machine from the database.
   missed run catches up.
 - `mielenosoitukset-mongodb-backup-full.service` / `.timer`: full dump on
   Sundays at 01:30 UTC (03:30 Helsinki in winter), so it never overlaps a core dump.
+- `backup-age-check.sh` / `mielenosoitukset-backup-age-check.service` / `.timer`:
+  at 06:20 UTC daily, fails (and so alerts) when the newest finished archive of
+  any mode is older than `BACKUP_STALE_HOURS` (30, one missed night) or the newest
+  full archive is older than `BACKUP_STALE_HOURS_FULL` (192, one missed Sunday). A
+  failed dump alerts on its own; this catches a dump that never started (timer
+  stopped, host down at night).
+- `install_units.sh`: run by the production deploy, see "Install" below.
 - `mielenosoitukset-backup-failed.service`: the `OnFailure=` hook of every unit
   here. It writes an error-level journal line tagged `mielenosoitukset-backup`
   and e-mails the maintainer through `backup-notify.py` (see Alerts).
@@ -263,15 +277,11 @@ runs. Installing units does not restart anything public.
    Compare the fingerprint in `offsite_known_hosts` (`ssh-keygen -lf`) with the
    homelab's own before trusting it. Copy `offsite_ed25519.pub` to the homelab
    (step 1).
-4. **Units, on lc-main:**
-
-   ```sh
-   cp /var/www/mielenosoitukset_fi/deploy/backup/mielenosoitukset-*.{service,timer} /etc/systemd/system/
-   systemctl daemon-reload
-   systemctl start mielenosoitukset-offsite-copy.service     # first copy now (the newest archives)
-   journalctl -u mielenosoitukset-offsite-copy -n 20 --no-pager
-   systemctl enable --now mielenosoitukset-offsite-copy.timer mielenosoitukset-offsite-check.timer
-   ```
+4. **Units:** nothing to copy. Every production deploy installs them
+   (`deploy/backup/install_units.sh`) and the off-site timers are already enabled;
+   their services start doing work once the recipients file from step 3 exists.
+   The next night's dump starts the first copy. To see it:
+   `journalctl -u mielenosoitukset-offsite-copy -n 20 --no-pager`.
 
 5. **Test the alert once**, as root on lc-main:
 
@@ -287,18 +297,13 @@ runs. Installing units does not restart anything public.
 
 ### Revert
 
-Roll back by stopping and removing only what this adds; archives and the
-existing dump timers stay:
+To pause the off-site copy, remove `/etc/mielenosoitukset/backup-recipients.txt`:
+both off-site units are then skipped again. To change or drop a unit, change it
+in the repository; the next deploy installs it. The installer never deletes a
+unit file, so removing a unit from the repository also needs
+`systemctl disable --now <timer>` in that PR's rollout notes. The deploy's own
+deploy log prints a `backup units:` line with what changed.
 
-```sh
-systemctl disable --now mielenosoitukset-offsite-copy.timer mielenosoitukset-offsite-check.timer
-rm /etc/systemd/system/mielenosoitukset-offsite-*.{service,timer}
-cp ~/units-before/*.service /etc/systemd/system/
-systemctl daemon-reload
-```
-
-Before step 4, save the three unit files that get replaced:
-`mkdir ~/units-before && cp /etc/systemd/system/mielenosoitukset-{mongodb-backup,mongodb-backup-full,backup-failed}.service ~/units-before/`.
 Remove the homelab user's `authorized_keys` line to revoke the upload key. Data
 already copied off-site can be deleted on the homelab at any time.
 

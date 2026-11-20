@@ -9,3 +9,21 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+  # Go API modules. Minor and patch updates come as one weekly PR.
+  - package-ecosystem: "gomod"
+    directory: "/go-api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-and-patch:
+        update-types: ["minor", "patch"]
+  # React host and frontend build (package.json and package-lock.json at the root).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: ["minor", "patch"]

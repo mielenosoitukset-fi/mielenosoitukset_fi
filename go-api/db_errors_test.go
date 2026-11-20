@@ -46,7 +46,7 @@ func TestSeriesFailureLogsClassWithoutMessage(t *testing.T) {
 		Labels:  []string{"NetworkError"},
 	}}
 	w := httptest.NewRecorder()
-	(&API{store}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/series/"+parent.Hex(), nil))
+	(&API{store: store}).handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/series/"+parent.Hex(), nil))
 	if w.Code != 503 {
 		t.Fatalf("status=%d", w.Code)
 	}

@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily freshness check of the local MongoDB backups
+
+[Timer]
+# 06:20 UTC, well after the night dumps (01:30 UTC plus up to 15 minutes).
+OnCalendar=*-*-* 06:20:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

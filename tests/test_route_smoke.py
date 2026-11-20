@@ -279,4 +279,5 @@ def test_reset_client_session_restores_authentication_after_logout(app, db):
     _reset_client_session(client, seeded_data["user_id"])
     profile_response = client.get("/users/profile/", follow_redirects=False)
 
-    assert profile_response.status_code == 200
+    assert profile_response.status_code == 302
+    assert "/users/auth/login" not in profile_response.headers["Location"]

@@ -8,7 +8,7 @@ from bson import ObjectId
 
 from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.demonstrations.audit import log_demo_audit_entry
-from mielenosoitukset_fi.utils.classes.Demonstration import Demonstration
+from mielenosoitukset_fi.utils.classes.Demonstration import Demonstration, has_mixed_decisions
 from mielenosoitukset_fi.utils.logger import logger
 
 DUPLICATE_GROUP_FIELDS = {
@@ -110,6 +110,15 @@ def merge_duplicate_submissions(db=None, max_groups: int = 50) -> int:
             for doc in db.submitters.find({"demonstration_id": {"$in": list(ids)}}, {"demonstration_id": 1})
             if doc.get("demonstration_id")
         }
+
+        if has_mixed_decisions(demos):
+            # Merging would silently publish or unpublish the kept demo.
+            # Leave the group for an admin, who decides in the case.
+            logger.warning(
+                "Skipping duplicate group with different moderation decisions: %s",
+                [str(demo.get("_id")) for demo in demos],
+            )
+            continue
 
         primary_demo = _pick_primary_demo(demos, submitter_demo_ids)
         base_demo = Demonstration.from_dict(primary_demo)

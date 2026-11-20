@@ -88,6 +88,101 @@ def is_elevated(timeout_seconds: Optional[float] = None) -> bool:
     return has_elevation(timeout_seconds=timeout_seconds)
 
 
+def step_up_required_response():
+    """The answer a guarded request gets when the session is not elevated."""
+    return (
+        jsonify(
+            {
+                "error": "step_up_required",
+                "message": "Vahvista henkilöllisyytesi uudelleen ennen tätä toimintoa.",
+            }
+        ),
+        403,
+    )
+
+
+# Password step-up attempts: a signed-in session may guess the password (and
+# MFA code) only a few times per window before it has to wait.
+STEP_UP_FAILURE_COLLECTION = "step_up_failures"
+STEP_UP_MAX_FAILURES = 5
+STEP_UP_FAILURE_WINDOW_SECONDS = 15 * 60
+
+
+def _step_up_failures():
+    return DatabaseManager.get_instance().get_db()[STEP_UP_FAILURE_COLLECTION]
+
+
+STEP_UP_FAILURE_TTL_SECONDS = 24 * 60 * 60
+
+
+def ensure_step_up_failure_indexes(db) -> None:
+    """Lookup index for the window count, and a TTL so old rows go away."""
+    collection = db[STEP_UP_FAILURE_COLLECTION]
+    collection.create_index(
+        [("user_id", 1), ("created_at", 1)], name="step_up_failures_window"
+    )
+    collection.create_index(
+        "created_at",
+        expireAfterSeconds=STEP_UP_FAILURE_TTL_SECONDS,
+        name="step_up_failures_ttl",
+    )
+
+
+def reserve_step_up_attempt() -> Optional[ObjectId]:
+    """Count this attempt before checking anything; None when the limit is used up.
+
+    The row is written first and the window counted after, so parallel
+    requests cannot all pass the check before any failure is recorded: of any
+    burst, the request that counts last sees every row that passed before it.
+    Refused rows are removed again, so a burst does not extend the wait. The
+    caller marks the row as a failure, releases it, or clears all on success.
+    """
+    from mielenosoitukset_fi.utils.request_ip import get_client_ip
+
+    user_id = ObjectId(str(current_user._id))
+    now = utcnow()
+    collection = _step_up_failures()
+    row_id = collection.insert_one(
+        {"user_id": user_id, "reason": "pending", "ip": get_client_ip(), "created_at": now}
+    ).inserted_id
+    since = now - timedelta(seconds=STEP_UP_FAILURE_WINDOW_SECONDS)
+    used = collection.count_documents(
+        {"user_id": user_id, "created_at": {"$gte": since}}
+    )
+    if used > STEP_UP_MAX_FAILURES:
+        collection.delete_one({"_id": row_id})
+        return None
+    return row_id
+
+
+def record_step_up_failure(row_id: ObjectId, reason: str) -> None:
+    """Keep the reserved attempt as a failure."""
+    _step_up_failures().update_one({"_id": row_id}, {"$set": {"reason": reason}})
+
+
+def release_step_up_attempt(row_id: ObjectId) -> None:
+    """Drop a reserved attempt that was neither a failure nor a success."""
+    _step_up_failures().delete_one({"_id": row_id})
+
+
+def clear_step_up_failures() -> None:
+    """Forget failed attempts after a successful step-up."""
+    _step_up_failures().delete_many({"user_id": ObjectId(str(current_user._id))})
+
+
+def step_up_throttled_response():
+    return (
+        jsonify(
+            {
+                "status": "error",
+                "error": "step_up_throttled",
+                "message": _("Liian monta yritystä. Yritä hetken kuluttua uudelleen."),
+            }
+        ),
+        429,
+    )
+
+
 def sudo_required(timeout_seconds: Optional[float] = None):
     """
     Guard a route behind recent step-up authentication.
@@ -111,15 +206,7 @@ def sudo_required(timeout_seconds: Optional[float] = None):
                 )
             if is_elevated(timeout_seconds=timeout_seconds):
                 return func(*args, **kwargs)
-            return (
-                jsonify(
-                    {
-                        "error": "step_up_required",
-                        "message": "Vahvista henkilöllisyytesi uudelleen ennen tätä toimintoa.",
-                    }
-                ),
-                403,
-            )
+            return step_up_required_response()
         return wrapper
 
     return decorator

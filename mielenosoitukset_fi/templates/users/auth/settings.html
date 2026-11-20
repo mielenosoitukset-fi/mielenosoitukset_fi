@@ -926,11 +926,12 @@
     async function initiateMFA() {
       hideSettingsMessage();
       try {
-        const res = await fetch("/users/auth/api/v2/mfa", {
+        const res = await fetchWithStepUp("/users/auth/api/v2/mfa", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ step: "request_activation" })
         });
+        if (!res) return;
         const data = await res.json();
         if (data.status === "pending") {
           pendingSecret = data.secret;

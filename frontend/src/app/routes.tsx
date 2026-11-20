@@ -10,6 +10,8 @@ import { cityAdminCopy, cityAdminPath } from './city-admin-route';
 import { developerCopy, developerPath } from './developer-route';
 import { volunteerConfirmCopy } from './volunteer-confirm';
 import type { InformationPage } from './information';
+import { passwordResetRequestCopy, passwordResetRequestPath } from './password-reset-route';
+import { loginCopy, loginPath } from './login-route';
 
 /**
  * Public routes owned by the standalone React application.
@@ -44,6 +46,8 @@ export type AppRoute =
   | { name: 'developer'; appId?: string }
   | { name: 'profile'; username: string }
   | { name: 'account-settings' }
+  | { name: 'password-reset-request' }
+  | { name: 'login' }
   | { name: 'detail'; identifier: string }
   | { name: 'series'; parent: string };
 
@@ -114,6 +118,8 @@ export function routeForPath(path: string): AppRoute | null {
   const developerApp = /^\/developer\/apps\/([a-f\d]{24})$/i.exec(path);
   if (developerApp) return { name: 'developer', appId: developerApp[1].toLowerCase() };
   if (path === '/users/auth/settings' || path === '/users/auth/settings/') return { name: 'account-settings' };
+  if (path === passwordResetRequestPath) return { name: 'password-reset-request' };
+  if (path === loginPath) return { name: 'login' };
   const profile = PROFILE_PATH.exec(path);
   if (profile) return profile[1] === 'edit' ? null : { name: 'profile', username: profile[1] };
   const cancelLink = /^\/cancel_demonstration\/([A-Za-z0-9_-]{1,128})$/.exec(path);
@@ -164,6 +170,13 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   }
   if (route.name === 'account-settings') {
     return { title: 'Asetukset | Mielenosoitukset.fi', description: 'Hallinnoi tilisi tietoja, turvallisuutta, profiilia ja API-avaimia yhdessä paikassa.',
+      robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'login') {
+    return { title: `${loginCopy.title} | Mielenosoitukset.fi`, description: loginCopy.lead, robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'password-reset-request') {
+    return { title: `${passwordResetRequestCopy.title} | Mielenosoitukset.fi`, description: passwordResetRequestCopy.lead,
       robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'profile') {

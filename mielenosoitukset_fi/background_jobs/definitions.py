@@ -27,11 +27,13 @@ from mielenosoitukset_fi.scripts.process_email_queue import run as process_email
 from mielenosoitukset_fi.scripts.escalate_city_assignments import main as escalate_city_assignments
 from mielenosoitukset_fi.scripts.deliver_city_admin_applications import main as deliver_city_admin_applications
 from mielenosoitukset_fi.scripts.purge_city_admin_applications import main as purge_city_admin_applications
+from mielenosoitukset_fi.scripts.deliver_case_notices import main as deliver_case_notices
 from mielenosoitukset_fi.scripts.deliver_fundraising_reminder_confirmations import main as deliver_fundraising_reminder_confirmations
 from mielenosoitukset_fi.scripts.send_fundraising_reminders import main as send_fundraising_reminders
 from mielenosoitukset_fi.scripts.purge_fundraising_reminders import main as purge_fundraising_reminders
 from mielenosoitukset_fi.scripts.purge_campaign_volunteers import main as purge_campaign_volunteers
 from mielenosoitukset_fi.scripts.purge_suggestion_ips import main as purge_suggestion_ips
+from mielenosoitukset_fi.scripts.scrub_admin_log_secrets import main as scrub_admin_log_secrets
 from mielenosoitukset_fi.scripts.deliver_pride_banner_confirmations import main as deliver_pride_banner_confirmations
 from mielenosoitukset_fi.scripts.purge_pride_banner_volunteers import main as purge_pride_banner_volunteers
 from mielenosoitukset_fi.scripts.deliver_opening_interest_confirmations import main as deliver_opening_interest_confirmations
@@ -187,6 +189,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         default_trigger=_interval(minutes=2),
     ),
     JobDefinition(
+        key="deliver_case_notices",
+        name="Demo suggestions and new case notices",
+        description="Opens a case for each open demonstration suggestion (DEMO_SUGGESTION_CASES_ENABLED) and sends a site inbox notice about each new case to the admins who may view it (CASE_NOTIFICATIONS_ENABLED). Does nothing unless a switch is set. Sends no e-mail.",
+        func=deliver_case_notices,
+        default_trigger=_interval(minutes=2),
+    ),
+    JobDefinition(
         key="purge_city_admin_applications",
         name="City admin application retention",
         description="Erases the text of decided city admin applications after their retention period. Does nothing unless CITY_ADMIN_APPLICATION_RETENTION_ENABLED is set.",
@@ -227,6 +236,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         description="Removes the IP address and User-Agent from organisation and demonstration suggestions (and their cases) older than 90 days. Never deletes the suggestions. Does nothing unless SUGGESTION_IP_PURGE_ENABLED is set.",
         func=purge_suggestion_ips,
         default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="scrub_admin_log_secrets",
+        name="Admin log credential cleanup",
+        description="One-time job: removes stored session cookies, request headers and password hashes from admin request log rows written before 20.11.2026. Keeps the rows. Does nothing after its first finished run.",
+        func=scrub_admin_log_secrets,
+        default_trigger=_interval(hours=1),
     ),
     JobDefinition(
         key="deliver_pride_banner_confirmations",

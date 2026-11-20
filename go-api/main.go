@@ -120,11 +120,14 @@ func (s mongoStore) FindPublic(ctx context.Context, id bson.ObjectID) (bson.M, e
 
 func (s mongoStore) Ping(ctx context.Context) error { return s.client.Ping(ctx, nil) }
 
-type API struct{ store Store }
+type API struct {
+	store        Store
+	statusChecks []statusCheck
+}
 
 func (a *API) handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("GET /api/status", serviceStatusHandler(a.store.Ping))
+	mux.Handle("GET /api/status", serviceStatusHandler(a.store.Ping, a.statusChecks...))
 	mux.HandleFunc("GET /api/demonstrations", a.getListing)
 	mux.HandleFunc("GET /api/cities", a.getCities)
 	mux.HandleFunc("GET /api/cities/admin-status", a.getCityAdminCoverage)
@@ -228,7 +231,9 @@ func main() {
 	if err := cache.StartBatchRefresh(); err != nil {
 		log.Print("Batch refresh disabled: ", err)
 	}
-	a := &API{store: cache}
+	statusChecks, closeStatusChecks := statusChecksFromEnv()
+	defer closeStatusChecks()
+	a := &API{store: cache, statusChecks: statusChecks}
 	var shared responseCache
 	if rawURL := os.Getenv("PUBLIC_REDIS_URL"); rawURL != "" {
 		source, err := publicCacheSource(uri, database)
@@ -262,6 +267,7 @@ func main() {
 	handler = volunteerConfirmFromEnv(handler, client.Database(database), submissionConfig)
 	handler = authBridgeHandler(handler, authConfig, client.Database(database))
 	handler = contactHandlerFromEnv(handler, client.Database(database), authConfig)
+	handler = campaignVolunteerHandlerFromEnv(handler, client.Database(database), authConfig)
 	handler = suggestionHandler(handler, client.Database(database), submissionConfig, suggestionsEnabledFromEnv())
 	handler = profileReadHandler(handler, client.Database(database), authConfig)
 	handler = analyticsEventHandler(handler, analyticsEnabledFromEnv(), incrementAnalyticsEvent(client.Database(database)))

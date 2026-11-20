@@ -238,7 +238,8 @@ function confirmAction(action, taskId) {
         </li>
       {% endif %}
 
-      {% if current_user.has_permission("EDIT_DEMO") %}
+      {# Global case viewers handle suggestions in Tapaukset; scoped admins keep this list. #}
+      {% if current_user.has_permission("EDIT_DEMO") and not (current_user.has_full_permissions() or "LIST_CASES" in current_user.global_permissions) %}
         <li class="nav-item">
           <a class="nav-link admin-sidebar-link {% if admin_endpoint == 'admin_demo.suggestions_list' %}active{% endif %}" href="{{ url_for('admin_demo.suggestions_list') }}">
             <i class="fas fa-comment-dots me-2"></i>{{ _('Ehdotukset') }}
@@ -319,6 +320,21 @@ function confirmAction(action, taskId) {
         <li class="nav-item">
           <a class="nav-link admin-sidebar-link {% if admin_endpoint.startswith('admin_dev.') %}active{% endif %}" href="{{ url_for('admin_dev.list_requests') }}">
             <i class="fas fa-key me-2"></i>{{ _('Kehittäjähallinta') }}
+          </a>
+        </li>
+      {% endif %}
+      {% if current_user.is_authenticated %}
+        <li class="admin-sidebar-heading">{{ _('Ohje') }}</li>
+        {% if manual_help_url %}
+        <li class="nav-item">
+          <a class="nav-link admin-sidebar-link" href="{{ manual_help_url }}">
+            <i class="fas fa-circle-question me-2"></i>{{ _('Ohje tähän näkymään') }}
+          </a>
+        </li>
+        {% endif %}
+        <li class="nav-item">
+          <a class="nav-link admin-sidebar-link {% if admin_endpoint.startswith('admin.manual') %}active{% endif %}" href="{{ url_for('admin.manual') }}" {% if admin_endpoint.startswith('admin.manual') %}aria-current="page"{% endif %}>
+            <i class="fas fa-book-open me-2"></i>{{ _('Käyttöohje') }}
           </a>
         </li>
       {% endif %}

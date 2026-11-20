@@ -127,3 +127,57 @@ def test_popup_login_still_reloads_opener_and_closes(client, seeded_data, browse
     if not popup.is_closed():
         popup.wait_for_event('close')
     assert len(reloads) == 2
+
+
+def test_login_page_ignores_stored_target_from_an_abandoned_sign_in(client, seeded_data):
+    client.get('/users/auth/login', query_string={'next': '/users/profile/'})
+    client.get('/users/auth/login')
+    with client.session_transaction() as session:
+        assert session['next_page'] == '/'
+
+
+def test_login_post_falls_back_to_target_saved_by_its_login_page(client, seeded_data):
+    client.get('/users/auth/login', query_string={'next': '/users/profile/?tab=security'})
+    response = client.post('/users/auth/login', data={
+        'username': seeded_data['user_username'], 'password': 'UserPass1!',
+    })
+    assert response.status_code == 302
+    assert response.headers['Location'] == '/users/profile/?tab=security'
+
+
+@pytest.mark.parametrize('target', [
+    '/api/admin/mcp/oauth/authorize?client_id=abc&state=xyz',
+    '/api/admin/mcp/oauth/authorize/?client_id=abc',
+])
+def test_login_returns_to_mcp_oauth_consent_page(client, seeded_data, target):
+    response = client.post('/users/auth/login', query_string={'next': target}, data={
+        'username': seeded_data['user_username'], 'password': 'UserPass1!',
+    })
+    assert response.status_code == 302
+    assert response.headers['Location'] == target
+
+
+@pytest.mark.parametrize('target', [
+    '/api/admin/mcp/oauth/token', '/api/admin/mcp/oauth/register',
+    '/api/v1/x%2f..%2f..%2fadmin/mcp/oauth/authorize',
+    '/api/v1/x/%2e%2e%2f%2e%2e%2fadmin/mcp/oauth/authorize',
+    '/api/admin/mcp/oauth/%61uthorize',
+    '//outside.example/api/admin/mcp/oauth/authorize',
+    'https://outside.example/api/admin/mcp/oauth/authorize',
+])
+def test_login_allows_only_the_mcp_consent_page_under_api(client, seeded_data, target):
+    response = client.post('/users/auth/login', query_string={'next': target}, data={
+        'username': seeded_data['user_username'], 'password': 'UserPass1!',
+    })
+    assert response.status_code == 302
+    assert response.headers['Location'] == '/'
+
+
+def test_signed_out_org_invite_sends_relative_return_target(app):
+    anon = app.test_client()
+    response = anon.get('/users/orgs/accept_invite?organization_id=abc')
+    assert response.status_code == 302
+    location = urlsplit(response.headers['Location'])
+    assert location.path == '/users/auth/login'
+    from urllib.parse import parse_qs
+    assert parse_qs(location.query)['next'] == ['/users/orgs/accept_invite?organization_id=abc']

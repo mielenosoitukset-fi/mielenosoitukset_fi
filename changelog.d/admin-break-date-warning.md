@@ -1,0 +1,1 @@
+- Admin: the recurring series form now warns before saving break dates how many already-created demonstrations will be cancelled and how many attendees will get a cancellation message. Frozen children are left out of the count, as they are not cancelled.
