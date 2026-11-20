@@ -306,6 +306,13 @@ settings reads are on (`ACCOUNT_SETTINGS_WRITES: false` opts out), and `react-ss
 routes `POST /api/account/profile` and `POST /api/account/settings` to Go. `release_routing.sh`
 refuses the include unless Go answers `GET /api/account/profile` with 405, so Apache never routes
 the writes while Go has them off, and the page (which only posts to Go when the read answer carries
-`writes: true`) never posts to a missing route. After the deploy, watch the first "Käyttäjäasetusten
-muutokset" mail queued by Go reach Flask's worker (`email_queue`, `status` pending → sent). Revert:
-comment out the four lines and set `ACCOUNT_SETTINGS_WRITES: false`; the page falls back to Flask.
+`writes: true`) posts to Go only while Go has them on. The opposite gap remains: a deploy restarts Go
+with the flag on before the routing step, so for those seconds (or, if a routing pre-check fails and the
+old include is kept, until the next good deploy) a save posts to a route Apache still sends to Flask and
+fails with "Tallennus epäonnistui"; watch the routing step's log. Saves send display name and city only
+when they changed, so a stored value Go would refuse (a city no longer listed) never blocks the other
+settings. After the deploy, watch the first "Käyttäjäasetusten muutokset" mail queued by Go reach Flask's
+worker (`email_queue`, `status` pending → sent). Revert: first set `ACCOUNT_SETTINGS_WRITES: false` and
+deploy the Go API (the page stops getting a token and posts to Flask again), then comment out the four
+lines. Commenting them out while the flag is still on breaks saves. Each Go restart also invalidates the
+write tokens of open settings pages; a save then says the session expired and a reload fixes it.

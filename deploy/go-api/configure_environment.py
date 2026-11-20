@@ -87,7 +87,7 @@ def configure(source, target):
         # maintainer's go); `ACCOUNT_SETTINGS_READS: false` in config.yaml opts out.
         if config.get("ACCOUNT_SETTINGS_READS", True) is True:
             values["ACCOUNT_SETTINGS_READS_ENABLED"] = "true"
-            # Bio and general writes (steps 3a, 3b) and the deletion request: their
+            # Bio and general writes (steps 3a, 3b) and later account writes: their
             # own switch, on by default since 20 November 2026 (maintainer's go;
             # `ACCOUNT_SETTINGS_WRITES: false` opts out), and only on top of reads.
             if config.get("ACCOUNT_SETTINGS_WRITES", True) is True:

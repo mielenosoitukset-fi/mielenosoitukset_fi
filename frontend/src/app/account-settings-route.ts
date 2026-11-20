@@ -255,6 +255,18 @@ export function generalPayload(values: { displayName: string; city: string; lang
   return { display_name: values.displayName, ...(values.city ? { city: values.city } : {}), language: values.language, dark_mode: values.darkMode };
 }
 
+/**
+ * The Go body: display name and city only when they differ from the saved values. Go checks every
+ * field it receives, so an older stored value it would refuse (a city no longer listed, a long
+ * display name) must not block saving the other settings.
+ */
+export function changedGeneralPayload(payload: ReturnType<typeof generalPayload>, saved: { displayName: string; city: string }) {
+  const out: Partial<ReturnType<typeof generalPayload>> & { language: string; dark_mode: boolean } = { language: payload.language, dark_mode: payload.dark_mode };
+  if (payload.display_name !== saved.displayName) out.display_name = payload.display_name;
+  if ((payload.city ?? '') !== saved.city) out.city = payload.city ?? '';
+  return out;
+}
+
 /** Finnish message for a failed Go write; Go's own text is shown only for 4xx input errors. */
 export function bioWriteFailure(status: number, body: unknown, fallback: string): string {
   const raw = isObject(body) ? body : {};
@@ -287,7 +299,7 @@ export function postBioToGo(csrf: string, bio: string, fallback: string, fetcher
 }
 
 /** Save the general settings through Go (docs/account-pages-react.md, step 3b). */
-export function postGeneralToGo(csrf: string, payload: ReturnType<typeof generalPayload>, fallback: string, fetcher: typeof fetch = fetch): Promise<FlaskResult> {
+export function postGeneralToGo(csrf: string, payload: ReturnType<typeof changedGeneralPayload>, fallback: string, fetcher: typeof fetch = fetch): Promise<FlaskResult> {
   return postToGo(accountSettingsApi, csrf, payload, fallback, fetcher);
 }
 
