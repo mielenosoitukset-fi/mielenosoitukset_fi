@@ -66,7 +66,7 @@
           <div class="detail-item">
             <strong>{{ _('Viesti') }}</strong>
             {% if support_ticket.html_message %}
-            <div class="description-box">{{ support_ticket.html_message|safe }}</div>
+            <div class="description-box">{{ support_ticket.html_message|stored_html }}</div>
             {% else %}
             <div class="note-box">{{ support_ticket.message or _('(ei viestia)') }}</div>
             {% endif %}
@@ -821,8 +821,16 @@
         el.className = "admin-link-result";
         el.tabIndex = 0;
         const label = item.title || item.name || "";
-        const extra = item.city ? ` <span class="muted">(${item.city})</span>` : (item.cancelled ? ` <span class="muted">(${item.cancelled ? '{{ _('peruttu') }}' : ''})</span>` : "");
-        el.innerHTML = `<strong>${label}</strong>${extra}`;
+        const extraText = item.city ? item.city : (item.cancelled ? "{{ _('peruttu') }}" : "");
+        const strong = document.createElement("strong");
+        strong.textContent = label;
+        el.appendChild(strong);
+        if (extraText) {
+          const extra = document.createElement("span");
+          extra.className = "muted";
+          extra.textContent = ` (${extraText})`;
+          el.append(" ", extra);
+        }
         el.addEventListener("click", () => {
           selected = item;
           hiddenInput.value = item.id;
