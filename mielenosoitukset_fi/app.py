@@ -1,9 +1,9 @@
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from datetime import datetime, date, time
 import time as process_time
-from flask import Flask, redirect, request, session, g, url_for
+from flask import Flask, flash, redirect, request, session, g, url_for
 from flask_babel import Babel
-from flask_login import LoginManager, current_user, user_logged_in
+from flask_login import LoginManager, current_user, login_url, user_logged_in
 import hashlib
 from pathlib import Path
 from bson.objectid import ObjectId
@@ -70,6 +70,9 @@ def create_app(config_overrides=None) -> Flask:
     from mielenosoitukset_fi.utils.frontend import frontend_assets
 
     app.jinja_env.globals["frontend_assets"] = frontend_assets
+    from mielenosoitukset_fi.utils.flashing import unique_flashed_messages
+    # Templates show each queued notice once.
+    app.jinja_env.globals["get_flashed_messages"] = unique_flashed_messages
     app.config.from_object("config.Config")  # Load configurations from 'config.Config'
     if config_overrides:
         app.config.update(config_overrides)
@@ -179,6 +182,27 @@ def create_app(config_overrides=None) -> Flask:
     # Flask-Login's default is English ("Please log in to access this page.").
     login_manager.login_message = "Kirjaudu sisään nähdäksesi tämän sivun."
     login_manager.login_message_category = "info"
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        """Signed-out request to a protected route: redirect to login, as Flask-Login does.
+
+        Only a page navigation queues the sign-in notice, and only once. Background
+        requests (fetch/XHR polling, JSON, /api/ paths, non-GET) used to queue another
+        copy each time, so an admin page left open after the session ended piled up
+        hundreds of them in the session cookie.
+        """
+        navigation = (
+            request.method in ("GET", "HEAD")
+            and request.headers.get("Sec-Fetch-Mode", "navigate") == "navigate"
+            and request.headers.get("X-Requested-With") != "XMLHttpRequest"
+            and request.accept_mimetypes.best != "application/json"
+            and "/api/" not in request.path
+        )
+        notice = (login_manager.login_message_category, login_manager.login_message)
+        if navigation and not any(tuple(item) == notice for item in session.get("_flashes", [])):
+            flash(login_manager.login_message, login_manager.login_message_category)
+        return redirect(login_url(login_manager.login_view, request.url))
     
     login_manager.anonymous_user = AnonymousUser
 

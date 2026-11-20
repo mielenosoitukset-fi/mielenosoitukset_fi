@@ -1895,7 +1895,7 @@ def init_routes(app):
                 # A notification read must never break the page shell.
                 payload["unread"] = 0
             if request.args.get("translation_join") == "1":
-                from flask import get_flashed_messages
+                from mielenosoitukset_fi.utils.flashing import unique_flashed_messages as get_flashed_messages
                 from mielenosoitukset_fi.translations_join_bp import translation_join_csrf_token
 
                 joined = current_user.has_permission("TRANSLATE_DEMO")
@@ -1921,7 +1921,7 @@ def init_routes(app):
         if current_app.config.get("AUTH_BRIDGE_SCOPES", False):
             _add_auth_bridge_scopes(payload, organization_scope)
         if request.args.get("contact_form") == "1":
-            from flask import get_flashed_messages
+            from mielenosoitukset_fi.utils.flashing import unique_flashed_messages as get_flashed_messages
 
             payload["contact_form"] = {
                 "enabled": bool(app.config.get("CONTACT_FORM_ENABLED", True)),
