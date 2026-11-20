@@ -12,6 +12,7 @@ import { notificationsCopy, notificationsPath } from './notifications-route';
 import type { InformationPage } from './information';
 import { passwordResetRequestCopy, passwordResetRequestPath } from './password-reset-route';
 import { loginCopy, loginPath } from './login-route';
+import { registerCopy, registerPath } from './register-route';
 
 /**
  * Public routes owned by the standalone React application.
@@ -48,6 +49,7 @@ export type AppRoute =
   | { name: 'notifications' }
   | { name: 'password-reset-request' }
   | { name: 'login' }
+  | { name: 'register' }
   | { name: 'detail'; identifier: string }
   | { name: 'series'; parent: string };
 
@@ -121,6 +123,7 @@ export function routeForPath(path: string): AppRoute | null {
   if (path === notificationsPath) return { name: 'notifications' };
   if (path === passwordResetRequestPath) return { name: 'password-reset-request' };
   if (path === loginPath) return { name: 'login' };
+  if (path === registerPath) return { name: 'register' };
   const profile = PROFILE_PATH.exec(path);
   if (profile) return profile[1] === 'edit' ? null : { name: 'profile', username: profile[1] };
   const cancelLink = /^\/cancel_demonstration\/([A-Za-z0-9_-]{1,128})$/.exec(path);
@@ -173,6 +176,9 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   }
   if (route.name === 'login') {
     return { title: `${loginCopy.title} | Mielenosoitukset.fi`, description: loginCopy.lead, robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'register') {
+    return { title: `${registerCopy.title} | Mielenosoitukset.fi`, description: registerCopy.lead, robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'password-reset-request') {
     return { title: `${passwordResetRequestCopy.title} | Mielenosoitukset.fi`, description: passwordResetRequestCopy.lead,
