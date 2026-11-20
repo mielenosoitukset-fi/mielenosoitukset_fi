@@ -13,7 +13,7 @@
 .kv-actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.75rem}
 .kv-hero{display:grid;grid-template-columns:1.35fr 1fr;gap:2.5rem;align-items:center;background:var(--product-primary-soft);border-radius:18px;padding:clamp(1.5rem,4vw,3rem);margin-top:1.5rem}
 .kv-hero h1{font-size:clamp(2rem,4vw,3rem);line-height:1.1;margin-bottom:1.1rem}
-.kv-meta{margin-top:1.25rem!important;display:flex;gap:.6rem;align-items:center;color:var(--product-text-muted);font-size:.95rem}.kv-meta i{width:1.1em;text-align:center}
+.kv-meta{margin-top:1.25rem!important;display:flex;gap:.6rem;align-items:baseline;color:var(--product-text-muted);font-size:.95rem}.kv-meta i{width:1.1em;text-align:center}
 .kv-card--facts{background:var(--product-surface);border:1px solid var(--product-border);border-radius:12px;padding:1.5rem}
 .kv-card--facts h2{font-size:1.05rem;margin-bottom:1rem;color:var(--product-text-muted)}
 .kv-fact{display:flex;align-items:baseline;gap:1rem;padding:.7rem 0;border-top:1px solid var(--product-border)}.kv-fact:first-of-type{border-top:0}
@@ -72,7 +72,7 @@ html,body,#app{height:auto!important;overflow:visible!important;min-height:0!imp
 .kv-close{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;flex-wrap:wrap}.kv-close p{font-size:1.2rem;font-weight:700;max-width:34ch}
 @media(max-width:900px){.kv-pride{grid-template-columns:1fr}}@media(max-width:680px){.kv-close .kv-btn{width:100%}.kv-pairs>div{padding:1.4rem 1rem 1rem}}@media(max-width:680px){.kv-pairs{display:none}.kv-pride .kv-lead{font-size:1rem!important}.kv-close{gap:.75rem}.kv-close p{font-size:1.05rem}.kv-sec{padding-block:1.6rem}.kv-help>div{padding:.85rem 1rem}.kv-hero{padding:1.1rem}.kv-what li{row-gap:0}.kv-what li p{font-size:.95rem}.kv-faq summary{padding:.6rem 0;min-height:44px}}@media(max-width:680px){.kv-close{display:none}.kv-what figure figcaption{margin-top:.4rem}}</style></head><body>
 .kx-tl .campaign-text-link{display:inline;min-height:0;gap:0}
-.kx-tl .campaign-text-link span{margin-left:.35rem}
+.kx-tl .campaign-text-link span{margin-left:.1rem}
 .kx-tl{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);position:relative}
 .kx-tl li{position:relative;padding:2.1rem 1.25rem 0 0}
 .kx-tl li::before{content:"";position:absolute;top:11px;left:0;right:0;height:3px;background:var(--product-border)}
@@ -107,7 +107,9 @@ html,body,#app{height:auto!important;overflow:visible!important;min-height:0!imp
 .kv-hero{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}
 @media(max-width:900px){.kv-hero{grid-template-columns:minmax(0,1fr)}}
 .kv-hero h1,.kv-hero .kv-lead,.kv-hero .kv-meta{overflow-wrap:break-word}
-@media(max-width:360px){.kv-hero h1{font-size:1.6rem}.kv-hero{padding:1rem}}
+/* Phones: keep "Mielenosoitukset.fi" on one line instead of breaking it inside the word. */
+@media(max-width:480px){.kv-hero h1{font-size:clamp(1.5rem,7.2vw,1.75rem)}}
+@media(max-width:360px){.kv-hero{padding:1rem}}
 .kv .kv-h2--compact{margin-bottom:.9rem;font-size:1.4rem}
 .kv .kv-h2--tight{margin-bottom:1rem}
 .kv .kv-h2--loose{margin-bottom:1.25rem}

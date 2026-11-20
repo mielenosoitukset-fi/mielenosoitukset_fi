@@ -79,6 +79,10 @@ if (container) {
       void import('./AccountSettingsScreen').then(({ default: AccountSettingsScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<AccountSettingsScreen config={props.config} session={props.session} />} />);
       }).catch(error => console.error('Could not start the settings page', error));
+    } else if (route?.name === 'notifications') {
+      void import('./NotificationsScreen').then(({ default: NotificationsScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<NotificationsScreen config={props.config} session={props.session} />} />);
+      }).catch(error => console.error('Could not start the notifications page', error));
     } else if (route?.name === 'login') {
       void import('./LoginScreen').then(({ default: LoginScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<LoginScreen config={props.config} search={window.location.search} />} />);

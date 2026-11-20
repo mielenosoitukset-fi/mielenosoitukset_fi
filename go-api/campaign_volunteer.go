@@ -490,7 +490,7 @@ func campaignVolunteerHandler(next http.Handler, config campaignVolunteerConfig,
 		if err != nil {
 			// Without a queued mail the stored signup is unreachable: remove it so
 			// a retry starts clean. An ambiguous queue write can still leave a mail.
-			cleanup, stop := context.WithTimeout(context.Background(), 2*time.Second)
+			cleanup, stop := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 			_ = deps.store.Delete(cleanup, id)
 			stop()
 			unavailable("mail queue", err)
