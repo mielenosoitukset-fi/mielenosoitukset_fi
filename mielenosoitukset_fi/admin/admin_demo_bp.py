@@ -909,6 +909,23 @@ def suggestions_list():
         .skip(pagination["slice_start"])
         .limit(per_page)
     )
+    # Suggestions keep only the fields that changed in ``original_values``, so
+    # the title must come from the demonstration itself.
+    demo_object_ids = {
+        ObjectId(str(s.get("demo_id")))
+        for s in suggestions
+        if ObjectId.is_valid(str(s.get("demo_id")))
+    }
+    demo_titles = {
+        str(demo["_id"]): demo.get("title")
+        for demo in mongo.demonstrations.find(
+            {"_id": {"$in": list(demo_object_ids)}}, {"title": 1}
+        )
+    } if demo_object_ids else {}
+    for suggestion in suggestions:
+        suggestion["demo_title"] = demo_titles.get(str(suggestion.get("demo_id"))) or (
+            suggestion.get("original_values") or {}
+        ).get("title")
     return render_template(
         "admin/suggestions_list.html",
         suggestions=suggestions,
