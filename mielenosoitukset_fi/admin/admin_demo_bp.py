@@ -1722,8 +1722,29 @@ def generate_demo_preview_link(demo_id: str, *, recipient: dict | None = None) -
     return url_for("admin_demo.preview_demo_with_token", token=token, _external=True)
 
 def generate_demo_approve_link(demo_id: str, *, recipient: dict | None = None) -> str:
-    """Admin email link. It opens the case; it never decides (20 Nov 2026)."""
+    """Admin email link (20 Nov 2026).
+
+    A known admin recipient gets a scoped case link: that one demonstration,
+    no login, decisions only with their second factor. Anyone else gets the
+    stable link that needs a login.
+    """
+    if recipient and recipient.get("user_id"):
+        return generate_case_link(demo_id, recipient=recipient)
     return demo_decision_link(demo_id)
+
+
+def generate_case_link(demo_id: str, *, recipient: dict) -> str:
+    token = serializer.dumps(_magic_link_payload(demo_id), salt="case-demo")
+    doc = _registry_upsert_initial(_hash_token(token), "case", str(demo_id), recipient=recipient)
+    if doc is not None and "bound_browser_hash" not in doc:
+        mongo[MAGIC_COLLECTION].update_one({"_id": doc["_id"]}, {"$set": {"bound_browser_hash": None}})
+    log_demo_audit_entry(
+        demo_id,
+        action="token_created",
+        message=_safe_translate("Tapauslinkki luotiin sähköpostia varten"),
+        details={"token_type": "case", "recipient": (recipient or {}).get("username")},
+    )
+    return url_for("admin_demo.case_link", token=token, _external=True)
 
 
 def generate_demo_reject_link(demo_id: str, *, recipient: dict | None = None) -> str:
@@ -1905,6 +1926,177 @@ def open_demo_decision(demo_id):
             return redirect(url_for("admin_demo.demo_command_center", demo_id=demo_id))
         abort(403)
     return redirect(_decision_urls([demo_id])[demo_id])
+
+
+_CASE_LINK_ERRORS = {
+    "unknown": (404, "Linkkiä ei tunnistettu."),
+    "expired": (410, "Linkki on vanhentunut. Avaa tapaus kirjautumalla ylläpitoon."),
+    "revoked": (410, "Linkki ei ole enää voimassa. Avaa tapaus kirjautumalla ylläpitoon."),
+    "used": (410, "Mielenosoituksesta on jo tehty päätös tällä linkillä."),
+    "other_browser": (403, "Linkki on jo avattu toisessa selaimessa. Avaa tapaus kirjautumalla ylläpitoon."),
+    "no_recipient": (403, "Linkkiä ei voi käyttää ilman kirjautumista. Avaa tapaus kirjautumalla ylläpitoon."),
+    "no_rights": (403, "Sinulla ei ole enää oikeutta käsitellä tätä mielenosoitusta."),
+    "bad_code": (400, "Vahvistuskoodi ei kelpaa. Yritä uudelleen."),
+}
+
+
+def _case_link_state(token, *, allow_bind=False):
+    """Validate a scoped case link for this browser; returns (doc, demo, user, new_cookie)."""
+    from mielenosoitukset_fi.utils import case_links
+
+    try:
+        payload = serializer.loads(token, salt="case-demo", max_age=MAGIC_TTL_SECONDS)
+    except SignatureExpired:
+        raise case_links.CaseLinkError("expired")
+    except BadSignature:
+        raise case_links.CaseLinkError("unknown")
+    demo_id = str(payload.get("demo_id")) if isinstance(payload, dict) else ""
+    if not ObjectId.is_valid(demo_id):
+        raise case_links.CaseLinkError("unknown")
+    doc = case_links.load_link(mongo, _hash_token(token), demo_id)
+    # Rights first: a link whose admin lost access shows nothing, not even the open button.
+    user = case_links.recipient_user(mongo, doc)
+    demo = mongo.demonstrations.find_one({"_id": ObjectId(demo_id)})
+    if not demo:
+        raise case_links.CaseLinkError("unknown")
+    if not has_demo_approval_permission(user, demo):
+        raise case_links.CaseLinkError("no_rights")
+    new_cookie = case_links.bind_browser(
+        mongo, doc, request.cookies.get(case_links.COOKIE_NAME), allow_bind=allow_bind
+    )
+    return doc, demo, user, new_cookie
+
+
+def _case_link_page(token, *, status=200, error=None, result=None, allow_bind=False):
+    from mielenosoitukset_fi.demonstrations.decisions import preview_demo_decision
+    from mielenosoitukset_fi.utils import case_links, case_reasons
+
+    try:
+        doc, demo, user, new_cookie = _case_link_state(token, allow_bind=allow_bind)
+    except case_links.CaseLinkError as exc:
+        if exc.code == "not_bound":
+            # Interstitial: a person presses the button; a link scanner does not.
+            session.setdefault("case_link_csrf", secrets.token_urlsafe(24))
+            page = render_template("case_link.html", open_form=True, csrf=session["case_link_csrf"],
+                                   login_url=url_for("users.auth.login"))
+            response = make_response(page, 200)
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["X-Robots-Tag"] = "noindex"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            return response
+        code, message = _CASE_LINK_ERRORS.get(exc.code, (403, "Linkkiä ei voi käyttää."))
+        page = render_template("case_link.html", error=message, login_url=url_for("users.auth.login"))
+        response = make_response(page, code)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Robots-Tag"] = "noindex"
+        return response
+    case_doc = mongo.cases.find_one(
+        {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}, {"meta.superior_needed": 1}
+    ) or {}
+    pending = not demo.get("approved") and not demo.get("rejected")
+    escalated = bool((case_doc.get("meta") or {}).get("superior_needed")) and not getattr(user, "global_admin", False)
+    factor = case_links.second_factor(mongo, user)
+    csrf = session.setdefault("case_link_csrf", secrets.token_urlsafe(24))
+    page = render_template(
+        "case_link.html",
+        demo=stringify_object_ids(demo),
+        recipient=user.username,
+        token=token,
+        csrf=csrf,
+        pending=pending,
+        escalated=escalated,
+        factor=factor,
+        effects={d: preview_demo_decision(mongo, demo["_id"], d) for d in ("approved", "rejected")} if pending else {},
+        reject_reasons=case_reasons.choices(case_reasons.REJECT_KEYS),
+        login_url=url_for("users.auth.login", next=url_for("admin_demo.open_demo_decision", demo_id=str(demo["_id"]))),
+        error=error,
+        result=result,
+        expires_at=doc.get("expires_at"),
+    )
+    response = make_response(page, status)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Robots-Tag"] = "noindex"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    if new_cookie:
+        response.set_cookie(
+            case_links.COOKIE_NAME, new_cookie, max_age=MAGIC_TTL_SECONDS, httponly=True,
+            secure=request.is_secure or not current_app.debug, samesite="Lax",
+            path=url_for("admin_demo.case_link", token=token),
+        )
+    return response
+
+
+@admin_demo_bp.route("/case_link/<token>", methods=["GET"])
+def case_link(token):
+    """One demonstration, no login, for the admin the email was sent to."""
+    return _case_link_page(token)
+
+
+@admin_demo_bp.route("/case_link/<token>", methods=["POST"])
+def case_link_decide(token):
+    """Approve or reject through a scoped case link (second factor if enabled)."""
+    from mielenosoitukset_fi.utils import case_links, case_reasons
+
+    sent = request.form.get("csrf") or ""
+    expected = session.get("case_link_csrf") or ""
+    if not expected or not secrets.compare_digest(sent, expected):
+        return _case_link_page(token, status=400, error=_("Istunnon turvatarkistus epäonnistui. Lataa sivu uudelleen."))
+    if request.form.get("open") == "1":
+        return _case_link_page(token, allow_bind=True)
+    try:
+        doc, demo, user, _new_cookie = _case_link_state(token)
+    except case_links.CaseLinkError:
+        return _case_link_page(token)
+    decision = request.form.get("decision")
+    if decision not in {"approved", "rejected"}:
+        return _case_link_page(token, status=400, error=_("Valitse hyväksy tai hylkää."))
+    if demo.get("approved") or demo.get("rejected"):
+        return _case_link_page(token, status=409, error=_("Mielenosoituksesta on jo tehty päätös."))
+    case_doc = mongo.cases.find_one(
+        {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}
+    ) or {}
+    if (case_doc.get("meta") or {}).get("superior_needed") and not getattr(user, "global_admin", False):
+        return _case_link_page(token, status=403, error=_("Tapaus on eskaloitu. Päätöksen tekee esihenkilö."))
+    factor = case_links.second_factor(mongo, user)
+    if factor == "passkey_only":
+        return _case_link_page(token, status=403, error=_("Tilisi käyttää pääsyavainta. Kirjaudu sisään tehdäksesi päätöksen."))
+    reason_meta = None
+    if decision == "rejected":
+        try:
+            reason_meta, reason_schema = case_reasons.parse_reason(
+                request.form.to_dict(), case_reasons.REJECT_KEYS, mongo, demo_id=str(demo["_id"]),
+            )
+        except case_reasons.ReasonError as error:
+            return _case_link_page(token, status=400, error=str(error))
+    if factor == "totp":
+        try:
+            case_links.check_code(mongo, doc, user, request.form.get("code"))
+        except case_links.CaseLinkError as exc:
+            code, message = _CASE_LINK_ERRORS.get(exc.code, (400, "Vahvistus epäonnistui."))
+            return _case_link_page(token, status=code, error=_(message))
+    actor = case_links.actor_for(user, doc, mfa=factor == "totp")
+    apply_demo_decision(
+        mongo, str(demo["_id"]), decision, actor=actor, source="case_link", email_sender=email_sender,
+        public_url=url_for("demonstration_detail", demo_id=str(demo["_id"]), _external=True),
+        used_token_id=doc["_id"],
+    )
+    _mark_used(doc["_id"])
+    if reason_meta and case_doc.get("_id"):
+        now = _now_utc()
+        mongo.cases.update_one({"_id": case_doc["_id"]}, {
+            "$push": {
+                "action_logs": {"user": user.username, "action_type": "reject_reason",
+                                "reason": reason_meta["reason"], "timestamp": now},
+                "case_history": {"timestamp": now, "action": "Mielenosoitus hylätty", "user": user.username,
+                                 "mech_action": "reject_demo", "metadata": reason_meta, "meta_schema": reason_schema},
+            },
+            "$set": {"updated_at": now},
+        })
+    label = _("Hyväksytty ja julkaistu.") if decision == "approved" else _("Hylätty.")
+    page = render_template("case_link.html", result=label, login_url=url_for("users.auth.login"))
+    response = make_response(page, 200)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 def demo_decision_link(demo_id) -> str:

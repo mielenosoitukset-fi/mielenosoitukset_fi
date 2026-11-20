@@ -29,7 +29,7 @@ DECISION_REASONS = {"approved": "demo_approved", "rejected": "demo_rejected"}
 
 # A terminal moderation decision closes every bearer-link family. The token
 # used for the decision is excluded and consumed by its route after success.
-TERMINAL_TOKEN_ACTIONS = ("preview", "approve", "reject", "edit")
+TERMINAL_TOKEN_ACTIONS = ("preview", "approve", "reject", "edit", "case")
 
 
 @dataclass(frozen=True)

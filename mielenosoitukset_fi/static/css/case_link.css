@@ -1,0 +1,20 @@
+/* Scoped case link page (admin email, no login). */
+.case-link { max-width: 44rem; margin: 2rem auto; padding: 0 1rem; display: grid; gap: 1rem; }
+.case-link__card { border: 1px solid rgba(127, 127, 127, .35); border-radius: 1rem; padding: 1.25rem; background: transparent; }
+.case-link__muted { opacity: .8; font-size: .9rem; }
+.case-link dl { display: grid; grid-template-columns: minmax(7rem, max-content) 1fr; gap: .35rem 1rem; margin: 0; }
+.case-link dt { font-weight: 700; }
+.case-link dd { margin: 0; overflow-wrap: anywhere; }
+.case-link__effects { margin: .5rem 0 0; padding-left: 1.2rem; }
+.case-link__actions { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+.case-link form { display: grid; gap: .6rem; }
+.case-link label { font-weight: 600; }
+.case-link input, .case-link select, .case-link textarea { width: 100%; padding: .55rem .7rem; border-radius: .5rem; border: 1px solid rgba(127, 127, 127, .45); background: transparent; color: inherit; box-sizing: border-box; font: inherit; }
+.case-link__btn { padding: .65rem 1rem; border: 0; border-radius: .6rem; font-weight: 700; cursor: pointer; color: #fff; }
+.case-link__btn--approve { background: #1a7f37; }
+.case-link__btn--reject { background: #cf222e; }
+.case-link__alert { border-radius: .75rem; padding: .85rem 1rem; border: 1px solid #d4a72c; background: rgba(212,167,44,.12); }
+.case-link__alert--ok { border-color: #1a7f37; background: rgba(26,127,55,.12); }
+.case-link h1, .case-link h2 { text-align: left; color: inherit; margin: .25rem 0 .75rem; }
+.case-link option { color: #000; }
+.case-link form { align-content: start; }

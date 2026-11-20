@@ -1,0 +1,1 @@
+- Admin: moderation emails now carry a private link that opens that one demonstration without logging in and lets the admin approve or reject it. The link works only in the first browser that opens it, asks for the two-factor code when the admin uses one (passkey-only accounts log in instead), and stops working after a decision or 24 hours. Everything else still needs a login.
