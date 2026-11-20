@@ -7,7 +7,7 @@ line) with mode 600, and prints only "written". The key is never printed, never
 passed on a command line and never in shell history. SECRET_KEY itself is never
 written anywhere.
 
-    sudo python3 scripts/write_confirmation_key.py
+    sudo /path/to/venv/bin/python -B scripts/write_confirmation_key.py
 """
 import argparse
 import os
@@ -23,8 +23,13 @@ NAME = "EMAIL_CONFIRM_JWT_KEY"
 
 
 def write_key(config_path: str, env_path: str) -> None:
-    with open(config_path, encoding="utf-8") as handle:
-        secret = (yaml.safe_load(handle) or {}).get("SECRET_KEY")
+    try:
+        with open(config_path, encoding="utf-8") as handle:
+            loaded = yaml.safe_load(handle)
+        secret = loaded.get("SECRET_KEY") if isinstance(loaded, dict) else None
+    except (OSError, yaml.YAMLError, UnicodeDecodeError):
+        # A fixed message: a parser error would quote lines of config.yaml.
+        raise SystemExit("config.yaml could not be read; nothing written") from None
     if not isinstance(secret, str) or len(secret) < 32:
         raise SystemExit("SECRET_KEY is missing or too short; nothing written")
     line = f"{NAME}={derive_confirmation_key(secret)}\n"

@@ -128,3 +128,22 @@ def test_write_confirmation_key_script(tmp_path, capsys):
     script.main()
     out = capsys.readouterr()
     assert out.out.strip() == "written" and _derive(secret) not in out.out + out.err
+
+
+def test_write_confirmation_key_does_not_quote_a_broken_config(tmp_path):
+    import sys
+
+    import pytest as _pytest
+
+    sys.path.insert(0, "scripts")
+    import write_confirmation_key as script
+
+    config = tmp_path / "config.yaml"
+    config.write_text("SECRET_KEY: [unterminated sentinel-secret-line\n  : : :\n")
+    with _pytest.raises(SystemExit) as raised:
+        script.write_key(str(config), str(tmp_path / "environment"))
+    assert str(raised.value) == "config.yaml could not be read; nothing written"
+    assert "sentinel" not in str(raised.value) and not (tmp_path / "environment").exists()
+    config.write_text("- just\n- a list\n")
+    with _pytest.raises(SystemExit):
+        script.write_key(str(config), str(tmp_path / "environment"))

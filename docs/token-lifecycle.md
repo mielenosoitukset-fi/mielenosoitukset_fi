@@ -85,11 +85,14 @@ Only the derived key goes to Go, never `SECRET_KEY`. This runs once at activatio
 (`docs/email-confirm-react.md`), as a user who can read `config.yaml` and write the Go environment file:
 
 ```bash
-sudo python3 scripts/write_confirmation_key.py
+sudo /path/to/venv/bin/python -B scripts/write_confirmation_key.py
 ```
 
 The key is computed inside the script from `config.yaml`, so it never appears on a command line, in the
 shell history or in the output (the script prints only `written`). It replaces any existing
 `EMAIL_CONFIRM_JWT_KEY` line in `/etc/mielenosoitukset-api/environment`, keeps every other line, and leaves the
 file at mode 600 through a private temporary file and an atomic replace. Restart the Go API afterwards.
-`--config` and `--env-file` override the default paths. Covered by `tests/test_confirmation_token_key.py`.
+Use the production virtualenv's Python (`PRODUCTION_PYTHON`): it must have Flask, PyJWT and PyYAML, which the
+application imports. `-B` keeps it from writing `.pyc` files. A file that cannot be parsed exits with a fixed
+message that never quotes `config.yaml`. The file ends at mode 600, which is fine for a systemd `EnvironmentFile`
+(systemd reads it as root). `--config` and `--env-file` override the default paths. Covered by `tests/test_confirmation_token_key.py`.
