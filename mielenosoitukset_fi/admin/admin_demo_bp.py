@@ -3,6 +3,7 @@ import re
 import hmac
 import secrets
 from flask import abort, current_app
+from werkzeug.exceptions import Forbidden
 from copy import deepcopy
 
 from mielenosoitukset_fi.utils.time_utils import utcnow
@@ -499,8 +500,42 @@ def _handle_cases_after_merge(primary_id, secondary_ids, doc_map):
         )
 
 
-def _apply_demo_decision(demo_id, decision, source, used_token_id=None):
+def _decision_urls(demo_ids):
+    """Map each pending demo to the one page where the current admin decides it.
+
+    Maintainer decision (20 Nov 2026): new submissions are decided in their
+    case. Admins with global case controls go to the demo's newest
+    ``new_demo`` case; everyone else (city admins) uses the content-only
+    review page, which is their only decision page.
+    """
+    from mielenosoitukset_fi.utils.case_access import global_case_permission
+
+    ids = [ObjectId(str(value)) for value in demo_ids if ObjectId.is_valid(str(value))]
+    urls = {str(value): url_for("admin_demo.review_demo", demo_id=str(value)) for value in ids}
+    if not ids or not global_case_permission(current_user, "EDIT_CASE"):
+        return urls
+    cases = mongo.cases.find(
+        {"type": "new_demo", "demo_id": {"$in": ids + [str(value) for value in ids]}},
+        {"demo_id": 1, "created_at": 1},
+    ).sort("created_at", 1)
+    for case_doc in cases:
+        urls[str(case_doc["demo_id"])] = url_for(
+            "admin_case.single_case", case_id=str(case_doc["_id"])
+        )
+    return urls
+
+
+def _apply_demo_decision(demo_id, decision, source, used_token_id=None, reason=None):
     """Route adapter for the shared idempotent moderation service."""
+    from mielenosoitukset_fi.utils.demo_takedown import can_take_down_demo
+
+    if decision in {"approved", "taken_down"} and ObjectId.is_valid(str(demo_id)):
+        state = mongo.demonstrations.find_one({"_id": ObjectId(str(demo_id))}, {"taken_down": 1})
+        # Taking down, and republishing a taken-down demo, use one rights check.
+        if (decision == "taken_down" or (state or {}).get("taken_down")) and not can_take_down_demo(
+            current_user, state
+        ):
+            abort(403)
     actor = capture_actor_context()
     if source == "token":
         registered = mongo[MAGIC_COLLECTION].find_one({"_id": used_token_id}) or {}
@@ -520,6 +555,7 @@ def _apply_demo_decision(demo_id, decision, source, used_token_id=None):
             "demonstration_detail", demo_id=str(demo_id), _external=True
         ),
         used_token_id=used_token_id,
+        reason=reason,
     )
 
 
@@ -2145,6 +2181,14 @@ def demo_control():
         "GENERATE_EDIT_LINK" in permissions
         for permissions in demo_actions.values()
     )
+    decision_urls = _decision_urls(
+        demo.get("_id")
+        for demo in demos
+        if not demo.get("approved")
+        and not demo.get("rejected")
+        and not demo.get("cancelled")
+        and "ACCEPT_DEMO" in demo_actions[str(demo.get("_id"))]
+    )
 
     # --- Determine next/previous pages ---
     prev_page = page - 1 if page > 1 else None
@@ -2207,6 +2251,7 @@ def demo_control():
         f"{_ADMIN_TEMPLATE_FOLDER}demonstrations/dashboard.html",
         demonstrations=demos,
         demo_actions=demo_actions,
+        decision_urls=decision_urls,
         can_generate_edit_link=can_generate_edit_link,
         edit_link_csrf_token=(
             _edit_link_csrf_token() if can_generate_edit_link else None
@@ -3399,6 +3444,11 @@ def edit_demo(demo_id):
         demo_edit_access=demo_edit_access,
         show_demo_access_panel=show_demo_access_panel,
         can_approve_demo=has_demo_approval_permission(current_user, demo_data),
+        # Decisions (approve, reject, take down) happen in the case only.
+        decision_url=(
+            _decision_urls([demo_id]).get(str(demo_id))
+            if has_demo_approval_permission(current_user, demo_data) else None
+        ),
         can_generate_edit_link=can_generate_edit_link,
         edit_link_rows=(
             _demo_edit_link_rows(demo_id) if can_generate_edit_link else []
@@ -3635,8 +3685,6 @@ def demo_command_center(demo_id):
     public_url = url_for("demonstration_detail", demo_id=public_identifier)
 
     action_endpoints = {
-        "approve": {"url": url_for("admin_demo_api.approve_demo", demo_id=demo_id_str), "method": "POST"},
-        "reject": {"url": url_for("admin_demo_api.reject_demo", demo_id=demo_id_str), "method": "POST"},
         "cancel": {"url": url_for("admin_demo_api.admin_cancel_demo", demo_id=demo_id_str), "method": "POST"},
         "recommend": {"url": url_for("admin_demo.recommend_demo", demo_id=demo_id_str), "method": "POST"},
         "unrecommend": {"url": url_for("admin_demo.unrecommend_demo", demo_id=demo_id_str), "method": "POST"},
@@ -3668,8 +3716,14 @@ def demo_command_center(demo_id):
         "cancelled_by": demo_data.get("cancelled_by"),
     }
 
+    # The command center shows state; decisions happen in the case.
+    decision_url = None
+    if status_flags["needs_review"] and not status_flags["cancelled"] and permissions["can_accept"]:
+        decision_url = _decision_urls([demo_data["_id"]]).get(demo_id_str)
+
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}demonstrations/command_center.html",
+        decision_url=decision_url,
         demo=demo,
         demo_raw=demo_data,
         demo_id=demo_id_str,
@@ -4240,11 +4294,11 @@ def handle_demo_form(
     can_change_approval = has_demo_approval_permission(
         current_user, approval_scope_demo
     )
-    requested_approval = bool(demonstration_data.get("approved"))
-    if not can_change_approval:
-        demonstration_data["approved"] = bool(
-            approval_scope_demo and approval_scope_demo.get("approved")
-        )
+    # Maintainer decision (20 Nov 2026): the edit form never changes the
+    # approval status. Decisions happen in the case through the decision
+    # service; a new demo starts pending and an approver's "publish now"
+    # choice on the create form runs the same service after the insert.
+    requested_approval = not is_edit and request.form.get("approved") == "on"
     
     if demo_id and demonstration_data.get("_id") is None:
         demonstration_data["_id"] = ObjectId(demo_id)
@@ -4263,16 +4317,11 @@ def handle_demo_form(
                 if incoming_city_key != previous_city_key and not _user_can_create_demo_in_city(demonstration_data.get("city")):
                     flash_message(_("Sinulla ei ole oikeutta siirtää mielenosoitusta valittuun paikkakuntaan."), "error")
                     abort(403)
-                approve_after_save = can_change_approval and requested_approval
-                if approve_after_save:
-                    # Keep the status unchanged during the ordinary field save;
-                    # the decision service owns approval and its side effects.
-                    demonstration_data["approved"] = bool(prev_demo.get("approved"))
+                demonstration_data.pop("approved", None)
                 merged_data = _deep_merge(prev_demo, demonstration_data)
                 demo = Demonstration.from_dict(merged_data)
-                # Only an approver's form value is authoritative for approval;
-                # otherwise keep whatever the database holds now.
-                demo.save(write_approval=can_change_approval)
+                # The status is whatever the database holds now.
+                demo.save(write_approval=False)
                 hist_id = record_demo_change(
                     demo_id,
                     prev_demo,
@@ -4298,12 +4347,6 @@ def handle_demo_form(
                             "reason": "Muokattu mielenosoitusta hallintapaneelista, lisätietoa: <a href='{}'>historia</a>".format(url_for('admin_demo.view_demo_diff', history_id=hist_id, _external=True))
                         },
                     })
-                if approve_after_save:
-                    _apply_demo_decision(
-                        demo_id,
-                        "approved",
-                        source="admin_form",
-                    )
             flash_message("Mielenosoitus päivitetty onnistuneesti.", "success")
         else:
             if not _user_can_create_demo_in_city(demonstration_data.get("city")):
@@ -4323,6 +4366,10 @@ def handle_demo_form(
                 message=_("%(user)s loi mielenosoituksen") % {"user": _get_actor_label()},
                 details={"title": demonstration_data.get("title")}
             )
+            if can_change_approval and requested_approval:
+                _apply_demo_decision(
+                    str(insert_result.inserted_id), "approved", source="admin_form_create"
+                )
             flash_message("Mielenosoitus luotu onnistuneesti.", "success")
 
         # Redirect to the demonstration control panel on success
@@ -4718,7 +4765,8 @@ def collect_demo_data(request, existing_organizers=None):
         "type": event_type,
         "route": route,
         "organizers": organizers,
-        "approved": approved,
+        # Status is never taken from the form; see handle_demo_form.
+        "approved": False,
         "tags": tags,
         "description": description,
         "default_language": default_language,
@@ -5765,6 +5813,37 @@ def reject_demo(demo_id):
     )
 
 
+@admin_demo_api_bp.route("/<demo_id>/take_down", methods=["POST"])
+@login_required
+@admin_required
+def take_down_demo(demo_id):
+    """Take an approved demo off the public site without deleting it."""
+    from mielenosoitukset_fi.demonstrations.decisions import DemoNotPublished
+    from mielenosoitukset_fi.utils.demo_takedown import can_take_down_demo
+
+    if not request.is_json:
+        return jsonify({"success": False, "error": _("Virheellinen pyyntö.")}), 415
+    if not ObjectId.is_valid(demo_id):
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
+    demo = mongo.demonstrations.find_one({"_id": ObjectId(demo_id)}, {"approved": 1, "taken_down": 1})
+    if not demo:
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
+    if not can_take_down_demo(current_user, demo):
+        return jsonify({"success": False, "error": _("Käyttöoikeutesi eivät riitä poistamaan mielenosoitusta julkaisusta.")}), 403
+    reason = str((request.get_json(silent=True) or {}).get("reason") or "").strip()
+    if not reason:
+        return jsonify({"success": False, "error": _("Kirjoita syy. Se näytetään mielenosoituksen sivulla ja lähetetään ilmoittajalle.")}), 400
+    try:
+        result = _apply_demo_decision(demo_id, "taken_down", source="admin_take_down", reason=reason)
+    except DemoNotPublished:
+        return jsonify({"success": False, "error": _("Vain julkaistun mielenosoituksen voi poistaa julkaisusta.")}), 409
+    return jsonify({
+        "success": True,
+        "changed": result.changed,
+        "message": _("Mielenosoitus poistettiin julkaisusta.") if result.changed else _("Mielenosoitus on jo poistettu julkaisusta."),
+    })
+
+
 @admin_demo_api_bp.route("/bulk_decide", methods=["POST"])
 @login_required
 @admin_required
@@ -5795,13 +5874,18 @@ def bulk_decide_demos():
         elif not _user_can_access_demo(raw_id, "ACCEPT_DEMO"):
             entry["status"] = "forbidden"
         else:
-            result = _apply_demo_decision(
-                raw_id,
-                decision,
-                source="admin_bulk",
-            )
-            entry["status"] = "changed" if result.changed else "unchanged"
-            changed_count += int(result.changed)
+            try:
+                result = _apply_demo_decision(
+                    raw_id,
+                    decision,
+                    source="admin_bulk",
+                )
+            except Forbidden:
+                # A taken-down demo is republished only by take-down rights.
+                entry["status"] = "forbidden"
+            else:
+                entry["status"] = "changed" if result.changed else "unchanged"
+                changed_count += int(result.changed)
         results.append(entry)
 
     return jsonify(

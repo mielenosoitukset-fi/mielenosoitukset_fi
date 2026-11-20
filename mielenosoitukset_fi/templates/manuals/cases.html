@@ -89,7 +89,7 @@
     </table>
   </div>
   {% call m.callout('warning') %}
-  <p>{{ _('Mielenosoitukset-listan') }} {{ m.ui(_('Hylkää')) }}{{ _('-painike ei kysy syytä. Hylkää siksi mieluiten tapauksen kautta, niin syy tallentuu.') }}</p>
+  <p>{{ _('Mielenosoitukset-listalla ja komentokeskuksessa ei ole omia hyväksy- ja hylkää-painikkeita. Niiden') }} {{ m.ui(_('Käsittele')) }} {{ _('avaa tämän tapauksen, joten syy tallentuu aina.') }}</p>
   {% endcall %}
 </section>
 
@@ -134,7 +134,7 @@
 
 <section id="eskaloi">
   <h2>{{ _('Eskaloi tapaus') }}</h2>
-  <p>{{ _('Eskalointi nostaa tapauksen kokeneemman ylläpitäjän käsiteltäväksi. Eskaloidun uuden mielenosoituksen voi hyväksyä tai hylätä vain superkäyttäjä.') }} {{ m.ui(_('Poista eskalointi')) }} {{ _('palauttaa tapauksen tavalliseen jonoon.') }}</p>
+  <p>{{ _('Eskalointi nostaa tapauksen kokeneemman ylläpitäjän käsiteltäväksi. Eskaloidun uuden mielenosoituksen voi hyväksyä tai hylätä vain superkäyttäjä. Eskalointi ei muuta mielenosoituksen tilaa, ja sen voi tehdä vain ennen päätöstä: hyväksytyssä tai hylätyssä tapauksessa painiketta ei ole.') }} {{ m.ui(_('Poista eskalointi')) }} {{ _('palauttaa tapauksen tavalliseen jonoon.') }}</p>
 </section>
 
 <section id="merkinnat">

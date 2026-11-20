@@ -1,81 +1,10 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
 {% from 'admin_V2/demonstrations/_edit_link_modal.html' import demo_edit_link_modal %}
-{% from 'admin_V2/demonstrations/_decision_modal.html' import demo_decision_modal %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/demonstrations.css', v='20260914-admin-ui-51') }}">{% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/admin_demo_edit_links.js') }}"></script>
-<script src="{{ url_for('static', filename='js/admin_demo_decision.js', v='20261120-decision-1') }}"></script>
-<script>
-  function acceptSty(demoId) {
-    const demo = document.getElementById(`demo-${demoId}`);
-    const approvalCell = demo?.querySelector('[data-col="approved"]');
-    if (!demo || !approvalCell) return;
 
-    const icon = document.createElement('i');
-    icon.className = 'fa-solid fa-check-circle admin-status-icon admin-status-icon--success';
-    icon.setAttribute('aria-hidden', 'true');
-    approvalCell.replaceChildren(icon, document.createTextNode(" {{ _('Kyllä') }}"));
-    demo.classList.remove("admin-data-row--attention");
-  }
-
-  async function acceptDemo(demoId) {
-    if (!(await window.MosoDemoDecision.confirm(demoId, "approved"))) return;
-    fetch(`/admin/demo/accept_demo/${demoId}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({}), // You can add additional data here if needed,
-      redirect: "manual",
-    })
-      .then((response) => response.json())
-      .then((data) => {
-
-        if (data.status === "OK") {
-          showToast("{{ _('Mielenosoitus hyväksytty onnistuneesti!') }}", 'success');
-          acceptSty(demoId);
-        } else {
-          // Handle error (e.g., show a flash message)
-          console.error("Error fetching submitter info:", data.message);
-          showToast("{{ _('Virhe hyväksyttäessä mielenosoitusta.') }}", 'danger');
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        showToast("{{ _('Yhteysvirhe, yritä uudelleen.') }}", 'danger');
-      });
-  }
-
-
-  async function rejectDemo(demoId) {
-    if (!(await window.MosoDemoDecision.confirm(demoId, "rejected"))) return;
-
-    fetch(`/api/admin/demo/${demoId}/deny`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({}),
-      redirect: "manual",
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.success) {
-          showToast("{{ _('Mielenosoitus hylätty.') }}", 'success');
-          const row = document.getElementById(`demo-${demoId}`);
-          if (row) row.remove();
-        } else {
-          showToast(data.message || data.error || "{{ _('Virhe hylkäämisessä.') }}", 'danger');
-        }
-      })
-      .catch(() => {
-        showToast("{{ _('Yhteysvirhe, yritä uudelleen.') }}", 'danger');
-      });
-  }
-
-
-</script>
 
 {% endblock %} {% block main_content %}
 
@@ -332,31 +261,13 @@
                     <i class="fa-solid fa-ellipsis-vertical"></i> {{ _('Toiminnot') }}
                 </button>
 
-            <ul class="dropdown-menu" aria-labelledby="actionsDropdown-{{ demo._id }}">
+            <ul class="dropdown-menu" aria-labelledby="actionsDropdown-approved-{{ demo._id }}">
 
-                {# Accept #}
-                {% if not demo.approved %}
-                  {% if 'ACCEPT_DEMO' in demo_actions.get(demo._id|string, []) %}
-                      <li><button class="dropdown-item" type="button"
-                                  onclick="acceptDemo('{{ demo._id }}')">
-                          <i class="fa-solid fa-check me-2"></i>{{ _('Hyväksy') }}
-                      </button></li>
-                  {% else %}
-                      <li><span class="dropdown-item disabled">
-                          <i class="fa-solid fa-check me-2"></i>{{ _('Hyväksy') }}
-                      </span></li>
-                  {% endif %}
-
-                  {% if 'ACCEPT_DEMO' in demo_actions.get(demo._id|string, []) %}
-                      <li><button class="dropdown-item text-danger" type="button"
-                                  onclick="rejectDemo('{{ demo._id }}')">
-                          <i class="fa-solid fa-xmark me-2"></i>{{ _('Hylkää') }}
-                      </button></li>
-                  {% else %}
-                      <li><span class="dropdown-item disabled">
-                          <i class="fa-solid fa-xmark me-2"></i>{{ _('Hylkää') }}
-                      </span></li>
-                  {% endif %}
+                {# Decide: one place per admin, the case (or the review page for city admins). #}
+                {% if not demo.approved and not demo.rejected and decision_urls.get(demo._id|string) %}
+                      <li><a class="dropdown-item" href="{{ decision_urls[demo._id|string] }}">
+                          <i class="fa-solid fa-scale-balanced me-2"></i>{{ _('Käsittele') }}
+                      </a></li>
                 {% endif %}
 
                 {# Recommend toggle #}
@@ -629,7 +540,6 @@
   {% endif %}
   {% if can_generate_edit_link %}
   {{ demo_edit_link_modal('dashboardEditLinkModal', edit_link_csrf_token) }}
-  {{ demo_decision_modal() }}
   {% endif %}
   <!-- Delete Confirmation Modal -->
   <div class="modal fade admin-modal" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
@@ -703,85 +613,16 @@
       const submitterModalEl = document.getElementById('submitterInfoModal');
       const submitterModal = bootstrap.Modal.getOrCreateInstance(submitterModalEl);
 
-      // Fast delete mode flag
-      let fastDeleteMode = false;
-
-      function updateDeleteButtonTexts() {
-        document.querySelectorAll('.delete-button').forEach(btn => {
-          const icon = btn.querySelector('i');
-          if (icon) {
-            btn.innerHTML = icon.outerHTML + (fastDeleteMode ? ' Pikapoisto' : ' {{ _("Poista") }}');
-          } else {
-            // fallback if no icon found
-            btn.textContent = fastDeleteMode ? 'Pikapoisto' : '{{ _("Poista") }}';
-          }
-        });
-      }
-
-
-      // Listen Shift key down/up globally
+      // Deleting always asks first (there is no keyboard shortcut that
+      // skips the confirmation).
       document.addEventListener('keydown', e => {
-        if (e.key === 'Shift') {
-          fastDeleteMode = true;
-          updateDeleteButtonTexts();
-          console.log('Fast delete mode enabled.');
-        }
         if (e.key === 'Escape') {
           deleteModal.hide();
-          console.log('Modal closed via Escape.');
         }
       });
-
-      document.addEventListener('keyup', e => {
-        if (e.key === 'Shift') {
-          fastDeleteMode = false;
-          updateDeleteButtonTexts();
-          console.log('Fast delete mode disabled.');
-        }
-      });
-      // Helper: Animate then remove the row
-      function animateAndRemoveRow(rowEl) {
-        if (!rowEl) return;
-        rowEl.classList.add('fade-out');
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          rowEl.remove();
-          return;
-        }
-        const removeRow = () => rowEl.remove();
-        rowEl.addEventListener('transitionend', removeRow, { once: true });
-        window.setTimeout(removeRow, 350);
-      }
-      // Open delete modal or fast-delete immediately if shift pressed
+      // Open the delete confirmation
       window.openModal = (event, title, id) => {
         event.preventDefault();
-
-
-
-        // Inside your main script:
-        if (fastDeleteMode) {
-          // Fast delete directly without modal
-          fetch("/admin/demo/delete_demo", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ demo_id: id }),
-            redirect: 'manual'
-          })
-            .then(res => res.json())
-            .then(data => {
-              if (data.status === 'OK') {
-                const row = document.getElementById(`demo-${id}`);
-                animateAndRemoveRow(row);
-                console.log(`Demo ${id} deleted instantly (pikapoisto).`);
-              } else {
-                alert(data.message || '{{ _("Virhe poistettaessa.") }}');
-              }
-            })
-            .catch(() => alert('{{ _("Yhteysvirhe, yritä uudelleen.") }}'));
-
-          return;
-        }
-
-
         // Normal modal open flow
         document.getElementById('demoTitle').textContent = title;
         const confirmDeleteBtn = document.getElementById('confirmDelete');
@@ -880,12 +721,9 @@
         if (submitterTrigger?.isConnected) submitterTrigger.focus();
       });
 
-      // Initial button text update
-      updateDeleteButtonTexts();
     });
 
 
-    // animateAndRemoveRow is implemented earlier (kept single canonical implementation)
 
 
   </script>

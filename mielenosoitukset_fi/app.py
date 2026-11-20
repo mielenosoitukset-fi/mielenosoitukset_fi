@@ -176,6 +176,9 @@ def create_app(config_overrides=None) -> Flask:
     login_manager.login_view = (
         "users.auth.login"  # Redirect to login view if not authenticated
     )
+    # Flask-Login's default is English ("Please log in to access this page.").
+    login_manager.login_message = "Kirjaudu sisään nähdäksesi tämän sivun."
+    login_manager.login_message_category = "info"
     
     login_manager.anonymous_user = AnonymousUser
 
@@ -249,10 +252,8 @@ def create_app(config_overrides=None) -> Flask:
     app.register_blueprint(user_bp, url_prefix="/users/")
     app.register_blueprint(api_bp, url_prefix="/api/")
     app.register_blueprint(mcp_admin_bp)
-    # The opt-in issuer is only configured through isolated test overrides.
-    if app.testing and app.config.get("HALLINTO_OIDC"):
-        from mielenosoitukset_fi.users.hallinto_issuer import register_hallinto_issuer
-        register_hallinto_issuer(app, mongo, app.config["HALLINTO_OIDC"])
+    from mielenosoitukset_fi.users.hallinto_issuer_config import configure_hallinto_issuer
+    configure_hallinto_issuer(app, mongo)
     app.register_blueprint(developer_bp, url_prefix="/developer")
     
     
@@ -268,6 +269,8 @@ def create_app(config_overrides=None) -> Flask:
     from markupsafe import Markup
     from mielenosoitukset_fi.utils.content_formatting import sanitize_stored_html
     app.jinja_env.filters["stored_html"] = lambda value: Markup(sanitize_stored_html(value))
+    from mielenosoitukset_fi.utils.content_formatting import safe_href
+    app.jinja_env.filters["safe_href"] = safe_href
     app.register_blueprint(board_bp)
 
     if app.config.get("ENABLE_CHAT", True):
@@ -414,15 +417,19 @@ def create_app(config_overrides=None) -> Flask:
     from bson import ObjectId
 
     # --- Cached admin tasks (avoid re-running heavy queries on every template render) ---
-    _admin_tasks_cache = {"tasks": None, "timestamp": 0}
+    # The task list is filtered by the viewer's permissions, so it is cached
+    # per user: a shared entry would show one admin's scope to another.
+    _admin_tasks_cache = {}
     _ADMIN_TASKS_CACHE_TTL = 30  # seconds
+    _ADMIN_TASKS_CACHE_MAX = 256
 
     def _get_admin_tasks_cached():
         import time as _time
         now = _time.monotonic()
-        cached = _admin_tasks_cache["tasks"]
-        if cached is not None and (now - _admin_tasks_cache["timestamp"]) < _ADMIN_TASKS_CACHE_TTL:
-            return cached
+        cache_key = str(getattr(current_user, "_id", None) or getattr(current_user, "get_id", lambda: None)())
+        entry = _admin_tasks_cache.get(cache_key)
+        if entry is not None and (now - entry["timestamp"]) < _ADMIN_TASKS_CACHE_TTL:
+            return entry["tasks"]
 
         tasks = []
 
@@ -479,8 +486,13 @@ def create_app(config_overrides=None) -> Flask:
         # sort by creation time descending
         tasks.sort(key=lambda x: x.get("created_at", datetime.min), reverse=True)
 
-        _admin_tasks_cache["tasks"] = tasks
-        _admin_tasks_cache["timestamp"] = now
+        if len(_admin_tasks_cache) >= _ADMIN_TASKS_CACHE_MAX:
+            for stale_key, stale in list(_admin_tasks_cache.items()):
+                if (now - stale["timestamp"]) >= _ADMIN_TASKS_CACHE_TTL:
+                    _admin_tasks_cache.pop(stale_key, None)
+            if len(_admin_tasks_cache) >= _ADMIN_TASKS_CACHE_MAX:
+                _admin_tasks_cache.clear()
+        _admin_tasks_cache[cache_key] = {"tasks": tasks, "timestamp": now}
         return tasks
 
     @app.context_processor

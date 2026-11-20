@@ -1,0 +1,26 @@
+{% extends 'errors/410.html' %}
+
+{% block title %}{{ _('Mielenosoitus on poistettu sivustolta') }} | Mielenosoitukset.fi{% endblock %}
+{% block meta %}<meta name="robots" content="noindex" />{% endblock %}
+
+{% block content %}
+<div class="container-main-content">
+  <section class="hero-error" aria-labelledby="taken-down-title">
+    <h1 id="taken-down-title" class="h2">
+      <span aria-hidden="true"><i class="fa-solid fa-eye-slash"></i></span>
+      {{ _('Mielenosoitus on poistettu sivustolta') }}
+    </h1>
+    <p>
+      {{ _('Ylläpito on poistanut mielenosoituksen %(title)s sivustolta.', title=demo.title or '') }}
+    </p>
+    {% if demo.taken_down_reason %}
+    <div class="section-card">
+      <p><strong>{{ _('Syy') }}:</strong> {{ demo.taken_down_reason }}</p>
+    </div>
+    {% endif %}
+    <a class="button button-primary" href="{{ url_for('index') }}">
+      <span aria-hidden="true"><i class="fa-solid fa-house"></i></span> {{ _('Palaa etusivulle') }}
+    </a>
+  </section>
+</div>
+{% endblock %}
