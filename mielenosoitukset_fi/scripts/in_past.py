@@ -71,6 +71,13 @@ db_manager = DatabaseManager().get_instance()
 db = db_manager.get_db()
 
 
+def demo_last_day(demo):
+    """Return the last day a demonstration runs (``end_date`` when later)."""
+    start = demo["date"]
+    end = demo.get("end_date")
+    return end if isinstance(end, str) and end > start else start
+
+
 def is_future_demo(demo_date, today):
     """Check if the demonstration is in the future.
 
@@ -138,7 +145,8 @@ def hide_past_demos(demos, today):
             # filled the demo's version history with empty versions.
             continue
         try:
-            demo_date = datetime.strptime(demo["date"], "%Y-%m-%d").date()
+            # A multi-day demonstration is past only after its last day.
+            demo_date = datetime.strptime(demo_last_day(demo), "%Y-%m-%d").date()
             if not is_future_demo(demo_date, today):
                 # CHANGE v4.3.2: Do not hide, just mark as in_past.
                 # Set only the flag; a full model save rewrote every field.

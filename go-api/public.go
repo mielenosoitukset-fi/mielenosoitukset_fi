@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var textFields = []string{"date", "start_time", "end_time", "city", "address", "slug", "event_type", "facebook", "img", "cover_picture", "cover_source", "preview_image"}
+var textFields = []string{"date", "end_date", "start_time", "end_time", "city", "address", "slug", "event_type", "facebook", "img", "cover_picture", "cover_source", "preview_image"}
 
 func publicProjection() bson.M {
 	// likes is a public aggregate the detail page already prints next to the

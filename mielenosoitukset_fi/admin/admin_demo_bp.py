@@ -1974,6 +1974,7 @@ def reject_demo_with_token(token):
     )
     return redirect(url_for("index"))
 from flask import request, render_template
+from mielenosoitukset_fi.utils.multi_day import normalize_end_date
 from flask_login import login_required, current_user
 from datetime import datetime, date
 from bson.objectid import ObjectId as BsonObjectId
@@ -4320,6 +4321,10 @@ def handle_demo_form(
                     abort(403)
                 demonstration_data.pop("approved", None)
                 merged_data = _deep_merge(prev_demo, demonstration_data)
+                # An emptied end date makes the demonstration one day again;
+                # _deep_merge would otherwise keep the old value.
+                if "end_date" in demonstration_data:
+                    merged_data["end_date"] = demonstration_data["end_date"]
                 demo = Demonstration.from_dict(merged_data)
                 # The status is whatever the database holds now.
                 demo.save(write_approval=False)
@@ -4708,6 +4713,7 @@ def collect_demo_data(request, existing_organizers=None):
     # Validate required fields
     if not title or not date or not city:
         raise ValueError(_("Otsikko, päivämäärä ja kaupunki ovat pakollisia kenttiä."))
+    end_date = normalize_end_date(date, request.form.get("end_date"))
 
     # Process organizers and tags
     organizers = collect_organizers(
@@ -4756,6 +4762,7 @@ def collect_demo_data(request, existing_organizers=None):
     return {
         "title": title,
         "date": date,
+        "end_date": end_date,
         "start_time": start_time,
         "end_time": end_time,
         "facebook": facebook,
