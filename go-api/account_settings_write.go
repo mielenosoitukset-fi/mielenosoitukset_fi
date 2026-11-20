@@ -48,6 +48,8 @@ type accountWrites struct {
 	store accountWriteStore
 	// instance is the instance_id on queued mail, as in EmailJob.
 	instance string
+	// deletions opens self-service deletion requests (account_deletion_request.go).
+	deletions accountDeletionStore
 }
 
 func newAccountWrites(store accountWriteStore, origin string) *accountWrites {
