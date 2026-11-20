@@ -109,7 +109,7 @@
             </div>
 
             <div class="form-group">
-                <label for="end_date">{{ _('Päättymispäivä (jos kestää useamman päivän)') }}</label>
+                <label for="end_date">{{ _('Päättymispäivä (pp.kk.vvvv), jos kestää useamman päivän') }}</label>
                 <input type="text" id="end_date" name="end_date" class="form-control"
                     value="{{ demo.end_date if demo and demo.end_date else '' }}" aria-describedby="end_date_help">
                 <small id="end_date_help" class="admin-field__help">{{ _('Jätä tyhjäksi, jos mielenosoitus on yhden päivän. Enintään 14 päivää.') }}</small>
