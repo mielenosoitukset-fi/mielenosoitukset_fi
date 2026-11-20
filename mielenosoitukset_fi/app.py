@@ -188,13 +188,14 @@ def create_app(config_overrides=None) -> Flask:
         """Signed-out request to a protected route: redirect to login, as Flask-Login does.
 
         Only a page navigation queues the sign-in notice, and only once. Background
-        requests (fetch/XHR polling, JSON, /api/ paths, non-GET) used to queue another
+        requests (fetch/XHR polling, JSON, /api/ paths) used to queue another
         copy each time, so an admin page left open after the session ended piled up
         hundreds of them in the session cookie.
         """
+        # A form POST is a navigation only when the browser says so (Sec-Fetch-Mode).
+        fetch_mode = request.headers.get("Sec-Fetch-Mode", "navigate" if request.method in ("GET", "HEAD") else "")
         navigation = (
-            request.method in ("GET", "HEAD")
-            and request.headers.get("Sec-Fetch-Mode", "navigate") == "navigate"
+            fetch_mode == "navigate"
             and request.headers.get("X-Requested-With") != "XMLHttpRequest"
             and request.accept_mimetypes.best != "application/json"
             and "/api/" not in request.path
