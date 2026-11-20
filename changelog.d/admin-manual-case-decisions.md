@@ -1,0 +1,1 @@
+- Admin guide: describes deciding new demonstrations only in the case ("Käsittele"), escalation that no longer changes a demonstration's status, and how merges and recurring-series updates handle approval.
