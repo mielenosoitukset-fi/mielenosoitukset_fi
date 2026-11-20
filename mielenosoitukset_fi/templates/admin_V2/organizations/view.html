@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
       'accept-invite': `{{ _("Hyväksytäänkö kutsu käyttäjän puolesta?") }} ${button.dataset.label}`
     };
     let message = messages[button.dataset.action];
-    if (button.dataset.action === 'accept-invite' && elevates(button.dataset.role)) message += ` ${adminAccessNote}`;
+    if (button.dataset.action === 'accept-invite' && elevates(button.dataset.role)) message += `. ${adminAccessNote}`;
     confirmCopy.textContent = message;
     confirmButton.classList.toggle('btn-danger', button.dataset.action !== 'accept-invite');
     confirmButton.classList.toggle('btn-warning', button.dataset.action === 'accept-invite');

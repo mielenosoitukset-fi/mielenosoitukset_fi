@@ -1,1 +1,1 @@
-- Admin: organisation role changes and "Hyväksy puolesta" now say before saving that an admin or owner role also opens the admin workspace for the user. Choosing an inactive city for a city admin now says the city will be enabled on the whole site.
+- Admin: organisation role changes and "Hyväksy puolesta" now say before saving that an admin or owner role also opens the admin workspace for the user. Choosing an inactive city (with at least one permission) for a city admin now says the city will be enabled on the whole site.
