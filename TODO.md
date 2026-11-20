@@ -29,6 +29,15 @@ a dated snapshot: check their live state before acting.
 
 Already on the React host: home, listings (all, city, tag, today), detail and series, calendar, cities, submit, organization profile, information pages, Pride, campaign, fundraising and contact.
 
+Audit, 20 November 2026 (Flask routes rendering a public, non-admin page, checked against `deploy/apache/react-ssr-routing.conf`). Still Flask/Jinja:
+
+- Built in React but not routed: `/users/auth/settings` (password, MFA and passkey controls are in React since #1224/#1227/#1228; activation needs the maintainer's go, see [account-pages-react.md](docs/account-pages-react.md)).
+- Authentication: `/users/auth/login`, `/register`, `/register/next_steps`, `/password_reset_request`, `/password_reset/<token>`, `/forced_pwd_reset/`, `/forced_identity_change/`, `/verify_mfa`, the `/logout` confirmation page.
+- `/report`; the write-on-GET token pages (drafts #1231–#1233); `/api/notifications/all`.
+- Redirects instead of pages: `/users/profile/` now sends a signed-in user to `/users/profile/<username>` (React), `/developer/apps` to `/developer` (React), `/developer/docs` to `/api-docs/`.
+- Out of scope (admin or permission-gated tools): `/users/auth/ui/tokens` (admin-scope tokens), `/demonstration/<id>/some` (VIEW_DEMO, deprecated), `?preview=1`, `/board/*`.
+- Flask error pages (`errors/*.html`) and the panic page `heavy.html` serve only Flask-handled paths; the React host renders its own.
+
 - [ ] `/report` error report form. It needs a session-scope token like `/contact`. *(approval: session change)*
 - [x] `/status`: React SSR with read-only Go `/api/status`, bounded cached database check and HTTP 200 on dependency/API failure. React routing is active (production Apache include checked 13 November). Keep outstanding real-data visual acceptance in the page-by-page review below; the original sandbox limitation is not a current activation blocker.
 - [x] Token pages, `/cancel_demonstration/<token>`: React page with a read-only Go `/api/cancellation-links/<token>`; routing active since 12 Nov 2026.
