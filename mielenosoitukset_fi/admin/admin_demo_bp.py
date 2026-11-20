@@ -2101,6 +2101,7 @@ def demo_control():
         for demo in demos
         if not demo.get("approved")
         and not demo.get("rejected")
+        and not demo.get("cancelled")
         and "ACCEPT_DEMO" in demo_actions[str(demo.get("_id"))]
     )
 
@@ -3591,7 +3592,7 @@ def demo_command_center(demo_id):
 
     # The command center shows state; decisions happen in the case.
     decision_url = None
-    if status_flags["needs_review"] and permissions["can_accept"]:
+    if status_flags["needs_review"] and not status_flags["cancelled"] and permissions["can_accept"]:
         decision_url = _decision_urls([demo_data["_id"]]).get(demo_id_str)
 
     return render_template(

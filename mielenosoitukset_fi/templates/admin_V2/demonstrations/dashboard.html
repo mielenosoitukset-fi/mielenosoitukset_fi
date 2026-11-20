@@ -261,7 +261,7 @@
                     <i class="fa-solid fa-ellipsis-vertical"></i> {{ _('Toiminnot') }}
                 </button>
 
-            <ul class="dropdown-menu" aria-labelledby="actionsDropdown-{{ demo._id }}">
+            <ul class="dropdown-menu" aria-labelledby="actionsDropdown-approved-{{ demo._id }}">
 
                 {# Decide: one place per admin, the case (or the review page for city admins). #}
                 {% if not demo.approved and not demo.rejected and decision_urls.get(demo._id|string) %}
