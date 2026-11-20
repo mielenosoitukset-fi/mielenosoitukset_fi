@@ -192,7 +192,9 @@ func tokenConfirmGuardsFromDB(db *mongo.Database, config submissionConfig, scope
 			var mode struct {
 				Panic bool `bson:"panic"`
 			}
-			err := db.Collection("panic").FindOne(ctx, bson.M{"name": bson.M{"$in": bson.A{"global", "security"}}}).Decode(&mode)
+			// Ask for an active switch: the collection holds one document per
+			// switch, and the first one found may be the one that is off.
+			err := db.Collection("panic").FindOne(ctx, bson.M{"name": bson.M{"$in": bson.A{"global", "security"}}, "panic": true}).Decode(&mode)
 			if errors.Is(err, mongo.ErrNoDocuments) {
 				return false, nil
 			}
