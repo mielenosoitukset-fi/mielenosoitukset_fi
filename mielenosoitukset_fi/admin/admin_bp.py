@@ -1130,6 +1130,11 @@ def _calculate_dashboard_snapshot() -> dict:
         "cancelled": {"$ne": True},
         "hide": {"$ne": True},
     }
+    past = {"in_past": True}
+    # Undecided demos whose date has passed are not waiting for anyone; they
+    # are shown separately as "Vanhentuneet" (maintainer, 20 Nov 2026).
+    undecided_past = demos_coll.count_documents({**undecided, **past})
+    undecided = {**undecided, **not_past}
     waiting_demos = demos_coll.count_documents(undecided)
     city_pending = demos_coll.count_documents(
         {**undecided, CITY_ASSIGNMENT_FIELD: {"$exists": True}, "city_assignment.escalated": {"$ne": True}}
@@ -1160,6 +1165,7 @@ def _calculate_dashboard_snapshot() -> dict:
             "published_upcoming": published_upcoming,
             "published_total": published_total,
             "waiting": waiting_demos,
+            "undecided_past": undecided_past,
             "city_pending": city_pending,
             "escalated_pending": escalated_pending,
         },

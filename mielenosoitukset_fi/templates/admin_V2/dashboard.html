@@ -41,9 +41,10 @@
           <div class="stat-label">{{ _('Odottaa käsittelyä') }}</div>
           <div class="stat-value" id="stat-demos-waiting">—</div>
           <div class="stat-sub stat-sub--list">
-            <span>{{ _('Uusia mielenosoituksia, joita ei ole hyväksytty eikä hylätty.') }}</span>
+            <span>{{ _('Tulevia mielenosoituksia, joita ei ole hyväksytty eikä hylätty.') }}</span>
             <span>{{ _('Kaupunkien ylläpitäjillä') }}: <strong id="stat-demos-city">—</strong></span>
             <span>{{ _('Eskaloitu valtakunnalliselle') }}: <strong id="stat-demos-escalated">—</strong></span>
+            <span>{{ _('Vanhentuneet: päivä meni ilman päätöstä, ei lasketa') }}: <strong id="stat-demos-stale">—</strong></span>
             <span class="stat-link">{{ _('Käsittele tapauksissa') }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
           </div>
         </a>
@@ -284,6 +285,7 @@
       demosWaiting: document.getElementById('stat-demos-waiting'),
       demosCity: document.getElementById('stat-demos-city'),
       demosEscalated: document.getElementById('stat-demos-escalated'),
+      demosStale: document.getElementById('stat-demos-stale'),
       demosUpcoming: document.getElementById('stat-demos-upcoming'),
       demosPublished: document.getElementById('stat-demos-published'),
       casesOpen: document.getElementById('stat-cases-open'),
@@ -344,6 +346,7 @@
       elements.demosWaiting.textContent = numberFormat.format(demos.waiting || 0);
       elements.demosCity.textContent = numberFormat.format(demos.city_pending || 0);
       elements.demosEscalated.textContent = numberFormat.format(demos.escalated_pending || 0);
+      elements.demosStale.textContent = numberFormat.format(demos.undecided_past || 0);
       elements.demosUpcoming.textContent = numberFormat.format(demos.published_upcoming || 0);
       elements.demosPublished.textContent = numberFormat.format(demos.published_total || 0);
       elements.casesOpen.textContent = numberFormat.format(cases.open || 0);

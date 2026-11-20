@@ -21,6 +21,7 @@ def test_snapshot_counts_have_one_meaning(app, db, seeded_data):
     with app.test_request_context():
         before = _calculate_dashboard_snapshot()["demos"]
     _demo(db)  # waiting
+    _demo(db, in_past=True)  # undecided but its date passed: stale, not waiting
     _demo(db, rejected=True)  # decided: not waiting, not published
     _demo(db, cancelled=True)  # cancelled: neither
     _demo(db, approved=True)  # published upcoming
@@ -31,6 +32,7 @@ def test_snapshot_counts_have_one_meaning(app, db, seeded_data):
         after = _calculate_dashboard_snapshot()["demos"]
 
     assert after["waiting"] - before["waiting"] == 1
+    assert after["undecided_past"] - before["undecided_past"] == 1
     assert after["published_upcoming"] - before["published_upcoming"] == 1
     assert after["published_total"] - before["published_total"] == 2
 
