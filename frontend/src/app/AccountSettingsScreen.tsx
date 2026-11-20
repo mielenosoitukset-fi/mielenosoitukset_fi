@@ -12,6 +12,7 @@ import {
 import type { AccountSettingsRead, AccountTabId } from './account-settings-route';
 import { useStepUp } from './StepUpDialog';
 import { MfaCard } from './MfaCard';
+import { PasskeysCard } from './PasskeysCard';
 import { formatDeveloperDate } from './developer-route';
 import './information/information.css';
 import './suggest-change/suggest-change.css';
@@ -189,21 +190,10 @@ function SecurityPanel({ data }: { data: AccountSettingsRead }) {
     <section className="public-prose-card account-card" aria-labelledby="account-security-title">
       <h2 id="account-security-title">{copy.securityTitle}</h2>
       <p className="account-muted">{copy.securityLead}</p>
-      {notice('info', copy.securityLater)}
     </section>
     <PasswordCard />
     <MfaCard initial={data.mfa} />
-    <section className="public-prose-card account-card" aria-labelledby="account-passkeys-title">
-      <h2 id="account-passkeys-title">{copy.passkeysTitle}</h2>
-      <p className="account-muted">{copy.passkeysLead}</p>
-      {data.passkeys.length ? <ul className="account-list">
-        {data.passkeys.map(key => <li key={key.id}>
-          <strong>{key.name || copy.passkeyDevice}</strong>
-          <div className="account-muted">{formatDeveloperDate(key.createdAt)}
-            {key.lastUsedAt && <> · {copy.lastUsed}: {formatDeveloperDate(key.lastUsedAt)}</>}</div>
-        </li>)}
-      </ul> : <p className="account-muted">{copy.noPasskeys}</p>}
-    </section>
+    <PasskeysCard initial={data.passkeys} />
     <section className="public-prose-card account-card" aria-labelledby="account-history-title">
       <h2 id="account-history-title">{copy.historyTitle}</h2>
       <div className="account-table-wrap" tabIndex={0} role="region" aria-label={copy.historyTitle}>
