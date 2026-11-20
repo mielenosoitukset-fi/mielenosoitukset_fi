@@ -275,7 +275,7 @@
 
             <div class="form-group mt-4" id="recurring-break-dates">
                 <label class="block font-medium mb-1">{{ _('Taukopäivät') }}</label>
-                <p class="text-muted">{{ _('Taukopäivälle osuvat jo luodut lapsimielenosoitukset merkitään perutuiksi, ja niihin ilmoittautuneet saavat peruutuksesta viestin. Uusia ei luoda kyseiselle päivälle. Lukitut lapsimielenosoitukset eivät muutu.') }}</p>
+                <p class="text-muted">{{ _('Taukopäivälle osuvat jo luodut lapsimielenosoitukset merkitään perutuiksi, ja niihin ilmoittautuneet saavat peruutuksesta viestin. Uusia ei luoda kyseiselle päivälle. Jäädytetyt lapsimielenosoitukset eivät muutu.') }}</p>
                 <div id="break-date-list" class="child-demo-list">
                     {% if demo and demo.break_dates %}
                     {% for break_date in demo.break_dates %}
@@ -320,7 +320,7 @@
                 data-more-label="{{ _('Lisää päivämääriä syntyy tämän esikatselun jälkeen.') }}"
                 data-break-label="{{ _('%(count)s taukopäivää on jätetty pois.', count='__COUNT__') }}"
                 {% if demo and demo._id %}data-series-id="{{ demo._id }}"{% endif %}
-                data-cancel-label="{{ _('Kun tallennat, jo luotuja mielenosoituksia perutaan taukopäivinä: %(count)s.', count='__COUNT__') }}"
+                data-cancel-label="{{ _('Tallennus peruu taukopäiville osuvia jo luotuja mielenosoituksia: %(count)s.', count='__COUNT__') }}"
                 data-attendees-label="{{ _('Ilmoittautuneita, jotka saavat peruutuksesta viestin: %(count)s.', count='__COUNT__') }}"
             >
                 <header class="admin-recurrence-preview__header">

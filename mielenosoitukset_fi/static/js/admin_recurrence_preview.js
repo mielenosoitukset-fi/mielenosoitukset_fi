@@ -50,8 +50,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!warning) return;
     const lines = [];
     if (payload && payload.cancels_children) {
-      lines.push(withCount(label("cancelLabel", "Jo luotuja mielenosoituksia perutaan: __COUNT__."), payload.cancels_children));
-      lines.push(withCount(label("attendeesLabel", "Ilmoittautuneita, jotka saavat viestin: __COUNT__."), payload.notifies_attendees || 0));
+      lines.push(withCount(label("cancelLabel", "Tallennus peruu taukopäiville osuvia jo luotuja mielenosoituksia: __COUNT__."), payload.cancels_children));
+      lines.push(withCount(label("attendeesLabel", "Ilmoittautuneita, jotka saavat peruutuksesta viestin: __COUNT__."), payload.notifies_attendees || 0));
     }
     warning.textContent = lines.join(" ");
     warning.hidden = lines.length === 0;
