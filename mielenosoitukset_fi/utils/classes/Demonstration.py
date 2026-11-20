@@ -792,7 +792,7 @@ class Demonstration(BaseModel):
 
             raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
 
-    def save(self):
+    def save(self, *, write_approval=False):
         """Save or update the demonstration in the database.
 
         This method converts the demonstration object to a dictionary and checks if it
@@ -803,8 +803,17 @@ class Demonstration(BaseModel):
         Server-owned moderation metadata must not disappear during normalization
         or content editing. Owning workflows must explicitly unset retired fields.
 
+        ``approved`` is moderation state owned by the decision service. On an
+        existing document it is written only when ``write_approval`` is true,
+        so a stale or merged content snapshot cannot clear an approval that
+        was decided after the model was loaded (issue #1172).
+
         Parameters
         ----------
+        write_approval : bool
+            Persist this model's ``approved`` value on an existing document.
+            Only an authorized caller that deliberately sets approval (the
+            admin edit form) should pass True. Inserts always store it.
 
         Returns
         -------
@@ -831,6 +840,8 @@ class Demonstration(BaseModel):
         # Check if the demonstration already exists in the database
         db = _get_db()
         if db["demonstrations"].find_one({"_id": self._id}):
+            if not write_approval:
+                data.pop("approved", None)
             # Persist modeled fields without deleting server-owned fields that
             # this model does not serialize (moderation identity, rejected, etc.).
             # Approval decisions and their side effects belong to the domain
