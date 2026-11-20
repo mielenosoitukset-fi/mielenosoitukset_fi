@@ -364,7 +364,7 @@ func TestSubmissionEndDate(t *testing.T) {
 	for _, value := range []string{"2098-12-31", "2099-01-15", "2099-02-30", "2099-1-3", "<script>"} {
 		_, err := readSubmission(httptest.NewRecorder(), submissionRequest(token, "Title", map[string]string{"end_date": value}), locales)
 		reason, ok := err.(submissionError)
-		if !ok || reason.Code != "SUBMIT_INVALID_FIELD" || !strings.Contains(reason.Message, "Päättymispäivän") {
+		if !ok || reason.Code != "SUBMIT_INVALID_FIELD" || !strings.Contains(reason.Message, "Päättymispäivä ei voi") {
 			t.Fatalf("end_date %q accepted: %#v", value, err)
 		}
 	}

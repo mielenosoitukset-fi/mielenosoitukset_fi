@@ -31,7 +31,7 @@ const fi: SubmitMessages = {
   dateLabel: 'Päivämäärä', datePlaceholder: 'pp.kk.vvvv', dateFormatHelper: 'Valitse päivä kalenterista tai kirjoita muodossa pp.kk.vvvv.',
   startTimeLabel: 'Alkamisaika', endTimeLabel: 'Päättymisaika (valinnainen)', endTimeHelper: 'Anna arvioitu päättymisaika.',
   endDateLabel: 'Päättymispäivä (valinnainen)', endDateHelper: 'Vain jos mielenosoitus kestää useamman päivän, enintään 14 päivää.',
-  endDateInvalid: 'Päättymispäivän pitää olla alkamispäivän jälkeen ja enintään 13 päivää myöhemmin.',
+  endDateInvalid: 'Päättymispäivä ei voi olla ennen alkamispäivää, ja mielenosoitus voi kestää enintään 14 päivää.',
   typeLabel: 'Mielenosoituksen tyyppi', typePlaceholder: 'Mielenosoituksen tyyppi', typeOption: { paikallaan: 'Paikallaan', marssi: 'Marssi / kulkue', muut: 'Muu' },
   routeLabel: 'Marssin reitti', routePlaceholder: 'Kuvaile marssin reitti pilkuilla eroteltuna, esim. Rautatientori, Mannerheimintie, Eduskuntatalo',
   routeHelper: 'Anna osallistujille käsitys marssin kulusta. Erota kadunnimet pilkulla (,), niin ne näkyvät mielenosoituksen sivulla.',

@@ -156,7 +156,7 @@ func validateSubmissionFields(r *http.Request) error {
 	if endDate != "" {
 		last, err := time.Parse("2006-01-02", endDate)
 		if err != nil || last.Format("2006-01-02") != endDate || last.Before(date) || last.After(date.AddDate(0, 0, maxDemoDays-1)) {
-			return invalidSubmissionField("Päättymispäivän pitää olla alkamispäivän jälkeen ja enintään 13 päivää myöhemmin.")
+			return invalidSubmissionField("Päättymispäivä ei voi olla ennen alkamispäivää, ja mielenosoitus voi kestää enintään 14 päivää.")
 		}
 	}
 	for _, key := range []string{"start_time", "end_time"} {
