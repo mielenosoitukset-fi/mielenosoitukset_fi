@@ -80,6 +80,17 @@ if grep -q 'http://127.0.0.1:8091/api/submissions' "$reviewed"; then
   fi
 fi
 
+# Contact: Go answers a GET to /contact with 405 (Allow: POST) before quotas,
+# tokens or any database work; without the flag the route falls through.
+if grep -q '^RewriteRule "\^/contact\$" "http://127.0.0.1:8091/contact"' "$reviewed"; then
+  contact_status=$(curl --silent --show-error --max-time 5 --output /dev/null \
+    --write-out '%{http_code}' http://127.0.0.1:8091/contact)
+  if [[ $contact_status != 405 ]]; then
+    log "Go contact form is not enabled/ready; keeping the current routing"
+    exit 1
+  fi
+fi
+
 install -d -m 0700 "$backup_root"
 backup="$backup_root/mielenosoitukset-react-ssr.conf.$(date -u +%Y%m%dT%H%M%SZ)"
 cp -a "$include" "$backup"

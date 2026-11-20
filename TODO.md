@@ -56,7 +56,7 @@ Proposal: [Public write API migration contracts, approval questions and rollout 
 Maintainer direction, 10 November 2026: when a page is redesigned or moved to React, its Flask endpoints move to the Go API too, in the same work or later. Still on Flask:
 
 - [ ] `/api/session` and its scopes (`organization_id`, `translation_join`, `contact_form`). *(approval: session)* The read-only Go bridge and scopes were activated and verified 12 November ([auth-bridge.md](docs/auth-bridge.md)); the underlying session endpoint still lives in Flask.
-- [ ] `POST /contact`: rate limits, one-time token, honeypot, validation and email.
+- [x] `POST /contact` (Go, activated 20 November 2026): rate limits, one-time token, honeypot, validation and email.
 - [ ] `POST /organization/<id>/save_suggestion`: stores the suggestion, opens a case and notifies moderators.
 - [ ] `POST /suggest_change/<demo_id>`: compares proposed fields and Markdown, stores a demonstration suggestion, opens a case and notifies moderators; GET/HEAD now belongs to the React host.
 - [ ] `POST /kampanja/api/volunteers` and `/kampanja/confirm/<token>`. Signup is in Go, dark, flag `CAMPAIGN_VOLUNTEERS_GO_ENABLED` ([go-campaign-volunteers.md](docs/go-campaign-volunteers.md)); the confirm route remains.
