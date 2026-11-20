@@ -3524,3 +3524,18 @@ Three added definitions on real Flask, indexed Mongo and the actual god-login en
 - [x] `test_wrong_final_secret_does_not_sign_in`: wrong and too-short final secrets leave no user or receipt session, no governance access and no audit row; the right secret on the same proof completes with one audit row. The proof is placed at the final stage directly, so earlier stages are not re-proven.
 
 Production authentication is unchanged.
+
+## tests/test_password_changed_at.py (QA-01, 2026-11-20)
+
+All six existing definitions reviewed individually, two added. Real Flask reset route and test MongoDB; `INVALIDATE_ON_PASSWORD_RESET` toggled per test.
+
+- [x] `test_reset_records_password_changed_at_without_touching_sessions_by_default`: field set, `auth_epoch` unchanged with the flag off.
+- [x] `test_flag_on_ends_existing_sessions_after_a_reset`: asserts only that `auth_epoch` goes up. Before this review no test showed that an open session is actually dropped, so removing the epoch comparison from the user loader passed every test.
+- [x] `test_flag_on_refuses_reset_link_issued_before_the_last_change`: password hash unchanged and no used-token row. Good negative.
+- [x] `test_flag_off_keeps_older_reset_links_working`: positive control for the previous one.
+- [x] `test_accounts_without_the_field_behave_as_before`: legacy accounts still reset.
+- [x] `test_token_age_helper_dates_legacy_tokens_from_expiry`: helper only, both sides of the boundary.
+- [x] Added `test_flag_on_signs_out_a_session_opened_before_the_reset`: a signed-in client is authenticated, the password is reset from another client, and the first client is then anonymous on `/api/session`. Mutation check: removing the `auth_epoch` comparison in `load_user` (`app.py`) fails this test and no other in the file.
+- [x] Added `test_flag_off_leaves_a_session_opened_before_the_reset_signed_in`: pins today's default (the flag is off), so switching it on is a visible, deliberate change.
+
+Production code unchanged.
