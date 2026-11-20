@@ -59,7 +59,7 @@ Maintainer direction, 10 November 2026: when a page is redesigned or moved to Re
 - [ ] `POST /contact`: rate limits, one-time token, honeypot, validation and email.
 - [ ] `POST /organization/<id>/save_suggestion`: stores the suggestion, opens a case and notifies moderators.
 - [ ] `POST /suggest_change/<demo_id>`: compares proposed fields and Markdown, stores a demonstration suggestion, opens a case and notifies moderators; GET/HEAD now belongs to the React host.
-- [ ] `POST /kampanja/api/volunteers` and `/kampanja/confirm/<token>`.
+- [ ] `POST /kampanja/api/volunteers` and `/kampanja/confirm/<token>`. Signup is in Go, dark, flag `CAMPAIGN_VOLUNTEERS_GO_ENABLED` ([go-campaign-volunteers.md](docs/go-campaign-volunteers.md)); the confirm route remains.
 - [ ] `POST /upcoming/translations/join`. *(approval: permissions)*
 - [x] Analytics event `POST /api/analytics/event`: Go activated 11 November; the Flask-equivalent counter cross-check and POST routing are complete (`SITE_ANALYTICS_ENABLED=true`; `docs/go-public-api.md`). Production routing rechecked 13 November.
 - [ ] Analytics pageview `/api/analytics/pageview`: still Flask; visitor-secret/locale decisions remain prerequisites.
