@@ -91,7 +91,8 @@ def test_demo_suggestions_status_filter_counts_and_page_size_are_preserved(
         db.demo_suggestions.insert_one(
             {
                 "_id": ObjectId(),
-                "demo_id": str(seeded_data["demo_id"]),
+                # Unknown demonstrations fall back to the stored original title.
+                "demo_id": str(ObjectId()),
                 "status": status,
                 "created_at": seeded_suggestion["created_at"],
                 "suggested_fields": {"title": f"Suggestion {status}"},
@@ -586,3 +587,34 @@ def test_create_demo_rejects_a_duplicate_normalized_slug(admin_client, db, seede
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/admin/demo/create_demo")
     assert db.demonstrations.find_one({"title": "Duplicate slug demo"}) is None
+
+
+def test_demo_suggestions_list_shows_demo_title_when_title_unchanged(
+    admin_client, db, seeded_data
+):
+    demo = db.demonstrations.find_one({"_id": seeded_data["demo_id"]})
+    db.demo_suggestions.delete_many({})
+    db.demo_suggestions.insert_one(
+        {
+            "_id": ObjectId(),
+            "demo_id": str(seeded_data["demo_id"]),
+            "status": "pending",
+            "created_at": datetime(2026, 11, 20, 12, 0),
+            "suggested_fields": {"address": "Uusi osoite 1"},
+            "original_values": {"address": demo.get("address")},
+        }
+    )
+    db.demo_suggestions.insert_one(
+        {
+            "_id": ObjectId(),
+            "demo_id": "not-an-id",
+            "status": "pending",
+            "created_at": datetime(2026, 11, 20, 11, 0),
+            "suggested_fields": {"city": "Turku"},
+            "original_values": {"city": "Helsinki"},
+        }
+    )
+
+    page = admin_client.get("/admin/demo/suggestions").get_data(as_text=True)
+    assert f"<strong>{demo['title']}</strong>" in page
+    assert page.count("Tuntematon mielenosoitus") == 1

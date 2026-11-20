@@ -43,6 +43,12 @@ def configure(source, target):
         # Campaign opening interest signup (docs/campaign-opening-interest.md): same rules.
         if config.get("OPENING_INTEREST_SIGNUP") is True:
             values["OPENING_INTEREST_SIGNUP_ENABLED"] = "true"
+        # Suggestion form writes (docs/go-public-api.md): need public submissions, as
+        # above. On by default since 20 November 2026 (maintainer's go);
+        # `SUGGESTIONS_GO: false` in config.yaml opts out. Without this line a
+        # hand-set environment flag was lost at the next deploy.
+        if config.get("SUGGESTIONS_GO", True) is True:
+            values["SUGGESTIONS_GO_ENABLED"] = "true"
     # Event analytics follow the Flask switch, which defaults to enabled when
     # the key is missing (app.py: config.get("SITE_ANALYTICS_ENABLED", True)),
     # so a redeploy keeps Go writes in step with Flask.
