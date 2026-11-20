@@ -3091,6 +3091,17 @@ def init_routes(app):
         - the requester is authenticated
         - flash messages are pending for the session/request
         """
+        # A taken-down demo keeps its URL with a short notice and the reason.
+        # Admins with VIEW_DEMO still get the privileged view below.
+        if not (current_user.is_authenticated and current_user.has_permission("VIEW_DEMO")):
+            from mielenosoitukset_fi.utils.react_detail import resolve_taken_down
+            taken_down = resolve_taken_down(mongo, demo_id)
+            if taken_down:
+                response = make_response(render_template("demo_taken_down.html", demo=taken_down), 410)
+                response.headers["X-Robots-Tag"] = "noindex"
+                response.headers["Cache-Control"] = "no-store"
+                return response
+
         # The public React shell does only a projected metadata/visibility read.
         # API content is fetched directly by the browser, never before Flask TTFB.
         if current_app.config.get("PUBLIC_DETAIL_REACT_ENABLED", False):
