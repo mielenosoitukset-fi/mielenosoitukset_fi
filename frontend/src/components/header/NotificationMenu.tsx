@@ -3,7 +3,7 @@ import type { HeaderProps } from './types';
 import { Icon } from './NavigationLink';
 
 type Notice = { id: string; type: string; link: string; message: string; time: string; read: boolean };
-const icons: Record<string, string> = {
+export const notificationIcons: Record<string, string> = {
   org_invite: 'fa-building-circle-check', friend_request: 'fa-user-plus', demo_invite: 'fa-bullhorn',
   demo_cancelled: 'fa-ban', recurring_demo_update: 'fa-arrows-rotate',
 };
@@ -93,7 +93,7 @@ export function NotificationMenu({ notifications: urls, messages, path }: Pick<H
           <span>{state === 'loading' ? messages.loading : state === 'error' ? messages.loadError : messages.empty}</span>
         </div> : notices.map((notice, index) => <div key={notice.id || index} className={`notif-item${notice.read ? '' : ' is-unread'}`}>
           <a className="notif-item__link" href={safeNotificationHref(notice.link)}>
-            <span className="notif-item__icon"><Icon name={icons[notice.type] || 'fa-circle-info'} /></span>
+            <span className="notif-item__icon"><Icon name={notificationIcons[notice.type] || 'fa-circle-info'} /></span>
             <span className="notif-item__content"><span className="notif-item__message">{notice.message}</span>
               <time className="notif-item__time" dateTime={notice.time}>{timestamp(notice.time)}</time></span>
           </a>

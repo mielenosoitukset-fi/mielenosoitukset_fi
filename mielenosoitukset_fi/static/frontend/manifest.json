@@ -22,9 +22,9 @@
     "file": "assets/mount-island-Bd8CA551.js",
     "name": "mount-island"
   },
-  "_public-detail-DZkY5NCy.css": {
-    "file": "assets/public-detail-DZkY5NCy.css",
-    "src": "_public-detail-DZkY5NCy.css"
+  "_public-detail-BuChzn6j.css": {
+    "file": "assets/public-detail-BuChzn6j.css",
+    "src": "_public-detail-BuChzn6j.css"
   },
   "src/components/detail/DetailMap.tsx": {
     "file": "assets/DetailMap-D71yWk6N.js",
@@ -36,7 +36,7 @@
     ]
   },
   "src/entries/campaign.tsx": {
-    "file": "assets/campaign-BYGhwuJf.js",
+    "file": "assets/campaign-so3hN9Mv.js",
     "name": "campaign",
     "src": "src/entries/campaign.tsx",
     "isEntry": true,
@@ -55,7 +55,7 @@
     ]
   },
   "src/entries/detail.tsx": {
-    "file": "assets/detail-CSJgosBq.js",
+    "file": "assets/detail-D9waboUE.js",
     "name": "detail",
     "src": "src/entries/detail.tsx",
     "isEntry": true,
@@ -77,7 +77,7 @@
     ]
   },
   "src/entries/home.tsx": {
-    "file": "assets/home-CCAmjEGX.js",
+    "file": "assets/home-CQFZQ21T.js",
     "name": "home",
     "src": "src/entries/home.tsx",
     "isEntry": true,
@@ -86,11 +86,11 @@
       "_DemonstrationCard-sjlaHUwt.js"
     ],
     "css": [
-      "assets/public-detail-DZkY5NCy.css"
+      "assets/public-detail-BuChzn6j.css"
     ]
   },
   "src/entries/listing.tsx": {
-    "file": "assets/listing-C8cMTgy8.js",
+    "file": "assets/listing-C29L30lJ.js",
     "name": "listing",
     "src": "src/entries/listing.tsx",
     "isEntry": true,
@@ -99,7 +99,7 @@
       "_DemonstrationCard-sjlaHUwt.js"
     ],
     "css": [
-      "assets/public-detail-DZkY5NCy.css"
+      "assets/public-detail-BuChzn6j.css"
     ]
   },
   "src/entries/pride.tsx": {
