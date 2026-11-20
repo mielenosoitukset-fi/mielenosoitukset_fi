@@ -72,8 +72,13 @@ MFA_PENDING_LOGIN_MAX_ATTEMPTS = 5
 
 
 LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60
+# Failures for one username from one address. Counting per address keeps a
+# stranger from locking an account out of every network with a few guesses.
 LOGIN_FAILURES_PER_USERNAME = 10
 LOGIN_FAILURES_PER_IP = 30
+# Failures for one username from all addresses together: a ceiling for
+# guessing spread across many addresses, out of reach of a single client.
+LOGIN_FAILURES_PER_USERNAME_ALL_IPS = 100
 LOGIN_THROTTLED_MESSAGE = "Liian monta epäonnistunutta kirjautumisyritystä. Yritä uudelleen 15 minuutin kuluttua."
 
 
@@ -81,9 +86,11 @@ def _login_failure_keys(username, ip):
     """Hashed per-window keys, so no username or IP address is stored in clear."""
     bucket = int(utcnow().timestamp()) // LOGIN_FAILURE_WINDOW_SECONDS
     keys = {}
+    user = (username or "").casefold()
     for kind, identity, limit in (
-        ("user", (username or "").casefold(), LOGIN_FAILURES_PER_USERNAME),
+        ("user-ip", f"{user}\n{ip}" if user and ip else "", LOGIN_FAILURES_PER_USERNAME),
         ("ip", ip or "", LOGIN_FAILURES_PER_IP),
+        ("user", user, LOGIN_FAILURES_PER_USERNAME_ALL_IPS),
     ):
         if identity:
             keys["login-limit:" + _pending_mfa_digest(f"{kind}:{identity}:{bucket}")] = limit

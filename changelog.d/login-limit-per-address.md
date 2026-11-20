@@ -1,0 +1,1 @@
+- Failed sign-in attempts from one network no longer block the same account from signing in elsewhere; a higher shared limit still stops guessing spread over many addresses.
