@@ -107,3 +107,23 @@ def test_case_page_action_takes_down_with_reason(admin_client, db, seeded_data):
     demo = db.demonstrations.find_one({"_id": demo_id})
     assert demo["taken_down"] is True
     assert demo["moderation_decision"]["source"] == "case_take_down"
+
+
+def test_case_page_offers_the_right_button_per_state(admin_client, db, seeded_data):
+    demo_id = seeded_data["pending_demo_id"]
+    case = db.cases.find_one({"type": "new_demo", "demo_id": demo_id})
+    page = lambda: admin_client.get(f"/admin/case/{case['_id']}/").get_data(as_text=True)
+
+    pending = page()
+    assert "Hylkää mielenosoitus" in pending and "takeDownDemo()\"" not in pending
+
+    _approve(admin_client, demo_id)
+    approved = page()
+    assert 'onclick="takeDownDemo()"' in approved
+    assert 'onclick="rejectDemo()"' not in approved and 'onclick="approveDemo()"' not in approved
+
+    _take_down(admin_client, demo_id)
+    taken_down = page()
+    assert "Julkaise uudelleen" in taken_down
+    assert "Ilmoitus sisälsi henkilötietoja." in taken_down
+    assert 'onclick="takeDownDemo()"' not in taken_down

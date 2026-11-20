@@ -179,6 +179,12 @@ def _auto_close_case(case_obj, reason, actor):
     )
 
 
+def _can_take_down(demo):
+    from mielenosoitukset_fi.utils.demo_takedown import can_take_down_demo
+
+    return bool(demo) and can_take_down_demo(current_user, demo)
+
+
 def _stringify_demo(demo):
     if not demo:
         return {}
@@ -633,6 +639,7 @@ def single_case(case_id):
         case_data=case_data,
         can_edit_case=can_access_case(current_user, "EDIT_CASE", case._id),
         global_case_controls=global_case_permission(current_user, "EDIT_CASE"),
+        can_take_down=_can_take_down(case_data.get("demo")),
         reject_reasons=case_reasons.choices(case_reasons.REJECT_KEYS),
         close_reasons=case_reasons.choices(case_reasons.CLOSE_KEYS),
     )
