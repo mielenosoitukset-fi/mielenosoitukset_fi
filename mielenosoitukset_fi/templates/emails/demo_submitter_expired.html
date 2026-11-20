@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <title>Pahoittelumme: ilmoitustasi ei ehditty käsitellä</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; background-color: #f8f8f8; color: #333; padding: 20px; }
+        .container { max-width: 700px; margin: 0 auto; background-color: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h2 { color: #1f3a8a; margin-bottom: 20px; }
+        .details p { margin: 5px 0; }
+        hr { border: 0; border-top: 1px solid #ccc; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Pahoittelemme, ettemme ehtineet käsitellä ilmoitustasi</h2>
+        <p>Kiitos, että ilmoitit mielenosoituksesta. Ylläpitomme ei valitettavasti ehtinyt käsitellä ilmoitusta ennen tapahtuman päivää, joten se ei näkynyt sivustolla. Tämä oli meidän virheemme, ei sinun.</p>
+
+        <div class="details">
+            <p><strong>Otsikko:</strong> {{ title }}</p>
+            <p><strong>Päivämäärä:</strong> {{ date }}</p>
+            <p><strong>Kaupunki:</strong> {{ city }}</p>
+        </div>
+
+        <hr>
+
+        <p>Ilmoitusta ei hylätty. Jos järjestät tapahtuman uudelleen, ilmoita siitä mielellään uudestaan. Teemme töitä, jotta ilmoitukset käsitellään jatkossa ajoissa.</p>
+        <p>Jos haluat kertoa asiasta lisää, vastaa tähän viestiin tai kirjoita osoitteeseen <a href="mailto:tuki@mielenosoitukset.fi">tuki@mielenosoitukset.fi</a>.</p>
+
+        <p>Ystävällisin terveisin<br>Mielenosoitukset.fi-tiimi</p>
+    </div>
+</body>
+</html>

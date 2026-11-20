@@ -308,6 +308,8 @@ class Config:
         cls.CITY_ASSIGNMENT_ESCALATION_HOURS = config.get(
             "CITY_ASSIGNMENT_ESCALATION_HOURS", 24
         )
+        cls.EXPIRE_UNDECIDED_DEMOS = config.get("EXPIRE_UNDECIDED_DEMOS", True)
+        cls.EXPIRED_DEMO_NOTIFY_DAYS = config.get("EXPIRED_DEMO_NOTIFY_DAYS", 14)
         cls.NATIONAL_ADMIN_ORG_ID = config.get("NATIONAL_ADMIN_ORG_ID")
         cls.BOARD_ORG_ID = config.get("BOARD_ORG_ID")
         cls.OVERRIDE_OLIVIA_USER_ID = config.get("OVERRIDE_OLIVIA_USER_ID")
