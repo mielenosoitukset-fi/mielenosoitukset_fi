@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
-import { fetchStepUpMethods, restoreFocusWhenEnabled, runWithStepUp, stepUpCopy as copy, stepUpWithPasskey, stepUpWithPassword } from './account-stepup';
+import { fetchStepUpMethods, pickFocusReturn, restoreFocusWhenEnabled, runWithStepUp, stepUpCopy as copy, stepUpWithPasskey, stepUpWithPassword } from './account-stepup';
 import type { StepUpMethods, StepUpResult } from './account-stepup';
 import './account-settings/account-settings.css';
 
@@ -79,11 +79,11 @@ export function StepUpDialog({ finish }: { finish: (ok: boolean) => void }) {
 }
 
 /**
- * `withStepUp(() => fetch(...))` runs the request, asks the user to re-authenticate if Flask
+ * `withStepUp(() => fetch(...), button)` runs the request, asks the user to re-authenticate if Flask
  * demands it, retries once, and resolves `null` when the user cancels. Render `dialog` once
  * anywhere in the component.
  */
-export function useStepUp(): { withStepUp: (request: () => Promise<Response>) => Promise<Response | null>; dialog: ReactElement | null } {
+export function useStepUp(): { withStepUp: (request: () => Promise<Response>, fallback?: HTMLElement | null) => Promise<Response | null>; dialog: ReactElement | null } {
   const [open, setOpen] = useState(false);
   const pending = useRef<((ok: boolean) => void) | null>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -91,8 +91,10 @@ export function useStepUp(): { withStepUp: (request: () => Promise<Response>) =>
   const ask = useCallback(() => new Promise<boolean>(resolve => { pending.current = resolve; setOpen(true); }), []);
   // The opener is captured before the first request: the button that started it is disabled while
   // it runs and loses focus, so reading document.activeElement later would find nothing.
-  const withStepUp = useCallback(async (request: () => Promise<Response>) => {
-    opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+  // `fallback` is the control that started the request, for browsers that leave focus on the body after a click.
+  const withStepUp = useCallback(async (request: () => Promise<Response>, fallback: HTMLElement | null = null) => {
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    opener.current = pickFocusReturn<HTMLElement>(active, document.body, fallback);
     try { return await runWithStepUp(request, ask); }
     finally {
       const target = opener.current;

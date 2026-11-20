@@ -144,8 +144,10 @@ function PasswordCard() {
     const problem = passwordFormError(form);
     if (problem) { setMessage({ kind: 'error', text: problem }); return; }
     setMessage(null); setBusy(true);
+    // The submit button is where focus goes back when the browser did not focus it on click (Safari).
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
     let result: Awaited<ReturnType<typeof readPasswordResult>> = null;
-    try { result = await readPasswordResult(await withStepUp(passwordRequest(form)), copy.passwordFailed); } catch { result = { ok: false, message: copy.passwordFailed }; }
+    try { result = await readPasswordResult(await withStepUp(passwordRequest(form), submitter instanceof HTMLElement ? submitter : null), copy.passwordFailed); } catch { result = { ok: false, message: copy.passwordFailed }; }
     setBusy(false);
     if (!result) return;
     if (result.ok) { setCurrent(''); setNext(''); setConfirm(''); }
