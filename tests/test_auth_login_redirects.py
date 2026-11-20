@@ -159,6 +159,9 @@ def test_login_returns_to_mcp_oauth_consent_page(client, seeded_data, target):
 
 @pytest.mark.parametrize('target', [
     '/api/admin/mcp/oauth/token', '/api/admin/mcp/oauth/register',
+    '/api/v1/x%2f..%2f..%2fadmin/mcp/oauth/authorize',
+    '/api/v1/x/%2e%2e%2f%2e%2e%2fadmin/mcp/oauth/authorize',
+    '/api/admin/mcp/oauth/%61uthorize',
     '//outside.example/api/admin/mcp/oauth/authorize',
     'https://outside.example/api/admin/mcp/oauth/authorize',
 ])

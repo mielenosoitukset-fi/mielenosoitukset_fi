@@ -878,8 +878,9 @@ def _normalize_post_login_target(target: str | None) -> str:
 
     # Post-login redirects should land on human-facing pages, not raw APIs.
     # The MCP OAuth consent page lives under /api/ but is an HTML page that
-    # sends signed-out admins here first.
-    if path in _POST_LOGIN_PAGES_UNDER_API:
+    # sends signed-out admins here first. Match the raw path exactly so no
+    # encoded or dot-segment spelling can reach another /api/ URL.
+    if parsed.path.rstrip("/") in _POST_LOGIN_PAGES_UNDER_API:
         return candidate
     if path in {"/api", "/users/auth/api"} or path.startswith(("/api/", "/users/auth/api/")):
         return url_for("index")
