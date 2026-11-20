@@ -32,8 +32,9 @@ Already on the React host: home, listings (all, city, tag, today), detail and se
 Audit, 20 November 2026 (Flask routes rendering a public, non-admin page, checked against `deploy/apache/react-ssr-routing.conf`). Still Flask/Jinja:
 
 - Built in React but not routed: `/users/auth/settings` (password, MFA and passkey controls are in React since #1224/#1227/#1228; activation needs the maintainer's go, see [account-pages-react.md](docs/account-pages-react.md)).
-- Authentication: `/users/auth/login`, `/register`, `/register/next_steps`, `/password_reset_request`, `/password_reset/<token>`, `/forced_pwd_reset/`, `/forced_identity_change/`, `/verify_mfa`, the `/logout` confirmation page.
+- Authentication: `/register`, `/register/next_steps`, `/password_reset/<token>`, `/forced_pwd_reset/`, `/forced_identity_change/`, `/verify_mfa`, the `/logout` confirmation page.
 - `/report`; the write-on-GET token pages (drafts #1231–#1233); `/api/notifications/all`.
+- Moved to React since the audit: `/users/auth/login` (GET only; posts, MFA, passkeys and redirects stay in Flask; signed-in visitors and `?legacy=1` get Flask's page), `/users/auth/password_reset_request`, `/api/notifications/all`, `/users/auth/settings`.
 - Redirects instead of pages: `/users/profile/` now sends a signed-in user to `/users/profile/<username>` (React), `/developer/apps` to `/developer` (React), `/developer/docs` to `/api-docs/`.
 - Out of scope (admin or permission-gated tools): `/users/auth/ui/tokens` (admin-scope tokens), `/demonstration/<id>/some` (VIEW_DEMO, deprecated), `?preview=1`, `/board/*`.
 - Flask error pages (`errors/*.html`) and the panic page `heavy.html` serve only Flask-handled paths; the React host renders its own.
