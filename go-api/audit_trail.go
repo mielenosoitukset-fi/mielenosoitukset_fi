@@ -64,7 +64,7 @@ var auditSecretCollections = map[string]bool{
 	"user_passkeys": true, "passkey_challenges": true, "fresh_step_up_tokens": true,
 	"used_password_change_tokens": true, "demo_cancellation_tokens": true, "demo_submission_tokens": true,
 	"contact_form_tokens": true, "hallinto_sessions": true, "oauth_authorization_codes": true,
-	"erasure_identity_seals": true,
+	"erasure_identity_seals": true, "hallinto_oidc_codes": true, "hallinto_login_markers": true,
 }
 
 var (
