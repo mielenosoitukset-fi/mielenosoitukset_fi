@@ -129,6 +129,7 @@ func TestEmailConfirmOutcomes(t *testing.T) {
 		{"alg none", token("alg_none"), "invalid", 400, false},
 		{"tampered payload", token("tampered_payload"), "invalid", 400, false},
 		{"signed address has no account", token("unknown_user"), "user-not-found", 404, false},
+		{"signed address is only whitespace", token("whitespace_email"), "invalid", 400, false},
 		{"garbage", `{"token":"not.a.jwt!"}`, "invalid", 400, false},
 		{"empty token", `{"token":""}`, "invalid", 400, false},
 	}
@@ -325,5 +326,15 @@ func TestEmailConfirmMongoStore(t *testing.T) {
 	// and "+" and "." are literal in the legacy lookup.
 	if !confirmed["canonical"] || !confirmed["legacy"] || confirmed["lookalike"] || confirmed["other"] {
 		t.Fatalf("unexpected state %v", confirmed)
+	}
+}
+
+// The store must never be asked for an empty address, whatever the token says.
+func TestEmailConfirmNeverQueriesEmptyAddress(t *testing.T) {
+	fixture := loadEmailTokens(t)
+	store := &fakeAccounts{confirmed: map[string]bool{"": false}}
+	r := emailPost(emailTestHandler(store, fixture, &atomic.Bool{}, false), `{"token":"`+fixture.Tokens["whitespace_email"]+`"}`, nil)
+	if r.Code != 400 || store.writes != 0 || store.confirmed[""] {
+		t.Fatalf("%d writes=%d", r.Code, store.writes)
 	}
 }

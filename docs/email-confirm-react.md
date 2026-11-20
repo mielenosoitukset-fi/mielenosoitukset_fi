@@ -40,7 +40,7 @@ Parity with Flask `confirm_email` and `utils/auth.py`:
 - Token: HS256 JWT with `email`, `purpose: "email_confirmation"`, `iat`, `exp` (1 hour). A token
   with another purpose (a password reset token) is refused; one with no purpose (issued before the
   claim existed) still works until it expires. Time checks use PyJWT's 10 second leeway for `exp`,
-  `iat` and `nbf`. `go-api/testdata/email_confirm_tokens.json` holds 16 tokens signed by PyJWT
+  `iat` and `nbf`. `go-api/testdata/email_confirm_tokens.json` holds 17 tokens signed by PyJWT
   together with what Flask's verifier answers for each; the Go test asserts the same answer.
 - Account: lower-cased, case-folded `email_canonical`, else a case-insensitive match on `email`
   (the address is regex-escaped), then `$set confirmed: true`. Replaying a link is harmless and
@@ -50,7 +50,7 @@ Parity with Flask `confirm_email` and `utils/auth.py`:
 
 Differences, on purpose:
 
-- A token without `exp` is refused (Flask never mints one).
+- A token without `exp` is refused (Flask never mints one), and so is one whose address is empty after trimming (Flask answers "user not found"; Go answers `invalid` and never queries for an empty address).
 - Go cannot touch the visitor's Flask session, so `session["registration_email"]` is not cleared.
   It only prefills the "check your mail" page.
 - Flask answers with a redirect and a flash message; React shows the outcome and a login link.
@@ -63,16 +63,14 @@ does not have it (it receives only an HMAC-derived `PUBLIC_SUBMIT_SECRET`), and
 [auth-bridge.md](auth-bridge.md) chose not to move the key. Verifying these tokens in Go needs a key
 that equals the one that signed them. Options for the maintainer and the security reviewer:
 
-1. **Give Go the same value** as `EMAIL_CONFIRM_JWT_KEY` (what this PR supports). Simple, but a
-   leak from the Go process would also allow forging Flask sessions. Mitigation: environment file
-   readable by the Go service user only.
-2. **Mint confirmation tokens with a derived key** (HMAC of `SECRET_KEY` with a fixed label) and let
+1. ~~Give Go the same value as `SECRET_KEY`~~ Rejected by the security review: a leak from Go would allow forging Flask sessions. Do not use it.
+2. **Chosen: mint confirmation tokens with a derived key** (HMAC of `SECRET_KEY` with a fixed label) and let
    Flask accept both old and new tokens for an hour. Go then holds only the derived key. This changes
    Flask's token issuing, so it is a separate, reviewed PR; the Go verifier needs no change besides
    the key value.
 3. Keep this route in Flask.
 
-Nothing here sets or reads a production secret. The route stays off until a key is chosen.
+Option 2 is a separate small draft PR touching only Flask's token issue/verify side. `EMAIL_CONFIRM_JWT_KEY` stays unset until that PR is reviewed and live, so this route stays off. Nothing here sets or reads a production secret.
 
 ## Tests
 

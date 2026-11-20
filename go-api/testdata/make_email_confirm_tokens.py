@@ -27,6 +27,7 @@ tokens = {
     "no_exp": sign({"email": "maija@example.com", "purpose": "email_confirmation", "iat": JAN}),
     "no_email": sign({"purpose": "email_confirmation", "iat": JAN, "exp": FAR}),
     "email_not_string": sign({**good, "email": 5}),
+    "whitespace_email": sign({**good, "email": "   "}),
     "unknown_user": sign({**good, "email": "nobody@example.com"}),
 }
 head, payload, sig = tokens["valid"].split(".")

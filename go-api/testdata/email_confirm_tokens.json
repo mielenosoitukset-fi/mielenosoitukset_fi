@@ -15,6 +15,7 @@
   "no_exp": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1haWphQGV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMH0.l6-uyZwHTH-DVJOQzBZ5fboDg3myiEtRV3N41mAOtU4",
   "no_email": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwdXJwb3NlIjoiZW1haWxfY29uZmlybWF0aW9uIiwiaWF0IjoxNzY3MjI1NjAwLCJleHAiOjQxMDI0NDQ4MDB9.orU9f_P-1yRl5tZzKFO354jn3x26JQj5e-L85ea_354",
   "email_not_string": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6NSwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.iGaAatHNtedpsCtS69NvqvFEyZDI2qDPZKvU92bVZ44",
+  "whitespace_email": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IiAgICIsInB1cnBvc2UiOiJlbWFpbF9jb25maXJtYXRpb24iLCJpYXQiOjE3NjcyMjU2MDAsImV4cCI6NDEwMjQ0NDgwMH0.RCuDXmiB-mPIpNpykxNnR5Z1GXMWLk_KSwY2GkgLFlA",
   "unknown_user": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im5vYm9keUBleGFtcGxlLmNvbSIsInB1cnBvc2UiOiJlbWFpbF9jb25maXJtYXRpb24iLCJpYXQiOjE3NjcyMjU2MDAsImV4cCI6NDEwMjQ0NDgwMH0.vPG5wICdiJyNpXS8pKt8ZuL1zmRiJ9AZ2pUpU26owDM",
   "tampered_payload": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im5vYm9keUBleGFtcGxlLmNvbSIsInB1cnBvc2UiOiJlbWFpbF9jb25maXJtYXRpb24iLCJpYXQiOjE3NjcyMjU2MDAsImV4cCI6NDEwMjQ0NDgwMH0.mIgz1qggK2i28lWtuoG8sSS994C0-JSWCXL24sprRvE",
   "alg_none": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJlbWFpbCI6Ik1haWphQEV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjo0MTAyNDQ0ODAwfQ."
@@ -33,6 +34,7 @@
   "no_exp": "maija@example.com",
   "no_email": null,
   "email_not_string": 5,
+  "whitespace_email": "   ",
   "unknown_user": "nobody@example.com",
   "tampered_payload": null,
   "alg_none": null

@@ -189,7 +189,14 @@ func emailConfirmHandler(next http.Handler, store emailConfirmStore, key []byte,
 			writeJSON(w, http.StatusBadRequest, bson.M{"success": false, "status": "invalid"})
 			return
 		}
-		found, err := store.Confirm(ctx, normalizeAccountEmail(email))
+		// A signed address that is empty after trimming matches no account; refuse it here
+		// instead of querying for "" (Flask would answer "user not found").
+		canonical := normalizeAccountEmail(email)
+		if canonical == "" {
+			writeJSON(w, http.StatusBadRequest, bson.M{"success": false, "status": "invalid"})
+			return
+		}
+		found, err := store.Confirm(ctx, canonical)
 		if err != nil {
 			reminderFailure(w, http.StatusServiceUnavailable, "EMAIL_CONFIRM_UNAVAILABLE", "Yritä uudelleen hetken kuluttua.")
 			return
