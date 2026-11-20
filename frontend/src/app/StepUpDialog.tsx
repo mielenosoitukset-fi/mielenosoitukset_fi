@@ -30,7 +30,8 @@ export function StepUpDialog({ finish }: { finish: (ok: boolean) => void }) {
     void fetchStepUpMethods(typeof window.PublicKeyCredential !== 'undefined').then(found => {
       if (!live) return;
       if (!found) setError(copy.optionsFailed);
-      setMethods(found ?? { passkey: false, password: true, requiresTotp: false });
+      // Without the options the dialog cannot know whether the account has MFA: show the code field, which may be left empty.
+      setMethods(found ?? { passkey: false, password: true, requiresTotp: true });
     });
     return () => { live = false; };
   }, []);
@@ -55,7 +56,7 @@ export function StepUpDialog({ finish }: { finish: (ok: boolean) => void }) {
     <p className="account-muted">{copy.lead}</p>
     <div aria-live="polite">{error && <div className="flash-message flash-message--inline flash-error" role="alert"><span className="flash-text">{error}</span></div>}</div>
     {methods?.passkey && <div className="detail-actions">
-      <button type="button" className="detail-button detail-button--primary" disabled={busy} onClick={usePasskey}>{copy.passkey}</button>
+      <button type="button" className="detail-button detail-button--primary" disabled={busy} autoFocus onClick={usePasskey}>{copy.passkey}</button>
     </div>}
     {methods && <form className="suggest-change-form" onSubmit={usePassword}>
       <div className="suggest-change-field">

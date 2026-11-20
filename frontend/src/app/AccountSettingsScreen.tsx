@@ -11,6 +11,7 @@ import {
 } from './account-settings-route';
 import type { AccountSettingsRead, AccountTabId } from './account-settings-route';
 import { useStepUp } from './StepUpDialog';
+import { MfaCard } from './MfaCard';
 import { formatDeveloperDate } from './developer-route';
 import './information/information.css';
 import './suggest-change/suggest-change.css';
@@ -193,17 +194,7 @@ function SecurityPanel({ data }: { data: AccountSettingsRead }) {
       {notice('info', copy.securityLater)}
     </section>
     <PasswordCard />
-    <section className="public-prose-card account-card" aria-labelledby="account-mfa-title">
-      <h2 id="account-mfa-title">{copy.mfaTitle}</h2>
-      <p className="account-muted">{copy.mfaLead}</p>
-      <p><strong>{data.mfa.enabled ? copy.mfaOn : copy.mfaOff}</strong></p>
-      {data.mfa.enabled && <ul className="account-list">
-        {data.mfa.devices.map(device => <li key={device.id}>
-          <strong>{device.name || copy.mfaDevice}</strong>
-          <div className="account-muted">{formatDeveloperDate(device.createdAt)}</div>
-        </li>)}
-      </ul>}
-    </section>
+    <MfaCard initial={data.mfa} />
     <section className="public-prose-card account-card" aria-labelledby="account-passkeys-title">
       <h2 id="account-passkeys-title">{copy.passkeysTitle}</h2>
       <p className="account-muted">{copy.passkeysLead}</p>
