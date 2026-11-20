@@ -336,41 +336,45 @@ React deployment order. This pipeline does not make the three services or MongoD
 one atomic transaction. A migration needing a particular intermediate application
 version must use an approved bridge instead of relying on every PR becoming live.
 
-## Deploying to moso-prod through a jump host (stopgap)
+## Deploying to moso-prod through Cloudflare Tunnel and Access
 
-Since 20 Nov 2026 the site runs on moso-prod, the VM behind hypervisor
-lc-moso-01 (65.109.65.236). Its sshd listens on tcp/2222 and the firewall admits
-it only from lc-main (95.216.45.27). GitHub runners cannot reach it directly, so
-the deploy job hops through lc-main with `ssh -J`. Port 22 on 65.109.65.236 is
-the hypervisor: never point the workflow, a known_hosts entry or a scan at it.
+Since 20 Nov 2026 the site runs on moso-prod (VM behind hypervisor lc-moso-01).
+No inbound SSH port is opened for CI. A `cloudflared` tunnel on moso-prod dials
+out to Cloudflare and exposes only `ssh-ci.mielenosoitukset.fi` (to the VM's
+sshd). A Cloudflare Access application with a Service Auth policy admits one
+service token, `github-ci-deploy`. Behind it, the `deploy-ci` account's key is
+locked to `deploy/production_ssh_entrypoint.sh` (`deploy <sha>` and
+`deploy-routing <sha>` only). Never use raw IPs or port 22 on 65.109.65.236.
 
-The job adds `-p $PRODUCTION_SSH_PORT` and `-J $PRODUCTION_SSH_JUMP` only when
-those variables are non-empty, so leaving them unset keeps the old behaviour.
+The job installs a pinned `cloudflared` (version and SHA-256 are in the workflow
+`env`; bump both together, taking the checksum from the release notes), then runs
+`ssh -o ProxyCommand="cloudflared access ssh --hostname %h"` with
+`TUNNEL_SERVICE_TOKEN_ID`/`TUNNEL_SERVICE_TOKEN_SECRET` from secrets. It fails
+before connecting if `PRODUCTION_SSH_HOST` is still a raw IP of the old or new
+host, or if either token secret is empty.
 
-`PRODUCTION_SSH_KNOWN_HOSTS` must contain both host keys. The jump host is
-looked up under its plain address; the target is looked up as
-`[host]:port` because the port is not 22. Do not use `ssh-keyscan` on
-65.109.65.236; use the fingerprint the migration notes recorded
-(SHA256:BnYr2vOE1EpNZ6L/hXLaAbEPK7YxbsQCO0cCQuY0ZXo).
+`PRODUCTION_SSH_KNOWN_HOSTS` holds the moso-prod host key under the Access
+hostname, which is what ssh looks up (`%h`):
 
 ```text
-95.216.45.27 <lc-main ed25519 public key, e.g. from /etc/ssh/ssh_host_ed25519_key.pub on lc-main>
-[65.109.65.236]:2222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlVX+3AKN3rmTtfCs5nxBJm23V45iIFd/bQoVtbAZOD
+ssh-ci.mielenosoitukset.fi ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlVX+3AKN3rmTtfCs5nxBJm23V45iIFd/bQoVtbAZOD
 ```
 
-The maintainer sets, before merging (merging runs the first deploy):
+(SHA256:BnYr2vOE1EpNZ6L/hXLaAbEPK7YxbsQCO0cCQuY0ZXo.) Do not use `ssh-keyscan`
+on 65.109.65.236.
+
+The maintainer sets, before the workflow is re-enabled or this PR merges
+(merging runs the first deploy):
 
 ```sh
-gh variable set PRODUCTION_SSH_HOST --env production --body 65.109.65.236
-gh variable set PRODUCTION_SSH_PORT --env production --body 2222
-gh variable set PRODUCTION_SSH_JUMP --env production --body root@95.216.45.27   # user of the jump account on lc-main
-gh secret set PRODUCTION_SSH_KNOWN_HOSTS --env production < known_hosts.moso   # the two lines above
+gh variable set PRODUCTION_SSH_HOST --env production --body ssh-ci.mielenosoitukset.fi
+gh variable set PRODUCTION_SSH_USER --env production --body deploy-ci
+gh secret set PRODUCTION_SSH_PRIVATE_KEY --env production < deploy-ci-key   # new key
+gh secret set PRODUCTION_SSH_KNOWN_HOSTS --env production < known_hosts.moso
+gh secret set CF_ACCESS_CLIENT_ID --env production      # service token id
+gh secret set CF_ACCESS_CLIENT_SECRET --env production  # service token secret
 ```
 
-`PRODUCTION_SSH_USER` stays as is unless the moso-prod account differs. The
-GitHub Actions public key needs the forced-command `authorized_keys` entry on
-moso-prod and an account on lc-main allowed to forward to 65.109.65.236:2222
-(`-J` uses a direct-tcpip forward, so `restrict` there must be
-`permitopen="65.109.65.236:2222"` rather than no forwarding). Roll back by
-restoring `PRODUCTION_SSH_HOST` to 95.216.45.27 and deleting the port and jump
-variables. Long term, replace the hop with WireGuard or a self-hosted runner.
+Revert: `gh workflow disable production-deploy.yml`, then delete the
+`github-ci-deploy` service token (and, if wanted, the Access application and
+tunnel) in Cloudflare; remove the `deploy-ci` key line on moso-prod.

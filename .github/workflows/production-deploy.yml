@@ -161,10 +161,13 @@ jobs:
     env:
       PRODUCTION_SSH_HOST: ${{ vars.PRODUCTION_SSH_HOST }}
       PRODUCTION_SSH_USER: ${{ vars.PRODUCTION_SSH_USER }}
-      # Optional. Unset means plain `ssh user@host` on port 22, as before.
-      PRODUCTION_SSH_PORT: ${{ vars.PRODUCTION_SSH_PORT }}
-      PRODUCTION_SSH_JUMP: ${{ vars.PRODUCTION_SSH_JUMP }}
       SSH_OPTIONS: -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=5
+      # Production is reached through a Cloudflare Tunnel behind Access, with a
+      # service token. See docs/production-deployment.md.
+      CLOUDFLARED_VERSION: "2026.11.1"
+      CLOUDFLARED_SHA256: 97bb3b02d23a5980fc9c15a1a270e692da1923f103f920d5b16d4931d5ab55e7
+      TUNNEL_SERVICE_TOKEN_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
       ACTIVATE_ROUTING: ${{ github.event_name == 'push' || inputs.routing }}
 
     steps:
@@ -176,10 +179,23 @@ jobs:
           set -euo pipefail
           test -n "$PRODUCTION_SSH_HOST"
           test -n "$PRODUCTION_SSH_USER"
-          if [[ -n "$PRODUCTION_SSH_PORT" && ! "$PRODUCTION_SSH_PORT" =~ ^[0-9]+$ ]]; then
-            echo "PRODUCTION_SSH_PORT must be a number" >&2
+          # Fail closed: never fall back to the retired lc-main path, and never
+          # start without the Access service token.
+          if [[ "$PRODUCTION_SSH_HOST" == 95.216.45.27 || "$PRODUCTION_SSH_HOST" == 65.109.65.236 ]]; then
+            echo "PRODUCTION_SSH_HOST must be the Cloudflare Access hostname, not a raw IP" >&2
             exit 1
           fi
+          test -n "$TUNNEL_SERVICE_TOKEN_ID"
+          test -n "$TUNNEL_SERVICE_TOKEN_SECRET"
+
+      - name: Install cloudflared
+        run: |
+          set -euo pipefail
+          url="https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/cloudflared" "$url"
+          echo "${CLOUDFLARED_SHA256}  $RUNNER_TEMP/cloudflared" | sha256sum --check --strict -
+          sudo install -m 0755 "$RUNNER_TEMP/cloudflared" /usr/local/bin/cloudflared
+          cloudflared --version
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -201,15 +217,8 @@ jobs:
           set -euo pipefail
           command=deploy
           if [[ "$ACTIVATE_ROUTING" == true ]]; then command=deploy-routing; fi
-          # shellcheck disable=SC2206
-          ssh_args=($SSH_OPTIONS)
-          if [[ -n "$PRODUCTION_SSH_PORT" ]]; then
-            ssh_args+=(-p "$PRODUCTION_SSH_PORT")
-          fi
-          if [[ -n "$PRODUCTION_SSH_JUMP" ]]; then
-            ssh_args+=(-J "$PRODUCTION_SSH_JUMP")
-          fi
-          ssh "${ssh_args[@]}" "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST" \
+          ssh $SSH_OPTIONS -o ProxyCommand="cloudflared access ssh --hostname %h" \
+            "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST" \
             "$command $GITHUB_SHA"
           # The SSH command verifies every service it started and the exact
           # build SHA before returning success.
