@@ -480,3 +480,56 @@ def test_passkey_rejects_disabled_accounts(wapp, db, status):
     assert r.get_json()["status"] == "error"
     with anon.session_transaction() as login_session:
         assert "_user_id" not in login_session
+
+
+def _registered_key(wapp, seeded_data):
+    client = _client_for_user(wapp, seeded_data["user_id"])
+    _elevate(client, "UserPass1!")
+    key = sim.generate_key()
+    r = client.post("/users/auth/api/v2/passkeys/register/options")
+    r, credential = _register_passkey(client, r.get_json()["options"], key)
+    assert r.status_code == 200, r.get_data(as_text=True)
+    return key, credential
+
+
+def _passkey_login(anon, key, credential, **body):
+    r = anon.post("/users/auth/api/v2/passkeys/login/options", json={})
+    assertion = sim.assertion_credential_json(
+        r.get_json()["options"], key, origin=ORIGIN, credential_id=credential["id"], counter=1
+    )
+    return anon.post(
+        "/users/auth/api/v2/passkeys/login/verify", json={"credential": assertion, **body}
+    )
+
+
+@pytest.mark.parametrize("next_target, expected", [
+    ("/users/profile/?tab=security", "/users/profile/?tab=security"),
+    ("//outside.example/x", "/"),
+    ("https://outside.example/x", "/"),
+    ("/api/notifications/", "/"),
+])
+def test_passkey_login_returns_to_safe_next(wapp, db, seeded_data, next_target, expected):
+    key, credential = _registered_key(wapp, seeded_data)
+    r = _passkey_login(wapp.test_client(), key, credential, next=next_target)
+    assert r.status_code == 200, r.get_data(as_text=True)
+    assert r.get_json()["redirect"] == expected
+
+
+def test_passkey_login_uses_next_from_login_page(wapp, db, seeded_data):
+    key, credential = _registered_key(wapp, seeded_data)
+    anon = wapp.test_client()
+    anon.get("/users/auth/login", query_string={"next": "/city/Helsinki?x=1"})
+    r = _passkey_login(anon, key, credential)
+    assert r.get_json()["redirect"] == "/city/Helsinki?x=1"
+    with anon.session_transaction() as session:
+        assert "next_page" not in session
+
+
+def test_passkey_login_keeps_next_through_forced_password_reset(wapp, db, seeded_data):
+    db.users.update_one({"_id": seeded_data["user_id"]}, {"$set": {"forced_pwd_reset": True}})
+    key, credential = _registered_key(wapp, seeded_data)
+    anon = wapp.test_client()
+    r = _passkey_login(anon, key, credential, next="/users/profile/")
+    assert r.get_json()["redirect"] == "/users/auth/forced_pwd_reset/"
+    with anon.session_transaction() as session:
+        assert session["next_page"] == "/users/profile/"
