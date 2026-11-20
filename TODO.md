@@ -107,6 +107,7 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 - [ ] **DATA-03:** analytics correctness, access and pagination (#551); `demonstrations` COLLSCAN slow queries; the admin overview rendering 28,604 rows.
 - [ ] **DATA-04:** email queue retries and idempotency, queue/history crash consistency, job leadership and database error handling (#176).
   - [x] #955/#956: bounded failed/abandoned email claims and per-message recovery receipts are implemented. Real SMTP/scheduler acceptance and ambiguous-delivery reconciliation remain open.
+  - [x] Email queue retries: failed sends back off exponentially (1 min doubling to 1 h), stop after 30 attempts as visible `dead` letters (counted under Admin → System status "exhausted"), and a delivered job is never resent when its queue delete fails. Still open: stale in-flight claims (worker killed mid-send) are retried at least once, so a send the server accepted just before the crash can repeat.
   - [x] #984: acknowledged support reply enqueue and correlated case receipt, without strict-mode retries.
   - [x] #771: dedicated outgoing-reply history merged in #977; the issue is closed. Canonical audit references/content retention and queue/history crash consistency remain separate follow-ups.
 - [ ] **DATA-05:** preview images failing (#579), Cloudflare rate limiting on normal use (#580), Socket.IO reconnect storm (#640).

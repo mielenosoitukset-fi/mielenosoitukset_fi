@@ -15,6 +15,9 @@ from mielenosoitukset_fi.utils.logger import logger
 
 EMAIL_MAX_ATTEMPTS = 30
 EMAIL_RETRY_COOLDOWN_SECONDS = 60
+# Failed sends back off exponentially from the cooldown up to this cap, so a
+# job keeps retrying for roughly a day before it becomes a dead letter.
+EMAIL_RETRY_MAX_BACKOFF_SECONDS = 3600
 EMAIL_STALE_IN_FLIGHT_SECONDS = 600
 EMAIL_SMTP_TIMEOUT_SECONDS = 30
 
@@ -27,6 +30,14 @@ _EMAIL_ADDRESS_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,
 def _sanitize_delivery_error(error):
     """Return a short, recipient-safe summary of a delivery failure."""
     return _EMAIL_ADDRESS_RE.sub("[redacted]", str(error))[:500]
+
+
+def retry_delay_seconds(attempts):
+    """Return the wait before the next attempt after ``attempts`` failures."""
+    exponent = max(int(attempts or 1), 1) - 1
+    if exponent >= 16:
+        return EMAIL_RETRY_MAX_BACKOFF_SECONDS
+    return min(EMAIL_RETRY_COOLDOWN_SECONDS * (2 ** exponent), EMAIL_RETRY_MAX_BACKOFF_SECONDS)
 
 # Only one in-process queue worker per Python process. Several modules create
 # module-level EmailSender singletons; spawning a polling thread for each
@@ -85,7 +96,8 @@ class EmailSender:
 
         Uses atomic ``find_one_and_update`` to claim one pending or failed
         job at a time.  On success the document is deleted; on failure it is
-        marked ``status="failed"`` so the periodic ``process_email_queue``
+        marked ``status="failed"`` with an exponential ``next_attempt_at`` so
+        the periodic ``process_email_queue``
         background job can retry it later.
         """
         while True:
@@ -99,7 +111,8 @@ class EmailSender:
 
         Returns the claimed document dict or ``None``.
         """
-        cooldown_cutoff = datetime.now(timezone.utc) - timedelta(seconds=EMAIL_RETRY_COOLDOWN_SECONDS)
+        now = datetime.now(timezone.utc)
+        cooldown_cutoff = now - timedelta(seconds=EMAIL_RETRY_COOLDOWN_SECONDS)
 
         return self._queue_collection.find_one_and_update(
             {
@@ -114,7 +127,13 @@ class EmailSender:
                     {
                         "$or": [
                             {"status": {"$ne": "failed"}},
-                            {"last_attempt_at": {"$lte": cooldown_cutoff}},
+                            # Backoff schedule recorded by _record_delivery_failure.
+                            {"next_attempt_at": {"$lte": now}},
+                            # Failures recorded before the backoff schedule existed.
+                            {
+                                "next_attempt_at": {"$exists": False},
+                                "last_attempt_at": {"$lte": cooldown_cutoff},
+                            },
                         ]
                     },
                 ]
@@ -132,14 +151,44 @@ class EmailSender:
         )
 
     def _process_claimed_job(self, job_doc):
-        """Send a claimed job, updating status on success/failure."""
-        email_job = EmailJob.from_dict(job_doc)
+        """Send a claimed job and settle it; return ``True`` once delivered.
+
+        Only a failed SMTP send counts as a delivery failure. Once the server
+        accepted the message, bookkeeping errors (for example the queue delete
+        failing during a database blip) must never put the job back up for
+        retry, or the recipient would get the same email again.
+        """
         try:
+            email_job = EmailJob.from_dict(job_doc)
             self.send_email(email_job, raise_on_error=True)
-            self._queue_collection.delete_one({"_id": job_doc["_id"]})
-            self._record_cases_delivery(job_doc, delivered=True)
         except Exception as exc:
+            self._logger.exception("Failed to send email job %s", job_doc.get("_id"))
             self._record_delivery_failure(job_doc, exc)
+            return False
+        self._settle_delivered_job(job_doc)
+        return True
+
+    def _settle_delivered_job(self, job_doc):
+        """Remove a delivered job, or at least take it out of the retry pool."""
+        try:
+            self._queue_collection.delete_one({"_id": job_doc["_id"]})
+        except Exception:
+            self._logger.exception(
+                "Delivered email job %s could not be deleted; marking it sent",
+                job_doc.get("_id"),
+            )
+            try:
+                self._queue_collection.update_one(
+                    {"_id": job_doc["_id"]},
+                    {"$set": {"status": "sent", "sent_at": datetime.now(timezone.utc)}},
+                )
+            except Exception:
+                # The claim stays in_flight; the stale-claim sweep is the only
+                # remaining path to a resend, which the log above explains.
+                self._logger.exception(
+                    "Delivered email job %s could not be marked sent", job_doc.get("_id")
+                )
+        self._record_cases_delivery(job_doc, delivered=True)
 
     def _requeue_stale_in_flight(self):
         """Mark jobs stuck ``in_flight`` (e.g. worker crashed) as ``failed``."""
@@ -167,13 +216,16 @@ class EmailSender:
         """
         self._queue_collection.update_many(
             {
-                "status": "failed",
+                "status": {"$in": ["failed", "dead"]},
                 "attempts": {"$gte": EMAIL_MAX_ATTEMPTS},
                 "sender": {"$type": "object"},
                 "sender.email_server": {"$in": [None, ""]},
                 "sender.profile": {"$ne": "ticket"},
             },
-            {"$set": {"attempts": 0}},
+            {
+                "$set": {"attempts": 0, "status": "failed"},
+                "$unset": {"next_attempt_at": "", "dead_at": ""},
+            },
         )
 
     def _record_cases_delivery(self, job_doc, delivered, error=None):
@@ -214,15 +266,27 @@ class EmailSender:
         """Persist retry state, case status, and a sanitized admin error."""
         error_str = _sanitize_delivery_error(error)
         now = datetime.now(timezone.utc)
+        attempts = job_doc.get("attempts", 0) or 0
+        dead = attempts >= EMAIL_MAX_ATTEMPTS
+        retry_state = {
+            "status": "dead" if dead else "failed",
+            "last_error": error_str,
+            "last_attempt_at": now,
+        }
+        if dead:
+            # Dead letters stay in the queue (never deleted) so Admin → System
+            # status counts them and an admin can inspect or requeue them.
+            retry_state["dead_at"] = now
+            self._logger.error(
+                "Email job %s gave up after %d attempts", job_doc.get("_id"), attempts
+            )
+        else:
+            retry_state["next_attempt_at"] = now + timedelta(
+                seconds=retry_delay_seconds(attempts)
+            )
         self._queue_collection.update_one(
             {"_id": job_doc["_id"]},
-            {
-                "$set": {
-                    "status": "failed",
-                    "last_error": error_str,
-                    "last_attempt_at": now,
-                }
-            },
+            {"$set": retry_state},
         )
         self._record_cases_delivery(job_doc, delivered=False, error=error_str)
         try:
@@ -241,7 +305,8 @@ class EmailSender:
                         "details": {
                             "job_id": str(job_doc.get("_id")),
                             "error": error_str,
-                            "attempts": job_doc.get("attempts", 0),
+                            "attempts": attempts,
+                            "dead_letter": dead,
                             "recipient_count": len(job_doc.get("recipients") or []),
                             "sender_profile": sender.get("profile") or "legacy",
                         },
