@@ -1,0 +1,1 @@
+- Every database write now leaves a trace in `audit_events`: who (user, token, link, job or script), when, what changed and through which path, from Flask, the Go API, background jobs, scripts and migrations alike. Secrets are never stored; events expire after two years. A CI check fails when code opens a database client without the trail. See `docs/audit-trail.md`.

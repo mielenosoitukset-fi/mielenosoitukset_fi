@@ -111,7 +111,7 @@ def cleanup_test_resources():
         fixtures.DatabaseManager._instance = None
     fixtures.DatabaseManager.close_retired_test_connections()
     fixtures._test_mongo_clients.close()
-    fixtures._database_manager_module.MongoClient = fixtures._original_manager_client_factory
+    fixtures._database_manager_module.mongo_client = fixtures._original_manager_client_factory
     shutil.rmtree(fixtures._CONFIG_DIR, ignore_errors=True)
 
 def test_latency_probe(request):

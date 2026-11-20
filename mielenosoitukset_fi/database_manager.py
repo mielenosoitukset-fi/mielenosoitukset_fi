@@ -20,7 +20,8 @@ Examples
 """
 
 from mielenosoitukset_fi.utils.logger import logger
-from pymongo import MongoClient, errors
+from pymongo import errors
+from mielenosoitukset_fi.utils.audit_trail import mongo_client
 from threading import RLock
 from config import Config  # Import the Config class
 
@@ -77,7 +78,8 @@ class DatabaseManager:
             raise RuntimeError("Database configuration is missing 'MONGO_URI'.")
 
         try:
-            self._client = MongoClient(
+            # Every write through this client is recorded in audit_events.
+            self._client = mongo_client(
                 self._mongo_uri,
                 serverSelectionTimeoutMS=5000,
                 maxPoolSize=50,
