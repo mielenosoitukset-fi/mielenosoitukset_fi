@@ -33,6 +33,8 @@ jobs:
     steps:
       - name: Check out the merged commit
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Verify the exact release target
         id: target
@@ -166,27 +168,34 @@ jobs:
       # service token. See docs/production-deployment.md.
       CLOUDFLARED_VERSION: "2026.11.1"
       CLOUDFLARED_SHA256: 97bb3b02d23a5980fc9c15a1a270e692da1923f103f920d5b16d4931d5ab55e7
-      TUNNEL_SERVICE_TOKEN_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-      TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
       ACTIVATE_ROUTING: ${{ github.event_name == 'push' || inputs.routing }}
 
     steps:
       - name: Check out deployment verifier
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Validate deployment configuration
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          KNOWN_HOSTS_SECRET: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
-          test -n "$PRODUCTION_SSH_HOST"
-          test -n "$PRODUCTION_SSH_USER"
-          # Fail closed: never fall back to the retired lc-main path, and never
-          # start without the Access service token.
-          if [[ "$PRODUCTION_SSH_HOST" == 95.216.45.27 || "$PRODUCTION_SSH_HOST" == 65.109.65.236 ]]; then
-            echo "PRODUCTION_SSH_HOST must be the Cloudflare Access hostname, not a raw IP" >&2
+          # Fail closed: allowlist, so the retired lc-main path or a raw IP can
+          # never be used.
+          if [[ "$PRODUCTION_SSH_HOST" != ssh-ci.mielenosoitukset.fi ]]; then
+            echo "PRODUCTION_SSH_HOST must be exactly ssh-ci.mielenosoitukset.fi" >&2
             exit 1
           fi
-          test -n "$TUNNEL_SERVICE_TOKEN_ID"
-          test -n "$TUNNEL_SERVICE_TOKEN_SECRET"
+          if [[ "$PRODUCTION_SSH_USER" != deploy-ci ]]; then
+            echo "PRODUCTION_SSH_USER must be exactly deploy-ci" >&2
+            exit 1
+          fi
+          test -n "$CF_ACCESS_CLIENT_ID" || { echo "secret CF_ACCESS_CLIENT_ID is empty" >&2; exit 1; }
+          test -n "$CF_ACCESS_CLIENT_SECRET" || { echo "secret CF_ACCESS_CLIENT_SECRET is empty" >&2; exit 1; }
+          test -n "$KNOWN_HOSTS_SECRET" || { echo "secret PRODUCTION_SSH_KNOWN_HOSTS is empty" >&2; exit 1; }
 
       - name: Install cloudflared
         run: |
@@ -198,7 +207,7 @@ jobs:
           cloudflared --version
 
       - name: Start SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
         with:
           ssh-private-key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
 
@@ -213,11 +222,14 @@ jobs:
 
       - name: Deploy Flask, the React host and the Go API
         id: deploy_origin
+        env:
+          TUNNEL_SERVICE_TOKEN_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           set -euo pipefail
           command=deploy
           if [[ "$ACTIVATE_ROUTING" == true ]]; then command=deploy-routing; fi
-          ssh $SSH_OPTIONS -o ProxyCommand="cloudflared access ssh --hostname %h" \
+          ssh $SSH_OPTIONS -o StrictHostKeyChecking=yes -o ProxyCommand="cloudflared access ssh --hostname %h" \
             "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST" \
             "$command $GITHUB_SHA"
           # The SSH command verifies every service it started and the exact
@@ -225,11 +237,13 @@ jobs:
           echo "verified_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Verify public health endpoint
+        env:
+          ORIGIN_VERIFIED_SHA: ${{ steps.deploy_origin.outputs.verified_sha }}
         run: |
           set -euo pipefail
           python3 deploy/verify_health_sha.py \
             "$GITHUB_SHA" "https://mielenosoitukset.fi/health" \
-            --origin-verified-sha "${{ steps.deploy_origin.outputs.verified_sha }}" \
+            --origin-verified-sha "$ORIGIN_VERIFIED_SHA" \
             --attempts 15 --delay 2 --timeout 10
 
       - name: Verify public API endpoint

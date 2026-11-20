@@ -363,7 +363,30 @@ ssh-ci.mielenosoitukset.fi ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlVX+3AKN3rmTtfC
 (SHA256:BnYr2vOE1EpNZ6L/hXLaAbEPK7YxbsQCO0cCQuY0ZXo.) Do not use `ssh-keyscan`
 on 65.109.65.236.
 
-The maintainer sets, before the workflow is re-enabled or this PR merges
+**Server side:** the `deploy-ci` key's `authorized_keys` line is
+`restrict,command="/usr/local/sbin/moso-github-deploy"`. That file is the
+wrapper installed on moso-prod from `deploy/production_ssh_entrypoint.sh` (same
+contract as the lc-main install above: `deploy <sha>` and `deploy-routing <sha>`
+only).
+
+**MUST DO BEFORE SETTING ANY SECRET:** restrict the GitHub environment
+`production` to deployments from `main`, so no other branch can read the SSH key
+or Access token. The maintainer runs this (the PR does not):
+
+```sh
+gh api -X PUT repos/mielenosoitukset-fi/mielenosoitukset_fi/environments/production \
+  --input - <<'JSON'
+{"deployment_branch_policy": {"protected_branches": false, "custom_branch_policies": true}}
+JSON
+gh api -X POST repos/mielenosoitukset-fi/mielenosoitukset_fi/environments/production/deployment-branch-policies \
+  -f name=main -f type=branch
+```
+
+Check with `gh api repos/mielenosoitukset-fi/mielenosoitukset_fi/environments/production/deployment-branch-policies`.
+The Access token env is set only on the deploy step, and the job fails unless the
+host is exactly `ssh-ci.mielenosoitukset.fi` and the user exactly `deploy-ci`.
+
+The maintainer then sets, before the workflow is re-enabled or this PR merges
 (merging runs the first deploy):
 
 ```sh
