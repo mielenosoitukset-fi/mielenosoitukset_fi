@@ -990,7 +990,7 @@ try {
     }
     statusReply = { ...healthyStatus, overall_ok: false,
       services: [healthyStatus.services[0], { ...storageRow, status: 'err', message: 'Ei vastaa' }] };
-    assert.match((await detailPage({ path: '/status' })).html, /Jokin palvelu ei vastaa/);
+    assert.match((await detailPage({ path: '/status' })).html, /Jokin tarkistettu palvelu ei vastaa/);
     for (const services of [
       [cacheRow],
       [healthyStatus.services[0], storageRow, cacheRow],
