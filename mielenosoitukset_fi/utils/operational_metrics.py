@@ -94,11 +94,20 @@ def collect_operational_metrics(db, *, job_sample_limit: int = 500) -> dict:
         1 for run in job_runs if run.get("status") in {"error", "failed"}
     )
 
+    from mielenosoitukset_fi.emailer.EmailSender import EMAIL_MAX_ATTEMPTS
+
     queue = db["email_queue"]
     pending_query = {"status": {"$in": [None, "pending"]}}
     failed_query = {"status": "failed"}
     in_flight_query = {"status": "in_flight"}
-    exhausted_query = {"status": "failed", "attempts": {"$gte": 30}}
+    # Dead letters, plus failed jobs that ran out of attempts before the
+    # ``dead`` status existed or via the stale-claim sweep.
+    exhausted_query = {
+        "$or": [
+            {"status": "dead"},
+            {"status": "failed", "attempts": {"$gte": EMAIL_MAX_ATTEMPTS}},
+        ]
+    }
 
     eligible_status = {"status": {"$in": [None, "pending", "failed", "in_flight"]}}
     oldest_created = queue.find_one(

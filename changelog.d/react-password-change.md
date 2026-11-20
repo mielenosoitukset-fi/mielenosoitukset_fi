@@ -1,0 +1,1 @@
+- The new settings page can now change the password in the Security tab. It asks you to confirm your identity with a passkey or your password first, as the old page does.

@@ -1,0 +1,1 @@
+- The login page now uses the new site design. Password, two-step verification and passkey sign-in work as before.

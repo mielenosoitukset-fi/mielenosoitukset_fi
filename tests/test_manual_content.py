@@ -6,7 +6,7 @@ import pytest
 @pytest.mark.parametrize(
     "page,expected",
     [
-        ("users/add", ["Luo uusi käyttäjä", "Sähköposti", "Kaupunkiadmin"]),
+        ("users/add", ["Luo uusi käyttäjä", "sähköpostiosoite", "Kaupunkiadmin"]),
         ("users/about_roles", ["global_admin", "city_admin", "translator", "god", "Kääntäjä"]),
     ],
 )
@@ -25,8 +25,9 @@ def test_manual_base_has_no_broken_image_refs(app, admin_client):
     assert not bad, f"manual add page still references screenshots: {bad}"
 
 
-def test_manual_base_renders_mobile_toggle(app, admin_client):
+def test_manual_base_renders_collapsible_contents(app, admin_client):
     resp = admin_client.get("/admin/manual/dashboard")
     body = resp.get_data(as_text=True)
-    assert "manual-sidebar-toggle" in body
-    assert "toggleManualSidebar" in body
+    # The contents list is a native <details> panel that collapses on phones.
+    assert '<details class="manual-nav admin-panel"' in body
+    assert "Sisällysluettelo" in body

@@ -1,0 +1,1 @@
+- Admin: the demonstration suggestions list shows each demonstration's name again instead of "Tuntematon mielenosoitus" when the suggestion does not change the title.

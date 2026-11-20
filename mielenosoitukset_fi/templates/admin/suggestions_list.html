@@ -54,7 +54,7 @@
           {% for suggestion in suggestions %}
           {% set normalized_status = (suggestion.status or 'pending')|lower %}
           <tr>
-            <td><strong>{{ suggestion.original_values.get('title', _('Tuntematon mielenosoitus')) }}</strong><small class="d-block text-muted">#{{ suggestion.demo_id[:12] }}{% if suggestion.demo_id|length > 12 %}…{% endif %}</small></td>
+            <td><strong>{{ suggestion.demo_title or _('Tuntematon mielenosoitus') }}</strong><small class="d-block text-muted">#{{ suggestion.demo_id[:12] }}{% if suggestion.demo_id|length > 12 %}…{% endif %}</small></td>
             <td>
               {% if normalized_status in ('new', 'pending') %}<span class="admin-status-badge admin-status-badge--info"><i class="fas fa-star" aria-hidden="true"></i>{{ _('Uusi') }}</span>
               {% elif normalized_status == 'applied' %}<span class="admin-status-badge admin-status-badge--success"><i class="fas fa-check" aria-hidden="true"></i>{{ _('Hyväksytty') }}</span>

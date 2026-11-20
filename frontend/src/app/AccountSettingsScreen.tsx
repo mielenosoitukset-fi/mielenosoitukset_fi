@@ -4,11 +4,15 @@ import type { AppConfig } from './config';
 import type { SessionSummary } from './session';
 import { useSession } from './useSession';
 import {
-  accountBioMax, accountBioWarnAt, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
+  accountBioMax, accountIdentityChangePath, isIdentityChangeRefusal, accountBioWarnAt, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
   accountSettingsPath, accountStanding, accountTabs, accountTranslationsUrl, classifyAccountResponse, filterCities,
-  generalPayload, nextTabIndex, postBioToGo, postGeneralToGo, postFlaskJson, profilePayload, readAccountSettings, safePicture, tabFromHash,
+  generalPayload, nextTabIndex, passwordFormError, passwordMinLength, passwordRequest, postBioToGo, postDeletionRequestToGo, postGeneralToGo, accountDeletionReasonMax, postFlaskJson, profilePayload,
+  readAccountSettings, readPasswordResult, safePicture, tabFromHash,
 } from './account-settings-route';
 import type { AccountSettingsRead, AccountTabId } from './account-settings-route';
+import { useStepUp } from './StepUpDialog';
+import { MfaCard } from './MfaCard';
+import { PasskeysCard } from './PasskeysCard';
 import { formatDeveloperDate } from './developer-route';
 import './information/information.css';
 import './suggest-change/suggest-change.css';
@@ -127,35 +131,116 @@ function GeneralPanel({ data, report, message }: { data: AccountSettingsRead; re
   </form>;
 }
 
+/** Password change. The write stays in Flask, which asks for step-up; the dialog handles that and the request is retried once. */
+function PasswordCard() {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<Message>(null);
+  const { withStepUp, dialog } = useStepUp();
+  const ids = { current: useId(), next: useId(), help: useId(), confirm: useId() };
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const form = { current, next, confirm };
+    const problem = passwordFormError(form);
+    if (problem) { setMessage({ kind: 'error', text: problem }); return; }
+    setMessage(null); setBusy(true);
+    // The submit button is where focus goes back when the browser did not focus it on click (Safari).
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    let result: Awaited<ReturnType<typeof readPasswordResult>> = null;
+    try { result = await readPasswordResult(await withStepUp(passwordRequest(form), submitter instanceof HTMLElement ? submitter : null), copy.passwordFailed); } catch { result = { ok: false, message: copy.passwordFailed }; }
+    setBusy(false);
+    if (!result) return;
+    if (result.ok) { setCurrent(''); setNext(''); setConfirm(''); }
+    setMessage({ kind: result.ok ? 'info' : 'error', text: result.message });
+  };
+  // The dialog is a sibling, not a child: its own form must not bubble a submit into this one.
+  return <>
+    <form className="suggest-change-form" onSubmit={submit}>
+    <section className="public-prose-card account-card" aria-labelledby={`${ids.current}-title`}>
+      <h2 id={`${ids.current}-title`}>{copy.passwordTitle}</h2>
+      <div className="suggest-change-field">
+        <label htmlFor={ids.current}>{copy.passwordCurrent}</label>
+        <input id={ids.current} type="password" name="current" autoComplete="current-password" required value={current} onChange={event => setCurrent(event.target.value)} />
+      </div>
+      <div className="suggest-change-field">
+        <label htmlFor={ids.next}>{copy.passwordNew}</label>
+        <input id={ids.next} type="password" name="new" autoComplete="new-password" required minLength={passwordMinLength}
+          aria-describedby={ids.help} value={next} onChange={event => setNext(event.target.value)} />
+        <p className="account-muted" id={ids.help}>{copy.passwordHelp}</p>
+      </div>
+      <div className="suggest-change-field">
+        <label htmlFor={ids.confirm}>{copy.passwordConfirm}</label>
+        <input id={ids.confirm} type="password" name="confirm" autoComplete="new-password" required minLength={passwordMinLength}
+          value={confirm} onChange={event => setConfirm(event.target.value)} />
+      </div>
+      <div className="detail-actions">
+        <button type="submit" className="detail-button detail-button--primary" disabled={busy} aria-busy={busy}>
+          {busy ? copy.passwordChanging : copy.passwordTitle}
+        </button>
+      </div>
+      <SaveMessage message={message} />
+    </section>
+    </form>
+    {dialog}
+  </>;
+}
+
+/** Self-service deletion request: Go opens an admin case; an admin deletes the account. */
+function DeleteAccountCard({ csrf }: { csrf?: string }) {
+  const [reason, setReason] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<Message>(null);
+  const [done, setDone] = useState(false);
+  const ids = { title: useId(), reason: useId(), help: useId(), confirm: useId() };
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!csrf || busy || done) return;
+    if (!confirmed) { setMessage({ kind: 'error', text: copy.deleteNeedsConfirm }); return; }
+    setMessage(null); setBusy(true);
+    const result = await postDeletionRequestToGo(csrf, reason);
+    setBusy(false);
+    if (!result.ok) { setMessage({ kind: 'error', text: result.message }); return; }
+    setDone(true);
+    setMessage({ kind: 'info', text: result.pending ? copy.deletePending : copy.deleteCreated });
+  };
+  return <form className="suggest-change-form" onSubmit={submit}>
+    <section className="public-prose-card account-card" aria-labelledby={ids.title}>
+      <h2 id={ids.title}>{copy.deleteTitle}</h2>
+      <p className="account-muted">{copy.deleteLead} <a href="/privacy">{copy.deletePrivacy}</a>.</p>
+      {csrf ? <>
+        <div className="suggest-change-field">
+          <label htmlFor={ids.reason}>{copy.deleteReason} <span className="account-muted">({copy.optional.toLowerCase()})</span></label>
+          <textarea id={ids.reason} rows={3} value={reason} maxLength={accountDeletionReasonMax} aria-describedby={ids.help}
+            disabled={busy || done} onChange={event => setReason(event.target.value)} />
+          <p className="account-muted" id={ids.help}>{copy.deleteReasonHelp}</p>
+        </div>
+        <label className="account-check" htmlFor={ids.confirm}>
+          <input id={ids.confirm} type="checkbox" checked={confirmed} disabled={busy || done} onChange={event => { setConfirmed(event.target.checked); setMessage(null); }} />
+          <span>{copy.deleteConfirm}</span>
+        </label>
+        <div className="detail-actions">
+          <button type="submit" className="detail-button detail-button--danger" disabled={busy || done} aria-busy={busy}>
+            {busy ? copy.deleteSending : copy.deleteSubmit}
+          </button>
+        </div>
+        <SaveMessage message={message} />
+      </> : <p>{copy.deleteByEmail} <a href="mailto:tuki@mielenosoitukset.fi">tuki@mielenosoitukset.fi</a>.</p>}
+    </section>
+  </form>;
+}
+
 function SecurityPanel({ data }: { data: AccountSettingsRead }) {
   return <div className="account-stack">
     <section className="public-prose-card account-card" aria-labelledby="account-security-title">
       <h2 id="account-security-title">{copy.securityTitle}</h2>
       <p className="account-muted">{copy.securityLead}</p>
-      {notice('info', copy.securityLater)}
     </section>
-    <section className="public-prose-card account-card" aria-labelledby="account-mfa-title">
-      <h2 id="account-mfa-title">{copy.mfaTitle}</h2>
-      <p className="account-muted">{copy.mfaLead}</p>
-      <p><strong>{data.mfa.enabled ? copy.mfaOn : copy.mfaOff}</strong></p>
-      {data.mfa.enabled && <ul className="account-list">
-        {data.mfa.devices.map(device => <li key={device.id}>
-          <strong>{device.name || copy.mfaDevice}</strong>
-          <div className="account-muted">{formatDeveloperDate(device.createdAt)}</div>
-        </li>)}
-      </ul>}
-    </section>
-    <section className="public-prose-card account-card" aria-labelledby="account-passkeys-title">
-      <h2 id="account-passkeys-title">{copy.passkeysTitle}</h2>
-      <p className="account-muted">{copy.passkeysLead}</p>
-      {data.passkeys.length ? <ul className="account-list">
-        {data.passkeys.map(key => <li key={key.id}>
-          <strong>{key.name || copy.passkeyDevice}</strong>
-          <div className="account-muted">{formatDeveloperDate(key.createdAt)}
-            {key.lastUsedAt && <> · {copy.lastUsed}: {formatDeveloperDate(key.lastUsedAt)}</>}</div>
-        </li>)}
-      </ul> : <p className="account-muted">{copy.noPasskeys}</p>}
-    </section>
+    <PasswordCard />
+    <MfaCard initial={data.mfa} />
+    <PasskeysCard initial={data.passkeys} />
     <section className="public-prose-card account-card" aria-labelledby="account-history-title">
       <h2 id="account-history-title">{copy.historyTitle}</h2>
       <div className="account-table-wrap" tabIndex={0} role="region" aria-label={copy.historyTitle}>
@@ -172,6 +257,7 @@ function SecurityPanel({ data }: { data: AccountSettingsRead }) {
         </table>
       </div>
     </section>
+    <DeleteAccountCard csrf={data.csrf} />
   </div>;
 }
 
@@ -295,13 +381,23 @@ export default function AccountSettingsScreen({ config, session: initial }: { co
 
   useEffect(() => {
     if (standing === 'signed-out') { setLoad({ state: 'anonymous' }); return; }
-    if (standing === 'unknown') { setLoad(bridgeFailed ? { state: 'unavailable' } : { state: 'loading' }); return; }
+    if (standing === 'unknown') {
+      setLoad(bridgeFailed ? { state: 'unavailable' } : { state: 'loading' });
+      // A flagged account makes the session read fail; ask the bridge once whether that is the reason.
+      if (bridgeFailed) {
+        fetch(config.urls.authMe, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
+          .then(async response => { if (await isIdentityChangeRefusal(response)) window.location.assign(accountIdentityChangePath); })
+          .catch(() => undefined);
+      }
+      return;
+    }
     const controller = new AbortController();
     setLoad({ state: 'loading' });
     (async () => {
       try {
         const response = await fetch(accountSettingsApi,
           { credentials: 'same-origin', cache: 'no-store', signal: controller.signal, headers: { Accept: 'application/json' } });
+        if (await isIdentityChangeRefusal(response.clone())) { window.location.assign(accountIdentityChangePath); return; }
         const kind = classifyAccountResponse(response.status);
         if (kind === 'signed-out') { setLoad({ state: 'anonymous' }); return; }
         if (kind !== 'ok') throw new Error('unavailable');

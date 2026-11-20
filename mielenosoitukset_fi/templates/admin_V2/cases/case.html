@@ -1,5 +1,6 @@
 {% extends "admin_base.html" %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
+{% from 'admin_V2/demonstrations/_decision_modal.html' import demo_decision_modal %}
 {% block title %}{{ _('Tapaus') }} #{{ case.running_num }}{% endblock %}
 
 {% block main_content %}
@@ -66,7 +67,7 @@
           <div class="detail-item">
             <strong>{{ _('Viesti') }}</strong>
             {% if support_ticket.html_message %}
-            <div class="description-box">{{ support_ticket.html_message|safe }}</div>
+            <div class="description-box">{{ support_ticket.html_message|stored_html }}</div>
             {% else %}
             <div class="note-box">{{ support_ticket.message or _('(ei viestia)') }}</div>
             {% endif %}
@@ -231,7 +232,7 @@
 
           <div class="admin-row-actions">
 {% if global_case_controls %}
-            <button class="btn btn-success" type="button" onclick="sendDemoAction('accept')" {% if case.meta.superior_needed and current_user.role != 'global_admin' %}disabled{% endif %}>
+            <button class="btn btn-success" type="button" onclick="approveDemo()" {% if case.meta.superior_needed and current_user.role != 'global_admin' %}disabled{% endif %}>
               <i class="fa-solid fa-check me-1"></i>{{ _('Hyväksy mielenosoitus') }}
             </button>
 {% endif %}
@@ -240,7 +241,7 @@
               <i class="fa-solid fa-xmark me-1"></i>{{ _('Hylkää mielenosoitus') }}
             </button>
 {% endif %}
-            {% if not case.meta.superior_needed %}
+            {% if not case.meta.superior_needed and not demo.approved and not demo.rejected %}
 {% if global_case_controls %}
             <button class="btn btn-secondary" type="button" onclick="escalateDemo()">
               <i class="fa-solid fa-arrow-up-right-dots me-1"></i>{{ _('Eskaloi esihenkilölle') }}
@@ -281,6 +282,37 @@
             <strong>{{ _('Virheilmoituksen sisältö') }}</strong>
             <div class="note-box">{{ error_report.error or _('Ei sisältöä') }}</div>
           </div>
+          {% elif case.case_type == "demo_edit_suggestion" %}
+          {% set demo_suggestion = case_data.demo_suggestion if case_data.demo_suggestion is defined else {} %}
+          {% if demo_suggestion.found %}
+          <div class="detail-grid">
+            <div class="detail-item"><strong>{{ _('Liittyvä mielenosoitus') }}</strong><span>{{ demo.title or '-' }}</span></div>
+            <div class="detail-item"><strong>{{ _('Ehdotuksen tila') }}</strong><span>{{ demo_suggestion.status_label }}</span></div>
+            <div class="detail-item"><strong>{{ _('Vastaanotettu') }}</strong><span>{% if demo_suggestion.created_at %}{{ demo_suggestion.created_at|datetimeformat("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</span></div>
+            {% if demo_suggestion.can_edit_demo %}
+            <div class="detail-item"><strong>{{ _('Ilmoittajan sähköposti') }}</strong><span>{{ demo_suggestion.reporter_email or '-' }}</span></div>
+            {% endif %}
+          </div>
+          <div class="detail-item">
+            <strong>{{ _('Ehdotetut kentät') }}</strong>
+            <span>{{ demo_suggestion.fields|join(', ') if demo_suggestion.fields else _('Ei kenttämuutoksia') }}</span>
+          </div>
+          {% if demo_suggestion.comment %}
+          <div class="detail-item">
+            <strong>{{ _('Kommentti') }}</strong>
+            <div class="note-box">{{ demo_suggestion.comment }}</div>
+          </div>
+          {% endif %}
+          {% if demo_suggestion.can_edit_demo %}
+          <div class="admin-row-actions">
+            <a class="btn btn-primary" href="{{ url_for('admin_demo.suggestion_view', suggestion_id=demo_suggestion.id) }}"><i class="fa-solid fa-code-compare me-1" aria-hidden="true"></i>{{ _('Käsittele ehdotus') }}</a>
+          </div>
+          {% else %}
+          <div class="muted">{{ _('Ehdotuksen käsittely ja ilmoittajan tiedot vaativat oikeuden muokata tätä mielenosoitusta.') }}</div>
+          {% endif %}
+          {% else %}
+          <div class="empty-state">{{ _('Ehdotusta ei löytynyt. Se on ehkä poistettu.') }}</div>
+          {% endif %}
           {% elif case.case_type == "organization_edit_suggestion" %}
           <div class="detail-grid">
             <div class="detail-item"><strong>{{ _('Organisaatio') }}</strong><span>{{ organization.name or '-' }}</span></div>
@@ -334,6 +366,13 @@
           {% else %}
           <div class="empty-state">{{ _('Hakemusta ei löytynyt.') }}</div>
           {% endif %}
+          {% elif case.case_type == "account_deletion_request" %}
+          <div class="detail-grid">
+            <div class="detail-item"><strong>{{ _('Pyytäjä') }}</strong><span>{% if case.submitter_id %}<a href="{{ url_for('admin_user.edit_user', user_id=case.submitter_id) }}">{{ case_data.submitter_label }}</a>{% else %}-{% endif %}</span></div>
+            <div class="detail-item"><strong>{{ _('Vastaanotettu') }}</strong><span>{% if case.created_at %}{{ case.created_at|datetimeformat("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</span></div>
+          </div>
+          <div class="detail-item"><strong>{{ _('Syy') }}</strong><div class="note-box">{{ (case.meta or {}).get('reason') or _('Ei ilmoitettu') }}</div></div>
+          <p class="muted"><a href="{{ url_for('admin_user.user_control') }}">{{ _('Poista tili käyttäjälistan poistotoiminnolla.') }}</a> {{ _('Kirjautumistiedot poistetaan, ja väärinkäytösten selvittämiseen tarvittavat tiedot säilytetään peitenimellä. Sulje tapaus poiston jälkeen.') }}</p>
           {% else %}
           <div class="empty-state">{{ _('Tälle tapaukselle ei ole vielä omaa tarkempaa esitystapaa.') }}</div>
           {% endif %}
@@ -443,6 +482,31 @@
         </div>
       </section>
 
+      {% if case_data.notified_at %}
+      <section class="admin-section-card">
+        <div class="admin-section-card__header">
+          <div class="admin-section-card__title"><h2>{{ _('Ilmoitetut ylläpitäjät') }}</h2></div>
+        </div>
+        <div class="admin-section-card__body admin-stack">
+          {% if case_data.notified_users %}
+          <div class="log-list">
+            {% for notified in case_data.notified_users %}
+            <div class="log-entry">
+              <div class="log-entry-header">
+                <strong>{{ notified.username or _('Tuntematon käyttäjä') }}</strong>
+                <span class="muted">{{ _('Sähköposti ja ilmoitus') if notified.emailed else _('Vain ilmoitus') }}</span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state">{{ _('Kenelläkään ei ollut oikeutta nähdä tapausta, kun se avattiin.') }}</div>
+          {% endif %}
+          <div class="muted">{{ _('Ilmoitettu') }}: {{ case_data.notified_at|datetimeformat("%d.%m.%Y %H:%M") }}</div>
+        </div>
+      </section>
+      {% endif %}
+
       <section class="admin-section-card">
         <div class="admin-section-card__header">
           <div class="admin-section-card__title"><h2>{{ _('Toimintaloki') }}</h2></div>
@@ -484,6 +548,11 @@
               {% if event.metadata and event.metadata.reason %}
               <div>{{ event.metadata.reason }}</div>
               {% endif %}
+              {% if event.metadata and event.metadata.duplicate_of_case_id %}
+              <div><a href="{{ url_for('admin_case.single_case', case_id=event.metadata.duplicate_of_case_id) }}">{{ _('Avaa alkuperäinen tapaus') }}{% if event.metadata.duplicate_of_case_num %} #{{ event.metadata.duplicate_of_case_num }}{% endif %}</a></div>
+              {% elif event.metadata and event.metadata.duplicate_of_demo_id %}
+              <div><a href="{{ url_for('admin_demo.demo_command_center', demo_id=event.metadata.duplicate_of_demo_id) }}">{{ _('Avaa alkuperäinen mielenosoitus') }}</a></div>
+              {% endif %}
             </div>
             {% endfor %}
           </div>
@@ -495,14 +564,131 @@
     </aside>
   </div>
 </div>
+{% if case.case_type == 'new_demo' and case.demo_id %}{{ demo_decision_modal() }}{% endif %}
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/admin_demo_decision.js', v='20261120-decision-1') }}"></script>
 <script>
   const caseId = "{{ case._id }}";
+  const caseDemoId = {{ (case.demo_id|string if case.demo_id else '')|tojson }};
+
+  const rejectReasons = {{ reject_reasons|tojson }};
+  const closeReasons = {{ close_reasons|tojson }};
+
+  // One dialog for rejecting a demonstration and closing a case: a fixed reason,
+  // the original for a duplicate, and a note (required for "Muu syy").
+  function reasonDialog({ title, confirmText, reasons, duplicateOf }) {
+    const options = reasons.map(([key, label]) => {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = label;
+      return option.outerHTML;
+    }).join("");
+    const duplicateField = duplicateOf === "demo"
+      ? `<label class="form-label" for="reason-dup-search">{{ _('Alkuperäinen mielenosoitus') }}</label>
+         <input id="reason-dup-search" class="form-control" type="search" autocomplete="off" placeholder="{{ _('Hae otsikolla...') }}">
+         <select id="reason-dup" class="form-select mt-2" size="4" aria-label="{{ _('Hakutulokset') }}" hidden></select>`
+      : `<label class="form-label" for="reason-dup">{{ _('Alkuperäisen tapauksen numero') }}</label>
+         <input id="reason-dup" class="form-control" type="text" inputmode="numeric" placeholder="{{ _('esim. #100123') }}">`;
+    return Swal.fire({
+      title,
+      html: `<div class="text-start admin-stack">
+          <div><label class="form-label" for="reason-key">{{ _('Syy') }}</label>
+          <select id="reason-key" class="form-select">${options}</select></div>
+          <div id="reason-dup-wrap" hidden>${duplicateField}</div>
+          <div><label class="form-label" for="reason-note" id="reason-note-label">{{ _('Lisätieto (valinnainen)') }}</label>
+          <textarea id="reason-note" class="form-control" rows="3" maxlength="1000" placeholder="{{ _('Kirjoita lyhyt perustelu...') }}"></textarea></div>
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      cancelButtonText: "{{ _('Peruuta') }}",
+      didOpen: () => {
+        const key = document.getElementById("reason-key");
+        const sync = () => {
+          document.getElementById("reason-dup-wrap").hidden = key.value !== "duplicate";
+          document.getElementById("reason-note-label").textContent = key.value === "other"
+            ? "{{ _('Kerro syy (pakollinen)') }}" : "{{ _('Lisätieto (valinnainen)') }}";
+        };
+        key.addEventListener("change", sync);
+        sync();
+        const search = document.getElementById("reason-dup-search");
+        if (!search) return;
+        let timer;
+        search.addEventListener("input", () => {
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            const q = search.value.trim();
+            const results = document.getElementById("reason-dup");
+            if (!q) { results.replaceChildren(); results.hidden = true; return; }
+            fetch(`/admin/case/demo_search/?q=${encodeURIComponent(q)}`)
+              .then((res) => res.json())
+              .then((demos) => {
+                results.replaceChildren(...demos.map((demo) => {
+                  const option = document.createElement("option");
+                  option.value = demo.id;
+                  option.textContent = demo.city ? `${demo.title} (${demo.city})` : demo.title;
+                  return option;
+                }));
+                // Preselect the first match so a single result counts as chosen.
+                results.hidden = demos.length === 0;
+                if (demos.length) results.selectedIndex = 0;
+              })
+              .catch(() => { results.replaceChildren(); results.hidden = true; });
+          }, 250);
+        });
+      },
+      preConfirm: () => {
+        const reasonKey = document.getElementById("reason-key").value;
+        const note = document.getElementById("reason-note").value.trim();
+        const duplicate = document.getElementById("reason-dup");
+        const duplicateValue = duplicate ? duplicate.value.trim() : "";
+        if (reasonKey === "other" && !note) {
+          Swal.showValidationMessage("{{ _('Kirjoita perustelu.') }}");
+          return false;
+        }
+        if (reasonKey === "duplicate" && !duplicateValue) {
+          Swal.showValidationMessage(duplicateOf === "demo"
+            ? "{{ _('Valitse alkuperäinen mielenosoitus.') }}"
+            : "{{ _('Anna alkuperäisen tapauksen numero.') }}");
+          return false;
+        }
+        return { reason_key: reasonKey, note, duplicate_of: reasonKey === "duplicate" ? duplicateValue : "" };
+      },
+    });
+  }
+
+  function closeCase() {
+    reasonDialog({
+      title: "{{ _('Sulje tapaus') }}",
+      confirmText: "{{ _('Sulje') }}",
+      reasons: closeReasons,
+      duplicateOf: "case",
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+      fetch(`/admin/case/${caseId}/close/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(result.value),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            location.reload();
+            return;
+          }
+          Swal.fire("{{ _('Virhe') }}", data.error || "{{ _('Tapausta ei voitu päivittää.') }}", "error");
+        })
+        .catch(() => Swal.fire("{{ _('Virhe') }}", "{{ _('Tapahtui odottamaton virhe.') }}", "error"));
+    });
+  }
 
   function promptCaseAction(action) {
-    const title = action === "close" ? "{{ _('Sulje tapaus') }}" : "{{ _('Avaa tapaus uudelleen') }}";
+    if (action === "close") {
+      closeCase();
+      return;
+    }
+    const title = "{{ _('Avaa tapaus uudelleen') }}";
     Swal.fire({
       title,
       input: "textarea",
@@ -536,11 +722,11 @@
     });
   }
 
-  function sendDemoAction(action, reason = "") {
+  function sendDemoAction(action, details = {}) {
     fetch(`/admin/case/${caseId}/demo_action`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, reason }),
+      body: JSON.stringify({ action, ...details }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -553,23 +739,20 @@
       .catch(() => Swal.fire("{{ _('Virhe') }}", "{{ _('Tapahtui odottamaton virhe.') }}", "error"));
   }
 
+  async function approveDemo() {
+    if (await window.MosoDemoDecision.confirm(caseDemoId, "approved")) {
+      sendDemoAction("accept");
+    }
+  }
+
   function rejectDemo() {
-    Swal.fire({
+    reasonDialog({
       title: "{{ _('Hylkää mielenosoitus') }}",
-      input: "textarea",
-      inputLabel: "{{ _('Syy hylkäykselle') }}",
-      inputPlaceholder: "{{ _('Kirjoita perustelu hylkäykselle...') }}",
-      showCancelButton: true,
-      confirmButtonText: "{{ _('Hylkää') }}",
-      cancelButtonText: "{{ _('Peruuta') }}",
-      preConfirm: (reason) => {
-        if (!reason || !reason.trim()) {
-          Swal.showValidationMessage("{{ _('Syy on pakollinen.') }}");
-        }
-        return reason;
-      },
-    }).then((result) => {
-      if (result.isConfirmed) {
+      confirmText: "{{ _('Jatka') }}",
+      reasons: rejectReasons,
+      duplicateOf: "demo",
+    }).then(async (result) => {
+      if (result.isConfirmed && await window.MosoDemoDecision.confirm(caseDemoId, "rejected")) {
         sendDemoAction("reject", result.value);
       }
     });
@@ -655,8 +838,16 @@
         el.className = "admin-link-result";
         el.tabIndex = 0;
         const label = item.title || item.name || "";
-        const extra = item.city ? ` <span class="muted">(${item.city})</span>` : (item.cancelled ? ` <span class="muted">(${item.cancelled ? '{{ _('peruttu') }}' : ''})</span>` : "");
-        el.innerHTML = `<strong>${label}</strong>${extra}`;
+        const extraText = item.city ? item.city : (item.cancelled ? "{{ _('peruttu') }}" : "");
+        const strong = document.createElement("strong");
+        strong.textContent = label;
+        el.appendChild(strong);
+        if (extraText) {
+          const extra = document.createElement("span");
+          extra.className = "muted";
+          extra.textContent = ` (${extraText})`;
+          el.append(" ", extra);
+        }
         el.addEventListener("click", () => {
           selected = item;
           hiddenInput.value = item.id;

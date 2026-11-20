@@ -1,0 +1,1 @@
+- Stop background content saves, such as the duplicate merge job, from undoing a demonstration approval made at the same time.

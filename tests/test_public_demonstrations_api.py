@@ -178,7 +178,8 @@ def test_public_index_provisioning_is_not_part_of_route_import(monkeypatch):
     monkeypatch.setattr(provision_public_indexes, 'DatabaseManager', SimpleNamespace(
         get_instance=lambda: SimpleNamespace(get_db=lambda: database)))
     monkeypatch.setattr(provision_public_indexes, 'ensure_public_demo_pagination_index', calls.append)
+    monkeypatch.setattr(provision_public_indexes, 'ensure_step_up_failure_indexes', calls.append)
     provision_public_indexes.main()
-    assert calls == [database]
+    assert calls == [database, database]
     script = Path('deploy/production_deploy.sh').read_text()
     assert script.index('"$production_python" -m mielenosoitukset_fi.scripts.provision_public_indexes') < script.index('systemctl reload')

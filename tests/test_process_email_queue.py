@@ -149,10 +149,14 @@ def test_process_email_queue_retries_failed_job_on_later_run(db, monkeypatch):
     assert remaining["status"] == "failed"
     assert remaining["attempts"] == 1
 
-    # Simulate the retry cooldown elapsing.
+    # The backoff keeps the job out of an immediate re-run.
+    assert run(max_jobs=10) == 0
+    assert sent == []
+
+    # Simulate the retry backoff elapsing.
     db.email_queue.update_one(
         {},
-        {"$set": {"last_attempt_at": datetime.now(timezone.utc) - timedelta(hours=1)}},
+        {"$set": {"next_attempt_at": datetime.now(timezone.utc) - timedelta(seconds=1)}},
     )
 
     # Second run: SMTP is back. The failed job must be picked up and delivered.
@@ -366,3 +370,104 @@ def test_process_email_queue_redacts_recipients_in_delivery_errors(db, monkeypat
     )
     assert error_log["details"]["error"] == job["last_error"]
     assert "refused@example.test" not in str(error_log)
+
+
+@pytest.mark.integration
+@pytest.mark.jobs
+def test_process_email_queue_backs_off_exponentially(db, monkeypatch):
+    from datetime import datetime, timezone, timedelta
+
+    from mielenosoitukset_fi.emailer.EmailSender import (
+        EMAIL_RETRY_MAX_BACKOFF_SECONDS,
+        retry_delay_seconds,
+    )
+    from mielenosoitukset_fi.scripts.process_email_queue import run
+
+    assert [retry_delay_seconds(n) for n in (1, 2, 3, 4)] == [60, 120, 240, 480]
+    assert retry_delay_seconds(30) == EMAIL_RETRY_MAX_BACKOFF_SECONDS
+    assert retry_delay_seconds(10**6) == EMAIL_RETRY_MAX_BACKOFF_SECONDS
+
+    db.email_queue.delete_many({})
+    db.email_queue.insert_one(
+        {**_queued_email("Backoff", ["slow@example.test"]), "status": "failed", "attempts": 3,
+         "next_attempt_at": datetime.now(timezone.utc) - timedelta(seconds=1)}
+    )
+    _patch_sender(monkeypatch, fail_first=1)
+
+    before = datetime.now(timezone.utc)
+    assert run(max_jobs=10) == 0
+    job = db.email_queue.find_one({})
+    assert job["status"] == "failed"
+    assert job["attempts"] == 4
+    wait = (job["next_attempt_at"].replace(tzinfo=timezone.utc) - before).total_seconds()
+    assert 470 <= wait <= 490
+
+
+@pytest.mark.integration
+@pytest.mark.jobs
+def test_process_email_queue_dead_letters_after_last_attempt(db, monkeypatch):
+    from datetime import datetime, timezone, timedelta
+
+    from mielenosoitukset_fi.emailer.EmailSender import EMAIL_MAX_ATTEMPTS
+    from mielenosoitukset_fi.scripts.process_email_queue import run
+    from mielenosoitukset_fi.utils.operational_metrics import collect_operational_metrics
+
+    db.email_queue.delete_many({})
+    db.admin_logs.delete_many({})
+    job_id = ObjectId()
+    db.email_queue.insert_one(
+        {**_queued_email("Last try", ["gone@example.test"], _id=job_id), "status": "failed",
+         "attempts": EMAIL_MAX_ATTEMPTS - 1,
+         "next_attempt_at": datetime.now(timezone.utc) - timedelta(seconds=1)}
+    )
+    sent = _patch_sender(monkeypatch, fail_first=5)
+
+    assert run(max_jobs=10) == 0
+    job = db.email_queue.find_one({"_id": job_id})
+    assert job["status"] == "dead"
+    assert job["attempts"] == EMAIL_MAX_ATTEMPTS
+    assert job["dead_at"]
+
+    # Dead letters are never claimed again, even long after.
+    db.email_queue.update_one({"_id": job_id}, {"$set": {"last_attempt_at": datetime(2000, 1, 1)}})
+    assert run(max_jobs=10) == 0
+    assert sent == []
+
+    log = db.admin_logs.find_one({"details.job_id": str(job_id)})
+    assert log["details"]["dead_letter"] is True
+    assert collect_operational_metrics(db)["email_queue"]["exhausted"] == 1
+
+
+@pytest.mark.integration
+@pytest.mark.jobs
+def test_process_email_queue_never_resends_after_smtp_accepts(db, monkeypatch):
+    """A queue delete failing after a successful send must not trigger a retry."""
+    from mielenosoitukset_fi.scripts import process_email_queue as script
+
+    db.email_queue.delete_many({})
+    job_id = ObjectId()
+    db.email_queue.insert_one(_queued_email("Once only", ["once@example.test"], _id=job_id))
+    sent = _patch_sender(monkeypatch)
+
+    queue = db.email_queue
+
+    class FlakyDeleteQueue:
+        def __getattr__(self, name):
+            return getattr(queue, name)
+
+        def delete_one(self, *args, **kwargs):
+            raise RuntimeError("primary stepped down")
+
+    monkeypatch.setattr(script, "_bind_sender_to_database", lambda db_: None)
+    monkeypatch.setattr(script._sender, "_queue_collection", FlakyDeleteQueue())
+    monkeypatch.setattr(script._sender, "_cases_collection", db.cases)
+    monkeypatch.setattr(script._sender, "_db", db)
+
+    assert script.run(max_jobs=10) == 1
+    job = db.email_queue.find_one({"_id": job_id})
+    assert job["status"] == "sent"
+    assert job["sent_at"]
+
+    # Later runs leave the delivered job alone.
+    assert script.run(max_jobs=10) == 0
+    assert [job["subject"] for job in sent] == ["Once only"]

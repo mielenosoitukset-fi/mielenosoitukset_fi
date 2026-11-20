@@ -1,0 +1,1 @@
+- Account settings: adding an MFA device now asks you to confirm your identity first, like renaming or removing one. After several wrong passwords or MFA codes in the confirmation step, you have to wait a moment before trying again.

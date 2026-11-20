@@ -1,0 +1,1 @@
+- The new settings page can now add, rename and remove passkeys in the Security tab. Adding, renaming and removing ask you to confirm your identity first, as the old page does.
