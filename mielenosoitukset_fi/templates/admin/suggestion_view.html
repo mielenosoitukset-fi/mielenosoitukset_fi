@@ -17,7 +17,7 @@
       (demo.title if demo else none) or suggestion.original_values.get('title') or _('Mielenosoituksen muutosehdotus'),
       _('Vertaa nykyisiä ja ehdotettuja arvoja ja valitse vain ne muutokset, jotka haluat julkaista.'),
       _('Ehdotuksen tarkastelu'),
-      [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Mielenosoitukset'), url_for('admin_demo.demo_control')), (suggestions_home_label or _('Ehdotukset'), (suggestions_home_url or url_for('admin_demo.suggestions_list'))), (_('Tarkastelu'), none)],
+      suggestion_breadcrumbs or [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Mielenosoitukset'), url_for('admin_demo.demo_control')), (suggestions_home_label or _('Ehdotukset'), (suggestions_home_url or url_for('admin_demo.suggestions_list'))), (_('Tarkastelu'), none)],
       back_url=(suggestions_home_url or url_for('admin_demo.suggestions_list')),
       back_label=suggestions_home_label or _('Ehdotukset')
     ) %}

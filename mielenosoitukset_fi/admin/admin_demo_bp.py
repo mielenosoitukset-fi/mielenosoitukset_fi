@@ -500,6 +500,31 @@ def _handle_cases_after_merge(primary_id, secondary_ids, doc_map):
         )
 
 
+def _decision_urls(demo_ids):
+    """Map each pending demo to the one page where the current admin decides it.
+
+    Maintainer decision (20 Nov 2026): new submissions are decided in their
+    case. Admins with global case controls go to the demo's newest
+    ``new_demo`` case; everyone else (city admins) uses the content-only
+    review page, which is their only decision page.
+    """
+    from mielenosoitukset_fi.utils.case_access import global_case_permission
+
+    ids = [ObjectId(str(value)) for value in demo_ids if ObjectId.is_valid(str(value))]
+    urls = {str(value): url_for("admin_demo.review_demo", demo_id=str(value)) for value in ids}
+    if not ids or not global_case_permission(current_user, "EDIT_CASE"):
+        return urls
+    cases = mongo.cases.find(
+        {"type": "new_demo", "demo_id": {"$in": ids + [str(value) for value in ids]}},
+        {"demo_id": 1, "created_at": 1},
+    ).sort("created_at", 1)
+    for case_doc in cases:
+        urls[str(case_doc["demo_id"])] = url_for(
+            "admin_case.single_case", case_id=str(case_doc["_id"])
+        )
+    return urls
+
+
 def _apply_demo_decision(demo_id, decision, source, used_token_id=None, reason=None):
     """Route adapter for the shared idempotent moderation service."""
     from mielenosoitukset_fi.utils.demo_takedown import can_take_down_demo
@@ -814,8 +839,26 @@ def _suggestions_home_label(suggestion_id=None):
     if not _cases_replace_suggestions_list():
         return _("Ehdotukset")
     if _suggestions_home_url(suggestion_id).endswith(f"/{suggestion_id}/"):
+        case_doc = mongo.cases.find_one({"_id": ObjectId(str(suggestion_id))}, {"running_num": 1}) or {}
+        if case_doc.get("running_num"):
+            return _("Tapaus") + f" #{case_doc['running_num']}"
         return _("Tapaus")
     return _("Tapaukset")
+
+
+def _suggestion_breadcrumbs(suggestion_id=None):
+    """Case-backed suggestions sit under Tapaukset > Tapaus #N, others under Mielenosoitukset."""
+    home_url = _suggestions_home_url(suggestion_id)
+    home_label = _suggestions_home_label(suggestion_id)
+    crumbs = [(_("Hallintapaneeli"), url_for("admin.admin_dashboard"))]
+    if _cases_replace_suggestions_list():
+        if home_url != url_for("admin_case.cases"):
+            crumbs.append((_("Tapaukset"), url_for("admin_case.cases")))
+    else:
+        crumbs.append((_("Mielenosoitukset"), url_for("admin_demo.demo_control")))
+    crumbs.append((home_label, home_url))
+    crumbs.append((_("Tarkastelu"), None))
+    return crumbs
 
 
 @admin_demo_bp.route('/suggestions')
@@ -983,6 +1026,7 @@ def suggestion_view(suggestion_id):
         demo=demo,
         suggestions_home_url=_suggestions_home_url(suggestion_id),
         suggestions_home_label=_suggestions_home_label(suggestion_id),
+        suggestion_breadcrumbs=_suggestion_breadcrumbs(suggestion_id),
     )
 
 
@@ -2137,6 +2181,14 @@ def demo_control():
         "GENERATE_EDIT_LINK" in permissions
         for permissions in demo_actions.values()
     )
+    decision_urls = _decision_urls(
+        demo.get("_id")
+        for demo in demos
+        if not demo.get("approved")
+        and not demo.get("rejected")
+        and not demo.get("cancelled")
+        and "ACCEPT_DEMO" in demo_actions[str(demo.get("_id"))]
+    )
 
     # --- Determine next/previous pages ---
     prev_page = page - 1 if page > 1 else None
@@ -2199,6 +2251,7 @@ def demo_control():
         f"{_ADMIN_TEMPLATE_FOLDER}demonstrations/dashboard.html",
         demonstrations=demos,
         demo_actions=demo_actions,
+        decision_urls=decision_urls,
         can_generate_edit_link=can_generate_edit_link,
         edit_link_csrf_token=(
             _edit_link_csrf_token() if can_generate_edit_link else None
@@ -3627,8 +3680,6 @@ def demo_command_center(demo_id):
     public_url = url_for("demonstration_detail", demo_id=public_identifier)
 
     action_endpoints = {
-        "approve": {"url": url_for("admin_demo_api.approve_demo", demo_id=demo_id_str), "method": "POST"},
-        "reject": {"url": url_for("admin_demo_api.reject_demo", demo_id=demo_id_str), "method": "POST"},
         "cancel": {"url": url_for("admin_demo_api.admin_cancel_demo", demo_id=demo_id_str), "method": "POST"},
         "recommend": {"url": url_for("admin_demo.recommend_demo", demo_id=demo_id_str), "method": "POST"},
         "unrecommend": {"url": url_for("admin_demo.unrecommend_demo", demo_id=demo_id_str), "method": "POST"},
@@ -3660,8 +3711,14 @@ def demo_command_center(demo_id):
         "cancelled_by": demo_data.get("cancelled_by"),
     }
 
+    # The command center shows state; decisions happen in the case.
+    decision_url = None
+    if status_flags["needs_review"] and not status_flags["cancelled"] and permissions["can_accept"]:
+        decision_url = _decision_urls([demo_data["_id"]]).get(demo_id_str)
+
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}demonstrations/command_center.html",
+        decision_url=decision_url,
         demo=demo,
         demo_raw=demo_data,
         demo_id=demo_id_str,

@@ -1,7 +1,9 @@
 # Campaign volunteer signup in Go: `POST /kampanja/api/volunteers`
 
-Status: implemented and shipped dark (20 November 2026). Nothing routes to it, the flag is off, and Flask handles every
-real request. Spec: [go-write-api-proposal.md](go-write-api-proposal.md) section 4; form and data model:
+Status: implemented and shipped dark (20 November 2026); activation PR turns it on (20 November 2026). The flag is on by
+default with the auth bridge, Apache routes the POST to Go, and `deploy/release_routing.sh` refuses the routing include until
+Go answers `GET /kampanja/api/volunteers` with 405. Opt out with `CAMPAIGN_VOLUNTEERS_GO_ENABLED: false` in `config.yaml` and
+comment out the Apache rule; Flask's `add_volunteer()` is unchanged and takes the POST back. Spec: [go-write-api-proposal.md](go-write-api-proposal.md) section 4; form and data model:
 [decisions.md](decisions.md) ("Volunteer form data model"). Pattern: [go-contact.md](go-contact.md).
 
 ## What it does
@@ -72,39 +74,34 @@ If the token pages session wants a different signature, change it freely; the Go
 
 | Setting | Where | Default |
 | --- | --- | --- |
-| `CAMPAIGN_VOLUNTEERS_GO_ENABLED: true` | `config.yaml`; `deploy/go-api/configure_environment.py` writes it to the Go environment, only with `AUTH_BRIDGE_SCOPES: true` | off |
+| `CAMPAIGN_VOLUNTEERS_GO_ENABLED` | `config.yaml`; `deploy/go-api/configure_environment.py` writes it to the Go environment, only with `AUTH_BRIDGE_SCOPES: true`; `false` opts out | on |
 | `SITE_ANALYTICS_ENABLED` | existing | as today |
 
-No new schema, index or collection. Needs: the Go API user can write `volunteers`, `volunteer_signup_attempts`, `email_queue`,
-`site_analytics` in the main database (the contact and suggestion routes already write the last two; confirm `volunteers` and
-`volunteer_signup_attempts` with `connectionStatus` before activation).
+No new schema, index or collection. The Go API uses the same `MONGO_URI` as Flask, so it can write `volunteers`, `volunteer_signup_attempts`, `email_queue`,
+`site_analytics` in the main database.
 
-## Activation (needs the maintainer's go, typed in the activating session)
+## Activation (by pull request, 20 November 2026)
 
-1. Merge and deploy with everything off (this change). Re-check that the PR's tests are green on `main`.
-2. Check Go's Mongo user can write `volunteers` and `volunteer_signup_attempts` (`readWrite` on the main database is expected).
-3. Back up `config.yaml` and `/etc/mielenosoitukset-api/environment`.
-4. `config.yaml`: `CAMPAIGN_VOLUNTEERS_GO_ENABLED: true` (with `AUTH_BRIDGE_SCOPES: true`). Re-run the deploy so the Go environment is
-   rewritten; restart the API.
-5. Test with a scratch address on a private campaign and a published one, directly against `127.0.0.1:8091` (a 201 and a pending
-   `email_queue` row; confirm that Flask's `/kampanja/confirm/<token>` accepts the emailed link). Delete the test rows afterwards.
-6. Add the Apache rule (not active in this PR; it is not in `deploy/apache`):
+Olivia approved activations by pull request; no step needs the server by hand.
 
-   ```apache
-   RewriteCond %{REQUEST_METHOD} "^POST$"
-   RewriteRule "^/kampanja/api/volunteers$" "http://127.0.0.1:8091/kampanja/api/volunteers" [P,L]
-   ```
-
-   Reload Apache. The React form posts same-origin, so nothing else changes.
-7. Check that Go sees the real visitor address, not Apache's or Cloudflare's: otherwise every visitor shares one key and the limit of
-   5 per hour blocks everyone. Sign up once with a scratch address through `https://mielenosoitukset.fi`, then check that the newest
-   `volunteer_signup_attempts` key starting with `ip:` equals `ip:` plus the SHA-256 of your own public address in lower case (for
-   example `printf %s "$MY_IP" | sha256sum`). If it does not match, remove the Apache rule again. Delete the test rows afterwards.
+1. `deploy/go-api/configure_environment.py` writes `CAMPAIGN_VOLUNTEERS_GO_ENABLED=true` unless `config.yaml` sets it to `false`, and only
+   with `AUTH_BRIDGE_SCOPES: true` (already on in production: the city admin applications use the bridge). Each deploy rewrites the Go
+   environment and restarts the API before the routing step.
+2. `deploy/apache/react-ssr-routing.conf` routes `POST /kampanja/api/volunteers` to Go. The React form posts same-origin, so nothing else
+   changes.
+3. `deploy/release_routing.sh` refuses the whole include unless Go answers `GET /kampanja/api/volunteers` with 405 (the route exists).
+   With the flag off, a stale binary or no bridge it answers 404 and the old routing stays.
+4. The Go API uses the same `MONGO_URI` as Flask, so it can write the same collections.
+5. After go-live, check that Go sees the real visitor address, not Apache's or Cloudflare's: otherwise every visitor shares one key and
+   the limit of 5 per hour blocks everyone. The address code is the one the live submission intake uses. Sign up once with a scratch
+   address through `https://mielenosoitukset.fi`, then check that the newest `volunteer_signup_attempts` key starting with `ip:` equals
+   `ip:` plus the SHA-256 of your own public address in lower case (for example `printf %s "$MY_IP" | sha256sum`). If it does not match,
+   comment out the Apache rule again. Delete the test rows afterwards.
 
 ## Revert
 
-Remove the Apache rule and reload: Flask handles POST again with the same limiter documents, volunteer fields and hashed tokens. Optionally
-set `CAMPAIGN_VOLUNTEERS_GO_ENABLED` false and restart. Signups and queued mail made by Go stay valid in both directions. Nothing in the
+Comment out the Apache rule and deploy: Flask handles POST again with the same limiter documents, volunteer fields and hashed tokens. Optionally
+set `CAMPAIGN_VOLUNTEERS_GO_ENABLED: false` in `config.yaml`. Signups and queued mail made by Go stay valid in both directions. Nothing in the
 database needs restoring.
 
 ## Tests

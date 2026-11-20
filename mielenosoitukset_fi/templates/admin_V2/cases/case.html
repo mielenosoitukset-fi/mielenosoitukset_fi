@@ -175,7 +175,7 @@
             <div class="detail-item"><strong>{{ _('Kaupunki') }}</strong><span>{{ demo.city or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Osoite') }}</strong><span>{{ demo.address or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Tapahtumatyyppi') }}</strong><span>{{ demo.event_type or demo.type or '-' }}</span></div>
-            <div class="detail-item"><strong>{{ _('Facebook') }}</strong>{% if demo.facebook %}<a href="{{ demo.facebook }}" target="_blank" rel="noopener noreferrer">{{ demo.facebook }}</a>{% else %}<span>-</span>{% endif %}</div>
+            <div class="detail-item"><strong>{{ _('Facebook') }}</strong>{% if demo.facebook|safe_href %}<a href="{{ demo.facebook|safe_href }}" target="_blank" rel="noopener noreferrer">{{ demo.facebook }}</a>{% else %}<span>-</span>{% endif %}</div>
           </div>
 
           {% if demo.route %}
@@ -213,7 +213,7 @@
               <div class="note-box">
                 <div><strong>{{ org.name or _('Nimetön järjestäjä') }}</strong></div>
                 {% if org.email %}<div class="muted">{{ org.email }}</div>{% endif %}
-                {% if org.website %}<div><a href="{{ org.website }}" target="_blank" rel="noopener noreferrer">{{ org.website }}</a></div>{% endif %}
+                {% if org.website|safe_href %}<div><a href="{{ org.website|safe_href }}" target="_blank" rel="noopener noreferrer">{{ org.website }}</a></div>{% endif %}
               </div>
               {% endfor %}
             </div>
