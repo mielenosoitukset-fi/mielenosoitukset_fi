@@ -1,5 +1,6 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
+{% from 'admin_V2/demonstrations/_decision_modal.html' import demo_decision_modal %}
 
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/demonstrations.css', v='20260914-admin-ui-51') }}">{% endblock %}
 
@@ -595,11 +596,14 @@
     </aside>
   </div>
 </div>
+{{ demo_decision_modal() }}
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/admin_demo_decision.js', v='20261120-decision-1') }}"></script>
 <script>
   const COMMAND_ENDPOINTS = {{ action_endpoints|tojson }};
+  const demoId = {{ demo_id|tojson }};
 
   async function runCommand(actionKey, { payload = {}, successMessage = "{{ _('Toiminto suoritettu') }}", failureMessage = "{{ _('Toiminto epäonnistui') }}", refresh = true } = {}) {
     const config = COMMAND_ENDPOINTS[actionKey];
@@ -674,12 +678,13 @@
       }
 
       if (command === "approve") {
-        await runCommand("approve", { successMessage: "{{ _('Hyväksytty!') }}" });
+        if (await window.MosoDemoDecision.confirm(demoId, "approved")) {
+          await runCommand("approve", { successMessage: "{{ _('Hyväksytty!') }}" });
+        }
         return;
       }
       if (command === "reject") {
-        const confirmReject = confirm("{{ _('Haluatko varmasti hylätä tämän mielenosoituksen?') }}");
-        if (confirmReject) {
+        if (await window.MosoDemoDecision.confirm(demoId, "rejected")) {
           await runCommand("reject", { successMessage: "{{ _('Hylätty!') }}" });
         }
         return;

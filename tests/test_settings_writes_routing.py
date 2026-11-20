@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_settings_write_posts_route_to_go_only_with_a_release_check():
     lines = (ROOT / "deploy/apache/react-ssr-routing.conf").read_text().splitlines()
-    for path in ("profile", "settings"):
+    for path in ("profile", "settings", "deletion-request"):
         rule = f'RewriteRule "^/api/account/{path}$" "http://127.0.0.1:8091$0" [P,L]'
         index = [i for i, line in enumerate(lines) if line == rule]
         assert index, rule

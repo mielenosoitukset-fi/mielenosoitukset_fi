@@ -23,6 +23,9 @@ def _get_db():
     return get_database_manager()
 
 
+MERGE_KEEP_FIELDS = frozenset({"_id", "approved", "rejected"})
+
+
 class Demonstration(BaseModel):
     # Running number and slug fields for user-friendly URLs
     running_number: int = None
@@ -613,8 +616,12 @@ class Demonstration(BaseModel):
 
         other_demo = Demonstration.from_dict(other_demo_data)
 
-        # Update fields with non-None values from the other demonstration
+        # Update fields with non-None values from the other demonstration.
+        # Moderation fields stay as they are: approving or rejecting goes only
+        # through demonstrations.decisions.apply_demo_decision.
         for key, value in other_demo.to_dict().items():
+            if key in MERGE_KEEP_FIELDS:
+                continue
             if key != "_id" and value is not None:
                 setattr(self, key, value)
 
@@ -1112,3 +1119,9 @@ def is_none(s):
         return True
     
     return False
+
+
+def has_mixed_decisions(demos) -> bool:
+    """True when merging these demos would change the kept demo's decision."""
+    states = {(bool(d.get("approved")), bool(d.get("rejected"))) for d in demos}
+    return len(states) > 1

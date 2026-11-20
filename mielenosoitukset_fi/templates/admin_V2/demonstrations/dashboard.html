@@ -1,9 +1,11 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
 {% from 'admin_V2/demonstrations/_edit_link_modal.html' import demo_edit_link_modal %}
+{% from 'admin_V2/demonstrations/_decision_modal.html' import demo_decision_modal %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/demonstrations.css', v='20260914-admin-ui-51') }}">{% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/admin_demo_edit_links.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin_demo_decision.js', v='20261120-decision-1') }}"></script>
 <script>
   function acceptSty(demoId) {
     const demo = document.getElementById(`demo-${demoId}`);
@@ -17,7 +19,8 @@
     demo.classList.remove("admin-data-row--attention");
   }
 
-  function acceptDemo(demoId) {
+  async function acceptDemo(demoId) {
+    if (!(await window.MosoDemoDecision.confirm(demoId, "approved"))) return;
     fetch(`/admin/demo/accept_demo/${demoId}`, {
       method: "POST",
       headers: {
@@ -45,8 +48,8 @@
   }
 
 
-  function rejectDemo(demoId) {
-    if (!confirm("{{ _('Haluatko varmasti hylätä tämän mielenosoituksen?') }}")) return;
+  async function rejectDemo(demoId) {
+    if (!(await window.MosoDemoDecision.confirm(demoId, "rejected"))) return;
 
     fetch(`/api/admin/demo/${demoId}/deny`, {
       method: "POST",
@@ -626,6 +629,7 @@
   {% endif %}
   {% if can_generate_edit_link %}
   {{ demo_edit_link_modal('dashboardEditLinkModal', edit_link_csrf_token) }}
+  {{ demo_decision_modal() }}
   {% endif %}
   <!-- Delete Confirmation Modal -->
   <div class="modal fade admin-modal" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">

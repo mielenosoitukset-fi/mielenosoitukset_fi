@@ -969,7 +969,8 @@ def login():
         return response
     # A GET starts a new sign-in, so only its own ``next`` counts; an older
     # stored target must not leak into it. A POST may fall back to the target
-    # saved when its login page was shown.
+    # saved when its login page was shown (only the legacy Flask page stores
+    # one; the React page always posts an explicit ``next``).
     next_page = request.args.get("next")
     if not next_page and request.method == "POST":
         next_page = session.get("next_page")
@@ -1014,7 +1015,9 @@ def login():
                     user_id=user._id,
                 )
                 flash_message("Väärä MFA-koodi.", "error")
-                return redirect(url_for("users.auth.login", next=safe_next_page))
+                # mfa=1 only tells the page to show the code step again; the
+                # server-held proof decides whether a code is still accepted.
+                return redirect(url_for("users.auth.login", next=safe_next_page, mfa=1))
             user = _consume_pending_mfa_login(user)
             if not user:
                 _clear_pending_mfa_login()
@@ -1071,7 +1074,7 @@ def login():
             if user.mfa_enabled and not mfa_code:
                 _clear_pending_mfa_login()
                 _set_pending_mfa_login(user)
-                return redirect(url_for("users.auth.login", next=safe_next_page))
+                return redirect(url_for("users.auth.login", next=safe_next_page, mfa=1))
             if user.mfa_enabled and not meow(user):
                 log_login_attempt(username, success=False, ip=user_ip, user_agent=user_agent, reason="MFA failed", user_id=user._id)
                 return redirect(url_for("users.auth.login", next=safe_next_page))
