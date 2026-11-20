@@ -2,7 +2,8 @@
 
     python -m mielenosoitukset_fi.scripts.deliver_case_notices
 
-Two independent switches, both off by default:
+Independent switches, all on by default since 20 Nov 2026 (set one to
+0/false/no/off in the Flask environment to switch that part off):
 
 * ``DEMO_SUGGESTION_CASES_ENABLED`` opens a ``demo_edit_suggestion`` case for each
   open demonstration suggestion (also older ones still waiting) and closes the
