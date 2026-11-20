@@ -140,14 +140,15 @@ MERGE_FIELD_DEFINITIONS = [
     {"key": "tags", "label": _("Tunnisteet"), "type": "list"},
     {"key": "facebook", "label": _("Facebook-linkki"), "type": "text"},
     {"key": "cover_picture", "label": _("Kansikuva"), "type": "text"},
-    {"key": "approved", "label": _("Hyväksytty"), "type": "bool"},
     {"key": "hide", "label": _("Piilotettu"), "type": "bool"},
     {"key": "slug", "label": _("Lyhytlinkki"), "type": "text"},
     {"key": "parent", "label": _("Toistuvan demon vanhempi"), "type": "objectid"},
     {"key": "recurs", "label": _("Merkitty toistuvaksi"), "type": "bool"},
 ]
 
-MERGE_BOOL_FIELDS = {"recurs", "approved", "hide"}
+# Approval is not a mergeable field: it changes only through the decision
+# service (see merge_demos, which approves the kept demo there if needed).
+MERGE_BOOL_FIELDS = {"recurs", "hide"}
 
 
 MAX_MERGE_COUNT = 10
@@ -2938,6 +2939,16 @@ def merge_demos():
         abort(503)
     if not set_merge_phase("completed", state="completed", history_id=history_id):
         abort(503)
+
+    # A merge must not unpublish an event that was public under another copy.
+    # The kept demo is approved through the same decision service as every
+    # other path (audit, case closing), never by copying the flag.
+    if (
+        any(doc.get("approved") for doc in doc_map.values())
+        and not original_primary.get("approved")
+        and not original_primary.get("rejected")
+    ):
+        _apply_demo_decision(primary_id, "approved", source="admin_merge")
 
     flash_message(_("Mielenosoitukset yhdistettiin onnistuneesti."), "success")
     return redirect(url_for("admin_demo.edit_demo", demo_id=primary_id))

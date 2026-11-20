@@ -6,45 +6,72 @@ demonstration must be technically the same everywhere and do the same things.
 side effects (submitter email, case closing, link revocation, audit).
 """
 
-import re
+import ast
 from pathlib import Path
 
 from bson import ObjectId
 
 PACKAGE = Path(__file__).resolve().parents[1] / "mielenosoitukset_fi"
-DECISION_SERVICE = PACKAGE / "demonstrations" / "decisions.py"
+DECISION_SERVICE = "demonstrations/decisions.py"
+STATUS_FIELDS = {"approved", "rejected"}
+UPDATE_OPERATORS = {"$set", "$setOnInsert", "$unset"}
 
-# A literal Mongo update that sets approved/rejected, e.g.
-# {"$set": {"approved": False, "hide": True}}. Reads and filters don't match:
-# they are not inside a "$set"/"$setOnInsert"/"$unset" document.
-RAW_STATUS_WRITE = re.compile(
-    r"""["']\$(?:set|setOnInsert|unset)["']\s*:\s*\{[^{}]*["'](?:approved|rejected)["']\s*:""",
-    re.S,
-)
-
-# Writes that are not decisions and so stay outside the service. Keep this
-# list empty unless the write creates a new record or is governance data.
+# (file, function) pairs that may still assign the status, each with its reason.
+# Keep this list shrinking; a new entry needs a maintainer-visible reason.
 ALLOWED = {
-    # Board/system-team governance records, not demonstrations.
-    "utils/team_governance.py",
-    "utils/god_emergency.py",
-    "utils/god_appointments.py",
-    "utils/security_cases.py",  # revokes board clearances, not demonstrations
+    ("admin/admin_demo_bp.py", "duplicate_demo"): "a new copy always starts pending",
+    ("admin/admin_demo_bp.py", "handle_demo_form"): "edit-form checkbox, removed after #1265",
+    ("admin/admin_case_bp.py", "_stringify_demo"): "read-only view model for the case page",
+    ("admin/admin_recu_demo_bp.py", "handle_recu_demo_form"): "series record, not a demonstration",
+    # Governance records (board clearances, appointments), not demonstrations.
+    ("utils/team_governance.py", "cast_joint_override"): "governance",
+    ("utils/team_governance.py", "cast_vote"): "governance",
+    ("utils/god_emergency.py", "open_request"): "governance",
+    ("utils/god_appointments.py", "cast_appointment_vote"): "governance",
+    ("utils/security_cases.py", "reconcile_case"): "revokes board clearances",
 }
+
+
+def _status_writes(tree):
+    """Yield (line, function) for literal status writes.
+
+    Catches ``{"$set": {"approved": ...}}`` style update documents and
+    ``doc["approved"] = ...`` assignments. It cannot see updates assembled
+    in variables or whole-document saves; those paths have behavioural tests
+    (bulk children, merge, escalation) below and in test_demo_decision_service.
+    """
+    owners = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for child in ast.walk(node):
+                owners.setdefault(id(child), node.name)
+    for node in ast.walk(tree):
+        hit = False
+        if isinstance(node, ast.Dict):
+            for key, value in zip(node.keys, node.values):
+                if (isinstance(key, ast.Constant) and key.value in UPDATE_OPERATORS
+                        and isinstance(value, ast.Dict)):
+                    hit |= any(isinstance(inner, ast.Constant) and inner.value in STATUS_FIELDS
+                               for inner in value.keys)
+        elif isinstance(node, ast.Assign):
+            hit = any(isinstance(target, ast.Subscript) and isinstance(target.slice, ast.Constant)
+                      and target.slice.value in STATUS_FIELDS for target in node.targets)
+        if hit:
+            yield node.lineno, owners.get(id(node))
 
 
 def test_no_code_outside_the_decision_service_writes_demo_status():
     offenders = []
     for path in PACKAGE.rglob("*.py"):
         relative = path.relative_to(PACKAGE).as_posix()
-        if path == DECISION_SERVICE or relative in ALLOWED or "/tests/" in f"/{relative}":
+        if relative == DECISION_SERVICE:
             continue
-        for match in RAW_STATUS_WRITE.finditer(path.read_text(encoding="utf-8")):
-            line = path.read_text(encoding="utf-8").count("\n", 0, match.start()) + 1
-            offenders.append(f"{relative}:{line}")
+        for line, function in _status_writes(ast.parse(path.read_text(encoding="utf-8"))):
+            if (relative, function) not in ALLOWED:
+                offenders.append(f"{relative}:{line} ({function})")
     assert offenders == [], (
         "Approve/reject must go through demonstrations.decisions.apply_demo_decision; "
-        f"raw status writes found at {offenders}"
+        f"literal status writes found at {offenders}"
     )
 
 
@@ -124,3 +151,48 @@ def test_case_page_offers_escalation_only_for_pending_demos(admin_client, db, se
     assert "escalateDemo()" in admin_client.get(url).get_data(as_text=True).split("function escalateDemo")[0]
     db.demonstrations.update_one({"_id": demo_id}, {"$set": {"approved": True}})
     assert "escalateDemo()" not in admin_client.get(url).get_data(as_text=True).split("function escalateDemo")[0]
+
+
+def test_bulk_child_approval_needs_approval_permission(app, db, seeded_data):
+    from mielenosoitukset_fi.users.models import User
+    from tests.conftest import _client_for_user
+
+    editor_id = ObjectId()
+    editor = User.create_user(
+        username=f"series-editor-{str(editor_id)[-6:]}", password="EditorPass1!",
+        email=f"series-editor-{str(editor_id)[-6:]}@example.test", displayname="Series Editor",
+    )
+    editor.update({
+        "_id": editor_id, "confirmed": True, "active": True, "role": "admin", "global_admin": False,
+        "global_permissions": ["LIST_DEMOS", "VIEW_DEMO", "EDIT_DEMO", "EDIT_RECURRING_DEMO"],
+    })
+    db.users.insert_one(editor)
+    parent_id = seeded_data["recu_demo_id"]
+    db.recu_demos.update_one({"_id": parent_id}, {"$set": {"approved": True}})
+    children = _series_children(db, parent_id, count=1)
+
+    response = _client_for_user(app, editor_id).post(
+        f"/admin/recu_demo/{parent_id}/bulk-update-children",
+        data={"child_ids": [str(children[0])], "fields": ["approved"]},
+    )
+
+    assert response.status_code == 302
+    child = db.demonstrations.find_one({"_id": children[0]})
+    assert child["approved"] is False
+    assert "moderation_decision" not in child
+
+
+def test_merge_approves_the_kept_demo_through_the_decision_service(admin_client, db, seeded_data):
+    primary_id = seeded_data["pending_demo_id"]
+    approved_copy = seeded_data["demo_id"]
+    assert db.demonstrations.find_one({"_id": approved_copy})["approved"] is True
+
+    response = admin_client.post("/admin/demo/merge", data={
+        "demo_ids": [str(primary_id), str(approved_copy)], "primary_demo_id": str(primary_id),
+        "field_source[approved]": str(primary_id),
+    })
+
+    assert response.status_code == 302
+    primary = db.demonstrations.find_one({"_id": primary_id})
+    assert primary["approved"] is True
+    assert primary["moderation_decision"]["source"] == "admin_merge"

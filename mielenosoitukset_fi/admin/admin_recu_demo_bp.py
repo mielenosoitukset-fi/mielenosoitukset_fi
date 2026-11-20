@@ -1012,18 +1012,18 @@ def bulk_update_children(demo_id):
     updated_ids = []
     updated_count = 0
     approved_count = 0
+    skipped_count = 0
     if approve_children:
         from mielenosoitukset_fi.admin.admin_demo_bp import _apply_demo_decision
     for child in children:
-        if (
-            approve_children
-            and not child.get("approved")
-            and has_demo_approval_permission(current_user, child)
-        ):
-            result = _apply_demo_decision(
-                str(child["_id"]), "approved", source="admin_recurring_bulk"
-            )
-            approved_count += int(result.changed)
+        if approve_children and not child.get("approved"):
+            if has_demo_approval_permission(current_user, child):
+                result = _apply_demo_decision(
+                    str(child["_id"]), "approved", source="admin_recurring_bulk"
+                )
+                approved_count += int(result.changed)
+            else:
+                skipped_count += 1
         if not update_fields:
             continue
         new_child = deepcopy(child)
@@ -1064,7 +1064,13 @@ def bulk_update_children(demo_id):
             "success",
             count=approved_count,
         )
-    elif approval_requested:
+    if skipped_count:
+        flash_message(
+            "Käyttöoikeutesi eivät riitä hyväksymään %(count)s lapsimielenosoitusta.",
+            "warning",
+            count=skipped_count,
+        )
+    if approval_requested and not approve_children:
         flash_message(
             "Sarjaa ei ole hyväksytty, joten lapsimielenosoituksia ei hyväksytty.",
             "warning",
