@@ -17,12 +17,16 @@
 }
 .public-detail h1,.public-detail h2,.public-detail h3 {
   color:var(--product-text);
+  text-align:start;
   margin:0;
   line-height:1.2;
   letter-spacing:-.025em
 }
 .public-detail h1 {
   font-size:clamp(2rem,4vw,3.65rem);
+  /* Finnish compound words: hyphenate before the last-resort break, and keep
+     the title aligned with the facts and buttons below it. */
+  hyphens:auto;
   overflow-wrap:anywhere;
   max-width:24ch;
   font-weight:800
@@ -181,6 +185,9 @@
   white-space:pre-wrap
 }
 .detail-note {
+  display:flex;
+  align-items:baseline;
+  gap:.5rem;
   color:var(--product-text-muted)
 }
 /* Legacy countdown card: the heading row already carries the start time, so this
@@ -495,6 +502,9 @@
 }
 .detail-heading {
   padding:1.4rem 1.15rem
+}
+.public-detail h1 {
+  font-size:1.75rem
 }
 .detail-facts {
   flex-direction:column;
