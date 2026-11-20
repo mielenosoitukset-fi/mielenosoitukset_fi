@@ -108,7 +108,7 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 - [x] **SEC-04:** token and approval lifecycle: revocation, expiry, replay, idempotent decisions. Inventory and open questions in [docs/token-lifecycle.md](docs/token-lifecycle.md).
 - [ ] **SEC-05:** review incident #912/#913 protections before touching related code.
 - [x] Harden privileged admin user actions (#547), organization membership and invites (#550, #342), and the organization admin panel (#549): done in #918/#919; issues closed 20 November 2026. Broader acceptance stays in SEC-03.
-- [ ] **QA-01:** finish the individual review of authentication and permission tests. QA-01j (#966), QA-01k (#973 via #964) and QA-01m (#1114, superseding #979) are merged. Remaining: other authentication and permission test files, see the roadmap.
+- [ ] **QA-01:** finish the individual review of authentication and permission tests. QA-01j (#966), QA-01k (#973 via #964) and QA-01m (#1114, superseding #979) are merged. `test_auth_bridge_session.py` reviewed 20 November 2026 (cross-organization check added). Remaining: other authentication and permission test files, see the roadmap.
 
 ## Data, jobs and integrations
 

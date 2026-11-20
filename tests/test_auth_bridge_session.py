@@ -79,3 +79,25 @@ def test_marker_tells_react_the_bridge_is_on(client, seeded_data, bridge_on):
 
 def test_marker_absent_when_flag_off(client):
     assert "auth_bridge" not in client.get("/api/session").get_json()
+
+
+def test_organization_scope_does_not_leak_to_another_organization(user_client, db, seeded_data, bridge_on):
+    from bson import ObjectId
+
+    other = ObjectId()
+    db.organizations.insert_one({"_id": other, "name": "Toinen yhdistys"})
+    query = "permission=EDIT_ORGANIZATION&permission=VIEW_ORGANIZATION"
+    own = user_client.get(f"/api/session?organization_id={_org(seeded_data)}&{query}").get_json()
+    foreign = user_client.get(f"/api/session?organization_id={other}&{query}").get_json()
+    # Positive control: the member's own organization grants both.
+    assert own["permissions"] == {"EDIT_ORGANIZATION": True, "VIEW_ORGANIZATION": True}
+    assert foreign["permissions"] == {"EDIT_ORGANIZATION": False, "VIEW_ORGANIZATION": False}
+    assert not any(foreign["organization"]["permissions"].values())
+
+
+def test_malformed_organization_scope_is_refused(user_client, bridge_on):
+    for query in ("organization_id=nope", "organization_id=" + "0" * 23,
+                  "organization_id=0123456789abcdef01234567&organization_id=0123456789abcdef01234568"):
+        response = user_client.get("/api/session?" + query + "&permission=EDIT_ORGANIZATION")
+        assert response.status_code == 400
+        assert "permissions" not in response.get_json()
