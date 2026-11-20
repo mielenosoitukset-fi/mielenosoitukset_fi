@@ -1,0 +1,1 @@
+- The standalone staff preview of a demonstration shows a small "Esikatselu" bar with the event's review state above the page, so it is not mistaken for the live page. The case embed (`?embed=1`) leaves it out, since the case shows the state.

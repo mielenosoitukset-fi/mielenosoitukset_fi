@@ -6,6 +6,14 @@
 {% block title %}{{ metadata_title }} | Mielenosoitukset.fi{% endblock %}
 {% block robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/public-detail.css', v='20261110-detail-buttons-1') }}">
+{% if not embed %}<style>
+  /* Staff-only status above the preview; widths follow .public-detail. */
+  .staff-preview-bar { width: calc(100% - 3rem); margin: 1.25rem auto -1rem; padding: .6rem 1rem;
+    border: 1px dashed var(--product-border); border-radius: .5rem; background: var(--product-surface-muted);
+    color: var(--product-text-muted); font-size: .9rem; line-height: 1.4; }
+  .staff-preview-bar strong { color: var(--product-text); }
+  @media (max-width: 560px) { .staff-preview-bar { width: calc(100% - 2rem); margin: 1rem auto -.25rem; } }
+</style>{% endif %}
 {% if embed %}<style>
   /* Framed in a case: only the event, no viewer-specific site chrome or page frame. */
   [data-react-island="site-header"], .public-site-footer, .message-cont, .flash-messages { display: none !important; }
@@ -15,6 +23,12 @@
   main#main-content > [data-react-island] .public-detail { margin-top: 1rem; }
 </style>{% endif %}{% endblock %}
 {% block content %}
+{% if not embed %}
+{#- Staff-only, outside the previewed page; the case embed shows the state itself. -#}
+<p class="staff-preview-bar" role="status">
+  <strong>{{ _('Esikatselu') }}</strong> · {{ preview_state }}
+</p>
+{% endif %}
 <div data-react-island="demonstration-detail" data-props-id="demonstration-detail-props">
   <div class="public-detail public-detail-boot" role="status"><p>{{ props.messages.loading }}</p></div>
 </div>
