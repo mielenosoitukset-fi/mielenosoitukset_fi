@@ -24,3 +24,8 @@ def test_flask_post_keeps_the_same_answer(client):
     response = client.post("/users/auth/password_reset_request", data={"email": "nobody@example.test"})
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/users/auth/login")
+
+
+def test_page_shows_flask_flashes_from_the_reset_link_page():
+    screen = (ROOT / "frontend/src/app/PasswordResetRequestScreen.tsx").read_text(encoding="utf-8")
+    assert "useFlashNotices()" in screen and "<FlashNotices notices={notices} />" in screen
