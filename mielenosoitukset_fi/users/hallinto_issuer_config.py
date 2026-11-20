@@ -11,6 +11,12 @@ from pymongo.uri_parser import parse_uri
 _MAX_CONFIG_BYTES = 64 * 1024
 _MONGO_DATABASE = re.compile(r"hallinto(?:_[a-z0-9_]+)?\Z")
 _LOOPBACK = {"127.0.0.1", "::1", "localhost"}
+# Any of these disables certificate or hostname verification for the issuer
+# state connection, including over loopback.
+_INSECURE_TLS_OPTIONS = (
+    "tlsinsecure", "tlsallowinvalidcertificates", "tlsallowinvalidhostnames",
+    "tlsdisableocspendpointcheck",
+)
 
 
 def _read_settings(path):
@@ -45,10 +51,10 @@ def _open_state_database(settings, owner_db):
     parsed = parse_uri(uri)
     if not parsed["username"] or not parsed["password"] or parsed["database"] != name:
         raise ValueError
-    options = parsed["options"]
-    if any(options.get(option) for option in (
-        "tlsinsecure", "tlsallowinvalidcertificates", "tlsallowinvalidhostnames",
-    )):
+    # pymongo returns option names in their canonical camelCase spelling, so
+    # compare case-insensitively rather than relying on one key form.
+    options = {str(key).lower(): value for key, value in parsed["options"].items()}
+    if any(options.get(option) for option in _INSECURE_TLS_OPTIONS):
         raise ValueError
     if not all(host in _LOOPBACK for host, _ in parsed["nodelist"]) and not options.get("tls"):
         raise ValueError

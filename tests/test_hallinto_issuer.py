@@ -248,6 +248,10 @@ def test_issuer_refuses_unprotected_config(app_factory, tmp_path, monkeypatch, f
     ("hallinto_issuer", "mongodb://127.0.0.1/hallinto_issuer"),
     ("hallinto_issuer", "mongodb://fixture:fixture@db.example.test/hallinto_issuer"),
     ("hallinto_issuer", "mongodb://fixture:fixture@127.0.0.1/hallinto_issuer?tls=true&tlsInsecure=true"),
+    ("hallinto_issuer", "mongodb://fixture:fixture@127.0.0.1/hallinto_issuer?tls=true&tlsAllowInvalidCertificates=true"),
+    ("hallinto_issuer", "mongodb://fixture:fixture@127.0.0.1/hallinto_issuer?tls=true&tlsAllowInvalidHostnames=true"),
+    ("hallinto_issuer", "mongodb://fixture:fixture@db.example.test/hallinto_issuer?tls=true&TLSALLOWINVALIDHOSTNAMES=true"),
+    ("hallinto_issuer", "mongodb://fixture:fixture@db.example.test/hallinto_issuer?tls=true&tlsDisableOCSPEndpointCheck=true"),
 ])
 def test_issuer_refuses_invalid_state_database(app_factory, tmp_path, monkeypatch, name, uri):
     path = tmp_path / "issuer.json"
