@@ -143,6 +143,7 @@ def test_retention_drops_seal_and_kept_records_but_not_audit(db, monkeypatch):
     monkeypatch.setenv("ERASURE_RETENTION_DAYS", "730")
     old = utcnow() - datetime.timedelta(days=800)
     recent = utcnow() - datetime.timedelta(days=10)
+    before = db.login_logs.count_documents({})  # the shared fixture may hold rows
     db.login_logs.insert_many([
         {"erased_subject": "poistettu-a", "erased_at": old},
         {"erased_subject": "poistettu-b", "erased_at": recent},
@@ -153,14 +154,15 @@ def test_retention_drops_seal_and_kept_records_but_not_audit(db, monkeypatch):
                                      {"_id": "poistettu-b", "created_at": recent}])
 
     dry = purge_expired(db, dry_run=True)
-    assert dry["counts"]["login_logs"] == 1 and db.login_logs.count_documents({}) == 3
+    assert dry["counts"]["login_logs"] == 1 and db.login_logs.count_documents({}) == before + 3
 
     purge_expired(db)
 
-    assert db.login_logs.count_documents({}) == 2
+    assert db.login_logs.count_documents({}) == before + 2
     assert db.login_logs.count_documents({"erased_subject": "poistettu-a"}) == 0
     assert db.admin_logs.count_documents({"erased_subject": "poistettu-a"}) == 1
-    assert [doc["_id"] for doc in db[SEAL_COLLECTION].find()] == ["poistettu-b"]
+    seals = db[SEAL_COLLECTION].find({"_id": {"$in": ["poistettu-a", "poistettu-b"]}})
+    assert [doc["_id"] for doc in seals] == ["poistettu-b"]
 
 
 def test_retention_days_has_a_floor(monkeypatch):
