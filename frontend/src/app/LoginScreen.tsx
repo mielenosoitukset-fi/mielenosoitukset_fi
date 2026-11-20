@@ -79,6 +79,8 @@ export default function LoginScreen({ config, search }: { config: AppConfig; sea
       setMessage({ kind: 'error', text: copy.loginError });
     }
     setBusy(null);
+    // The disabled submit button lost focus; put keyboard users back in the form.
+    queueMicrotask(() => (form.elements.namedItem('password') as HTMLInputElement | null)?.focus());
   }
 
   async function onPasskey() {
@@ -121,7 +123,7 @@ export default function LoginScreen({ config, search }: { config: AppConfig; sea
     {status}
     <section className="public-prose-card auth-card" hidden={step !== 'password'} aria-labelledby="login-title">
       <button type="button" className="detail-button detail-button--primary login-passkey" onClick={onPasskey}
-        disabled={busy !== null} aria-describedby="login-passkey-hint">{copy.passkey}</button>
+        disabled={busy !== null} aria-busy={busy === 'passkey'} aria-describedby="login-passkey-hint">{copy.passkey}</button>
       <p className="auth-hint" id="login-passkey-hint">{copy.passkeyHint}</p>
       <p className="login-divider"><span>{copy.divider}</span></p>
       <form ref={loginForm} className="auth-form" action={action} method="post" onSubmit={onPassword}>
@@ -132,17 +134,16 @@ export default function LoginScreen({ config, search }: { config: AppConfig; sea
         <div className="login-password">
           <input type={showPassword ? 'text' : 'password'} id="login-password" name="password" required
             autoComplete="current-password" placeholder={copy.passwordPlaceholder} />
-          <button type="button" className="login-password__toggle" aria-pressed={showPassword}
-            aria-label={showPassword ? copy.hidePassword : copy.showPassword} onClick={() => setShowPassword(value => !value)}>
-            {showPassword ? copy.hidePassword : copy.showPassword}
-          </button>
+          <button type="button" className="login-password__toggle" aria-pressed={showPassword} aria-controls="login-password"
+            onClick={() => setShowPassword(value => !value)}>{copy.showPassword}</button>
         </div>
         <div className="login-row">
           <label className="login-remember"><input type="checkbox" name="remember" /> {copy.remember}</label>
           <a href={loginApi.passwordReset}>{copy.forgot}</a>
         </div>
-        <div className="detail-actions">
-          <button type="submit" className="detail-button detail-button--primary" disabled={busy !== null}>{copy.submit}</button>
+        <div className="detail-actions login-submit">
+          <button type="submit" className="detail-button detail-button--primary" disabled={busy !== null}
+            aria-busy={busy === 'password'}>{copy.submit}</button>
         </div>
       </form>
     </section>
@@ -174,7 +175,7 @@ export default function LoginScreen({ config, search }: { config: AppConfig; sea
         <form className="auth-form" action={loginApi.resendConfirmation} method="post">
           <label htmlFor="login-resend-identity">{copy.resendLabel}</label>
           <input type="text" id="login-resend-identity" name="email_or_username" required autoComplete="username" />
-          <div className="detail-actions">
+          <div className="detail-actions login-dialog__actions">
             <button type="submit" className="detail-button detail-button--primary">{copy.resendSubmit}</button>
             <button type="button" className="detail-button" onClick={() => resendDialog.current?.close()}>{copy.close}</button>
           </div>

@@ -962,7 +962,8 @@ def login():
         return response
     # A GET starts a new sign-in, so only its own ``next`` counts; an older
     # stored target must not leak into it. A POST may fall back to the target
-    # saved when its login page was shown.
+    # saved when its login page was shown (only the legacy Flask page stores
+    # one; the React page always posts an explicit ``next``).
     next_page = request.args.get("next")
     if not next_page and request.method == "POST":
         next_page = session.get("next_page")

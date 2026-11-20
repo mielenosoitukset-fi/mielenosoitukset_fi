@@ -21,7 +21,6 @@ export const loginCopy = {
   password: 'Salasana',
   passwordPlaceholder: 'Syötä salasanasi',
   showPassword: 'Näytä salasana',
-  hidePassword: 'Piilota salasana',
   remember: 'Muista minut',
   forgot: 'Unohtuiko salasana?',
   submit: 'Kirjaudu sisään',
