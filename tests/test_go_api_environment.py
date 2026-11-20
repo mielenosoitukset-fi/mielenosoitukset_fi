@@ -258,14 +258,14 @@ def test_contact_go_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
             assert "CONTACT_GLOBAL_LIMIT" not in values
 
 
-def test_campaign_volunteers_go_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
+def test_campaign_volunteers_go_flag_needs_the_bridge_and_is_on_by_default(tmp_path):
     path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
     spec = importlib.util.spec_from_file_location("go_environment", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     cases = (
         ({}, False),
-        ({"AUTH_BRIDGE_SCOPES": True}, False),
+        ({"AUTH_BRIDGE_SCOPES": True}, True),  # on by default with the bridge
         ({"CAMPAIGN_VOLUNTEERS_GO_ENABLED": True}, False),  # no bridge, no route
         ({"AUTH_BRIDGE_SCOPES": True, "CAMPAIGN_VOLUNTEERS_GO_ENABLED": False}, False),
         ({"AUTH_BRIDGE_SCOPES": True, "CAMPAIGN_VOLUNTEERS_GO_ENABLED": True}, True),

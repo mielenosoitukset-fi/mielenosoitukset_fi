@@ -1,7 +1,9 @@
 # Campaign volunteer signup in Go: `POST /kampanja/api/volunteers`
 
-Status: implemented and shipped dark (20 November 2026). Nothing routes to it, the flag is off, and Flask handles every
-real request. Spec: [go-write-api-proposal.md](go-write-api-proposal.md) section 4; form and data model:
+Status: implemented and shipped dark (20 November 2026); activation PR turns it on (20 November 2026). The flag is on by
+default with the auth bridge, Apache routes the POST to Go, and `deploy/release_routing.sh` refuses the routing include until
+Go answers `GET /kampanja/api/volunteers` with 405. Opt out with `CAMPAIGN_VOLUNTEERS_GO_ENABLED: false` in `config.yaml` and
+comment out the Apache rule; Flask's `add_volunteer()` is unchanged and takes the POST back. Spec: [go-write-api-proposal.md](go-write-api-proposal.md) section 4; form and data model:
 [decisions.md](decisions.md) ("Volunteer form data model"). Pattern: [go-contact.md](go-contact.md).
 
 ## What it does
@@ -72,12 +74,11 @@ If the token pages session wants a different signature, change it freely; the Go
 
 | Setting | Where | Default |
 | --- | --- | --- |
-| `CAMPAIGN_VOLUNTEERS_GO_ENABLED: true` | `config.yaml`; `deploy/go-api/configure_environment.py` writes it to the Go environment, only with `AUTH_BRIDGE_SCOPES: true` | off |
+| `CAMPAIGN_VOLUNTEERS_GO_ENABLED` | `config.yaml`; `deploy/go-api/configure_environment.py` writes it to the Go environment, only with `AUTH_BRIDGE_SCOPES: true`; `false` opts out | on |
 | `SITE_ANALYTICS_ENABLED` | existing | as today |
 
-No new schema, index or collection. Needs: the Go API user can write `volunteers`, `volunteer_signup_attempts`, `email_queue`,
-`site_analytics` in the main database (the contact and suggestion routes already write the last two; confirm `volunteers` and
-`volunteer_signup_attempts` with `connectionStatus` before activation).
+No new schema, index or collection. The Go API uses the same `MONGO_URI` as Flask, so it can write `volunteers`, `volunteer_signup_attempts`, `email_queue`,
+`site_analytics` in the main database.
 
 ## Activation (needs the maintainer's go, typed in the activating session)
 
