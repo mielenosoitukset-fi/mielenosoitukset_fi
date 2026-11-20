@@ -104,3 +104,15 @@ def test_emailed_preview_link_uses_react_preview(client, db, seeded_data):
     # Still single use.
     again = client.get(f"/admin/demo/preview_demo_with_token/{seeded_data['preview_token']}")
     assert again.status_code != 200 or again.headers.get("X-Detail-Renderer") != "react-preview"
+
+
+def test_submitted_markup_cannot_break_out_of_props(admin_client, db, seeded_data):
+    db.demonstrations.update_one({"_id": seeded_data["pending_demo_id"]}, {"$set": {
+        "title": "</script><script>alert(1)</script>",
+        "description": "<img src=x onerror=alert(1)>",
+    }})
+    response = admin_client.get(f"/admin/demo/{seeded_data['pending_demo_id']}/preview")
+    assert response.status_code == 200
+    assert "<script>alert(1)" not in response.text
+    assert "<img src=x onerror" not in response.text
+    assert props_from(response)["preview"]["event"]["title"] == "</script><script>alert(1)</script>"
