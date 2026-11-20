@@ -1,0 +1,1 @@
+- Add an opt-in Hallinto sign-in issuer that keeps revocable login state in a dedicated database.

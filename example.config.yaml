@@ -101,3 +101,10 @@ BABEL:
     fi: "Suomi"
     en: "English"
     sv: "Svenska"
+
+# Public key (PEM) that seals a deleted account's identity; private key stays offline.
+# See docs/account-erasure.md. Unset: no seal is stored.
+# ERASURE_SEAL_PUBLIC_KEY: |
+#   -----BEGIN PUBLIC KEY-----
+#   ...
+#   -----END PUBLIC KEY-----

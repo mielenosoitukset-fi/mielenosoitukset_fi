@@ -225,6 +225,8 @@ type campaignVolunteerStore interface {
 	// attempts fell inside the window. Recording happens before counting, so
 	// concurrent requests can only over-count, never let extra ones through.
 	Attempt(ctx context.Context, key string, now time.Time, window time.Duration) (int64, error)
+	// SiteCap counts the signup against the site-wide cap (signup_mail_cap.go).
+	SiteCap(ctx context.Context) (bool, error)
 	// PurgeUnconfirmed deletes signups whose link expired a week ago.
 	PurgeUnconfirmed(ctx context.Context, before time.Time) error
 	Insert(ctx context.Context, doc bson.D) (any, error)
@@ -256,6 +258,10 @@ func (s mongoCampaignVolunteerStore) Attempt(ctx context.Context, key string, no
 		return 0, err
 	}
 	return total - 1, nil
+}
+
+func (s mongoCampaignVolunteerStore) SiteCap(ctx context.Context) (bool, error) {
+	return signupMailCapAllowed(ctx, s.db, "campaign-volunteer", signupMailCapAdminLog(s.db))
 }
 
 func (s mongoCampaignVolunteerStore) PurgeUnconfirmed(ctx context.Context, before time.Time) error {
@@ -435,6 +441,14 @@ func campaignVolunteerHandler(next http.Handler, config campaignVolunteerConfig,
 			unavailable("rate limit storage", err)
 			return
 		}
+		if !limited {
+			allowed, err := deps.store.SiteCap(ctx)
+			if err != nil {
+				unavailable("rate limit storage", err)
+				return
+			}
+			limited = !allowed
+		}
 		if limited {
 			campaignJSON(w, http.StatusTooManyRequests, false, campaignErrRate)
 			return
@@ -490,7 +504,7 @@ func campaignVolunteerHandler(next http.Handler, config campaignVolunteerConfig,
 		if err != nil {
 			// Without a queued mail the stored signup is unreachable: remove it so
 			// a retry starts clean. An ambiguous queue write can still leave a mail.
-			cleanup, stop := context.WithTimeout(context.Background(), 2*time.Second)
+			cleanup, stop := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 			_ = deps.store.Delete(cleanup, id)
 			stop()
 			unavailable("mail queue", err)

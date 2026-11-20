@@ -20,6 +20,7 @@ from mielenosoitukset_fi.utils.logger import logger
 
 from .definitions import JOB_DEFINITION_MAP, JOB_DEFINITIONS, JobDefinition
 from .audit import job_audit_context
+from mielenosoitukset_fi.utils.audit_trail import audit_scope
 
 
 class BackgroundJobLeadership:
@@ -340,13 +341,15 @@ class BackgroundJobManager:
         message = "Completed successfully."
         tb_text = None
         try:
-            if self.app:
-                with self.app.app_context():
+            # Every write the job makes is traced to this job and run.
+            with audit_scope("job", job_key, run_id=run_id, triggered_by=triggered_by):
+                if self.app:
+                    with self.app.app_context():
+                        with job_audit_context(job_key, run_id):
+                            job_def.func()
+                else:
                     with job_audit_context(job_key, run_id):
                         job_def.func()
-            else:
-                with job_audit_context(job_key, run_id):
-                    job_def.func()
         except Exception as exc:  # pragma: no cover - defensive logging
             status = "error"
             message = str(exc)

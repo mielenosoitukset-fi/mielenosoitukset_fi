@@ -1,0 +1,1 @@
+- Saving your bio, display name, city and dark mode on the settings page is now handled by the Go API. Nothing changes in how the page works.

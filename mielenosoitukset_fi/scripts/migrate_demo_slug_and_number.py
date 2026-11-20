@@ -10,7 +10,7 @@ Usage:
 import os
 import re
 from bson import ObjectId
-from pymongo import MongoClient
+from mielenosoitukset_fi.utils.audit_trail import mongo_client
 from unidecode import unidecode
 
 def slugify(text):
@@ -20,7 +20,7 @@ def slugify(text):
     return text or "demo"
 
 def main():
-    client = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27018"))
+    client = mongo_client(os.getenv("MONGO_URI", "mongodb://localhost:27018"))
     db = client.get_database("mielenosoitukset")
     demos = db.demonstrations
 
