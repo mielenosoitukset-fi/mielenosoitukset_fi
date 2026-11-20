@@ -214,11 +214,11 @@ function DeleteAccountCard({ csrf }: { csrf?: string }) {
         <div className="suggest-change-field">
           <label htmlFor={ids.reason}>{copy.deleteReason} <span className="account-muted">({copy.optional.toLowerCase()})</span></label>
           <textarea id={ids.reason} rows={3} value={reason} maxLength={accountDeletionReasonMax} aria-describedby={ids.help}
-            disabled={done} onChange={event => setReason(event.target.value)} />
+            disabled={busy || done} onChange={event => setReason(event.target.value)} />
           <p className="account-muted" id={ids.help}>{copy.deleteReasonHelp}</p>
         </div>
         <label className="account-check" htmlFor={ids.confirm}>
-          <input id={ids.confirm} type="checkbox" checked={confirmed} disabled={done} onChange={event => { setConfirmed(event.target.checked); setMessage(null); }} />
+          <input id={ids.confirm} type="checkbox" checked={confirmed} disabled={busy || done} onChange={event => { setConfirmed(event.target.checked); setMessage(null); }} />
           <span>{copy.deleteConfirm}</span>
         </label>
         <div className="detail-actions">

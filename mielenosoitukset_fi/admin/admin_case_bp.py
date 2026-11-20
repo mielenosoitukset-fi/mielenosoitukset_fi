@@ -268,6 +268,7 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         title = _("Tilin poistopyyntö")
         description = ((case_obj.meta or {}).get("reason") or _("Ei perustelua"))[:200]
         meta_line = ""
+        submitter = {"submitter_name": _account_owner_label(case_obj.submitter_id)}
     else:
         title = _case_type_label(case_obj.case_type)
         description = _("Ei lisätietoja")
@@ -287,6 +288,12 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         "escalated": escalated,
         "status_label": _("Suljettu") if closed else _("Avoin"),
     }
+
+
+def _account_owner_label(submitter_id):
+    """Name the account behind a self-service request; it has no submitter record."""
+    user = mongo.users.find_one({"_id": _safe_objectid(submitter_id)}, {"username": 1}) if submitter_id else None
+    return (user or {}).get("username") or _("Tilin omistaja")
 
 @admin_case_bp.route("/")
 @login_required
@@ -497,6 +504,8 @@ def single_case(case_id):
         or (case.submitter or {}).get("email")
         or _("Ei tiedossa"),
     }
+    if case.case_type == "account_deletion_request":
+        case_data["submitter_label"] = _account_owner_label(case.submitter_id)
 
     # Handle different case types
     if case.case_type == "new_demo" and case.demo_id:

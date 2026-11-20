@@ -6,7 +6,7 @@ from mielenosoitukset_fi.utils.time_utils import utcnow
 
 
 def _case(db, user_id, reason=None):
-    meta = {"urgency": "normal"}
+    meta = {}
     if reason:
         meta["reason"] = reason
     case_id = ObjectId()
@@ -28,6 +28,8 @@ def test_case_page_links_the_requester_and_shows_the_reason(admin_client, db, se
     assert "Tilin poistopyyntö" in body
     assert "En käytä palvelua enää" in body
     assert f"/admin/user/edit_user/{seeded_data['user_id']}" in body or str(seeded_data["user_id"]) in body
+    assert db.users.find_one({"_id": seeded_data["user_id"]})["username"] in body
+    assert "Ei tiedossa" not in body
 
 
 def test_case_list_shows_the_request(admin_client, db, seeded_data):
@@ -36,4 +38,6 @@ def test_case_list_shows_the_request(admin_client, db, seeded_data):
     page = admin_client.get("/admin/case/")
 
     assert page.status_code == 200
-    assert "Tilin poistopyyntö" in page.get_data(as_text=True)
+    body = page.get_data(as_text=True)
+    assert "Tilin poistopyyntö" in body
+    assert db.users.find_one({"_id": seeded_data["user_id"]})["username"] in body

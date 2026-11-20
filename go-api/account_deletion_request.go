@@ -127,7 +127,7 @@ func (s mongoAccountDeletionStore) OpenDeletionRequest(ctx context.Context, owne
 
 func (s mongoAccountDeletionStore) CreateDeletionRequest(ctx context.Context, owner bson.ObjectID, reason string, now time.Time) (int64, error) {
 	var running int64
-	meta := bson.D{{Key: "urgency", Value: "normal"}}
+	meta := bson.D{}
 	if reason != "" {
 		meta = append(meta, bson.E{Key: "reason", Value: reason})
 	}

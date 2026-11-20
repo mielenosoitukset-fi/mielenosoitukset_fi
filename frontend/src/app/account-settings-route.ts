@@ -128,7 +128,7 @@ export const accountCopy = {
   deleteCreated: 'Poistopyyntö on lähetetty. Ylläpito käsittelee sen.',
   deletePending: 'Poistopyyntösi on jo käsittelyssä.',
   deleteFailed: 'Poistopyynnön lähettäminen epäonnistui.',
-  deleteByEmail: 'Voit pyytää tilin poistamista lähettämällä sähköpostia osoitteeseen',
+  deleteByEmail: 'Lähetä pyyntö sähköpostitse osoitteeseen',
 } as const;
 
 export type AccountGeneral = { displayName: string; city: string | null; language: string | null; darkMode: boolean | null };
