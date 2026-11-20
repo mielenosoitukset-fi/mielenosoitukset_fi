@@ -4211,7 +4211,9 @@ def handle_demo_form(
                     demonstration_data["approved"] = bool(prev_demo.get("approved"))
                 merged_data = _deep_merge(prev_demo, demonstration_data)
                 demo = Demonstration.from_dict(merged_data)
-                demo.save()
+                # Only an approver's form value is authoritative for approval;
+                # otherwise keep whatever the database holds now.
+                demo.save(write_approval=can_change_approval)
                 hist_id = record_demo_change(
                     demo_id,
                     prev_demo,
