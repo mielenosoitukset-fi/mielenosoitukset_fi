@@ -74,11 +74,14 @@ def configure(source, target):
         if config.get("CAMPAIGN_VOLUNTEERS_GO_ENABLED") is True:
             values["CAMPAIGN_VOLUNTEERS_GO_ENABLED"] = "true"
         # Account settings reads (docs/account-pages-react.md, step 2): the route
-        # needs the signed-in account, so it exists only with the bridge on.
-        if config.get("ACCOUNT_SETTINGS_READS") is True:
+        # needs the signed-in account, so it exists only with the bridge on. On by
+        # default since the React settings page was activated (20 November 2026,
+        # maintainer's go); `ACCOUNT_SETTINGS_READS: false` in config.yaml opts out.
+        if config.get("ACCOUNT_SETTINGS_READS", True) is True:
             values["ACCOUNT_SETTINGS_READS_ENABLED"] = "true"
-            # Bio write (step 3a): its own switch, and only on top of the reads.
-            if config.get("ACCOUNT_SETTINGS_WRITES") is True:
+            # Bio and general writes (steps 3a, 3b): their own switch, and only on
+            # top of reads that are set explicitly in config.yaml.
+            if config.get("ACCOUNT_SETTINGS_READS") is True and config.get("ACCOUNT_SETTINGS_WRITES") is True:
                 values["ACCOUNT_SETTINGS_WRITES_ENABLED"] = "true"
     # Public profile reads (docs/account-pages-react.md): GET /api/profile/<username>.
     # Its own switch, off by default and independent of the bridge; the own and

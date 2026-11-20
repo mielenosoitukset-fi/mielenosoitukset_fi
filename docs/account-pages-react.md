@@ -268,3 +268,15 @@ file match the live one.
   Turvallisuus notice now reads "Kaksivaiheista tunnistusta ja passkeyjä ei voi vielä muuttaa tällä sivulla…".
 - Tests: `tests/test_account_stepup.py` (detection, retry and cancel flow, request body, message mapping, base64url).
 - Activation: nothing to activate; ships with the settings page. Revert: revert the pull request.
+
+## Activation of the settings page (20 November 2026)
+
+The maintainer gave the go in the project thread on 20 November 2026. Instead of a hand-edited
+`config.yaml`, `configure_environment.py` now turns the Go settings read on by default whenever the
+auth bridge is on (`ACCOUNT_SETTINGS_READS: false` opts out), so the deploy that carries this change
+writes `ACCOUNT_SETTINGS_READS_ENABLED=true` before the routing step activates the two Apache rules.
+The writes (`ACCOUNT_SETTINGS_WRITES`) still need an explicit `ACCOUNT_SETTINGS_READS: true` and are
+not part of this step: the React page posts to the unchanged Flask endpoints until then.
+Prerequisite: #1225 (accounts in the forced identity change are refused by the Go account routes).
+`/users/auth/settings?legacy=1` stays on Flask as a fallback. Revert: re-comment the five lines
+in `react-ssr-routing.conf` and deploy (or reload Apache by hand).
