@@ -201,6 +201,9 @@ mongo["recommended_demos"].create_index("demo_id", unique=True, background=True)
 mongo["posted_events"].create_index([("demo_id", ASCENDING), ("created_at", DESCENDING)], background=True)
 mongo["demonstrations"].create_index("slug", background=True)
 mongo["demonstrations"].create_index("parent", background=True)
+# Date-ordered admin lists and the translation queue walk this index
+# instead of sorting the whole collection in memory.
+mongo["demonstrations"].create_index([("date", ASCENDING), ("_id", ASCENDING)], background=True)
 mongo["city_settings"].create_index("city_key", background=True)
 mongo["demonstrations"].create_index(
     [("city_assignment.escalated", 1), ("city_assignment.assigned_at", 1)],
