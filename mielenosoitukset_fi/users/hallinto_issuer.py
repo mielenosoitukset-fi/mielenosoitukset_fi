@@ -81,6 +81,26 @@ def _live_marker(db, markers, reference: str, subject: str) -> dict | None:
     )
 
 
+# Hallinto links group memberships to accounts. Only admins signed in to
+# Hallinto may search, and they see only a name, username and status.
+_ACCOUNT_LOOKUP_ROLES = {"admin", "global_admin"}
+_ACCOUNT_FIELDS = {"username": 1, "displayname": 1, "active": 1, "confirmed": 1, "banned": 1, "security_suspension": 1}
+_ACCOUNT_ID = re.compile(r"[0-9a-f]{24}\Z")
+_ACCOUNT_SEARCH_LIMIT = 10
+_ACCOUNT_LOOKUP_LIMIT = 100
+
+
+def _account_view(doc: dict) -> dict:
+    suspended = bool((doc.get("security_suspension") or {}).get("active"))
+    return {
+        "sub": str(doc["_id"]),
+        "username": doc.get("username", ""),
+        "name": doc.get("displayname") or doc.get("username", ""),
+        "active": bool(doc.get("active", True) and doc.get("confirmed", False)
+                       and not doc.get("banned") and not suspended),
+    }
+
+
 @dataclass(frozen=True)
 class _Client(ClientMixin):
     client_id: str
@@ -347,17 +367,64 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         request.max_content_length = 4096
         return auth.create_token_response()
 
-    @bp.post("/session")
-    def owner_session():
+    def client_payload():
+        """Authenticate the Hallinto client and read its JSON object body."""
         request.max_content_length = 4096
         credentials = request.authorization
         if (not credentials or credentials.type != "basic"
                 or unquote_plus(credentials.username or "") != client.client_id
                 or not client.check_client_secret(unquote_plus(credentials.password or ""))):
-            return jsonify(error="invalid_client"), 401, {"WWW-Authenticate": "Basic"}
+            return None, (jsonify(error="invalid_client"), 401, {"WWW-Authenticate": "Basic"})
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
-            return jsonify(error="invalid_request"), 400
+            return None, (jsonify(error="invalid_request"), 400)
+        return payload, None
+
+    @bp.post("/session")
+    def owner_session():
+        payload, error = client_payload()
+        if error:
+            return error
         return jsonify(active=bool(_live_marker(db, markers, payload.get("sid"), payload.get("sub"))))
+
+    def admin_payload():
+        """Require the client and a live Hallinto sign-in of an admin account."""
+        payload, error = client_payload()
+        if error:
+            return None, error
+        if not _live_marker(db, markers, payload.get("sid"), payload.get("sub")):
+            return None, (jsonify(error="access_denied"), 403)
+        actor = db.users.find_one({"_id": ObjectId(payload["sub"])}, {"role": 1, "global_admin": 1})
+        if not actor or not (actor.get("global_admin") or actor.get("role") in _ACCOUNT_LOOKUP_ROLES):
+            return None, (jsonify(error="access_denied"), 403)
+        return payload, None
+
+    @bp.post("/accounts/search")
+    def account_search():
+        payload, error = admin_payload()
+        if error:
+            return error
+        query = payload.get("q")
+        if not isinstance(query, str) or not 3 <= len(query.strip()) <= 64:
+            return jsonify(error="invalid_request"), 400
+        prefix = "^" + re.escape(query.strip())
+        rows = db.users.find(
+            {"$or": [{"username": {"$regex": prefix, "$options": "i"}},
+                     {"displayname": {"$regex": prefix, "$options": "i"}}]},
+            _ACCOUNT_FIELDS,
+        ).sort("username", 1).limit(_ACCOUNT_SEARCH_LIMIT)
+        return jsonify(items=[_account_view(row) for row in rows])
+
+    @bp.post("/accounts/lookup")
+    def account_lookup():
+        payload, error = admin_payload()
+        if error:
+            return error
+        ids = payload.get("ids")
+        if (not isinstance(ids, list) or not 0 < len(ids) <= _ACCOUNT_LOOKUP_LIMIT
+                or not all(isinstance(i, str) and _ACCOUNT_ID.fullmatch(i) for i in ids)):
+            return jsonify(error="invalid_request"), 400
+        rows = db.users.find({"_id": {"$in": [ObjectId(i) for i in set(ids)]}}, _ACCOUNT_FIELDS)
+        return jsonify(items=[_account_view(row) for row in rows])
 
     app.register_blueprint(bp)
