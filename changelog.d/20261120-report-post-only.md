@@ -1,0 +1,1 @@
+- Error reports: opening the report address no longer stores an empty report, every report is checked before it is saved, and after sending you return only to a page on this site.
