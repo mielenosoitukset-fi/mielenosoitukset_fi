@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { focusTargetFor } from './confirm-focus';
 import { confirmEmail, emailConfirmCopy as c, type EmailConfirmOutcome } from './email-confirm';
 import './information/information.css';
 import './suggest-change/suggest-change.css';
@@ -7,6 +8,13 @@ type Phase = 'idle' | 'working' | EmailConfirmOutcome;
 
 export default function EmailConfirmScreen({ token, loginUrl }: { token: string; loginUrl: string }) {
   const [phase, setPhase] = useState<Phase>('idle');
+  const button = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const target = focusTargetFor(phase === 'idle' || phase === 'working' ? null : phase);
+    if (target === 'button') button.current?.focus();
+    if (target === 'heading') heading.current?.focus();
+  }, [phase]);
   const act = async () => {
     setPhase('working');
     setPhase(await confirmEmail(token));
@@ -15,7 +23,7 @@ export default function EmailConfirmScreen({ token, loginUrl }: { token: string;
   const title = phase === 'confirmed' ? c.confirmedTitle : phase === 'invalid' ? c.invalidTitle : phase === 'user-not-found' ? c.notFoundTitle : c.title;
   return <article className="public-page-shell information-page suggest-change-page" aria-labelledby="email-confirm-title">
     <header className="public-page-header"><div className="public-page-header__content">
-      <h1 className="public-page-header__title" id="email-confirm-title">{title}</h1>
+      <h1 className="public-page-header__title" id="email-confirm-title" ref={heading} tabIndex={-1}>{title}</h1>
     </div></header>
     {done ? <section className="public-prose-card" role="status">
       <p>{phase === 'confirmed' ? c.confirmed : phase === 'invalid' ? c.invalid : c.notFound}</p>
@@ -24,7 +32,7 @@ export default function EmailConfirmScreen({ token, loginUrl }: { token: string;
     </section> : <section className="public-prose-card">
       <p>{c.intro}</p>
       <div className="detail-actions">
-        <button type="button" className="detail-button detail-button--primary" onClick={act} disabled={phase === 'working'}>
+        <button type="button" className="detail-button detail-button--primary" ref={button} onClick={act} disabled={phase === 'working'}>
           {phase === 'working' ? c.working : c.button}
         </button>
       </div>
