@@ -204,3 +204,11 @@ def test_approver_form_edit_never_changes_approval(admin_client, db, seeded_data
         "city": pending_before["city"], "approved": "on",
     })
     assert db.demonstrations.find_one({"_id": pending_before["_id"]})["approved"] is False
+
+
+def test_edit_form_links_to_the_case_for_decisions(admin_client, db, seeded_data):
+    demo_id = seeded_data["pending_demo_id"]
+    case = db.cases.find_one({"type": "new_demo", "demo_id": demo_id})
+    body = admin_client.get(f"/admin/demo/edit_demo/{demo_id}").get_data(as_text=True)
+    assert f'href="/admin/case/{case["_id"]}/"' in body
+    assert 'name="approved"' not in body

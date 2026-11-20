@@ -3433,6 +3433,11 @@ def edit_demo(demo_id):
         demo_edit_access=demo_edit_access,
         show_demo_access_panel=show_demo_access_panel,
         can_approve_demo=has_demo_approval_permission(current_user, demo_data),
+        # Decisions (approve, reject, take down) happen in the case only.
+        decision_url=(
+            _decision_urls([demo_id]).get(str(demo_id))
+            if has_demo_approval_permission(current_user, demo_data) else None
+        ),
         can_generate_edit_link=can_generate_edit_link,
         edit_link_rows=(
             _demo_edit_link_rows(demo_id) if can_generate_edit_link else []
