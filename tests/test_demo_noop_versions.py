@@ -37,8 +37,12 @@ def test_job_recorder_skips_timestamp_only_saves(monkeypatch):
 
 
 @pytest.mark.integration
-def test_hide_past_leaves_already_marked_demos_alone(db, seeded_data):
+def test_hide_past_leaves_already_marked_demos_alone(db, seeded_data, monkeypatch):
     from mielenosoitukset_fi.scripts import in_past
+
+    # The script loads its own DatabaseManager through importlib; point it at
+    # the test database so the test does not depend on that module's state.
+    monkeypatch.setattr(in_past, "db", db)
 
     stamp = datetime(2025, 1, 1)
     past = {
