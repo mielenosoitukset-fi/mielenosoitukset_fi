@@ -30,6 +30,7 @@ from flask_babel import _, force_locale, gettext as babel_gettext
 from urllib.parse import quote_plus
 
 from mielenosoitukset_fi.utils.classes import Demonstration, MemberShip, Case
+from mielenosoitukset_fi.utils.case_access import global_case_permission
 from mielenosoitukset_fi.utils.demo_cancellation import cancel_demo, queue_cancellation_links_for_demo
 from mielenosoitukset_fi.utils.demo_slugs import (
     demo_slug_is_available,
@@ -774,6 +775,34 @@ def demo_edit_history(demo_id):
     )
 
 
+def _cases_replace_suggestions_list():
+    """Global case viewers handle suggestions as cases (Tapaukset)."""
+    return global_case_permission(current_user, "LIST_CASES")
+
+
+def _suggestions_home_url(suggestion_id=None):
+    """Where the suggestion pages lead back to: the case, the case list, or the old list.
+
+    Scoped admins keep the old list because case scope is city-based and
+    would hide suggestions they may edit through an organization or as editors.
+    """
+    if not _cases_replace_suggestions_list():
+        return url_for("admin_demo.suggestions_list")
+    if suggestion_id and ObjectId.is_valid(str(suggestion_id)) and mongo.cases.find_one(
+        {"_id": ObjectId(str(suggestion_id))}, {"_id": 1}
+    ):
+        return url_for("admin_case.single_case", case_id=str(suggestion_id))
+    return url_for("admin_case.cases")
+
+
+def _suggestions_home_label(suggestion_id=None):
+    if not _cases_replace_suggestions_list():
+        return _("Ehdotukset")
+    if _suggestions_home_url(suggestion_id).endswith(f"/{suggestion_id}/"):
+        return _("Tapaus")
+    return _("Tapaukset")
+
+
 @admin_demo_bp.route('/suggestions')
 @login_required
 @admin_required
@@ -782,6 +811,8 @@ def suggestions_list():
     """
     List incoming demo suggestions for admin review.
     """
+    if _cases_replace_suggestions_list():
+        return redirect(url_for("admin_case.cases"))
     status_filter = (request.args.get("status") or "all").strip().lower()
     if status_filter not in {"all", "new", "pending", "applied", "rejected"}:
         status_filter = "all"
@@ -878,6 +909,23 @@ def suggestions_list():
         .skip(pagination["slice_start"])
         .limit(per_page)
     )
+    # Suggestions keep only the fields that changed in ``original_values``, so
+    # the title must come from the demonstration itself.
+    demo_object_ids = {
+        ObjectId(str(s.get("demo_id")))
+        for s in suggestions
+        if ObjectId.is_valid(str(s.get("demo_id")))
+    }
+    demo_titles = {
+        str(demo["_id"]): demo.get("title")
+        for demo in mongo.demonstrations.find(
+            {"_id": {"$in": list(demo_object_ids)}}, {"title": 1}
+        )
+    } if demo_object_ids else {}
+    for suggestion in suggestions:
+        suggestion["demo_title"] = demo_titles.get(str(suggestion.get("demo_id"))) or (
+            suggestion.get("original_values") or {}
+        ).get("title")
     return render_template(
         "admin/suggestions_list.html",
         suggestions=suggestions,
@@ -904,7 +952,7 @@ def suggestion_view(suggestion_id):
         s = None
     if not s:
         flash_message('Ehdotusta ei löytynyt.', 'error')
-        return redirect(url_for('admin_demo.suggestions_list'))
+        return redirect(_suggestions_home_url(suggestion_id))
 
     _abort_if_demo_forbidden(s.get('demo_id'), "EDIT_DEMO")
 
@@ -914,7 +962,13 @@ def suggestion_view(suggestion_id):
     except Exception:
         demo = None
 
-    return render_template('admin/suggestion_view.html', suggestion=s, demo=demo)
+    return render_template(
+        'admin/suggestion_view.html',
+        suggestion=s,
+        demo=demo,
+        suggestions_home_url=_suggestions_home_url(suggestion_id),
+        suggestions_home_label=_suggestions_home_label(suggestion_id),
+    )
 
 
 @admin_demo_bp.route('/suggestions/<suggestion_id>/apply', methods=['POST'])
@@ -932,7 +986,7 @@ def suggestion_apply(suggestion_id):
         s = None
     if not s:
         flash_message('Ehdotusta ei löytynyt.', 'error')
-        return redirect(url_for('admin_demo.suggestions_list'))
+        return redirect(_suggestions_home_url(suggestion_id))
 
     _abort_if_demo_forbidden(s.get('demo_id'), "EDIT_DEMO")
 
@@ -944,7 +998,7 @@ def suggestion_apply(suggestion_id):
 
     if not demo_doc:
         flash_message('Mielenosoitusta ei löytynyt.', 'error')
-        return redirect(url_for('admin_demo.suggestions_list'))
+        return redirect(_suggestions_home_url(suggestion_id))
 
     # A rejected or closed suggestion is decided. An applied one may still give
     # other fields, but a field that was already applied is not applied again.
@@ -988,7 +1042,7 @@ def suggestion_apply(suggestion_id):
         logger.exception('Failed to apply suggestion to demo')
         flash_message('Päivitys epäonnistui.', 'error')
 
-    return redirect(url_for('admin_demo.suggestions_list'))
+    return redirect(_suggestions_home_url(suggestion_id))
 
 
 @admin_demo_bp.route('/suggestions/<suggestion_id>/status', methods=['POST'])
@@ -1021,7 +1075,7 @@ def suggestion_status_update(suggestion_id):
     except Exception:
         logger.exception('Failed to update suggestion status')
         flash_message('Tilapäivitys epäonnistui.', 'error')
-    return redirect(url_for('admin_demo.suggestions_list'))
+    return redirect(_suggestions_home_url(suggestion_id))
     
 @admin_demo_bp.route("/trigger_screenshot/<demo_id>")
 @login_required

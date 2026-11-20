@@ -188,6 +188,14 @@ fi
 
 echo "Deployed ${expected_sha} to Flask with a verified graceful worker reload."
 
+# Backup timers and alerts (OPS-01) follow the repository. They never touch a
+# public service, so a failure here is reported loudly but does not undo a
+# release that already serves traffic.
+if ! "$repo_dir/deploy/backup/install_units.sh"; then
+  echo "::warning::backup units were not updated for ${expected_sha}; see the deploy log and docs/backups.md"
+  echo "production_deploy.sh: backup unit install failed; the release continues" >&2
+fi
+
 if [[ "$skip_public" == true ]]; then
   echo "production_deploy.sh: skipping the public host and API (--skip-public)" >&2
 elif [[ -x "$repo_dir/deploy/release_public.sh" ]]; then

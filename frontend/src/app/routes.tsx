@@ -10,6 +10,7 @@ import { cityAdminCopy, cityAdminPath } from './city-admin-route';
 import { developerCopy, developerPath } from './developer-route';
 import { notificationsCopy, notificationsPath } from './notifications-route';
 import type { InformationPage } from './information';
+import { passwordResetRequestCopy, passwordResetRequestPath } from './password-reset-route';
 
 /**
  * Public routes owned by the standalone React application.
@@ -44,6 +45,7 @@ export type AppRoute =
   | { name: 'profile'; username: string }
   | { name: 'account-settings' }
   | { name: 'notifications' }
+  | { name: 'password-reset-request' }
   | { name: 'detail'; identifier: string }
   | { name: 'series'; parent: string };
 
@@ -115,6 +117,7 @@ export function routeForPath(path: string): AppRoute | null {
   if (developerApp) return { name: 'developer', appId: developerApp[1].toLowerCase() };
   if (path === '/users/auth/settings' || path === '/users/auth/settings/') return { name: 'account-settings' };
   if (path === notificationsPath) return { name: 'notifications' };
+  if (path === passwordResetRequestPath) return { name: 'password-reset-request' };
   const profile = PROFILE_PATH.exec(path);
   if (profile) return profile[1] === 'edit' ? null : { name: 'profile', username: profile[1] };
   const cancelLink = /^\/cancel_demonstration\/([A-Za-z0-9_-]{1,128})$/.exec(path);
@@ -163,6 +166,10 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   }
   if (route.name === 'notifications') {
     return { title: `${notificationsCopy.title} | Mielenosoitukset.fi`, description: notificationsCopy.lead,
+      robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'password-reset-request') {
+    return { title: `${passwordResetRequestCopy.title} | Mielenosoitukset.fi`, description: passwordResetRequestCopy.lead,
       robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'profile') {

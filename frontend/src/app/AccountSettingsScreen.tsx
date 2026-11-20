@@ -4,7 +4,7 @@ import type { AppConfig } from './config';
 import type { SessionSummary } from './session';
 import { useSession } from './useSession';
 import {
-  accountBioMax, accountBioWarnAt, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
+  accountBioMax, accountIdentityChangePath, isIdentityChangeRefusal, accountBioWarnAt, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
   accountSettingsPath, accountStanding, accountTabs, accountTranslationsUrl, classifyAccountResponse, filterCities,
   generalPayload, nextTabIndex, passwordFormError, passwordMinLength, passwordRequest, postBioToGo, postGeneralToGo, postFlaskJson, profilePayload,
   readAccountSettings, readPasswordResult, safePicture, tabFromHash,
@@ -335,13 +335,23 @@ export default function AccountSettingsScreen({ config, session: initial }: { co
 
   useEffect(() => {
     if (standing === 'signed-out') { setLoad({ state: 'anonymous' }); return; }
-    if (standing === 'unknown') { setLoad(bridgeFailed ? { state: 'unavailable' } : { state: 'loading' }); return; }
+    if (standing === 'unknown') {
+      setLoad(bridgeFailed ? { state: 'unavailable' } : { state: 'loading' });
+      // A flagged account makes the session read fail; ask the bridge once whether that is the reason.
+      if (bridgeFailed) {
+        fetch(config.urls.authMe, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
+          .then(async response => { if (await isIdentityChangeRefusal(response)) window.location.assign(accountIdentityChangePath); })
+          .catch(() => undefined);
+      }
+      return;
+    }
     const controller = new AbortController();
     setLoad({ state: 'loading' });
     (async () => {
       try {
         const response = await fetch(accountSettingsApi,
           { credentials: 'same-origin', cache: 'no-store', signal: controller.signal, headers: { Accept: 'application/json' } });
+        if (await isIdentityChangeRefusal(response.clone())) { window.location.assign(accountIdentityChangePath); return; }
         const kind = classifyAccountResponse(response.status);
         if (kind === 'signed-out') { setLoad({ state: 'anonymous' }); return; }
         if (kind !== 'ok') throw new Error('unavailable');

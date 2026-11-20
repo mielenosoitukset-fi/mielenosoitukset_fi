@@ -29,6 +29,15 @@ a dated snapshot: check their live state before acting.
 
 Already on the React host: home, listings (all, city, tag, today), detail and series, calendar, cities, submit, organization profile, information pages, Pride, campaign, fundraising and contact.
 
+Audit, 20 November 2026 (Flask routes rendering a public, non-admin page, checked against `deploy/apache/react-ssr-routing.conf`). Still Flask/Jinja:
+
+- Built in React but not routed: `/users/auth/settings` (password, MFA and passkey controls are in React since #1224/#1227/#1228; activation needs the maintainer's go, see [account-pages-react.md](docs/account-pages-react.md)).
+- Authentication: `/users/auth/login`, `/register`, `/register/next_steps`, `/password_reset_request`, `/password_reset/<token>`, `/forced_pwd_reset/`, `/forced_identity_change/`, `/verify_mfa`, the `/logout` confirmation page.
+- `/report`; the write-on-GET token pages (drafts #1231–#1233); `/api/notifications/all`.
+- Redirects instead of pages: `/users/profile/` now sends a signed-in user to `/users/profile/<username>` (React), `/developer/apps` to `/developer` (React), `/developer/docs` to `/api-docs/`.
+- Out of scope (admin or permission-gated tools): `/users/auth/ui/tokens` (admin-scope tokens), `/demonstration/<id>/some` (VIEW_DEMO, deprecated), `?preview=1`, `/board/*`.
+- Flask error pages (`errors/*.html`) and the panic page `heavy.html` serve only Flask-handled paths; the React host renders its own.
+
 - [ ] `/report` error report form. It needs a session-scope token like `/contact`. *(approval: session change)*
 - [x] `/status`: React SSR with read-only Go `/api/status`, bounded cached database check and HTTP 200 on dependency/API failure. React routing is active (production Apache include checked 13 November). Keep outstanding real-data visual acceptance in the page-by-page review below; the original sandbox limitation is not a current activation blocker.
 - [x] Token pages, `/cancel_demonstration/<token>`: React page with a read-only Go `/api/cancellation-links/<token>`; routing active since 12 Nov 2026.
@@ -57,8 +66,8 @@ Maintainer direction, 10 November 2026: when a page is redesigned or moved to Re
 
 - [ ] `/api/session` and its scopes (`organization_id`, `translation_join`, `contact_form`). *(approval: session)* The read-only Go bridge and scopes were activated and verified 12 November ([auth-bridge.md](docs/auth-bridge.md)); the underlying session endpoint still lives in Flask.
 - [ ] `POST /contact`: rate limits, one-time token, honeypot, validation and email.
-- [ ] `POST /organization/<id>/save_suggestion`: stores the suggestion, opens a case and notifies moderators.
-- [ ] `POST /suggest_change/<demo_id>`: compares proposed fields and Markdown, stores a demonstration suggestion, opens a case and notifies moderators; GET/HEAD now belongs to the React host.
+- [x] `POST /organization/<id>/save_suggestion` (Go, activated 20 November 2026): stores the suggestion, opens a case and notifies moderators.
+- [x] `POST /suggest_change/<demo_id>` (Go, activated 20 November 2026): compares proposed fields and Markdown, stores a demonstration suggestion, opens a case and notifies moderators; GET/HEAD now belongs to the React host.
 - [ ] `POST /kampanja/api/volunteers` and `/kampanja/confirm/<token>`. Signup is in Go, dark, flag `CAMPAIGN_VOLUNTEERS_GO_ENABLED` ([go-campaign-volunteers.md](docs/go-campaign-volunteers.md)); the confirm route remains.
 - [ ] `POST /upcoming/translations/join`. *(approval: permissions)*
 - [x] Analytics event `POST /api/analytics/event`: Go activated 11 November; the Flask-equivalent counter cross-check and POST routing are complete (`SITE_ANALYTICS_ENABLED=true`; `docs/go-public-api.md`). Production routing rechecked 13 November.
@@ -107,6 +116,7 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 - [ ] **DATA-03:** analytics correctness, access and pagination (#551); `demonstrations` COLLSCAN slow queries; the admin overview rendering 28,604 rows.
 - [ ] **DATA-04:** email queue retries and idempotency, queue/history crash consistency, job leadership and database error handling (#176).
   - [x] #955/#956: bounded failed/abandoned email claims and per-message recovery receipts are implemented. Real SMTP/scheduler acceptance and ambiguous-delivery reconciliation remain open.
+  - [x] Email queue retries: failed sends back off exponentially (1 min doubling to 1 h), stop after 30 attempts as visible `dead` letters (counted under Admin → System status "exhausted"), and a delivered job is never resent when its queue delete fails. Still open: stale in-flight claims (worker killed mid-send) are retried at least once, so a send the server accepted just before the crash can repeat.
   - [x] #984: acknowledged support reply enqueue and correlated case receipt, without strict-mode retries.
   - [x] #771: dedicated outgoing-reply history merged in #977; the issue is closed. Canonical audit references/content retention and queue/history crash consistency remain separate follow-ups.
 - [ ] **DATA-05:** preview images failing (#579), Cloudflare rate limiting on normal use (#580), Socket.IO reconnect storm (#640).
@@ -141,6 +151,7 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 
 - [ ] **OPS-01 remaining:** off-site copy and who holds the encryption key, failure alert channel, and evidence from the first weekly full run. `docs/backups.md` status updated 17 November.
   - [x] Nightly core and weekly full backup timers are installed and active; core archives exist (read-only production check, 13 November). This is not proof of restoration.
+  - [x] Backup units and failure alerts ship with every production deploy (`deploy/backup/install_units.sh`), plus a daily local freshness alert (20 November). Off-site copy waits for the homelab target and the maintainer's public age key.
 - [ ] **OPS-02:** authorized recovery exercises with recorded RPO and RTO.
 - [ ] **OPS-03:** review Web Vitals once there are enough samples.
 - [ ] **OPS-04:** keep exact-build deployment, rollback and CDN contracts; measure burst/coalescing behavior and rehearse held-admission recovery in isolation.
