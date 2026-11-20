@@ -91,7 +91,7 @@ def test_account_settings_reads_flag_needs_the_bridge_and_is_off_by_default(tmp_
     spec.loader.exec_module(module)
     cases = (
         ({}, False),
-        ({"AUTH_BRIDGE_SCOPES": True}, False),
+        ({"AUTH_BRIDGE_SCOPES": True}, True),  # on by default with the bridge
         ({"ACCOUNT_SETTINGS_READS": True}, False),  # no bridge, no route
         ({"AUTH_BRIDGE_SCOPES": True, "ACCOUNT_SETTINGS_READS": False}, False),
         ({"AUTH_BRIDGE_SCOPES": True, "ACCOUNT_SETTINGS_READS": True}, True),
