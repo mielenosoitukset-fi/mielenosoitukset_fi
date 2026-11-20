@@ -1492,8 +1492,9 @@ def test_admin_boolean_controls_do_not_inherit_text_field_geometry():
     assert 'input[type="radio"].form-check-input' in workspace
     assert ".form-check-input:indeterminate" in workspace
     assert ".form-check-input:focus-visible" in workspace
+    assert "{% elif can_approve_demo|default(false) %}" in demo_form
+    assert "{% if can_approve_demo|default(false) %}" in recurring_form
     for template in (demo_form, recurring_form):
-        assert "{% if can_approve_demo|default(false) %}" in template
         assert 'class="admin-check-row"' in template
         assert "data-admin-boolean" in template
         assert 'aria-live="polite"' in template
