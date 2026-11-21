@@ -1,0 +1,1 @@
+- Ylläpidon organisaatiolomake säilyttää tuntemattomat somealustat (esim. Bluesky) ja tarjoaa vaihtoehdon "Muu"; somelinkit hyväksytään vain http(s)-osoitteina.
