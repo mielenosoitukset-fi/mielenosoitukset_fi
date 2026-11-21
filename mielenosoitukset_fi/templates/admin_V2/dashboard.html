@@ -108,11 +108,11 @@
             <div id="panic-state" class="panic-state {{ 'active' if panic_mode else 'safe' }}">
               {{ _('SULJETTU') if panic_mode else _('AVOINNA') }}
             </div>
-            <p class="text-muted mb-2">{{ _('Hätäsulku sulkee julkisen sivuston ja rajapinnan kaikilta vierailijoilta kriisin ajaksi. Hallintapaneeli ja kirjautuminen toimivat edelleen, joten sulun voi purkaa. Mitään ei poisteta.') }}</p>
+            <p class="text-muted small mb-2">{{ _('Hätäsulku sulkee julkisen sivuston kaikilta vierailijoilta kriisin ajaksi. Hallintapaneeli toimii, joten sulun voi purkaa. Mitään ei poisteta.') }}</p>
             {% if can_open_security %}
             <div class="panic-actions">
-              <a class="btn btn-outline-{{ 'success' if panic_mode else 'danger' }} btn-sm" href="{{ url_for('admin_governance.security') }}">
-                <i class="fa-solid fa-{{ 'unlock' if panic_mode else 'bolt' }} me-1" aria-hidden="true"></i>{{ _('Avaa hätäsulun hallinta') if panic_mode else _('Avaa turvatilanteet') }}
+              <a class="btn btn-{{ 'success' if panic_mode else 'outline-danger' }} btn-sm" href="{{ url_for('admin_governance.security') }}">
+                <i class="fa-solid fa-{{ 'unlock' if panic_mode else 'bolt' }} me-1" aria-hidden="true"></i>{{ _('Pura sulku') if panic_mode else _('Avaa turvatilanteet') }}
               </a>
               <p class="text-muted small mb-0 mt-1">{{ _('Sulkeminen ja avaaminen vaativat kaksi hallituksen jäsentä tai yhden tuoreesti kirjautuneen god-käyttäjän.') }}</p>
             </div>
