@@ -23,7 +23,7 @@ def test_command_center_hides_cancel_for_cancelled_demo(admin_client, db, seeded
     db.demonstrations.update_one({"_id": demo_id}, {"$set": {"cancelled": True}})
     page = admin_client.get(url).get_data(as_text=True)
     assert 'data-command="cancel"' not in page
-    assert 'data-command="duplicate"' in page
+    assert 'create_demo?pohja=' in page
 
 
 def test_sidebar_tasks_are_cached_per_admin(app, db, seeded_data):

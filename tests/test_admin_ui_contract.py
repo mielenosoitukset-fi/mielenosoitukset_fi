@@ -1296,7 +1296,7 @@ def test_demo_editor_static_geometry_uses_shared_form_components():
     assert 'class="row g-3 admin-coordinate-fields"' in template
     assert 'class="admin-form-section__header"' in template
     assert 'data-bs-target="#editLinkModal"' in template
-    assert 'id="duplicate-demo-btn"' in template
+    assert "create_demo', pohja=" in template
     assert ".admin-token-input:focus-within" in workspace
     assert '.admin-editor-form :where(input:not([type="checkbox"])' in workspace
     assert ':not([type="hidden"]):not(.admin-token-input__field), select, textarea):focus' in workspace

@@ -2818,56 +2818,6 @@ def reject_demo_translation(demo_id, language):
     flash_message(_("Käännösehdotus hylättiin."), "success")
     return redirect(url_for("admin_demo.edit_demo_translations", demo_id=demo_id, language=language))
 
-@admin_demo_bp.route("/duplicate/<demo_id>", methods=["POST"])
-@login_required
-@admin_required
-@permission_required("CREATE_DEMO", _type="DEMONSTRATION")
-def duplicate_demo(demo_id):
-    """
-    Duplicate a demonstration. The duplicate will have 'approved' set to False.
-
-    Parameters
-    ----------
-    demo_id : str
-        The ID of the demonstration to duplicate.
-
-    Returns
-    -------
-    flask.Response
-        JSON response with new demo ID or error message.
-    """
-    from bson.objectid import ObjectId
-    demo_data = mongo.demonstrations.find_one({"_id": ObjectId(demo_id)})
-    if not demo_data:
-        return jsonify({"status": "ERROR", "message": _(u"Mielenosoitusta ei löytynyt.")}), 404
-
-    # Remove unique fields and set approved to False
-    demo_data.pop("_id", None)
-    demo_data["approved"] = False
-    demo_data["title"] = f"{demo_data['title']} (Kopio)"
-    # Set created_datetime to current time for the new demo
-    demo_data["created_datetime"] = utcnow()
-
-        
-    # If it was a recurring demo, turn it into a non-recurring one
-    if demo_data.get("recurs", False):
-        demo_data["recurs"] = False
-
-    # Optionally, clear other fields (like editors, submitters, etc.) if needed
-
-    new_demo = Demonstration.from_dict(demo_data)
-    new_demo.save()
-
-    log_demo_audit_entry(
-        new_demo._id,
-        action="duplicate_demo",
-        message=_("%(user)s kopioi mielenosoituksen") % {"user": _get_actor_label()},
-        details={"source_demo_id": demo_id},
-    )
-
-    return jsonify({"status": "OK", "new_demo_id": str(new_demo._id)})
-
-
 @admin_demo_bp.route("/merge", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -3506,6 +3456,40 @@ def filter_demonstrations(query, search_query, show_past, today):
     return filtered_demos
 
 
+# Content an admin can reuse when starting a new demo from an existing one.
+# Everything else (date, state, slug, submitter, cases, tokens, series link,
+# generated preview image) belongs to the original and is never copied.
+_COPYABLE_DEMO_FIELDS = (
+    "title", "description", "default_language", "translations", "start_time",
+    "end_time", "city", "address", "route", "latitude", "longitude", "facebook",
+    "img", "cover_picture", "cover_source", "organizers", "tags", "event_type",
+)
+
+
+def _copy_template_from_request():
+    """Return (unsaved Demonstration, source info) for ``?pohja=<demo id>``.
+
+    Nothing is written: the admin gets the normal create form filled in, and
+    only pressing "Luo" creates a demo, through the same path as any new demo.
+    """
+    source_id = (request.args.get("pohja") or "").strip()
+    if not source_id or not ObjectId.is_valid(source_id):
+        return None, None
+    source = mongo.demonstrations.find_one({"_id": ObjectId(source_id)})
+    if not source or not _user_can_access_demo(source["_id"], "VIEW_DEMO"):
+        return None, None
+    data = {key: source.get(key) for key in _COPYABLE_DEMO_FIELDS if source.get(key) is not None}
+    # The model validates the date, so build with the original and clear it:
+    # the admin has to pick the new date.
+    data["date"] = source.get("date")
+    template_demo = Demonstration.from_dict(data)
+    template_demo._id = None
+    template_demo.date = ""
+    template_demo.end_date = None
+    template_demo.preview_image = None
+    return template_demo, {"id": str(source["_id"]), "title": source.get("title") or ""}
+
+
 @admin_demo_bp.route("/create_demo", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -3533,6 +3517,7 @@ def create_demo():
         return handle_demo_form(request, is_edit=False)
 
     organizations = _available_organizer_organizations("CREATE_DEMO")
+    template_demo, template_source = _copy_template_from_request()
 
     # Render the demonstration creation form
     return render_template(
@@ -3541,7 +3526,8 @@ def create_demo():
         form_action=url_for("admin_demo.create_demo"),
         title="Luo mielenosoitus",
         submit_button_text="Luo",
-        demo=None,
+        demo=template_demo,
+        copy_source=template_source,
         city_list=CITY_LIST,
         demo_edit_access={"explicit_editors": [], "organizations": []},
         show_demo_access_panel=False,
@@ -3887,11 +3873,11 @@ def demo_command_center(demo_id):
         "cancel": {"url": url_for("admin_demo_api.admin_cancel_demo", demo_id=demo_id_str), "method": "POST"},
         "recommend": {"url": url_for("admin_demo.recommend_demo", demo_id=demo_id_str), "method": "POST"},
         "unrecommend": {"url": url_for("admin_demo.unrecommend_demo", demo_id=demo_id_str), "method": "POST"},
-        "duplicate": {"url": url_for("admin_demo.duplicate_demo", demo_id=demo_id_str), "method": "POST"},
         "screenshot": {"url": url_for("admin_demo.trigger_ss", demo_id=demo_id_str), "method": "GET"},
     }
     links = {
         "edit": url_for("admin_demo.edit_demo", demo_id=demo_id_str),
+        "copy_as_new": url_for("admin_demo.create_demo", pohja=demo_id_str),
         "history": url_for("admin_demo.demo_edit_history", demo_id=demo_id_str),
         "audit": url_for("admin_demo.view_demo_audit_log", demo_id=demo_id_str),
         "analytics": url_for("admin.demo_analytics", demo_id=demo_id_str),

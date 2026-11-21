@@ -566,11 +566,13 @@
             <i class="fa-solid fa-camera"></i>
           </button>
           {% endif %}
+          {% if current_user.has_permission("CREATE_DEMO") %}
+          <a class="action-btn btn btn-outline-secondary" href="{{ resource_links.copy_as_new }}">
+            {{ _('Kopioi uuden pohjaksi') }}
+            <i class="fa-solid fa-copy" aria-hidden="true"></i>
+          </a>
+          {% endif %}
           {% if permissions.can_edit %}
-          <button type="button" class="action-btn btn btn-outline-secondary js-command" data-command="duplicate">
-            {{ _('Kopioi pohjaksi') }}
-            <i class="fa-solid fa-copy"></i>
-          </button>
           {% if status_flags.can_cancel %}
           <button type="button" class="action-btn btn btn-outline-danger js-command" data-command="cancel" data-requires-reason="true">
             {{ _('Peru mielenosoitus') }}
@@ -631,10 +633,7 @@
       }
 
       showToast(data.message || successMessage, "success");
-      if (actionKey === "duplicate" && data.new_demo_id) {
-        window.open(`/admin/demo/edit_demo/${data.new_demo_id}`, "_blank");
-      }
-      if (refresh && actionKey !== "duplicate") {
+      if (refresh) {
         setTimeout(() => window.location.reload(), 800);
       }
     } catch (error) {
@@ -675,14 +674,6 @@
         await runCommand("screenshot", {
           refresh: false,
           successMessage: "{{ _('Esikatselukuvan luonti käynnistetty.') }}",
-        });
-        return;
-      }
-
-      if (command === "duplicate") {
-        await runCommand("duplicate", {
-          successMessage: "{{ _('Kopio luotu. Avataan uusi muokkauslomake.') }}",
-          refresh: false,
         });
         return;
       }
