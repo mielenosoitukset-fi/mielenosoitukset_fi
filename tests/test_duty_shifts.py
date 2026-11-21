@@ -97,9 +97,6 @@ def test_writes_are_refused_without_basis_or_by_the_moderator(app, db):
     with pytest.raises(DutyError, match="invalid_permissions"):
         duty_shifts.appoint(db, source=SOURCE, actor=actor, permissions=["EDIT_USER"], **kwargs)
     grant = duty_shifts.appoint(db, source=SOURCE, actor=actor, **kwargs)
-    with pytest.raises(DutyError, match="self_scheduling"):
-        duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=now, ends_at=now + timedelta(hours=1),
-                              source=SOURCE, actor={"id": str(user_id)}, now=now)
     with pytest.raises(DutyError, match="outside_appointment"):
         duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=now, ends_at=now + timedelta(days=2),
                               source=SOURCE, actor=actor, now=now)
@@ -135,3 +132,27 @@ def test_request_time_enforcement_and_use_log(app, db, seeded_data):
     duty_shifts.cancel_shift(db, shift_id=shift["_id"], reason="vuoro loppui", actor=actor)
     assert client.get(f"/admin/demo/review/{pending}").status_code in (302, 403)
     assert db.users.find_one({"_id": user_id})["global_permissions"] == []
+
+
+def test_own_booking_waits_for_approval_unless_self_booking(app, db):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    me = {"id": str(user_id)}
+    actor = _actor(db)
+    window = dict(starts_at=now - timedelta(minutes=5), ends_at=now + timedelta(hours=1),
+                  source=SOURCE, now=now)
+    grant = duty_shifts.appoint(db, user_id=user_id, valid_from=now - timedelta(days=1),
+                                valid_until=now + timedelta(days=1), source=SOURCE, actor=actor, now=now)
+    booked = duty_shifts.add_shift(db, grant_id=grant["_id"], actor=me, **window)
+    assert duty_shifts.active_duty(db, user_id, now) is None
+    with pytest.raises(DutyError, match="self_approval"):
+        duty_shifts.approve_shift(db, shift_id=booked["_id"], actor=me)
+    assert duty_shifts.approve_shift(db, shift_id=booked["_id"], actor=actor, now=now)
+    assert duty_shifts.active_duty(db, user_id, now)
+
+    other = _moderator(db)
+    trusted = duty_shifts.appoint(db, user_id=other, valid_from=now - timedelta(days=1),
+                                  valid_until=now + timedelta(days=1), source=SOURCE, actor=actor,
+                                  self_booking=True, now=now)
+    duty_shifts.add_shift(db, grant_id=trusted["_id"], actor={"id": str(other)}, **window)
+    assert duty_shifts.active_duty(db, other, now)

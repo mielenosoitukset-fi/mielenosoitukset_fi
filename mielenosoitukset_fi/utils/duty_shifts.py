@@ -15,7 +15,14 @@ Collections:
     ``revoked_at`` and ``source`` (the decision it rests on).
 ``moderator_shifts``
     ``grant_id``, ``user_id``, ``starts_at``/``ends_at`` (UTC, end
-    exclusive), ``cancelled_at`` and ``source``.
+    exclusive), ``approved_at``/``approved_by``, ``cancelled_at`` and
+    ``source``.
+
+Shifts (Olivia, 21 Nov 2026): the moderator books their own shifts within
+the appointment, and an OT member approves them. Only an approved shift gives
+rights. The appointment may allow booking without approval
+(``self_booking``). Who counts as an OT member is checked by Hallinto; Flask
+refuses only a moderator approving their own shift.
 ``moderator_duty_uses``
     Append-only record of each state-changing request made during a shift.
 
@@ -132,6 +139,7 @@ def active_duty(db, user_id: Any, now: Optional[datetime] = None) -> Optional[di
             "user_id": oid,
             "starts_at": {"$lte": current},
             "ends_at": {"$gt": current - END_GRACE},
+            "approved_at": {"$ne": None},
             "$or": [{"cancelled_at": {"$exists": False}}, {"cancelled_at": None}],
         }
     ).sort("starts_at", 1)
@@ -154,7 +162,7 @@ def active_duty(db, user_id: Any, now: Optional[datetime] = None) -> Optional[di
 
 def appoint(db, *, user_id: Any, valid_from: datetime, valid_until: datetime,
             source: dict, actor: dict, permissions: Iterable[str] = NATIONAL_MODERATOR_V1,
-            now: Optional[datetime] = None) -> dict:
+            self_booking: bool = False, now: Optional[datetime] = None) -> dict:
     """Record a national moderator appointment. Grants nothing until a shift."""
     oid = _oid(user_id, "invalid_user")
     actor_ref = _actor_ref(actor)
@@ -176,6 +184,7 @@ def appoint(db, *, user_id: Any, valid_from: datetime, valid_until: datetime,
         "user_id": oid,
         "kind": "national_moderator_v1",
         "permissions": perms,
+        "self_booking": bool(self_booking),
         "valid_from": start,
         "valid_until": end,
         "source": _source(source),
@@ -188,14 +197,18 @@ def appoint(db, *, user_id: Any, valid_from: datetime, valid_until: datetime,
 
 def add_shift(db, *, grant_id: Any, starts_at: datetime, ends_at: datetime,
               source: dict, actor: dict, now: Optional[datetime] = None) -> dict:
-    """Schedule a duty shift inside the appointment's validity."""
+    """Book a duty shift inside the appointment's validity.
+
+    A shift booked by someone else is approved by that booking. One the
+    moderator books is approved only if the appointment allows self-booking;
+    otherwise it waits for ``approve_shift``.
+    """
     gid = _oid(grant_id, "unknown_grant")
     actor_ref = _actor_ref(actor)
     grant = db[GRANTS].find_one({"_id": gid})
     if not grant or grant.get("revoked_at"):
         raise DutyError("unknown_grant")
-    if actor_ref["id"] == str(grant["user_id"]):
-        raise DutyError("self_scheduling")
+    own = actor_ref["id"] == str(grant["user_id"])
     start, end = _utc(starts_at, "starts_at"), _utc(ends_at, "ends_at")
     if end <= start or end <= _now(now):
         raise DutyError("invalid_window")
@@ -212,8 +225,28 @@ def add_shift(db, *, grant_id: Any, starts_at: datetime, ends_at: datetime,
         "created_by": actor_ref,
         "created_at": _now(now),
     }
+    if not own or grant.get("self_booking"):
+        doc.update(approved_at=_now(now), approved_by=actor_ref,
+                   approval="self_booking" if own else "booked_by_other")
     db[SHIFTS].insert_one(doc)
     return doc
+
+
+def approve_shift(db, *, shift_id: Any, actor: dict, now: Optional[datetime] = None) -> bool:
+    """Approve a booked shift. The moderator cannot approve their own."""
+    sid = _oid(shift_id, "unknown_shift")
+    actor_ref = _actor_ref(actor)
+    shift = db[SHIFTS].find_one({"_id": sid})
+    if not shift:
+        raise DutyError("unknown_shift")
+    if actor_ref["id"] == str(shift["user_id"]):
+        raise DutyError("self_approval")
+    result = db[SHIFTS].update_one(
+        {"_id": sid, "approved_at": None,
+         "$or": [{"cancelled_at": {"$exists": False}}, {"cancelled_at": None}]},
+        {"$set": {"approved_at": _now(now), "approved_by": actor_ref, "approval": "approved"}},
+    )
+    return bool(result.modified_count)
 
 
 def cancel_shift(db, *, shift_id: Any, reason: str, actor: dict,
