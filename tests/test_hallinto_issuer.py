@@ -343,3 +343,42 @@ def test_account_search_needs_a_live_admin_sign_in(owner, db):
         assert _accounts(app.test_client(), claims, "lookup", {"ids": [str(member)]}).status_code == 403
     finally:
         db.users.delete_one({"_id": member})
+
+
+def test_account_invite_creates_an_ordinary_account_for_an_admin(owner, db, monkeypatch):
+    from mielenosoitukset_fi.users import hallinto_issuer
+
+    sent = []
+    monkeypatch.setattr(hallinto_issuer, "_invite_sender",
+                        type("Sender", (), {"queue_email": lambda self, **kw: sent.append(kw)})())
+    app, subject = owner
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    body = {"email": "Uusi.Admin@Example.test", "username": "uusi-admin", "name": "Uusi Admin"}
+    created = None
+    try:
+        # Search rights are not enough: creating needs an admin with CREATE_USER.
+        assert _accounts(app.test_client(), claims, "invite", body).status_code == 403
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+        assert _accounts(app.test_client(), claims, "invite", body).status_code == 403
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"global_permissions": ["CREATE_USER"]}})
+        assert _accounts(app.test_client(), claims, "invite", {**body, "email": "not-an-email"}).status_code == 400
+        assert _accounts(app.test_client(), claims, "invite", {**body, "role": "global_admin"}).status_code == 201
+        doc = db.users.find_one({"email": "uusi.admin@example.test"})
+        created = doc["_id"]
+        # An ordinary, unconfirmed account whatever the request says, with an unknown password.
+        assert doc["role"] == "user" and not doc["global_admin"] and doc["confirmed"] is False
+        assert doc["created_via"] == "hallinto"
+        assert len(sent) == 1 and sent[0]["recipients"] == ["uusi.admin@example.test"]
+        assert "/password_reset/" in sent[0]["context"]["reset_url"]
+        log = db.admin_logs.find_one({"entity_id": str(created), "event": "user_created"})
+        assert log["actor"]["id"] == subject and log["actor"]["via"] == "hallinto"
+        # The same address again points at the existing account instead.
+        again = _accounts(app.test_client(), claims, "invite", {**body, "username": "toinen"})
+        assert again.status_code == 409 and again.json["account"]["sub"] == str(created)
+        assert again.json["account"]["active"] is False
+        taken = _accounts(app.test_client(), claims, "invite", {**body, "email": "other@example.test"})
+        assert taken.status_code == 409 and taken.json["error"] == "username_in_use"
+    finally:
+        db.users.delete_many({"email": {"$in": ["uusi.admin@example.test", "other@example.test"]}})

@@ -1977,6 +1977,10 @@ def password_reset(token):
 
         try:
             user._change_password(password)
+            # The link reached this address, so it is confirmed. Accounts
+            # created by an admin from Hallinto are activated this way.
+            mongo.users.update_one({"_id": user_doc["_id"], "confirmed": {"$ne": True}},
+                                   {"$set": {"confirmed": True}})
             if reset_invalidation_enabled():
                 # Existing sessions carry the old epoch and are dropped by the
                 # user loader; the cookie format is unchanged.
