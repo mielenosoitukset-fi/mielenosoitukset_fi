@@ -86,8 +86,8 @@
       <input type="hidden" name="decision" value="rejected">
       <label for="reason-key">{{ _('Syy') }}</label>
       <select id="reason-key" name="reason_key" required>
-        <option value="">{{ _('Valitse') }}</option>
-        {% for key, label in reject_reasons if key != 'duplicate' %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+        {% if not (reject_reasons and reject_reasons[0][0] == 'jory_decision') %}<option value="">{{ _('Valitse') }}</option>{% endif %}
+        {% for key, label in reject_reasons if key != 'duplicate' %}<option value="{{ key }}"{% if loop.first and key == 'jory_decision' %} selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
       <label for="reason-note">{{ _('Lisätieto (pakollinen, jos syy on muu)') }}</label>
       <textarea id="reason-note" name="note" rows="2" maxlength="500"></textarea>

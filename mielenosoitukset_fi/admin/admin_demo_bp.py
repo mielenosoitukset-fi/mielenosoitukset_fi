@@ -2050,7 +2050,7 @@ def _case_link_page(token, *, status=200, error=None, result=None, allow_bind=Fa
         level_name=esc.LEVEL_NAMES[level] if level else None,
         factor=factor,
         effects={d: preview_demo_decision(mongo, demo["_id"], d) for d in ("approved", "rejected")} if pending else {},
-        reject_reasons=case_reasons.choices(case_reasons.REJECT_KEYS),
+        reject_reasons=case_reasons.reject_choices(mongo, demo),
         login_url=url_for("users.auth.login", next=url_for("admin_demo.open_demo_decision", demo_id=str(demo["_id"]))),
         error=error,
         result=result,
