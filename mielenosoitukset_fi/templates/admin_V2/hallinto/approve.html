@@ -1,0 +1,117 @@
+{% extends 'admin_base.html' %}
+{% from 'admin_V2/macros.html' import admin_page_hero %}
+{% block title %}Vahvista nimitys – Mielenosoitukset.fi{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/users.css', v='20261002-admin-ui-55') }}">{% endblock %}
+{% block main_content %}
+<section class="admin-page admin-workspace">
+  {{ admin_page_hero('Vahvista nimitys', 'Hallinnossa hyväksytty nimitys tulee voimaan vasta, kun vahvistat sen tässä.', 'Hallinto', [('Hallintapaneeli', url_for('admin.admin_dashboard')), ('Vahvista nimitys', none)]) }}
+  <section class="admin-form-section mb-4" aria-labelledby="approve-terms-heading">
+    <h2 id="approve-terms-heading">Kaupunkiadmin</h2>
+    <dl class="admin-message-meta">
+      <div><dt>Käyttäjä</dt><dd>{{ account.displayname or account.username }}{% if account.displayname and account.username %} ({{ account.username }}){% endif %}</dd></div>
+      <div><dt>Kaupunki</dt><dd>{{ city_name }}</dd></div>
+      <div><dt>Voimassa</dt><dd>{{ last_day }} asti</dd></div>
+      <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
+    </dl>
+    <p>Käyttäjä saa kaupungin mielenosoitusten ja asioiden käsittelyoikeudet.{% if fields.allow_city_enablement %} Jos kaupunki ei ole vielä käytössä, se otetaan käyttöön.{% endif %}</p>
+    {% if not eligible %}<div class="alert alert-warning" role="alert">Käyttäjälle ei voi antaa tätä nimitystä nyt: hänellä on jo ylläpito-oikeuksia tai käyttäjätili ei ole käytössä. Vahvistus hylätään.</div>{% endif %}
+  </section>
+
+  <form method="post" action="{{ url_for('hallinto_city_grant_approval.approve_confirm') }}" id="approveForm">
+    <input type="hidden" name="r" value="{{ raw }}">
+    <input type="hidden" name="state" value="{{ state_param }}">
+    {% if elevated %}
+    <button type="submit" class="workflow-button btn btn-primary"><i class="fas fa-check" aria-hidden="true"></i>Vahvista nimitys</button>
+    {% endif %}
+  </form>
+
+  {% if not elevated %}
+  {% if not has_passkey and not has_totp %}
+  <div class="alert alert-warning" role="alert">
+    Nimityksen vahvistaminen vaatii passkeyn tai kaksivaiheisen tunnistautumisen.
+    <a href="{{ url_for('users.auth.settings') }}">Lisää passkey asetuksissa</a> ja palaa sitten Hallintoon.
+  </div>
+  {% else %}
+  <section class="workflow-step-up" aria-labelledby="stepUpTitle">
+    <div class="workflow-step-up-heading">
+      <span class="workflow-heading-icon"><i class="fas fa-shield-halved" aria-hidden="true"></i></span>
+      <div>
+        <h2 class="h6" id="stepUpTitle">Vahvista henkilöllisyytesi</h2>
+        <p>Vahvistus on voimassa 15 minuuttia.</p>
+      </div>
+    </div>
+    <div class="workflow-status" id="stepUpStatus" role="status" aria-live="polite"></div>
+    {% if has_passkey %}
+    <button type="button" class="workflow-button workflow-step-up-passkey btn btn-outline-primary" id="stepUpPasskeyBtn">
+      <i class="fas fa-key" aria-hidden="true"></i>Vahvista passkeyllä
+    </button>
+    {% endif %}
+    {% if has_totp %}
+    {% if has_passkey %}<div class="workflow-step-up-divider" role="separator"><span>tai</span></div>{% endif %}
+    <form id="stepUpPasswordForm" class="workflow-step-up-form">
+      <div class="admin-field">
+        <label for="stepUpPassword">Salasana</label>
+        <input type="password" id="stepUpPassword" class="form-control" autocomplete="current-password" required>
+      </div>
+      <div class="admin-field">
+        <label for="stepUpTotp">MFA-koodi</label>
+        <input type="text" id="stepUpTotp" class="form-control" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" required>
+      </div>
+      <button type="submit" class="workflow-button btn btn-primary" id="stepUpPasswordBtn">
+        <i class="fas fa-lock" aria-hidden="true"></i>Vahvista ja jatka
+      </button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+  {% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+{% if not elevated and (has_passkey or has_totp) %}
+<script src="{{ url_for('static', filename='js/webauthn.js') }}"></script>
+<script>
+  (function () {
+    const status = document.getElementById('stepUpStatus');
+    const confirmForm = document.getElementById('approveForm');
+    function fail(message) { status.textContent = message; status.classList.add('danger'); }
+    async function json(response) {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.status !== 'success') { throw Object.assign(new Error(data.message || 'Vahvistus epäonnistui.'), { data }); }
+      return data;
+    }
+    const passkey = document.getElementById('stepUpPasskeyBtn');
+    if (passkey) {
+      if (!(window.PublicKeyCredential && navigator.credentials)) { passkey.hidden = true; }
+      passkey.addEventListener('click', async () => {
+        passkey.disabled = true;
+        try {
+          const options = await json(await fetch('/users/auth/api/v2/step-up/webauthn/options', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }));
+          const credential = await navigator.credentials.get({ publicKey: decodePublicKeyOptions(options.options) });
+          await json(await fetch('/users/auth/api/v2/step-up/webauthn/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential: formatAssertionCredential(credential) }) }));
+          confirmForm.submit();
+        } catch (err) {
+          fail(err.name === 'NotAllowedError' ? 'Passkey-vahvistus keskeytettiin. Yritä uudelleen.' : err.message);
+          passkey.disabled = false;
+        }
+      });
+    }
+    const passwordForm = document.getElementById('stepUpPasswordForm');
+    if (passwordForm) {
+      passwordForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = document.getElementById('stepUpPasswordBtn');
+        button.disabled = true;
+        try {
+          await json(await fetch('/users/auth/api/v2/step-up/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: document.getElementById('stepUpPassword').value, totp_code: document.getElementById('stepUpTotp').value.trim() }) }));
+          confirmForm.submit();
+        } catch (err) {
+          fail(err.message);
+          button.disabled = false;
+        }
+      });
+    }
+  }());
+</script>
+{% endif %}
+{% endblock %}

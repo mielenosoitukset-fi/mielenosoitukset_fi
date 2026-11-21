@@ -20,6 +20,8 @@ from mielenosoitukset_fi.utils.city_settings import upsert_city_setting
 from tests.conftest import _seed_database, _user_doc
 
 KEY = "hallinto-api-000000000001"
+RETURN_URL = "https://hallinto.example.test/approved"
+STATE = "browser-state-000000000001"
 VALID_UNTIL = (city_grants.utcnow() + timedelta(days=60)).strftime("%Y-%m-%dT22:00:00Z")
 
 
@@ -57,6 +59,7 @@ def api(app_factory, db):
     app = app_factory(HALLINTO_CITY_GRANTS={
         "workload_cert_sha256": [hashlib.sha256(WORKLOAD.public_bytes(Encoding.DER)).hexdigest()],
         "attestation_public_key": _b64url(SIGNER.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)),
+        "return_url": RETURN_URL,
     })
     seeded = _seed_database(app, db)
     target = ObjectId()
@@ -157,3 +160,69 @@ def test_proof_of_a_demoted_admin_is_denied(api):
     response = client.post("/internal/hallinto/v1/city-appointments", json=body, headers=_headers(proof=proof))
     assert (response.status_code, response.get_json()) == (403, {"code": "denied"})
     assert db.admin_scope_grants.count_documents({"user_id": target}) == 0
+
+
+def _verifier(app, user_id, *, strong=True, age=0):
+    import time
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["_user_id"] = str(user_id)
+        session["_fresh"] = True
+        if strong is not None:
+            session["sudo"] = {"authenticated_at": time.time() - age, "user_id": str(user_id),
+                               "method": "webauthn" if strong else "password_totp", "strong": strong}
+    return client
+
+
+
+def _terms(body):
+    import json
+    fields = {k: v for k, v in body.items() if k not in {"expected_state", "authority_attestation"}}
+    return _b64url(json.dumps(fields).encode())
+
+
+def _confirm(client, body, origin="http://localhost"):
+    return client.post("/admin/hallinto/approve", data={"r": _terms(body), "state": STATE},
+                       headers={"Origin": origin})
+
+
+@pytest.mark.parametrize("strong,age,expect_proof", [
+    (None, 0, False),        # never stepped up
+    (False, 0, False),       # password without TOTP
+    (True, 16 * 60, False),  # older than the 15-minute window
+    (True, 14 * 60, True),
+])
+def test_approval_needs_a_strong_factor_within_15_minutes(api, strong, age, expect_proof):
+    from urllib.parse import parse_qs, urlsplit
+    app, client, db, body, digest, proof, seeded, target = api
+    verifier = _verifier(app, seeded["admin_id"], strong=strong, age=age)
+    page = verifier.get("/admin/hallinto/approve", query_string={"r": _terms(body), "state": STATE})
+    assert page.status_code == 200 and "Kuopio" in page.get_data(as_text=True)
+    assert page.headers["Cache-Control"] == "no-store"
+    response = _confirm(verifier, body)
+    assert response.status_code == 303
+    location = response.headers["Location"]
+    if not expect_proof:
+        assert location.startswith("/admin/hallinto/approve") or "/admin/hallinto/approve" in location
+        return
+    url = urlsplit(location)
+    assert f"{url.scheme}://{url.netloc}{url.path}" == RETURN_URL and not url.query
+    returned = parse_qs(url.fragment)
+    assert returned["state"] == [STATE] and returned["expected_state"] == [body["expected_state"]]
+    # The new proof works for the exact intent through the internal route.
+    assert client.post("/internal/hallinto/v1/city-appointments", json=body,
+                       headers=_headers(proof=returned["proof"][0])).status_code == 200
+
+
+def test_approval_rejects_cross_site_posts_and_non_managers(api):
+    app, client, db, body, digest, proof, seeded, target = api
+    assert _confirm(_verifier(app, seeded["admin_id"]), body, origin="https://evil.example").status_code == 403
+    assert _confirm(_verifier(app, seeded["friend_id"]), body).status_code == 403
+    assert db[grant_proofs.PROOFS].count_documents({}) == 1  # only the fixture's proof
+
+
+def test_approval_without_any_strong_factor_points_to_settings(api):
+    app, client, db, body, digest, proof, seeded, target = api
+    page = _verifier(app, seeded["admin_id"], strong=None).get(
+        "/admin/hallinto/approve", query_string={"r": _terms(body), "state": STATE})
+    assert "Lisää passkey asetuksissa" in page.get_data(as_text=True)
