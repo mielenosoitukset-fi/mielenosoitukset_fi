@@ -258,6 +258,7 @@ func main() {
 	}
 	handler := publicSubmissionHandler(publicResponseCache(a.handler(), shared), client.Database(database), submissionConfig)
 	handler = cityAdminApplicationHandler(handler, client.Database(database), submissionConfig)
+	handler = orgRequestHandler(handler, client.Database(database), submissionConfig)
 	reminder := startFundraisingReminder(client.Database(database), submissionConfig)
 	handler = fundraisingReminderHandler(handler, client.Database(database), submissionConfig, reminder)
 	handler = prideBannerHandler(handler, client.Database(database), submissionConfig, startPrideBannerSignup(client.Database(database), submissionConfig))
