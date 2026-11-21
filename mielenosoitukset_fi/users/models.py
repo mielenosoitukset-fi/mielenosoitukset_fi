@@ -60,6 +60,14 @@ class User(UserMixin):
             return list(self._stored_global_permissions)
         return list(self.global_permissions)
 
+    @property
+    def is_national_moderator(self) -> bool:
+        """Holds a national moderator appointment (rights only on shift)."""
+        if self._is_national_moderator is None:
+            from mielenosoitukset_fi.utils.duty_shifts import is_moderator
+            self._is_national_moderator = bool(self.is_active) and is_moderator(_get_mongo(), self._id)
+        return self._is_national_moderator
+
     def apply_active_duty(self, now=None) -> None:
         """Add the moderation rights of a current duty shift for this request.
 
@@ -82,6 +90,7 @@ class User(UserMixin):
         """Return whether this account may enter any admin workspace."""
         return (
             bool(self.active_duty)
+            or self.is_national_moderator
             or self.has_full_permissions()
             or self.role == "admin"
             or self.role == "translator"
@@ -307,6 +316,7 @@ class User(UserMixin):
         # signed-in account by apply_active_duty; never stored.
         self.active_duty: Optional[dict] = None
         self._stored_global_permissions: Optional[List[str]] = None
+        self._is_national_moderator: Optional[bool] = None
 
     # ---------- CLASS HELPERS ----------------------------------------------------
 

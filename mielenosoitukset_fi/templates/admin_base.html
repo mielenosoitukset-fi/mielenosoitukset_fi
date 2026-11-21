@@ -264,6 +264,14 @@ function confirmAction(action, taskId) {
         </li>
       {% endif %}
 
+      {% if current_user.is_national_moderator or current_user.has_full_permissions() %}
+        <li class="nav-item">
+          <a class="nav-link admin-sidebar-link {% if admin_endpoint.startswith('admin_shifts.') %}active{% endif %}" href="{{ url_for('admin_shifts.shifts') }}">
+            <i class="fas fa-calendar-check me-2"></i>{{ _('Vuorot') }}
+          </a>
+        </li>
+      {% endif %}
+
       {% if current_user.has_permission("LIST_CASES") %}
         <li class="nav-item">
           <a class="nav-link admin-sidebar-link {% if admin_endpoint.startswith('admin_case.') %}active{% endif %}" href="{{ url_for('admin_case.cases') }}">

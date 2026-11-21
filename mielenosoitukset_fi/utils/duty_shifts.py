@@ -21,8 +21,9 @@ Collections:
 Shifts (Olivia, 21 Nov 2026): the moderator books their own shifts within
 the appointment, and an OT member approves them. Only an approved shift gives
 rights. The appointment may allow booking without approval
-(``self_booking``). Who counts as an OT member is checked by Hallinto; Flask
-refuses only a moderator approving their own shift.
+(``self_booking``). The appointment lists the accounts that may approve its
+shifts (``approvers``, the OT members' accounts sent by Hallinto); nobody
+approves their own shift.
 ``moderator_duty_uses``
     Append-only record of each state-changing request made during a shift.
 
@@ -113,6 +114,11 @@ def _source(source: dict) -> dict:
     return {k: str(v)[:300] for k, v in source.items() if v not in (None, "")}
 
 
+def _is_approver(grant: Optional[dict], actor_ref: dict) -> bool:
+    return bool(grant) and not grant.get("revoked_at") and actor_ref["id"] in {
+        str(a) for a in grant.get("approvers") or ()}
+
+
 def _usable_grant(grant: Optional[dict], now: datetime) -> bool:
     if not grant or grant.get("revoked_at") or grant.get("frozen_at"):
         return False
@@ -162,7 +168,8 @@ def active_duty(db, user_id: Any, now: Optional[datetime] = None) -> Optional[di
 
 def appoint(db, *, user_id: Any, valid_from: datetime, valid_until: datetime,
             source: dict, actor: dict, permissions: Iterable[str] = NATIONAL_MODERATOR_V1,
-            self_booking: bool = False, now: Optional[datetime] = None) -> dict:
+            approvers: Iterable[Any] = (), self_booking: bool = False,
+            now: Optional[datetime] = None) -> dict:
     """Record a national moderator appointment. Grants nothing until a shift."""
     oid = _oid(user_id, "invalid_user")
     actor_ref = _actor_ref(actor)
@@ -174,6 +181,9 @@ def appoint(db, *, user_id: Any, valid_from: datetime, valid_until: datetime,
     perms = sorted(set(permissions))
     if not perms or not set(perms) <= NATIONAL_MODERATOR_V1:
         raise DutyError("invalid_permissions")
+    approver_ids = sorted({_oid(a, "invalid_approver") for a in approvers} - {oid})
+    if len(approver_ids) > 50:
+        raise DutyError("invalid_approver")
     user = db.users.find_one({"_id": oid}, {"active": 1, "banned": 1, "account_type": 1})
     if not user or user.get("banned") or user.get("active") is False:
         raise DutyError("ineligible_user")
@@ -185,6 +195,7 @@ def appoint(db, *, user_id: Any, valid_from: datetime, valid_until: datetime,
         "kind": "national_moderator_v1",
         "permissions": perms,
         "self_booking": bool(self_booking),
+        "approvers": approver_ids,
         "valid_from": start,
         "valid_until": end,
         "source": _source(source),
@@ -209,6 +220,8 @@ def add_shift(db, *, grant_id: Any, starts_at: datetime, ends_at: datetime,
     if not grant or grant.get("revoked_at"):
         raise DutyError("unknown_grant")
     own = actor_ref["id"] == str(grant["user_id"])
+    if not own and not _is_approver(grant, actor_ref):
+        raise DutyError("not_allowed")
     start, end = _utc(starts_at, "starts_at"), _utc(ends_at, "ends_at")
     if end <= start or end <= _now(now):
         raise DutyError("invalid_window")
@@ -241,6 +254,8 @@ def approve_shift(db, *, shift_id: Any, actor: dict, now: Optional[datetime] = N
         raise DutyError("unknown_shift")
     if actor_ref["id"] == str(shift["user_id"]):
         raise DutyError("self_approval")
+    if not _is_approver(db[GRANTS].find_one({"_id": shift["grant_id"]}), actor_ref):
+        raise DutyError("not_allowed")
     result = db[SHIFTS].update_one(
         {"_id": sid, "approved_at": None,
          "$or": [{"cancelled_at": {"$exists": False}}, {"cancelled_at": None}]},
@@ -251,14 +266,25 @@ def approve_shift(db, *, shift_id: Any, actor: dict, now: Optional[datetime] = N
 
 def cancel_shift(db, *, shift_id: Any, reason: str, actor: dict,
                  now: Optional[datetime] = None) -> bool:
-    """Cancel or cut short a shift. Rights end on the next request."""
+    """Cancel or cut short a shift. Rights end on the next request.
+
+    The moderator may cancel their own shift; an approver may cancel any of
+    the appointment's shifts.
+    """
     if not str(reason or "").strip():
         raise DutyError("reason_required")
+    actor_ref = _actor_ref(actor)
+    shift = db[SHIFTS].find_one({"_id": _oid(shift_id, "unknown_shift")})
+    if not shift:
+        raise DutyError("unknown_shift")
+    if actor_ref["id"] != str(shift["user_id"]) and not _is_approver(
+            db[GRANTS].find_one({"_id": shift["grant_id"]}), actor_ref):
+        raise DutyError("not_allowed")
     result = db[SHIFTS].update_one(
         {"_id": _oid(shift_id, "unknown_shift"),
          "$or": [{"cancelled_at": {"$exists": False}}, {"cancelled_at": None}]},
         {"$set": {"cancelled_at": _now(now), "cancel_reason": str(reason)[:300],
-                  "cancelled_by": _actor_ref(actor)}},
+                  "cancelled_by": actor_ref}},
     )
     return bool(result.modified_count)
 
@@ -313,3 +339,88 @@ def record_use(db, user, *, method: str, endpoint: Optional[str], path: str,
             "at": _now(now),
         }
     )
+
+
+# Shift states shown in the schedule.
+REQUESTED, APPROVED, RUNNING, GRACE, ENDED, CANCELLED, INACTIVE = (
+    "requested", "approved", "running", "grace", "ended", "cancelled", "inactive")
+
+
+def shift_state(shift: dict, grant: Optional[dict], now: Optional[datetime] = None) -> str:
+    """One state for the schedule, computed the same way as ``active_duty``."""
+    current = _naive(_now(now))
+    start = _naive(_utc(shift["starts_at"], "starts_at"))
+    end = _naive(_utc(shift["ends_at"], "ends_at"))
+    if shift.get("cancelled_at"):
+        return CANCELLED
+    if current >= end + END_GRACE:
+        return ENDED
+    if not shift.get("approved_at"):
+        return REQUESTED
+    if not _usable_grant(grant, _now(now)) and current >= start:
+        return INACTIVE
+    if current < start:
+        return APPROVED
+    return RUNNING if current < end else GRACE
+
+
+def is_moderator(db, user_id: Any) -> bool:
+    """Whether the account holds a national moderator appointment that is
+    not revoked. It lets them open the admin and book shifts; it gives no
+    moderation right by itself."""
+    return bool(db[GRANTS].find_one(
+        {"user_id": _oid(user_id, "invalid_user"), "revoked_at": None}, {"_id": 1}))
+
+
+def schedule(db, viewer, now: Optional[datetime] = None, limit: int = 300) -> list[dict]:
+    """Shifts the viewer may see: their own, those of appointments they
+    approve, or all for an account with full permissions. Newest first."""
+    vid = _oid(viewer.id, "invalid_user")
+    if viewer.has_full_permissions():
+        grants = list(db[GRANTS].find({}))
+    else:
+        grants = list(db[GRANTS].find({"$or": [{"user_id": vid}, {"approvers": vid}]}))
+    by_id = {g["_id"]: g for g in grants}
+    if not by_id:
+        return []
+    users = {u["_id"]: u for u in db.users.find(
+        {"_id": {"$in": list({g["user_id"] for g in grants})}}, {"username": 1, "displayname": 1})}
+    rows = []
+    for shift in db[SHIFTS].find({"grant_id": {"$in": list(by_id)}}).sort("starts_at", -1).limit(limit):
+        grant = by_id[shift["grant_id"]]
+        user = users.get(grant["user_id"]) or {}
+        own = shift["user_id"] == vid
+        approver = vid in (grant.get("approvers") or ())
+        state = shift_state(shift, grant, now)
+        rows.append({
+            "id": str(shift["_id"]),
+            "moderator": user.get("displayname") or user.get("username") or str(grant["user_id"]),
+            "starts_at": shift["starts_at"],
+            "ends_at": shift["ends_at"],
+            "state": state,
+            "approval": shift.get("approval"),
+            "cancel_reason": shift.get("cancel_reason"),
+            "can_approve": approver and not own and state == REQUESTED,
+            "can_cancel": (own or approver) and state in (REQUESTED, APPROVED, RUNNING, GRACE),
+        })
+    return rows
+
+
+def bookable_grants(db, viewer, now: Optional[datetime] = None) -> list[dict]:
+    """Appointments the viewer may book shifts for: their own, or those they
+    approve. Frozen, revoked and expired ones are left out."""
+    vid = _oid(viewer.id, "invalid_user")
+    current = _now(now)
+    rows = []
+    for grant in db[GRANTS].find({"$or": [{"user_id": vid}, {"approvers": vid}], "revoked_at": None}):
+        if grant.get("frozen_at") or _naive(_utc(grant["valid_until"], "valid_until")) <= _naive(current):
+            continue
+        user = db.users.find_one({"_id": grant["user_id"]}, {"username": 1, "displayname": 1}) or {}
+        rows.append({
+            "id": str(grant["_id"]),
+            "own": grant["user_id"] == vid,
+            "moderator": user.get("displayname") or user.get("username") or "",
+            "valid_until": grant["valid_until"],
+            "needs_approval": grant["user_id"] == vid and not grant.get("self_booking"),
+        })
+    return rows

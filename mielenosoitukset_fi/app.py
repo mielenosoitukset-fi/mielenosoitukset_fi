@@ -276,6 +276,8 @@ def create_app(config_overrides=None) -> Flask:
     app.register_blueprint(admin_dev_bp)
     app.register_blueprint(admin_city_bp)
     app.register_blueprint(admin_governance_bp)
+    from mielenosoitukset_fi.admin.admin_shifts_bp import admin_shifts_bp
+    app.register_blueprint(admin_shifts_bp)
     app.register_blueprint(admin_site_analytics_bp)
     #app.register_blueprint(admin_case_bp)
     

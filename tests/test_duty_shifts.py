@@ -35,7 +35,8 @@ def _appoint_with_shift(db, user_id, start, end, *, now):
     actor = _actor(db)
     grant = duty_shifts.appoint(
         db, user_id=user_id, valid_from=now - timedelta(days=1),
-        valid_until=now + timedelta(days=30), source=SOURCE, actor=actor, now=now,
+        valid_until=now + timedelta(days=30), source=SOURCE, actor=actor,
+        approvers=[actor["id"]], now=now,
     )
     shift = duty_shifts.add_shift(
         db, grant_id=grant["_id"], starts_at=start, ends_at=end,
@@ -89,7 +90,8 @@ def test_writes_are_refused_without_basis_or_by_the_moderator(app, db):
     now = datetime.now(timezone.utc)
     user_id = _moderator(db)
     actor = _actor(db)
-    kwargs = dict(user_id=user_id, valid_from=now, valid_until=now + timedelta(days=1), now=now)
+    kwargs = dict(user_id=user_id, valid_from=now, valid_until=now + timedelta(days=1),
+                  approvers=[actor["id"]], now=now)
     with pytest.raises(DutyError, match="source_required"):
         duty_shifts.appoint(db, source={}, actor=actor, **kwargs)
     with pytest.raises(DutyError, match="self_appointment"):
@@ -142,11 +144,14 @@ def test_own_booking_waits_for_approval_unless_self_booking(app, db):
     window = dict(starts_at=now - timedelta(minutes=5), ends_at=now + timedelta(hours=1),
                   source=SOURCE, now=now)
     grant = duty_shifts.appoint(db, user_id=user_id, valid_from=now - timedelta(days=1),
-                                valid_until=now + timedelta(days=1), source=SOURCE, actor=actor, now=now)
+                                valid_until=now + timedelta(days=1), source=SOURCE, actor=actor,
+                                approvers=[actor["id"]], now=now)
     booked = duty_shifts.add_shift(db, grant_id=grant["_id"], actor=me, **window)
     assert duty_shifts.active_duty(db, user_id, now) is None
     with pytest.raises(DutyError, match="self_approval"):
         duty_shifts.approve_shift(db, shift_id=booked["_id"], actor=me)
+    with pytest.raises(DutyError, match="not_allowed"):
+        duty_shifts.approve_shift(db, shift_id=booked["_id"], actor=_actor(db))
     assert duty_shifts.approve_shift(db, shift_id=booked["_id"], actor=actor, now=now)
     assert duty_shifts.active_duty(db, user_id, now)
 
@@ -156,3 +161,40 @@ def test_own_booking_waits_for_approval_unless_self_booking(app, db):
                                   self_booking=True, now=now)
     duty_shifts.add_shift(db, grant_id=trusted["_id"], actor={"id": str(other)}, **window)
     assert duty_shifts.active_duty(db, other, now)
+
+
+def test_schedule_page_books_approves_and_lists_states(app, db, seeded_data):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    approver_id = _moderator(db)
+    grant = duty_shifts.appoint(db, user_id=user_id, valid_from=now - timedelta(days=1),
+                                valid_until=now + timedelta(days=30), source=SOURCE,
+                                actor=_actor(db), approvers=[approver_id], now=now)
+    moderator = _client_for_user(app, user_id)
+    page = moderator.get("/admin/vuorot/")
+    assert page.status_code == 200
+    with moderator.session_transaction() as session:
+        token = session["governance_csrf_token"]
+    start = now + timedelta(hours=1)
+    from zoneinfo import ZoneInfo
+    local = lambda value: value.astimezone(ZoneInfo("Europe/Helsinki")).strftime("%Y-%m-%dT%H:%M")
+    response = moderator.post("/admin/vuorot/", data={
+        "csrf_token": token, "action": "book", "grant_id": str(grant["_id"]),
+        "starts_at": local(start), "ends_at": local(start + timedelta(hours=2))})
+    assert response.status_code == 303
+    shift = db.moderator_shifts.find_one({"user_id": user_id})
+    assert shift and not shift.get("approved_at")
+    assert "Odottaa hyväksyntää" in moderator.get("/admin/vuorot/").get_data(as_text=True)
+    # Without the session token nothing changes.
+    assert moderator.post("/admin/vuorot/", data={"action": "approve", "shift_id": str(shift["_id"])}).status_code == 403
+
+    approver = _client_for_user(app, approver_id)
+    assert approver.get("/admin/vuorot/").status_code == 200
+    with approver.session_transaction() as session:
+        token = session["governance_csrf_token"]
+    approver.post("/admin/vuorot/", data={"csrf_token": token, "action": "approve", "shift_id": str(shift["_id"])})
+    assert db.moderator_shifts.find_one({"_id": shift["_id"]})["approved_at"]
+    assert "Hyväksytty" in approver.get("/admin/vuorot/").get_data(as_text=True)
+
+    outsider = _client_for_user(app, _moderator(db))
+    assert outsider.get("/admin/vuorot/").status_code == 403
