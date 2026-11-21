@@ -122,9 +122,10 @@ invites a person afterwards (`docs/hallinto-city-grant.md`, `org-recoveries`).
 | `/organisaatiot/palautus` | GET | React host, `noindex` |
 | `/organisaatiot/palautus` | POST | Go `POST /api/organization-requests/recovery` |
 
-Shipped dark in two ways: Go registers the route only with
-`ORG_RECOVERY_GO_ENABLED=true`, and the Apache rules in `react-ssr-routing.conf` are
-commented out. Enable the POST and GET rules together, after the page has been reviewed.
+Live since 21 November 2026 (maintainer: "approve everything"): the deploy writes
+`ORG_RECOVERY_GO_ENABLED=true` with the requests above (`ORG_RECOVERY_GO: false` in
+`config.yaml` opts out), the Apache POST and GET rules are on, and `release_routing.sh`
+keeps the old routing unless Go answers 405 on `GET /api/organization-requests/recovery`.
 
 The answer never says whether the organization exists, is protected or already has a
 request. Quietly dropped, and answered like success: a bot, an address with two unconfirmed
