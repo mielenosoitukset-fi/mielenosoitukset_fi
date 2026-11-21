@@ -11,7 +11,7 @@ Example
         $ python migrate_field_names.py
 """
 
-from pymongo import MongoClient
+from mielenosoitukset_fi.utils.audit_trail import mongo_client
 
 def migrate_fields(collection, mapping):
     """
@@ -43,7 +43,7 @@ def main():
     Connects to the MongoDB instance and migrates the specified collections.
     """
     # Connect to MongoDB (adjust the connection string and database name as needed)
-    client = MongoClient('mongodb://localhost:27017/')
+    client = mongo_client('mongodb://localhost:27017/')
     db = client['mielenosoitukset_fi_db']  # Change database name if required
 
     # Specify field mappings for each collection

@@ -1,0 +1,1 @@
+- The admin demonstration list loads faster: its counts come from one database pass and the waiting-first order no longer sorts every demonstration in memory.

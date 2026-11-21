@@ -210,7 +210,8 @@ func main() {
 		log.Fatal("MONGODB_URI and MONGODB_DATABASE are required")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	client, err := mongo.Connect(options.Client().ApplyURI(uri).SetMaxPoolSize(20).SetServerSelectionTimeout(3 * time.Second))
+	// Every write through this client is recorded in audit_events (audit_trail.go).
+	client, err := mongo.Connect(options.Client().ApplyURI(uri).SetMaxPoolSize(20).SetServerSelectionTimeout(3 * time.Second).SetMonitor(audit.monitor()))
 	if err == nil {
 		err = client.Ping(ctx, nil)
 	}
@@ -223,6 +224,9 @@ func main() {
 		defer cancel()
 		_ = client.Disconnect(ctx)
 	}()
+	audit.run(client)
+	// Deferred after Disconnect, so queued audit events are written first.
+	defer audit.close(3 * time.Second)
 
 	// Deferred after the Disconnect above, so it runs first: background loads
 	// stop before the client closes.
@@ -264,6 +268,8 @@ func main() {
 		log.Print("Auth bridge disabled: ", err)
 		authConfig = authBridgeConfig{}
 	}
+	handler = volunteerConfirmFromEnv(handler, client.Database(database), submissionConfig)
+	handler = emailConfirmFromEnv(handler, client.Database(database), submissionConfig)
 	handler = authBridgeHandler(handler, authConfig, client.Database(database))
 	handler = contactHandlerFromEnv(handler, client.Database(database), authConfig)
 	handler = campaignVolunteerHandlerFromEnv(handler, client.Database(database), authConfig)
@@ -283,8 +289,9 @@ func main() {
 		}
 		recoveryContext, stopRecovery := context.WithCancel(context.Background())
 		defer stopRecovery()
-		go runSubmissionRecovery(recoveryContext, client.Database(database))
+		go runSubmissionRecovery(withAuditJob(recoveryContext, "submission-recovery"), client.Database(database))
 	}
+	handler = auditRequestHandler(handler)
 	server := &http.Server{Addr: env("API_ADDR", "127.0.0.1:8080"), Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	shutdownDone := make(chan struct{})
 	stopped := make(chan os.Signal, 1)

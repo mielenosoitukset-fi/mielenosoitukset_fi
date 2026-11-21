@@ -101,3 +101,46 @@ def test_flask_marks_the_mfa_step_in_its_redirects(app, db):
     assert "mfa=1" not in response.headers["Location"]
     with fresh.session_transaction() as login_session:
         assert "_user_id" not in login_session
+
+
+def test_login_required_notice_is_finnish_and_shown_once(client):
+    # Several protected requests while signed out each queue Flask-Login's notice.
+    for _ in range(4):
+        response = client.get("/users/auth/ui/tokens")
+        assert response.status_code == 302
+    messages = client.get("/get_flash_messages").get_json()["messages"]
+    assert messages == [{"category": "info", "message": "Kirjaudu sisään nähdäksesi tämän sivun."}]
+    assert client.get("/get_flash_messages").get_json()["messages"] == []
+
+
+def test_react_flash_reader_drops_duplicates():
+    source = (ROOT / "frontend/src/app/flash-notices.tsx").read_text(encoding="utf-8")
+    assert "seen.has(key)" in source
+
+
+def test_background_requests_while_signed_out_queue_no_notice(client):
+    # An admin page left open polls after the session ends; each poll used to add a notice.
+    for headers in ({"Sec-Fetch-Mode": "cors"}, {"X-Requested-With": "XMLHttpRequest"}, {"Accept": "application/json"}):
+        response = client.get("/users/auth/ui/tokens", headers=headers)
+        assert response.status_code == 302 and "/users/auth/login" in response.headers["Location"]
+    with client.session_transaction() as session:
+        assert not session.get("_flashes")
+
+
+def test_templates_read_each_notice_once(app):
+    from mielenosoitukset_fi.utils.flashing import unique_flashed_messages
+
+    assert app.jinja_env.globals["get_flashed_messages"] is unique_flashed_messages
+    with app.test_request_context("/"):
+        from flask import flash
+
+        for _ in range(3):
+            flash("Sama ilmoitus", "info")
+        flash("Toinen", "error")
+        assert unique_flashed_messages(with_categories=True) == [("info", "Sama ilmoitus"), ("error", "Toinen")]
+
+
+def test_admin_dashboard_stops_polling_when_signed_out():
+    dashboard = (ROOT / "mielenosoitukset_fi/templates/admin_V2/dashboard.html").read_text(encoding="utf-8")
+    assert "if (res.status !== 401 && !res.redirected) return false;" in dashboard
+    assert dashboard.count("if (stopPollingIfSignedOut(res)) return;") == 3

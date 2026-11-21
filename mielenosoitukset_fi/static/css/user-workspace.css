@@ -312,15 +312,16 @@ h1 {
 }
 
 .public-page-header {
+  /* One plain page heading for every public page (maintainer decision 20.11.2026):
+     no gradient card, the same look as the cities, listing and status pages. */
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: 1.5rem;
-  padding: clamp(1.5rem, 4vw, 2.5rem);
-  color: var(--product-on-action);
-  background: linear-gradient(135deg, var(--product-action-bg), var(--product-action-hover));
-  border-radius: 1.5rem;
-  box-shadow: var(--product-shadow);
+  padding: 0.5rem 0 1.5rem;
+  color: var(--product-text);
+  background: none;
+  border-bottom: 1px solid var(--product-border);
 }
 
 .public-page-header__content {
@@ -330,7 +331,7 @@ h1 {
 
 .public-page-header__kicker {
   margin: 0 0 0.5rem;
-  color: color-mix(in srgb, var(--product-on-action) 86%, transparent);
+  color: var(--product-text-muted);
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -339,18 +340,18 @@ h1 {
 
 .public-page-header .public-page-header__title {
   margin: 0;
-  color: var(--product-on-action);
-  font-size: clamp(2rem, 5vw, 3.25rem);
-  line-height: 1.05;
-  letter-spacing: -0.035em;
+  color: var(--product-text);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   text-align: left;
   overflow-wrap: break-word;
 }
 
 .public-page-header__description {
   max-width: 42rem;
-  margin: 0.85rem 0 0;
-  color: var(--product-on-action);
+  margin: 0.75rem 0 0;
+  color: var(--product-text-muted);
   font-size: 1rem;
   line-height: 1.65;
 }
@@ -367,9 +368,9 @@ h1 {
   align-items: center;
   min-height: 2.75rem;
   padding: 0.65rem 0.85rem;
-  color: var(--product-on-action);
-  background: color-mix(in srgb, var(--product-surface) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--product-on-action) 28%, transparent);
+  color: var(--product-text);
+  background: var(--product-surface);
+  border: 1px solid var(--product-border);
   border-radius: 0.75rem;
 }
 
@@ -379,6 +380,7 @@ h1 {
 }
 
 .public-page-header__meta a {
+  color: var(--product-primary);
   text-decoration: underline;
   text-decoration-thickness: 0.12em;
   text-underline-offset: 0.2em;
@@ -405,6 +407,7 @@ h1 {
 .public-prose-card h3 {
   margin: 0 0 0.75rem;
   color: var(--product-text);
+  font-weight: 700;
   line-height: 1.25;
 }
 
@@ -715,8 +718,7 @@ h1 {
 
 @media (max-width: 37.5rem) {
   .public-page-header {
-    padding: 1.25rem;
-    border-radius: 1rem;
+    padding: 0.25rem 0 1.25rem;
   }
 
   .public-page-header__meta {

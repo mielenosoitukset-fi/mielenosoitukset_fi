@@ -99,9 +99,11 @@ from tests._mongo_clients import SessionMongoClients  # noqa: E402
 # handle at import. Singleton resets still create fresh managers/config snapshots,
 # but their real connections are session-owned instead of growing per test.
 _database_manager_module = importlib.import_module("mielenosoitukset_fi.database_manager")
-_original_manager_client_factory = _database_manager_module.MongoClient
-_test_mongo_clients = SessionMongoClients(TEST_MONGO_URI)
-_database_manager_module.MongoClient = _test_mongo_clients
+_original_manager_client_factory = _database_manager_module.mongo_client
+_test_mongo_clients = SessionMongoClients(
+    TEST_MONGO_URI, client_factory=_database_manager_module.mongo_client
+)
+_database_manager_module.mongo_client = _test_mongo_clients
 
 
 Config.reload()
@@ -818,7 +820,7 @@ def cleanup_test_resources():
         try:
             _test_mongo_clients.close()
         finally:
-            _database_manager_module.MongoClient = _original_manager_client_factory
+            _database_manager_module.mongo_client = _original_manager_client_factory
             shutil.rmtree(_CONFIG_DIR, ignore_errors=True)
 
 

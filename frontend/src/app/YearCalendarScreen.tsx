@@ -1,5 +1,5 @@
 import type { CalendarBootstrap } from './calendar';
-import { calendarPlace, currentMonth, monthName, monthPath } from './calendar';
+import { calendarDemonstrations, calendarPlace, currentMonth, monthName, monthPath } from './calendar';
 import { CalendarGrid } from './CalendarGrid';
 import { CalendarScope } from './CalendarScope';
 import './calendar.css';
@@ -16,7 +16,7 @@ export default function YearCalendarScreen({ calendar }: { calendar: CalendarBoo
       {year < 2100 && <a href={monthPath({ ...calendar, year: year+1 })} aria-label={`Seuraava vuosi: ${year+1}`}>{year+1} →</a>}
     </nav>
     {!data ? <div role="alert" className="calendar-notice"><p>Kalenterin lataaminen epäonnistui.</p><button type="button" className="detail-button" onClick={() => window.location.reload()}>Yritä uudelleen</button></div> : <>
-      <p className="month-calendar-summary">{data.total} {data.total === 1 ? 'mielenosoitus' : 'mielenosoitusta'} vuonna {year}. Päivän numeron alla näkyy mielenosoitusten määrä.</p>
+      <p className="month-calendar-summary">{calendarDemonstrations(data)} {calendarDemonstrations(data) === 1 ? 'mielenosoitus' : 'mielenosoitusta'} vuonna {year}. Päivän numeron alla näkyy mielenosoitusten määrä.</p>
       <div className="year-calendar-months">{Array.from({ length:12 }, (_, index) => {
         const period = { ...calendar, month: index+1 };
         const days = data.days.filter(row => Number(row.date.slice(5,7)) === period.month);

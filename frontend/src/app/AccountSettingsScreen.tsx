@@ -6,7 +6,7 @@ import { useSession } from './useSession';
 import {
   accountBioMax, accountIdentityChangePath, isIdentityChangeRefusal, accountBioWarnAt, accountCopy as copy, accountDeveloperPath, accountGeneralWriteApi, accountProfileWriteApi, accountSettingsApi,
   accountSettingsPath, accountStanding, accountTabs, accountTranslationsUrl, classifyAccountResponse, filterCities,
-  generalPayload, nextTabIndex, passwordFormError, passwordMinLength, passwordRequest, postBioToGo, postDeletionRequestToGo, postGeneralToGo, accountDeletionReasonMax, postFlaskJson, profilePayload,
+  changedGeneralPayload, generalPayload, nextTabIndex, passwordFormError, passwordMinLength, passwordRequest, postBioToGo, postDeletionRequestToGo, postGeneralToGo, accountDeletionReasonMax, postFlaskJson, profilePayload,
   readAccountSettings, readPasswordResult, safePicture, tabFromHash,
 } from './account-settings-route';
 import type { AccountSettingsRead, AccountTabId } from './account-settings-route';
@@ -84,6 +84,7 @@ function GeneralPanel({ data, report, message }: { data: AccountSettingsRead; re
   const [city, setCity] = useState(data.general.city ?? '');
   const [darkMode, setDarkMode] = useState(data.general.darkMode === true);
   const [busy, setBusy] = useState(false);
+  const saved = useRef({ displayName: data.general.displayName, city: data.general.city ?? '' });
   const ids = { name: useId(), nameHelp: useId(), city: useId(), language: useId(), dark: useId() };
   // A stored city that is not in today's list stays selectable.
   const cities = city && !data.cities.includes(city) ? [city, ...data.cities] : data.cities;
@@ -92,8 +93,9 @@ function GeneralPanel({ data, report, message }: { data: AccountSettingsRead; re
     report(null); setBusy(true);
     const payload = generalPayload({ displayName, city, language: 'fi', darkMode });
     // With the Go write route on (token present) the settings go to Go, which also queues the change mail.
-    const result = data.csrf ? await postGeneralToGo(data.csrf, payload, copy.saveFailed)
+    const result = data.csrf ? await postGeneralToGo(data.csrf, changedGeneralPayload(payload, saved.current), copy.saveFailed)
       : await postFlaskJson(accountGeneralWriteApi, payload, copy.saveFailed);
+    if (result.ok) saved.current = { displayName, city };
     setBusy(false);
     report({ kind: result.ok ? 'info' : 'error', text: result.message || (result.ok ? '' : copy.saveFailed) });
   };

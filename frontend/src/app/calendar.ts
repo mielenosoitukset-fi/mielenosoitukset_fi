@@ -3,7 +3,13 @@ import { findCity, helsinkiDay } from './cities';
 import type { Page } from '../components/listings/types';
 
 export type CalendarMonth = { year: number; month: number; city?: string };
-export type CalendarData = CalendarMonth & { total: number; days: { date: string; count: number }[] };
+/** total sums the day counts (a multi-day demonstration counts on each day it runs); demonstrations counts each one once. */
+export type CalendarData = CalendarMonth & { total: number; demonstrations?: number; days: { date: string; count: number }[] };
+/** Whether a listed demonstration runs on day (a multi-day one runs from date to end_date). */
+export const runsOn = (event: { date?: string; end_date?: string | null }, day: string) =>
+  typeof event.date === 'string' && event.date <= day && (event.end_date && event.end_date > event.date ? event.end_date : event.date) >= day;
+/** How many demonstrations the period holds, each counted once. */
+export const calendarDemonstrations = (data: CalendarData) => data.demonstrations ?? data.total;
 export type CalendarBootstrap = CalendarMonth & { data: CalendarData | null; day: number; page: number; events?: Page | null };
 export const monthPath = ({ year, month, city }: CalendarMonth) => `${city ? `/city/${city}/calendar` : '/calendar'}/${year}/${month ? `${month}/` : ''}`;
 export const calendarPlace = (period: CalendarMonth) => period.city ? findCity(period.city)?.phrase ?? period.city : 'Suomessa';
@@ -30,6 +36,7 @@ export function readCalendar(value: unknown, month: CalendarMonth): CalendarData
     if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== row.date || date.getUTCFullYear() !== month.year || (month.month && date.getUTCMonth()+1 !== month.month)) return null;
     previous = row.date; total += row.count;
   }
+  if (data.demonstrations !== undefined && (!Number.isSafeInteger(data.demonstrations) || data.demonstrations < 0 || data.demonstrations > data.total)) return null;
   return total === data.total ? data : null;
 }
 export function selectedDay(month: CalendarMonth, data: CalendarData | null, search: string): number {

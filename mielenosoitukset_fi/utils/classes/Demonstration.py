@@ -189,6 +189,8 @@ class Demonstration(BaseModel):
         # importer: {"url": ..., "event_id": ..., "imported_at": ..., "imported_fields": [...]}.
         # Present only when the submitter actually used the importer.
         facebook_import: dict = None,
+        # Last day of a multi-day demonstration (YYYY-MM-DD); None for one day.
+        end_date: str = None,
     ):
         """
         Initialize a new demonstration event.
@@ -280,6 +282,7 @@ class Demonstration(BaseModel):
             self.save_flag = True
 
         self.formatted_date = self._format_date()
+        self.end_date = end_date or None
 
         self.hide = hide
 
@@ -961,6 +964,7 @@ class Demonstration(BaseModel):
             date=get("date"),
             start_time=get("start_time"),
             end_time=get("end_time"),
+            end_date=get("end_date"),
 
             # Location
             city=get("city"),

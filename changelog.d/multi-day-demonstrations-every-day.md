@@ -1,0 +1,1 @@
+- Lists, today's page, the front page and the calendar show a multi-day demonstration on every day it runs. The calendar's month and year summary still counts each demonstration once.

@@ -43,6 +43,50 @@ def _resolve_actor(actor: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     }
 
 
+# Fields a save stamps on every write. A version whose only difference is one
+# of these records that something saved, not that anything changed.
+BOOKKEEPING_FIELDS = ("last_modified", "updated_at", "modified_at")
+
+
+def _without_bookkeeping(doc: Optional[Dict[str, Any]]):
+    if not isinstance(doc, dict):
+        return doc
+    return {key: value for key, value in doc.items() if key not in BOOKKEEPING_FIELDS}
+
+
+def is_noop_change(old_data: Optional[Dict[str, Any]], new_data: Optional[Dict[str, Any]]) -> bool:
+    """True when two snapshots differ at most in bookkeeping timestamps."""
+    if old_data is None or new_data is None:
+        return False
+    return _without_bookkeeping(old_data) == _without_bookkeeping(new_data)
+
+
+def _strip_bookkeeping_expr(path: str) -> Dict[str, Any]:
+    expr: Any = path
+    for field in BOOKKEEPING_FIELDS:
+        expr = {"$unsetField": {"field": field, "input": expr}}
+    return expr
+
+
+def meaningful_history_query(demo_id) -> Dict[str, Any]:
+    """``demo_edit_history`` filter for one demo that leaves out empty versions.
+
+    Older background jobs saved demos without changing them, which stored a
+    version whose snapshots differ only in ``last_modified``. Those rows stay
+    in the collection (they are part of the record) but are not listed.
+    """
+    return {
+        "demo_id": str(demo_id),
+        "$expr": {"$ne": [_strip_bookkeeping_expr("$old_demo"), _strip_bookkeeping_expr("$new_demo")]},
+    }
+
+
+def actor_label(actor: Optional[Dict[str, Any]]) -> str:
+    """Who made a version when no user did: the job or system that saved it."""
+    actor = actor or {}
+    return actor.get("user_id") or actor.get("username") or "unknown"
+
+
 def _summarize_changes(old_data: Optional[Dict[str, Any]], new_data: Optional[Dict[str, Any]]):
     if not isinstance(old_data, dict) or not isinstance(new_data, dict):
         return []
@@ -59,7 +103,7 @@ def save_demo_history(demo_id, old_data, new_data, case_id=None, actor: Optional
     try:
         result = mongo.demo_edit_history.insert_one({
             "demo_id": str(demo_id),
-            "edited_by": actor_data.get("user_id") or "unknown",
+            "edited_by": actor_label(actor_data),
             "edited_at": utcnow(),
             "old_demo": deepcopy(old_data),
             "new_demo": deepcopy(new_data),

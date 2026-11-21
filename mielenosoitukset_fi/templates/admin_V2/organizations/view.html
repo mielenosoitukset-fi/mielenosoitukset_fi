@@ -14,6 +14,7 @@
   ) %}
       <a class="admin-page-hero__action" href="{{ url_for('org', org_id=organization._id) }}"><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>{{ _('Julkinen sivu') }}</a>
       {% if can_edit_organization %}<a class="admin-page-hero__action" href="{{ url_for('admin_org.edit_organization', org_id=organization._id) }}"><i class="fas fa-pen" aria-hidden="true"></i>{{ _('Muokkaa') }}</a>{% endif %}
+      {% if can_edit_organization %}<a class="admin-page-hero__action" href="{{ url_for('admin_org.organization_history', org_id=organization._id) }}"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i>{{ _('Muutoshistoria') }}</a>{% endif %}
   {% endcall %}
 
   <section class="admin-workspace-summary" aria-label="{{ _('Organisaation yhteenveto') }}">

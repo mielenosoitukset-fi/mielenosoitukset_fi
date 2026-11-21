@@ -1,5 +1,7 @@
 export type Demonstration = {
   _id: string; title?: string; date?: string; formatted_date?: string; date_display?: string;
+  /** Last day of a multi-day demonstration (YYYY-MM-DD). */
+  end_date?: string | null;
   start_time?: string | null; end_time?: string | null; start_time_display?: string | null; end_time_display?: string | null;
   latitude?: number | string | null; longitude?: number | string | null;
   city?: string; address?: string; tags?: string[]; cancelled?: boolean;

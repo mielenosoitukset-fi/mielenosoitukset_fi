@@ -51,3 +51,19 @@ def flash_message(message, category="message", **variables):
     if variables:
         translated_message %= variables
     flash(translated_message, mapped_category)
+
+
+def unique_flashed_messages(with_categories=False, category_filter=()):
+    """``get_flashed_messages`` with repeats removed, first occurrence kept.
+
+    The same notice can be queued many times before a page reads the queue (for
+    example several protected requests while signed out); show it once.
+    """
+    from flask import get_flashed_messages
+
+    unique = []
+    for item in get_flashed_messages(with_categories=with_categories, category_filter=category_filter):
+        key = tuple(item) if isinstance(item, (list, tuple)) else item
+        if key not in unique:
+            unique.append(key)
+    return unique

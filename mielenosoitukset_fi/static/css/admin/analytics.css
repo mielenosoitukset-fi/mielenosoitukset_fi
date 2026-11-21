@@ -287,3 +287,27 @@ html.dark {
     gap: 0.25rem;
   }
 }
+
+.admin-analytics__stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-analytics .admin-analytics__ranked {
+  min-width: 0;
+}
+
+.admin-analytics__ranked td:first-child {
+  overflow-wrap: anywhere;
+}
+
+.admin-analytics__ranked th:last-child,
+.admin-analytics__ranked td:last-child {
+  white-space: nowrap;
+  text-align: end;
+}
+
+.admin-analytics__rank {
+  color: var(--admin-workspace-muted, inherit);
+  font-variant-numeric: tabular-nums;
+}

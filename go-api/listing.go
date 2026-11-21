@@ -183,7 +183,17 @@ func listingFilter(q listingQuery) bson.M {
 		filter["organizers"] = bson.M{"$elemMatch": bson.M{"organization_id": bson.M{"$in": bson.A{q.Organization, q.Organization.Hex()}}}}
 	}
 	if dates := listingDates(q); len(dates) > 0 {
-		filter["date"] = dates
+		// Multi-day demonstrations show on every day they run.
+		from, _ := dates["$gte"].(string)
+		to, _ := dates["$lte"].(string)
+		if day, ok := dates["$eq"].(string); ok {
+			from, to = day, day
+		}
+		span, running := overlapDates(from, to)
+		filter["date"] = span
+		if running != nil {
+			filter["$and"] = append(filter["$and"].(bson.A), running)
+		}
 	}
 	filter["$and"] = listingSearch(q, filter["$and"].(bson.A))
 	return filter
@@ -259,10 +269,10 @@ func listingProjection() bson.M {
 func listingCard(doc bson.M, lang string) bson.M {
 	payload := publicPayload(doc, lang)
 	card := bson.M{}
-	for _, field := range []string{"_id", "title", "date", "start_time", "end_time", "city", "address", "tags", "cancelled", "parent", "slug", "running_number", "latitude", "longitude"} {
+	for _, field := range []string{"_id", "title", "date", "end_date", "start_time", "end_time", "city", "address", "tags", "cancelled", "parent", "slug", "running_number", "latitude", "longitude"} {
 		card[field] = payload[field]
 	}
-	if day, valid := cardDate(payload["date"]); valid {
+	if day, valid := cardDateRange(payload["date"], payload["end_date"]); valid {
 		card["date_display"] = day
 	}
 	card["cover_image"] = cardImage(doc)

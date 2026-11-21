@@ -650,3 +650,76 @@ def test_demo_suggestions_list_shows_demo_title_when_title_unchanged(
     page = list_admin_client.get("/admin/demo/suggestions").get_data(as_text=True)
     assert f"<strong>{demo['title']}</strong>" in page
     assert page.count("Tuntematon mielenosoitus") == 1
+
+
+def _demo_list_context(app, client, url):
+    from flask import template_rendered
+
+    captured = []
+
+    def record(sender, template, context, **extra):
+        if "pending_count" in context:
+            captured.append(context)
+
+    template_rendered.connect(record, app)
+    try:
+        response = client.get(url)
+    finally:
+        template_rendered.disconnect(record, app)
+    assert response.status_code == 200
+    return captured[-1]
+
+
+def test_demo_dashboard_priority_pages_match_one_sorted_list(app, admin_client, db, seeded_data):
+    """Pending demos come first, then the rest, by date: the same rows and
+    counts the earlier single sorted aggregation produced, across page edges."""
+    approvals = [False, True, None, False, True, None, True, False, True, None]
+    docs = []
+    for index in range(23):
+        doc = {
+            "_id": ObjectId(),
+            "title": f"Priority order demo {index}",
+            "description": "Priority fixture.",
+            "date": f"2026-{(index % 9) + 1:02d}-{(index * 7) % 27 + 1:02d}",
+            "city": "Helsinki",
+            "rejected": False,
+            "cancelled": False,
+            "hide": False,
+            "recurs": index % 4 == 0,
+        }
+        if approvals[index % len(approvals)] is not None:
+            doc["approved"] = approvals[index % len(approvals)]
+        docs.append(doc)
+    db.demonstrations.insert_many(docs)
+    query = {"title": {"$regex": "^Priority order demo"}}
+    expected = [
+        row["_id"]
+        for row in db.demonstrations.aggregate(
+            [
+                {"$match": query},
+                {"$addFields": {"p": {"$cond": [{"$eq": ["$approved", False]}, 0, 1]}}},
+                {"$sort": {"p": 1, "date": 1, "_id": 1}},
+            ]
+        )
+    ]
+    pending = sum(1 for doc in docs if doc.get("approved") is False)
+    assert 0 < pending < 20
+
+    seen = []
+    for page in (1, 2, 3):
+        context = _demo_list_context(
+            app, admin_client, f"/admin/demo/?search=Priority%20order%20demo&per_page=20&page={page}"
+        )
+        assert context["filtered_count"] == 23
+        assert context["pending_count"] == pending
+        assert context["approved_count"] == sum(1 for doc in docs if doc.get("approved") is True)
+        assert context["recurring_count"] == sum(1 for doc in docs if doc["recurs"])
+        seen.append([demo["_id"] for demo in context["demonstrations"]])
+    assert seen[0] + seen[1] == expected
+    assert seen[2] == seen[1]  # past the last page shows the last page
+
+    context = _demo_list_context(
+        app, admin_client, "/admin/demo/?search=Priority%20order%20demo&per_page=20&sort=date_desc"
+    )
+    by_date = sorted(docs, key=lambda doc: (doc["date"], doc["_id"]), reverse=True)
+    assert [demo["_id"] for demo in context["demonstrations"]] == [doc["_id"] for doc in by_date[:20]]

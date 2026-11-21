@@ -1,0 +1,1 @@
+- Public pages (about, contact, terms, privacy, translations, city admin applications, developer, settings, API docs, organisation pages and their edit pages, cancellation links) now open with the same plain heading as the city and event lists instead of a blue gradient card. Section headings inside the cards use one consistent weight. The organiser guide (/ohjeet) is unchanged.

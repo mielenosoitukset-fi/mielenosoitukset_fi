@@ -1,0 +1,1 @@
+- Demonstrations can last several days (up to 14): admins set an end date, and the detail page, demonstration cards and calendar file show the whole range, for example "20.–22. joulukuuta 2026". A multi-day demonstration is not marked past until its last day.

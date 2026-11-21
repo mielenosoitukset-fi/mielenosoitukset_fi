@@ -44,3 +44,32 @@ def test_public_report_of_cancelled_demo_creates_request_but_does_not_cancel(cli
 
     case = db.cases.find_one({"demo_id": demo_id, "type": "demo_cancellation_request"})
     assert case is not None
+
+
+def test_report_get_writes_nothing(client, db):
+    before = db.reports.count_documents({})
+    response = client.get("/report")
+    assert response.status_code == 405
+    assert db.reports.count_documents({}) == before
+
+
+def test_report_form_post_is_validated_and_redirects_only_on_site(client, db, seeded_data):
+    before = db.reports.count_documents({})
+    empty = client.post("/report", data={"type": "demonstration", "demo_id": str(seeded_data["demo_id"]), "error": " "},
+                        headers={"Referer": "https://evil.example/x"})
+    assert empty.status_code == 302 and empty.headers["Location"] == "/"
+    assert db.reports.count_documents({}) == before
+    untyped = client.post("/report", data={"error": "spam"})
+    assert untyped.status_code == 302 and db.reports.count_documents({}) == before
+    ok = client.post("/report", data={"type": "demonstration", "demo_id": str(seeded_data["demo_id"]), "error": "Wrong time"},
+                     headers={"Referer": "http://localhost/demonstration/x?a=1"})
+    assert ok.status_code == 302 and ok.headers["Location"] == "/demonstration/x?a=1"
+    assert db.reports.count_documents({}) == before + 1
+
+
+def test_report_from_the_flask_modal_gets_a_status_not_a_redirect(client, db, seeded_data):
+    before = db.reports.count_documents({})
+    refused = client.post("/report", data={"type": "demonstration", "demo_id": str(seeded_data["demo_id"]), "error": " "},
+                          headers={"X-Requested-With": "XMLHttpRequest"})
+    assert refused.status_code == 400
+    assert db.reports.count_documents({}) == before

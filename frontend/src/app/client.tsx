@@ -70,6 +70,21 @@ if (container) {
       void import('./CancelLinkScreen').then(({ default: CancelLinkScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<CancelLinkScreen link={link} token={token} />} />);
       }).catch(error => console.error('Could not start the cancellation page', error));
+    } else if (route?.name === 'volunteer-confirm') {
+      const token = route.token;
+      void import('./VolunteerConfirmScreen').then(({ default: VolunteerConfirmScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<VolunteerConfirmScreen token={token} />} />);
+      }).catch(error => console.error('Could not start the volunteer confirmation page', error));
+    } else if (route?.name === 'email-confirm') {
+      const token = route.token;
+      void import('./EmailConfirmScreen').then(({ default: EmailConfirmScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<EmailConfirmScreen token={token} loginUrl={props.config.urls.login} />} />);
+      }).catch(error => console.error('Could not start the e-mail confirmation page', error));
+    } else if (route?.name === 'org-invite') {
+      const organizationId = props.orgInvite?.organizationId ?? null;
+      void import('./OrgInviteScreen').then(({ default: OrgInviteScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<OrgInviteScreen organizationId={organizationId} loginUrl={props.config.urls.login} logoutUrl={props.config.urls.logout} />} />);
+      }).catch(error => console.error('Could not start the invitation page', error));
     } else if (route?.name === 'developer') {
       const appId = route.appId;
       void import('./DeveloperScreen').then(({ default: DeveloperScreen }) => {
@@ -87,6 +102,10 @@ if (container) {
       void import('./LoginScreen').then(({ default: LoginScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<LoginScreen config={props.config} search={window.location.search} />} />);
       }).catch(error => console.error('Could not start the login page', error));
+    } else if (route?.name === 'register') {
+      void import('./RegisterScreen').then(({ default: RegisterScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<RegisterScreen config={props.config} />} />);
+      }).catch(error => console.error('Could not start the registration page', error));
     } else if (route?.name === 'password-reset-request') {
       void import('./PasswordResetRequestScreen').then(({ default: PasswordResetRequestScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<PasswordResetRequestScreen config={props.config} />} />);
