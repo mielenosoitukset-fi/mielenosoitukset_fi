@@ -141,8 +141,11 @@ instead, the same way it already pulls the Hallinto backups:
    `authorized_keys` from `deploy/backup/offsite-pull.authorized_keys`: the homelab's
    existing pull key, restricted to `rrsync -ro` on the outbox. That key can only
    read encrypted files; it cannot write, list anything else or get a shell. It also
-   installs `age` and `rsync` (for `rrsync`) when missing, and warns in the deploy
-   log if sshd's `AllowUsers`/`AllowGroups` would refuse `moso-offsite`.
+   installs `age` and `rsync` (for `rrsync`) when missing. lc-moso-01's sshd allows
+   listed users only, so it adds `/etc/ssh/sshd_config.d/60-moso-offsite.conf` with
+   `AllowUsers moso-offsite@10.20.0.1` (the jump host's address: no other source),
+   checks it with `sshd -t` and reloads sshd (open sessions stay); a rejected drop-in
+   is removed and the deploy log says so.
 3. The homelab pulls daily through the existing restricted jump hop into its
    `incoming/`, and `offsite-housekeeping.sh` moves verified files into the vault and
    alerts (Bark) when no fresh archive arrives. The homelab side is set up outside

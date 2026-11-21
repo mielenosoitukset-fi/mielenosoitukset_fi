@@ -100,10 +100,32 @@ if [[ $skip_accounts != 1 ]]; then
   chown "root:$pull_user" "$outbox"
 fi
 
-if [[ $skip_accounts != 1 ]] && command -v sshd >/dev/null 2>&1; then
-  allow=$(sshd -T 2>/dev/null | grep -iE '^(allowusers|allowgroups) ' || true)
+# sshd here allows only listed users. The pull arrives through the jump host,
+# so allow the pull user from that address only (AllowUsers lines accumulate).
+# The drop-in is validated with sshd -t and removed again if it does not pass;
+# a reload keeps open sessions, including this deploy's.
+sshd_dropin=${OFFSITE_SSHD_DROPIN:-/etc/ssh/sshd_config.d/60-moso-offsite.conf}
+pull_from=${OFFSITE_PULL_FROM:-10.20.0.1}
+sshd_config=${OFFSITE_SSHD_CONFIG:-/etc/ssh/sshd_config}
+sshd=${SSHD:-sshd}
+if command -v "$sshd" >/dev/null 2>&1; then
+  allow=$("$sshd" -T 2>/dev/null | grep -iE '^(allowusers|allowgroups) ' || true)
   if [[ -n $allow ]] && ! grep -qw -- "$pull_user" <<<"$allow"; then
-    log "WARNING: sshd restricts logins ($(tr '\n' ' ' <<<"$allow")) and $pull_user is not listed; the pull will be refused"
+    if [[ -d $(dirname "$sshd_dropin") ]] && grep -qsE '^[[:space:]]*Include[[:space:]].*sshd_config\.d' "$sshd_config"; then
+      printf '# Read-only off-site backup pull (OPS-01, docs/backups.md). Managed by the deploy.\nAllowUsers %s@%s\n' \
+        "$pull_user" "$pull_from" > "$sshd_dropin.tmp"
+      chmod 0644 "$sshd_dropin.tmp"
+      mv -f "$sshd_dropin.tmp" "$sshd_dropin"
+      if "$sshd" -t && "$sshd" -T 2>/dev/null | grep -qiE "^allowusers ${pull_user}@"; then
+        "$systemctl" reload ssh 2>/dev/null || "$systemctl" reload sshd
+        log "allowed $pull_user@$pull_from in sshd"
+      else
+        rm -f "$sshd_dropin"
+        log "WARNING: sshd did not accept $sshd_dropin; removed it, the pull will be refused"
+      fi
+    else
+      log "WARNING: sshd restricts logins and has no sshd_config.d include; $pull_user is not allowed, the pull will be refused"
+    fi
   fi
 fi
 log "off-site outbox ready at $outbox"
