@@ -3,16 +3,17 @@
 
 {% block manual_content %}
 <section id="tilastot">
-  <h2>{{ _('Tilastot') }}</h2>
-  <p>{{ m.open_link('analytics', 'admin.stats', _('Tilastot')) }} {{ _('kokoaa käyttäjien, organisaatioiden ja mielenosoitusten määrät sekä kirjautumisten yhteenvedon. Näkymä vaatii analytiikkaoikeuden.') }}</p>
+  <h2>{{ _('Analytiikka') }}</h2>
+  <p>{{ m.open_link('analytics', 'admin.stats', _('Analytiikka')) }} {{ _('on yksi paikka kaikelle analytiikalle. Näkymä vaatii analytiikkaoikeuden, ja sen välilehdet ovat:') }}</p>
+  <ul>
+    <li>{{ m.ui(_('Mielenosoitusten katselut')) }}: {{ _('käyttäjien, organisaatioiden ja mielenosoitusten määrät sekä sinulle näkyvien mielenosoitusten katselukerrat. Mielenosoituksen nimestä avautuu sen oma analytiikka.') }}</li>
+    <li>{{ m.ui(_('Koko palvelu')) }}: {{ _('sivujen katselut ja kävijät koko palvelussa. Näkyy vain, jos oikeutesi kattavat koko palvelun.') }}</li>
+    <li>{{ m.ui(_('Viimeiset 24 h')) }}: {{ _('kaikkien mielenosoitusten katselut vuorokauden ajalta.') }}</li>
+  </ul>
 </section>
 
 <section id="analytiikka">
-  <h2>{{ _('Palvelun analytiikka') }}</h2>
-  <ul>
-    <li>{{ m.open_link('analytics', 'admin_site_analytics.site_overview', _('Palvelun analytiikka')) }}: {{ _('sivujen katselut ja kävijät koko palvelussa.') }}</li>
-    <li>{{ _('Mielenosoituskohtainen analytiikka: yhden mielenosoituksen katselut. Pääset siihen myös komentokeskuksen kohdasta') }} {{ m.ui(_('Analytiikka')) }}.</li>
-    <li>{{ _('Nousussa: mielenosoitukset, joita on katsottu eniten viimeisen vuorokauden aikana.') }}</li>
-  </ul>
+  <h2>{{ _('Mielenosoituksen analytiikka') }}</h2>
+  <p>{{ _('Jokaisella mielenosoituksella on yksi analytiikkasivu. Pääset siihen Analytiikan listalta tai komentokeskuksen kohdasta') }} {{ m.ui(_('Analytiikka')) }}.</p>
 </section>
 {% endblock %}

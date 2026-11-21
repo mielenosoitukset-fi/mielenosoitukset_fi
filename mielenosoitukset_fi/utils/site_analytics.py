@@ -1398,6 +1398,44 @@ def get_demonstration_identifiers(demo_id):
     return identifiers
 
 
+def get_demonstration_view_totals(demo_docs):
+    """All-time page views per demonstration, keyed by demo ``_id``.
+
+    Counts exactly like ``get_demonstration_analytics`` (same collection, all
+    identifiers of a demo: id, slug and running number), so the admin list
+    and each demo's analytics page always show the same number.
+    """
+    ident_to_id = {}
+    for doc in demo_docs:
+        demo_id = doc.get("_id")
+        if demo_id is None:
+            continue
+        ident_to_id[str(demo_id)] = demo_id
+        if doc.get("slug"):
+            ident_to_id.setdefault(str(doc["slug"]), demo_id)
+        if doc.get("running_number") is not None:
+            ident_to_id.setdefault(str(doc["running_number"]), demo_id)
+    if not ident_to_id:
+        return {}
+    totals = {}
+    for row in _collection().aggregate(
+        [
+            {
+                "$match": {
+                    "page_type": "demonstration",
+                    "resource_id": {"$in": list(ident_to_id)},
+                    "date": {"$exists": True},
+                }
+            },
+            {"$group": {"_id": "$resource_id", "count": {"$sum": "$count"}}},
+        ]
+    ):
+        demo_id = ident_to_id.get(row["_id"])
+        if demo_id is not None:
+            totals[demo_id] = totals.get(demo_id, 0) + int(row.get("count") or 0)
+    return totals
+
+
 def get_demonstration_analytics(demo_id, days=30, start=None, end=None):
     """Analytics for one demonstration: totals, daily series and breakdowns."""
     identifiers = sorted(get_demonstration_identifiers(demo_id))

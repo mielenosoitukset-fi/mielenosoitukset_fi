@@ -1,0 +1,1 @@
+- Admins can undo a demo cancellation from the demo's command center ("Kumoa peruutus"). A reason is required, the earlier cancellation stays in the history, the cancellation case gets an entry, and people who were told about the cancellation get a notice that the demo goes ahead after all.

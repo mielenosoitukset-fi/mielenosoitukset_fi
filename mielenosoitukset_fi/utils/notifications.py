@@ -147,6 +147,9 @@ def serialize_notification(doc: dict) -> dict:
     elif n_type == "demo_cancelled":
         message = _("Mielenosoitus peruttu: ") + payload.get("demo_title", "")
         icon = "fa-solid fa-ban"
+    elif n_type == "demo_restored":
+        message = _("Mielenosoitus ei olekaan peruttu: ") + payload.get("demo_title", "")
+        icon = "fa-solid fa-rotate-left"
     elif n_type == "city_admin_application":
         message = _("Uusi kaupunkiadminhakemus: ") + ", ".join(payload.get("cities") or [])
         icon = "fa-solid fa-user-shield"

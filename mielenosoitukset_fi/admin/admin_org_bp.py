@@ -166,6 +166,13 @@ def _can_verify_organization(user, org_id) -> bool:
     return _has_explicit_organization_permission(user, "EDIT_ORGANIZATION", org_id)
 
 
+def _safe_oid(value):
+    try:
+        return ObjectId(str(value))
+    except Exception:
+        return None
+
+
 def _can_edit_organization(user, organization) -> bool:
     """City-admins may not edit verified organizations on implied grants.
 
@@ -1108,6 +1115,8 @@ def apply_suggestion(org_id, suggestion_id):
         flash_message("Ehdotusta ei löytynyt.", "error")
         return redirect(url_for("admin_org.review_suggestion", org_id=org_id, suggestion_id=suggestion_id))
 
+    if str(suggestion.get("organization_id")) != str(org_id):
+        abort(404)
     org_doc = mongo.organizations.find_one({"_id": ObjectId(org_id)})
     if not _can_edit_organization(current_user, org_doc or {}):
         _log_org_event(
@@ -1134,16 +1143,25 @@ def apply_suggestion(org_id, suggestion_id):
         if f in suggestion.get("fields", {}):
             update_data[f] = suggestion["fields"][f]
 
-    # Handle nested socials
+    # Handle nested socials; public input, so only http(s) links are kept.
     if "social_media_links" in selected_fields and isinstance(suggestion["fields"].get("social_media_links"), dict):
-        update_data["social_media_links"] = suggestion["fields"]["social_media_links"]
+        from mielenosoitukset_fi.utils.content_formatting import safe_href
+        update_data["social_media_links"] = {
+            str(platform).strip().lower()[:40]: safe_href(str(url).strip())
+            for platform, url in suggestion["fields"]["social_media_links"].items()
+            if safe_href(str(url).strip()) and not str(url).strip().lower().startswith("mailto:")
+        }
+    for key in ("website", "logo"):
+        if key in update_data:
+            from mielenosoitukset_fi.utils.content_formatting import safe_href
+            update_data[key] = safe_href(str(update_data[key]).strip()) or ""
 
     applied_successfully = False
 
     if update_data:
         mongo.organizations.update_one(
             {"_id": ObjectId(org_id)},
-            {"$set": update_data}
+            {"$set": {**update_data, "updated_at": utcnow()}}
         )
         applied_successfully = True
         flash_message("Organisaation tiedot päivitettiin valittujen kenttien osalta 💖", "success")
@@ -1203,7 +1221,46 @@ def apply_suggestion(org_id, suggestion_id):
         applied=applied_successfully,
         selected_fields=selected_fields,
     )
+    if applied_successfully:
+        from mielenosoitukset_fi.utils import org_suggestion_cases
+        org_suggestion_cases.close_suggestion_cases(
+            mongo, suggestion_id, "Organisaation muutosehdotus hyväksytty", current_user.username
+        )
     return redirect(url_for("admin_org.review_suggestion", org_id=org_id, suggestion_id=suggestion_id))
+
+
+@admin_org_bp.route("/<org_id>/suggestion/<suggestion_id>/reject", methods=["POST"])
+@login_required
+@admin_required
+def reject_suggestion(org_id, suggestion_id):
+    """Decline a public change suggestion without changing the organisation."""
+    from mielenosoitukset_fi.utils import org_suggestion_cases
+
+    try:
+        sid = ObjectId(suggestion_id)
+    except Exception:
+        abort(404)
+    suggestion = mongo.org_edit_suggestions.find_one({"_id": sid, "organization_id": {"$in": [org_id, _safe_oid(org_id)]}})
+    org_doc = mongo.organizations.find_one({"_id": _safe_oid(org_id)})
+    if not suggestion or not org_doc:
+        abort(404)
+    if not _can_edit_organization(current_user, org_doc):
+        abort(403)
+    note = (request.form.get("note") or "").strip()[:500]
+    now = utcnow()
+    mongo.org_edit_suggestions.update_one(
+        {"_id": sid},
+        {
+            "$set": {"status.state": "rejected", "status.updated_at": now, "status.updated_by": current_user.username, "status.notes": note or None},
+            "$push": {"audit_log": {"action": "rejected", "timestamp": now, "user": current_user.username, "note": note}},
+        },
+    )
+    org_suggestion_cases.close_suggestion_cases(
+        mongo, suggestion_id, "Organisaation muutosehdotus hylätty", current_user.username
+    )
+    _log_org_event("organization_suggestion_rejected", org_id=org_id, suggestion_id=suggestion_id)
+    flash_message(_("Ehdotus hylätty. Organisaation tiedot eivät muuttuneet."), "success")
+    return redirect(url_for("admin_org.view_organization", org_id=org_id))
 
 
 

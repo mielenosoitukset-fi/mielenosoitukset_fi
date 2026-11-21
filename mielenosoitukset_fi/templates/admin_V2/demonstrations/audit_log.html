@@ -16,6 +16,12 @@
     metric_label=_('audit-merkintää')
   ) }}
 
+  <nav class="admin-section-tabs" aria-label="{{ _('Mielenosoituksen historia') }}" data-demo-history-tabs>
+    <a href="{{ url_for('admin_demo.demo_command_center', demo_id=demo._id) }}"><i class="fa-solid fa-table-columns" aria-hidden="true"></i>{{ _('Hallintanäkymä') }}</a>
+    <a href="{{ url_for('admin_demo.demo_edit_history', demo_id=demo._id) }}"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>{{ _('Muokkaushistoria') }}</a>
+    <a href="{{ url_for('admin_demo.view_demo_audit_log', demo_id=demo._id) }}" aria-current="page"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i>{{ _('Audit-loki') }}</a>
+  </nav>
+
   <section class="admin-data-view" aria-labelledby="demo-audit-heading">
     <header class="admin-data-view__header admin-result-summary" aria-live="polite">
       <strong id="demo-audit-heading">{{ _('Mielenosoituksen tapahtumat') }}</strong>
