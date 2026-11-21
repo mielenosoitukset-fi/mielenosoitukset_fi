@@ -1,0 +1,1 @@
+- Organization invitation links now open a page that shows the invitation and a join button, instead of joining the organization as soon as the link is opened.

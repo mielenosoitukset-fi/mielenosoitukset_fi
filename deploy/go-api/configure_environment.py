@@ -9,6 +9,17 @@ import tempfile
 import yaml
 
 
+def _system_team_id(config, key):
+    """A 24-hex organization id from config.yaml, or None when absent; junk is an error."""
+    value = config.get(key)
+    if not value:
+        return None
+    value = str(value)
+    if len(value) != 24 or any(c not in "0123456789abcdefABCDEF" for c in value):
+        raise ValueError(f"Invalid {key}")
+    return value
+
+
 def configure(source, target):
     config = yaml.safe_load(Path(source).read_text())
     values = {"MONGODB_URI": config.get("MONGO_URI"), "MONGODB_DATABASE": config.get("MONGO_DBNAME"), "API_ADDR": "127.0.0.1:8091"}
@@ -107,6 +118,18 @@ def configure(source, target):
             # `ACCOUNT_SETTINGS_WRITES: false` opts out), and only on top of reads.
             if config.get("ACCOUNT_SETTINGS_WRITES", True) is True:
                 values["ACCOUNT_SETTINGS_WRITES_ENABLED"] = "true"
+        # Organization invitations by button and POST (docs/org-invite-react.md):
+        # on by default since 21 November 2026 (maintainer's go), only with the
+        # bridge on; `ORG_INVITE_GO: false` opts out. Go refuses to accept into a
+        # system team, so it needs both team ids; without both the flag is not
+        # written and release_routing.sh keeps the old routing.
+        if config.get("ORG_INVITE_GO", True) is True:
+            national = _system_team_id(config, "NATIONAL_ADMIN_ORG_ID")
+            board = _system_team_id(config, "BOARD_ORG_ID")
+            if national and board:
+                values["ORG_INVITE_GO_ENABLED"] = "true"
+                values["NATIONAL_ADMIN_ORG_ID"] = national
+                values["BOARD_ORG_ID"] = board
     # Public profile reads (docs/account-pages-react.md): GET /api/profile/<username>.
     # Its own switch, off by default and independent of the bridge; the own and
     # viewer parts of the answer appear only when the bridge is on as well.
@@ -114,11 +137,8 @@ def configure(source, target):
         values["PROFILE_READS_ENABLED"] = "true"
         # The badge needs the national team organisation, as Flask reads it. Absent
         # means no national access (the badge then follows the stored flag only).
-        national = config.get("NATIONAL_ADMIN_ORG_ID")
+        national = _system_team_id(config, "NATIONAL_ADMIN_ORG_ID")
         if national:
-            national = str(national)
-            if len(national) != 24 or any(c not in "0123456789abcdefABCDEF" for c in national):
-                raise ValueError("Invalid NATIONAL_ADMIN_ORG_ID")
             values["NATIONAL_ADMIN_ORG_ID"] = national
     # The fundraising details file (docs/go-fundraising-details.md) used to be
     # added to the environment by hand and was lost at the next deploy. Keep it
