@@ -147,6 +147,6 @@ export function App({ config, session, route, path, detail, series, home, listin
             </a></p>
           </section>)}
     </main>
-    <SiteFooter config={config} session={shell} text={text} />
+    <SiteFooter config={config} session={shell} text={text} hideLogout={route.name === 'logout'} />
   </>;
 }

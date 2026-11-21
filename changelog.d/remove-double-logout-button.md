@@ -1,0 +1,1 @@
+- The logout confirmation page no longer shows a second "Kirjaudu ulos" button in the footer, so only one clear logout action remains.
