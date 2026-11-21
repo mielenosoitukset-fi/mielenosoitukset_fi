@@ -196,6 +196,40 @@ paths:
         '404': { description: Switched off }
         '422': { $ref: '#/components/responses/Unsupported' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /internal/hallinto/v1/org-recoveries:
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      operationId: applyOrgRecovery
+      summary: Create one single-use invitation for an organization access recovery. Off unless ORG_RECOVERY_ENABLED. Idempotency-Key is the request id.
+      security: [{ workload: [], actorProof: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [request_id, case_id, decision_id, decision_revision, need, organization_id, person_email, person_role, expected_state, authority_attestation]
+              properties:
+                request_id: { type: string }
+                case_id: { type: string }
+                decision_id: { type: string }
+                decision_revision: { type: integer, minimum: 1 }
+                need: { type: string, enum: [owner_change, add_member, lost_access] }
+                organization_id: { type: string }
+                person_email: { type: string, description: Lowercase address of an existing active account }
+                person_role: { type: string, enum: [owner, admin, member], description: owner for owner_change and lost_access; admin or member for add_member }
+                expected_state: { type: string, description: Digest of the organization's members, roles, protected flag and open invitations; the approval page returns it in the fragment }
+                authority_attestation: { type: string, description: Ed25519 over the context hallinto-org-recovery-v1-attestation and the intent digest }
+      responses:
+        '200': { description: 'Confirmed receipt; effective holds organization_id, invitation_id, role, expires_at, replaces_owners_count, person_email_sha256 (and accepted_at once accepted)' }
+        '202': { description: Durable pending result }
+        '403': { $ref: '#/components/responses/Denied' }
+        '404': { description: Switched off }
+        '409': { description: Organization changed since approval, or same key with another intent }
+        '422': { description: 'Refused; always the same answer: protected team, missing organization, ineligible or unknown person, role already held, invitation already open, opt-out' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /internal/hallinto/v1/org-invitations/check:
     post:
       operationId: checkOrgInvitationAddress

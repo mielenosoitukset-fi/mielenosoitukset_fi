@@ -13,6 +13,12 @@ def invitation_expired(invitation, now=None) -> bool:
     """
     if not isinstance(invitation, dict):
         return False
+    expires_at = invitation.get("expires_at")
+    if isinstance(expires_at, datetime):
+        # A decided recovery carries its own, shorter lifetime.
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        return (now or datetime.now(timezone.utc)) > expires_at
     invited_at = invitation.get("invited_at")
     if not isinstance(invited_at, datetime):
         return False
