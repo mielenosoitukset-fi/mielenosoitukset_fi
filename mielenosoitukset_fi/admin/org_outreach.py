@@ -111,8 +111,9 @@ def ensure_indexes(db) -> None:
 
 
 def _paused(db) -> bool:
-    panic = db.panic.find_one({"name": "global"})
-    return bool(panic and panic.get("panic"))
+    from mielenosoitukset_fi.utils.site_lock import site_locked
+
+    return site_locked(db)
 
 
 def _under_rate(db, name: str, bucket: str, limit: int, ttl: timedelta) -> bool:

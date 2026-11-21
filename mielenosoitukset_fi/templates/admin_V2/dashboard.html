@@ -103,18 +103,18 @@
             <span></span><span></span><span></span><span></span>
           </div>
           <div class="panic-status-text">
-            <p class="text-muted mb-1">{{ _('Panic Mode') }}</p>
-            <h4 class="mb-1">{{ _('Järjestelmävahti') }}</h4>
+            <p class="text-muted mb-1">{{ _('Hätäsulku') }}</p>
+            <h4 class="mb-1">{{ _('Julkinen sivusto') }}</h4>
             <div id="panic-state" class="panic-state {{ 'active' if panic_mode else 'safe' }}">
-              {{ _('AKTIIVINEN') if panic_mode else _('POIS PÄÄLTÄ') }}
+              {{ _('SULJETTU') if panic_mode else _('AVOINNA') }}
             </div>
-            <p class="text-muted mb-2">{{ _('Panic Mode lukitsee käyttäjille näkyvät palvelut kriisitilanteissa.') }}</p>
+            <p class="text-muted small mb-2">{{ _('Hätäsulku sulkee julkisen sivuston kaikilta vierailijoilta kriisin ajaksi. Hallintapaneeli toimii, joten sulun voi purkaa. Mitään ei poisteta.') }}</p>
             {% if can_open_security %}
             <div class="panic-actions">
-              <a class="btn btn-outline-{{ 'success' if panic_mode else 'danger' }} btn-sm" href="{{ url_for('admin_governance.security') }}">
-                <i class="fa-solid fa-{{ 'unlock' if panic_mode else 'bolt' }} me-1" aria-hidden="true"></i>{{ _('Avaa turvatilanteet') }}
+              <a class="btn btn-{{ 'success' if panic_mode else 'outline-danger' }} btn-sm" href="{{ url_for('admin_governance.security') }}">
+                <i class="fa-solid fa-{{ 'unlock' if panic_mode else 'bolt' }} me-1" aria-hidden="true"></i>{{ _('Pura sulku') if panic_mode else _('Avaa turvatilanteet') }}
               </a>
-              <p class="text-muted small mb-0 mt-1">{{ _('Tilan kytkeminen vaatii toisen ylläpitäjän hyväksynnän.') }}</p>
+              <p class="text-muted small mb-0 mt-1">{{ _('Sulkeminen ja avaaminen vaativat kaksi hallituksen jäsentä tai yhden tuoreesti kirjautuneen god-käyttäjän.') }}</p>
             </div>
             {% endif %}
           </div>
@@ -306,11 +306,11 @@
       if (active) {
         elements.panicGrid.classList.add('active');
         elements.panicState.classList.add('active');
-        elements.panicState.textContent = "{{ _('AKTIIVINEN') }}";
+        elements.panicState.textContent = "{{ _('SULJETTU') }}";
       } else {
         elements.panicGrid.classList.add('safe');
         elements.panicState.classList.add('safe');
-        elements.panicState.textContent = "{{ _('POIS PÄÄLTÄ') }}";
+        elements.panicState.textContent = "{{ _('AVOINNA') }}";
       }
     }
 

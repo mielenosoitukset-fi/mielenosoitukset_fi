@@ -9,7 +9,7 @@
     <div class="admin-form-section__header">
       <span class="admin-form-section__icon"><i class="fas fa-user-shield" aria-hidden="true"></i></span>
       <div>
-        <h2 id="approve-terms-heading">{{ 'Pääsyn palautus organisaatiolle' if is_recovery else 'Kutsu organisaatiolle' if is_invite else 'Hallitustiimi' if fields.kind == 'board_roster' else 'Roolin pysyvä poisto' if is_order else ('Roolipaketti: ' ~ bundle_label) if is_bundle else 'Kaupunkiadmin' }}</h2>
+        <h2 id="approve-terms-heading">{{ 'Pääsyn palautus organisaatiolle' if is_recovery else 'Kutsu organisaatiolle' if is_invite else 'Hallitustiimi' if fields.kind == 'board_roster' else ('Hätäsulku' if fields.action == 'close' else 'Sivuston avaaminen') if fields.kind == 'site_lockdown' else 'Roolin pysyvä poisto' if is_order else ('Roolipaketti: ' ~ bundle_label) if is_bundle else 'Kaupunkiadmin' }}</h2>
         <p>{{ 'Hallinnossa hyväksytty päätös' if (is_end or is_order or is_invite or is_recovery) else 'Hallinnossa hyväksytyt ehdot' }}</p>
       </div>
     </div>
@@ -37,6 +37,8 @@
       {% if fields.kind == 'role_removal' %}
       <div><dt>Käyttäjä</dt><dd>{{ account.displayname or account.username }}{% if account.displayname and account.username %} ({{ account.username }}){% endif %}</dd></div>
       <div><dt>Rooli</dt><dd>{{ fields.role }}</dd></div>
+      {% elif fields.kind == 'site_lockdown' %}
+      <div><dt>Toimenpide</dt><dd>{{ 'Julkisen sivuston sulkeminen' if fields.action == 'close' else 'Julkisen sivuston avaaminen' }}</dd></div>
       {% else %}
       <div><dt>Jäseniä</dt><dd>{{ roster_names|length }}</dd></div>
       {% endif %}
@@ -57,7 +59,7 @@
     {% endif %}
     {% if is_invite or is_recovery %}
     {% elif is_order %}
-    <p class="mb-0">{% if fields.kind == 'role_removal' and fields.role == 'city_admin' %}Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% elif fields.kind == 'role_removal' %}Käyttäjä menettää roolin pysyvästi, ja hänen istuntonsa ja avaimensa mitätöidään.{% else %}Tiimistä poistetaan ne, jotka eivät ole listalla. Yksi vahvistus voi poistaa enintään puolet tiimistä.{% endif %}</p>
+    <p class="mb-0">{% if fields.kind == 'role_removal' and fields.role == 'city_admin' %}Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% elif fields.kind == 'role_removal' %}Käyttäjä menettää roolin pysyvästi, ja hänen istuntonsa ja avaimensa mitätöidään.{% elif fields.kind == 'site_lockdown' and fields.action == 'close' %}Julkinen sivusto ja rajapinta sulkeutuvat heti kaikilta vierailijoilta, ja he näkevät huoltosivun. Hallintapaneeli ja kirjautuminen toimivat. Mitään ei poisteta. Sulun voi purkaa Hallinnosta tai Flaskin turvatoimisivulta.{% elif fields.kind == 'site_lockdown' %}Julkinen sivusto ja rajapinta avautuvat heti kaikille vierailijoille.{% else %}Tiimistä poistetaan ne, jotka eivät ole listalla. Yksi vahvistus voi poistaa enintään puolet tiimistä.{% endif %}</p>
     {% elif is_bundle and is_end %}
     <p class="mb-0">Käyttäjän roolipaketin oikeudet poistetaan heti, ja hän palaa tavalliseksi käyttäjäksi.{% if fields.kind == 'freeze' %} Jäädytys päättyy vasta uudella nimityspäätöksellä.{% endif %}</p>
     {% elif is_bundle %}

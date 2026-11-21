@@ -193,6 +193,9 @@ def build_blueprint(db) -> Blueprint:
     def apply_order():
         key = request.headers.get("Idempotency-Key", "")
         body = request.get_json(silent=True)
+        if (isinstance(body, dict) and body.get("kind") == flask_orders.KIND_SITE_LOCKDOWN
+                and not _lockdown_orders_on()):
+            return "", 404
         digest = flask_orders.order_digest(body)
         if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key):
             return _error("unsupported_scope")
@@ -321,6 +324,7 @@ END_APPROVAL_FIELDS = {"appointment_id", "kind", "account_id", "city", "template
 ORDER_APPROVAL_FIELDS = {
     flask_orders.KIND_ROLE_REMOVAL: {"order_id", "kind", "decision_id", "decision_revision", "account_id", "role"},
     flask_orders.KIND_BOARD_ROSTER: {"order_id", "kind", "decision_id", "decision_revision", "roster"},
+    flask_orders.KIND_SITE_LOCKDOWN: {"order_id", "kind", "decision_id", "decision_revision", "action"},
 }
 BUNDLE_APPROVAL_FIELDS = {"account_id", "template", "decision_id", "decision_revision", "valid_until"}
 BUNDLE_END_APPROVAL_FIELDS = {"appointment_id", "kind", "account_id", "template", "decision_id", "decision_revision"}
@@ -329,6 +333,10 @@ INVITATION_APPROVAL_FIELDS = {"invitation_id", "case_id", "decision_id", "decisi
 RECOVERY_APPROVAL_FIELDS = {"request_id", "case_id", "decision_id", "decision_revision", "need",
                             "organization_id", "person_email", "person_role"}
 STATE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
+
+
+def _lockdown_orders_on() -> bool:
+    return current_app.config.get("HALLINTO_LOCKDOWN_ORDERS_ENABLED") is True
 
 
 def _decode_fields(raw: str):
@@ -341,6 +349,8 @@ def _decode_fields(raw: str):
     if not isinstance(fields, dict):
         return None
     if "order_id" in fields:
+        if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN and not _lockdown_orders_on():
+            return None
         return fields if set(fields) == ORDER_APPROVAL_FIELDS.get(fields.get("kind")) else None
     if "request_id" in fields and "need" in fields:
         return fields if set(fields) == RECOVERY_APPROVAL_FIELDS else None
@@ -487,6 +497,8 @@ def build_approval_blueprint(db) -> Blueprint:
             from mielenosoitukset_fi.admin.permission_copy import PERMISSION_DESCRIPTIONS
             permission_copy = [str(PERMISSION_DESCRIPTIONS.get(p, p)) for p in bundle["permissions"]]
         page_title = ("Vahvista kutsun lähetys" if is_invite else "Vahvista pääsyn palautus" if is_recovery else "Vahvista roolin poisto" if fields.get("kind") == flask_orders.KIND_ROLE_REMOVAL
+                      else "Vahvista hätäsulku" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN and fields.get("action") == "close"
+                      else "Vahvista sivuston avaaminen" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN
                       else "Vahvista hallitustiimin päivitys" if is_order
                       else "Vahvista roolipaketin päättäminen" if (is_end and is_bundle)
                       else "Vahvista roolipaketti" if is_bundle

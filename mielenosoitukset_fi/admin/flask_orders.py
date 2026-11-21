@@ -1,11 +1,15 @@
 """Orders decided in Hallinto and carried out by Flask (H12, H17).
 
-Two orders share one route, journal and trust model with the city-appointment
+Three orders share one route, journal and trust model with the city-appointment
 operations in ``city_grants``:
 
 * ``board_roster`` (H12): the board team becomes exactly the roster Hallinto
   sends, the active members of its Johtoryhmä with a linked account.
 * ``role_removal`` (H17): an account permanently loses one Flask role.
+* ``site_lockdown``: close or reopen the public site (hätäsulku). It writes
+  the same lock and security case the Flask page does, so that page can always
+  reopen it, and it works only while ``HALLINTO_LOCKDOWN_ORDERS_ENABLED`` is on.
+  Flask's own page needs no Hallinto and stays the fallback.
 
 The caller has already verified the mTLS workload identity, the action-bound
 proof and Hallinto's attestation for the exact intent. Flask re-checks the
@@ -29,8 +33,12 @@ from . import city_grants as cg
 
 KIND_ROLE_REMOVAL = "role_removal"
 KIND_BOARD_ROSTER = "board_roster"
+KIND_SITE_LOCKDOWN = "site_lockdown"
+LOCKDOWN_ACTIONS = {"close", "reopen"}
+LOCKDOWN_FENCE = "site-lockdown"
 COMMON_FIELDS = {"order_id", "kind", "decision_id", "decision_revision", "authority_attestation"}
-KIND_FIELDS = {KIND_ROLE_REMOVAL: {"account_id", "role"}, KIND_BOARD_ROSTER: {"roster"}}
+KIND_FIELDS = {KIND_ROLE_REMOVAL: {"account_id", "role"}, KIND_BOARD_ROSTER: {"roster"},
+               KIND_SITE_LOCKDOWN: {"action"}}
 ROLE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 # Roles an order may take away. Everything else is refused, not guessed at.
 REMOVABLE_ROLES = {"city_admin", "admin", "global_admin", "superuser", "god"}
@@ -58,6 +66,9 @@ def validate_order(request: Any) -> Optional[dict]:
     if kind == KIND_ROLE_REMOVAL:
         if not (isinstance(request["account_id"], str) and cg.ACCOUNT_ID.match(request["account_id"])
                 and isinstance(request["role"], str) and ROLE.match(request["role"])):
+            return None
+    elif kind == KIND_SITE_LOCKDOWN:
+        if request["action"] not in LOCKDOWN_ACTIONS:
             return None
     else:
         roster = request["roster"]
@@ -88,7 +99,8 @@ def apply_order(db, *, integration: str, actor_id, idempotency_key: str, request
 
     digest = cg._digest(intent)
     now = utcnow()
-    target = intent.get("account_id") or BOARD_FENCE
+    target = (LOCKDOWN_FENCE if intent["kind"] == KIND_SITE_LOCKDOWN
+              else intent.get("account_id") or BOARD_FENCE)
     operation = {
         "_id": ObjectId(), "integration": integration, "actor_id": str(actor._id),
         "idempotency_key": idempotency_key, "intent_digest": digest, "intent": intent,
@@ -127,6 +139,8 @@ def _board_organization(db):
 def _order_fenced(db, operation, intent, actor, integration, target, fence) -> cg.Outcome:
     if intent["kind"] == KIND_ROLE_REMOVAL:
         write = _plan_role_removal(db, operation, intent, actor)
+    elif intent["kind"] == KIND_SITE_LOCKDOWN:
+        write = _plan_site_lockdown(db, operation, intent, actor)
     else:
         write = _plan_board_roster(db, operation, intent, actor)
     if isinstance(write, str):
@@ -219,6 +233,63 @@ def _plan_board_roster(db, operation, intent, actor):
     def verify():
         team = sorted(board_ids(db))
         return team == roster, {"roster": team}
+
+    return write, verify
+
+
+def _plan_site_lockdown(db, operation, intent, actor):
+    """Return a rejection code, or (write, verify) for closing or reopening the site.
+
+    Closing records a security case in status ``locked`` and the shared lock
+    that case owns, exactly as a decision on the Flask page does, so the Flask
+    page can reopen it. Reopening ends the case that holds the lock and clears
+    both lock names. A change that would not change anything is refused as
+    stale: the decision was made for a state the site no longer has.
+    """
+    from mielenosoitukset_fi.utils.site_lock import LOCK_NAMES, site_locked
+
+    close = intent["action"] == "close"
+    if site_locked(db) == close:
+        return "stale_state"
+    operation_id = str(operation["_id"])
+    reason = f"Hallinnon päätös {intent['decision_id']}, versio {intent['decision_revision']}"
+
+    def event(action, now):
+        return {"id": operation_id, "action": action, "reason": reason, "actor_id": str(actor._id),
+                "actor_name": actor.username, "at": now, "approved": True, "method": "hallinto_order",
+                "votes": {}, "required": 1, "hearing": "", "roster": {}}
+
+    def write(acting):
+        now = utcnow()
+        if close:
+            case_id = f"hallinto-{operation_id}"
+            db.security_cases.update_one(
+                {"_id": case_id},
+                {"$setOnInsert": {"revision": 1, "kind": "lockdown", "target_id": None, "target_name": "Julkinen sivusto",
+                                  "affected_person": None, "reason": reason, "opened_by": str(actor._id),
+                                  "created_at": now, "status": "locked", "events": [event("lockdown", now)],
+                                  "credential_before": None, "updated_at": now, "source": "hallinto_order"}},
+                upsert=True)
+            db.panic.update_one(
+                {"_id": "security-lockdown"},
+                {"$set": {"name": "security", "panic": True, "case_id": case_id, "event_id": operation_id,
+                          "updated_at": now}, "$addToSet": {"applied_events": operation_id}},
+                upsert=True)
+            return
+        locked = db.panic.find_one({"_id": "security-lockdown"}) or {}
+        db.panic.update_many({"name": {"$in": LOCK_NAMES}}, {"$set": {"panic": False, "updated_at": now}})
+        if locked:
+            db.panic.update_one({"_id": "security-lockdown"}, {"$set": {"event_id": operation_id},
+                                                               "$addToSet": {"applied_events": operation_id}})
+        if locked.get("case_id"):
+            db.security_cases.update_one(
+                {"_id": locked["case_id"], "kind": "lockdown", "status": "locked"},
+                {"$set": {"status": "restored", "updated_at": now, "effect_pending": None, "proposal": {}},
+                 "$inc": {"revision": 1}, "$push": {"events": event("reopen", now)}})
+
+    def verify():
+        closed = site_locked(db)
+        return closed == close, {"lockdown": "closed" if closed else "open"}
 
     return write, verify
 

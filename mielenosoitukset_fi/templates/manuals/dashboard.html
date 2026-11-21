@@ -26,11 +26,12 @@
 </section>
 
 <section id="hatakatkaisin">
-  <h2>{{ _('Hätäkatkaisin (panic mode)') }}</h2>
-  <p>{{ _('Etusivun') }} {{ m.ui(_('Panic Mode')) }}{{ _('-kortti näyttää, onko julkinen sivusto suljettu. Sivuston sulkeminen ja avaaminen tehdään hallinnon turvatoimisivulla:') }} {{ m.ui(_('Sulje julkinen sivusto')) }} {{ _('ja') }} {{ m.ui(_('Avaa julkinen sivusto')) }}. {{ _('Samalla sivulla voi myös keskeyttää yksittäisen käyttäjätilin.') }}</p>
-  <p>{{ _('Jokainen turvatoimi kirjataan perusteluineen päätöshistoriaan, ja jatkopäätökset vaativat hallituksen jäsenten hyväksynnän.') }}</p>
+  <h2>{{ _('Hätäsulku') }}</h2>
+  <p>{{ _('Hätäsulku sulkee julkisen sivuston ja rajapinnan kaikilta vierailijoilta, kunnes se puretaan. Vierailijat näkevät huoltosivun. Hallintapaneeli ja kirjautuminen toimivat, joten sulun voi purkaa. Mitään ei poisteta: tilit, ilmoitukset ja tiedot säilyvät.') }}</p>
+  <p>{{ _('Etusivun') }} {{ m.ui(_('Hätäsulku')) }}{{ _('-kortti näyttää, onko sivusto auki vai suljettu. Sulkeminen ja avaaminen tehdään hallinnon turvatoimisivulla:') }} {{ m.ui(_('Sulje julkinen sivusto')) }} {{ _('ja') }} {{ m.ui(_('Avaa julkinen sivusto')) }}. {{ _('Samalla sivulla voi myös keskeyttää yksittäisen käyttäjätilin.') }}</p>
+  <p>{{ _('Sulkeminen ja avaaminen vaativat kaksi eri hallituksen jäsentä tai yhden god-käyttäjän, jonka täysi kirjautuminen on enintään viisi minuuttia vanha. Jokainen päätös kirjataan perusteluineen päätöshistoriaan. Sulku ei pura itseään.') }}</p>
   {% call m.callout('danger') %}
-  <p>{{ _('Käytä hätäkatkaisinta vain todellisessa hätätilanteessa, esimerkiksi laajan väärinkäytön aikana, ja kerro siitä heti muulle ylläpidolle.') }}</p>
+  <p>{{ _('Käytä hätäsulkua vain todellisessa hätätilanteessa, esimerkiksi laajan väärinkäytön aikana, ja kerro siitä heti muulle ylläpidolle.') }}</p>
   {% endcall %}
 </section>
 

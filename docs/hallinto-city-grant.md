@@ -85,9 +85,9 @@ Body: `appointment_id` (the Idempotency-Key of the original appointment), `kind`
 - **Receipt.** `status: confirmed` means the appointment's grant is no longer live. `effective` is everything the account still has: `cities`, `permissions`, `role`, `global_admin`, `governance_managed` and `other_scope_types` (live grants that are not city grants). Flask only reports it. Hallinto confirms its end when `status` is `confirmed` and `effective` shows nothing of the ended appointment's city, and should show anything else that remains to the verifier. If the grant is still live after the write, the operation is `reconciliation_required`.
 - **Errors.** Unknown appointment, a different city or an unconfirmed appointment give 422. A missing or demoted actor, a bad proof or a bad signature give 403. The target is never revealed.
 
-## Orders: board team and role removal (Hallinto H12, H17)
+## Orders: board team, role removal and site lockdown (Hallinto H12, H17)
 
-`POST /internal/hallinto/v1/orders` carries out an order Hallinto decided. One route serves both kinds. The `Idempotency-Key` header is the order id (`order_id` in the body must equal it). Trust model as before: mTLS workload identity plus proxy secret, an actor proof and Hallinto's attestation.
+`POST /internal/hallinto/v1/orders` carries out an order Hallinto decided. One route serves all kinds. The `Idempotency-Key` header is the order id (`order_id` in the body must equal it). Trust model as before: mTLS workload identity plus proxy secret, an actor proof and Hallinto's attestation.
 
 - **Attestation.** Ed25519 over `"hallinto-flask-order-v1-attestation\n" + order_digest`. The digest is built like the others: the body without `authority_attestation`, canonical JSON.
 - **Proof.** Action `flask_order_v1`. Send the verifier to `/admin/hallinto/approve?r=<base64url JSON of the order terms>&state=...`. The fragment returns `state` and `proof` only. A roster list must fit the request line (about 200 accounts at most; the real board is far smaller).
@@ -117,6 +117,14 @@ Body: `order_id`, `kind`, `decision_id`, `decision_revision`, `account_id`, `rol
 - Idempotent: a new order for a role the account no longer has is a confirmed no-op. "Permanent" means Hallinto will not grant it again by itself; the legacy admin views can still give a role, until they are retired.
 
 Receipt: `status: confirmed`, `account_id`, `effective: {role, global_admin, full_permissions, system_team_access}`, read from the loaded account so access that comes from a team shows too. Hallinto confirms when `effective.role` differs from the removed role (for `global_admin`, when `effective.global_admin` is false unless a super role remains). If the named role is still held after the write the operation is `reconciliation_required`.
+
+### `kind: site_lockdown` (hätäsulku)
+
+Body: `order_id`, `kind`, `decision_id`, `decision_revision`, `action` (`close` or `reopen`), `authority_attestation`. Off unless `HALLINTO_LOCKDOWN_ORDERS_ENABLED: true` in `config.yaml` (default `false`): with the flag off the route answers 404 for this kind and the approval page answers 400.
+
+Flask writes what a decision on its own page `/admin/governance/security` writes: a security case of kind `lockdown` in status `locked` (events carry method `hallinto_order` and the decision id) and the shared lock `security-lockdown` that case owns. The Flask page can therefore always reopen the site, with Hallinto up or down, and Flask's page stays the fallback. `reopen` ends the case that holds the lock and clears every lock name. An order that would not change anything (closing a closed site, opening an open one) is refused as `stale_state` (409), because the decision was made for a state the site no longer has. The shared fence is `site-lockdown`.
+
+Receipt: `status: confirmed` with `effective: {lockdown: "closed" | "open"}`, read after the write. Hallinto confirms only when it matches the order's action.
 
 Both kinds return the usual `pending`, `reconciliation_required` and `rejected` receipts, replayed by key.
 

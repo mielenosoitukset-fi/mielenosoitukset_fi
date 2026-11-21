@@ -17,6 +17,7 @@ from mielenosoitukset_fi.utils.system_teams import board_ids, clearance_record_a
 from mielenosoitukset_fi.utils.team_governance import override_role
 from mielenosoitukset_fi.utils.security_cases import actor_access, decide, open_case
 from mielenosoitukset_fi.utils.team_governance import GovernanceConflict
+from mielenosoitukset_fi.utils.site_lock import site_locked
 from mielenosoitukset_fi.utils.time_utils import utcnow
 
 
@@ -62,7 +63,10 @@ def security():
         target = mongo.users.find_one({"_id": ObjectId(case["target_id"])}) if case["target_id"] else None
         case["reviewers"] = len(set(_roster(mongo, target).values()))
         case["overdue"] = case.get("status") == "suspended" and case.get("review_due_at", utcnow()) <= utcnow()
+    from flask import current_app
     return render_template(f"{_ADMIN_TEMPLATE_FOLDER}governance/security.html", cases=cases, error=error,
+                           site_locked=site_locked(mongo),
+                           hallinto_orders=current_app.config.get("HALLINTO_LOCKDOWN_ORDERS_ENABLED") is True,
                            governance_csrf_token=governance_csrf_token()), status
 
 
