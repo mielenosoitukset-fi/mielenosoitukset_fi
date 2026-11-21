@@ -1,0 +1,2 @@
+- Admin: all volunteer and sign-up forms (campaign volunteers, Pride banner carriers, opening event sign-ups) now share one page, Campaign admin → Sign-ups: same list, status, CSV export and delete for each.
+- Admin: delete needs a reason, and every export and delete is recorded with who did it. Admins can no longer mark a sign-up confirmed or edit it; only the person confirms, from the e-mail link.

@@ -193,13 +193,14 @@
       "sha256": "971edd5bc04921e44b79380b93c22a9f65bcc78d067c31fb8cb64f5a2e0d290e"
     },
     "mielenosoitukset_fi/admin/admin_kampanja_bp.py": {
-      "count": 7,
+      "count": 6,
       "coverage": [
         "integration",
         "e2e-admin",
-        "tests/test_campaign_publication.py"
+        "tests/test_campaign_publication.py",
+        "tests/test_signup_registry.py"
       ],
-      "sha256": "be65f026e9bbcd3d4b5054b9d450bfae5233bdbfb7c3d1e0bcfc9127b73a0906"
+      "sha256": "40efed3111b17e32140d0dacd9c155c684bbbbf52dddd17f84b9149da165c242"
     },
     "mielenosoitukset_fi/admin/admin_org_bp.py": {
       "count": 17,

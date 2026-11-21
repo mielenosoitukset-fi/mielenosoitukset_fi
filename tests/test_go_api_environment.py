@@ -384,3 +384,45 @@ def test_org_invite_routing_is_guarded_by_the_release_check():
     assert api in lines
     assert "000000000000000000000000/invitation/accept || true) == 405" in release
     assert release.index("org_invite_ready") < release.index('install -d -m 0700 "$backup_root"')
+
+
+def test_org_requests_flag_follows_public_submissions_and_defaults_on(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment_org_requests", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    secret = "test-secret-not-for-production-" * 2
+    cases = (
+        ({}, False),
+        ({"ORG_REQUESTS_GO": True}, False),  # no public submissions: no origin or session socket
+        ({"GO_SUBMIT_ENABLED": True}, True),
+        ({"GO_SUBMIT_ENABLED": True, "ORG_REQUESTS_GO": False}, False),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"r{index}.yaml", tmp_path / f"re{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated",
+                                          "SECRET_KEY": secret, **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("ORG_REQUESTS_GO_ENABLED" in values) is expected
+
+
+def test_org_requests_routing_is_guarded_by_the_release_check():
+    root = Path(__file__).resolve().parents[1]
+    routing = (root / "deploy/apache/react-ssr-routing.conf").read_text(encoding="utf-8")
+    release = (root / "deploy/release_routing.sh").read_text(encoding="utf-8")
+    lines = [line for line in routing.splitlines() if not line.lstrip().startswith("#")]
+    assert 'RewriteRule "^/organisaatiot/hae$" "http://127.0.0.1:8091/api/organization-requests" [P,L]' in lines
+    assert "http://127.0.0.1:8091/api/organization-requests || true) == 405" in release
+    assert release.index("org_requests_ready") < release.index('install -d -m 0700 "$backup_root"')
+
+
+def test_unconfirmed_org_requests_expire_through_a_ttl_index():
+    from types import SimpleNamespace
+    from mielenosoitukset_fi.scripts.provision_public_indexes import ensure_organization_request_indexes
+
+    calls = []
+    db = SimpleNamespace(organization_requests=SimpleNamespace(
+        create_index=lambda *args, **kwargs: calls.append((args, kwargs))))
+    ensure_organization_request_indexes(db)
+    assert calls == [(("expires_at",), {"expireAfterSeconds": 0, "name": "organization_requests_unconfirmed_ttl"})]

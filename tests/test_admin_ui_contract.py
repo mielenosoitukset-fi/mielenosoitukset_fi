@@ -1044,29 +1044,23 @@ def test_super_audit_uses_shared_collection_contract():
 
 def test_campaign_collection_uses_shared_admin_components():
     template = Path(
-        "mielenosoitukset_fi/templates/admin_V2/kampanja/list.html"
-    ).read_text(encoding="utf-8")
-    workspace = Path(
-        "mielenosoitukset_fi/static/css/admin/workspace.css"
+        "mielenosoitukset_fi/templates/admin_V2/kampanja/signups.html"
     ).read_text(encoding="utf-8")
 
     assert "<style" not in template
     assert "style=" not in template
+    assert "<script" not in template
     assert "admin-workspace-summary" in template
     assert "admin-section-card" in template
     assert "admin-filter-bar" in template
     assert "admin-data-view admin-data-view--scrollable" in template
     assert "admin-data-view__footer admin-pagination" in template
-    assert "modal fade admin-modal" in template
-    assert "admin-check-row" in template
-    assert "bootstrap.Modal.getOrCreateInstance" in template
-    assert template.index("bootstrap.Modal.getOrCreateInstance") > template.index(
-        "function boot()"
-    )
+    assert "admin_page_hero(" in template
+    assert "csrf_token" in Path(
+        "mielenosoitukset_fi/templates/admin_V2/kampanja/signup_delete.html"
+    ).read_text(encoding="utf-8")
     assert "campaign-modal" not in template
     assert "btn-icon" not in template
-    assert ".campaign-filters__grid" in workspace
-    assert ".campaign-volunteers .admin-data-view__table" in workspace
 
 
 def test_every_full_admin_v2_page_uses_canonical_hero_macro():
@@ -1093,7 +1087,10 @@ def test_every_full_admin_v2_page_uses_canonical_hero_macro():
     assert Path('mielenosoitukset_fi/templates/admin_V2/organizations/history.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/shifts.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/hallinto/approve.html') in pages
-    assert len(pages) == 57
+    # The combined sign-up lists page (Ilmoittautumiset) and its delete confirmation add two more.
+    assert Path('mielenosoitukset_fi/templates/admin_V2/kampanja/signups.html') in pages
+    assert Path('mielenosoitukset_fi/templates/admin_V2/kampanja/signup_delete.html') in pages
+    assert len(pages) == 59
     for locale in ("en", "fi", "sv"):
         catalog = Path(
             f"mielenosoitukset_fi/translations/{locale}/LC_MESSAGES/messages.po"
