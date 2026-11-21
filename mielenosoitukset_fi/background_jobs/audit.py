@@ -16,7 +16,7 @@ from pymongo.operations import (
 )
 from contextlib import contextmanager
 
-from mielenosoitukset_fi.demonstrations.audit import record_demo_change
+from mielenosoitukset_fi.demonstrations.audit import is_noop_change, record_demo_change
 
 _thread_local = threading.local()
 _PATCHED = False
@@ -59,7 +59,8 @@ class DemoChangeRecorder:
             return
         before_snapshot = deepcopy(before) if before else None
         after_snapshot = deepcopy(after) if after else None
-        if before_snapshot is not None and after_snapshot is not None and before_snapshot == after_snapshot:
+        if is_noop_change(before_snapshot, after_snapshot):
+            # Only a timestamp moved: the job saved without changing anything.
             return
         record_demo_change(
             demo_id=demo_id,

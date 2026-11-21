@@ -33,6 +33,7 @@ from mielenosoitukset_fi.utils.flashing import flash_message
 
 from .utils import get_org_name, mongo, _ADMIN_TEMPLATE_FOLDER
 from .board_compliance import has_board_clearance
+from .user_erasure import erase_user
 from .user_history import (
     FIELDS, PENDING_HISTORY, MAX_PENDING_HISTORY, commit_history_change,
     flush_user_history, history_event, history_query, present_history, user_snapshot,
@@ -1018,6 +1019,21 @@ def delete_user():
         if json_mode:
             return jsonify({"status": "ERROR", "message": _("Käyttäjää muutettiin samanaikaisesti. Tämä poistoyritys ei onnistunut. Vahvista henkilöllisyytesi ennen uutta yritystä.")}), 409
         abort(409)
+
+    # Delete, keep or pseudonymise the account's records (#596, docs/account-erasure.md).
+    try:
+        report = erase_user(
+            mongo,
+            user_data,
+            current_app.config["SECRET_KEY"],
+            current_app.config.get("ERASURE_SEAL_PUBLIC_KEY"),
+        )
+    except Exception:
+        current_app.logger.exception("User %s deleted but erasure of their records failed", target_user._id)
+    else:
+        if not report["sealed"]:
+            current_app.logger.warning("ERASURE_SEAL_PUBLIC_KEY is not set: no identity seal stored")
+        current_app.logger.info("User deleted; erasure counts: %s", {k: v for k, v in report.items() if k != "sealed"})
 
     success_message = "Käyttäjä poistettu onnistuneesti."
     if json_mode:
