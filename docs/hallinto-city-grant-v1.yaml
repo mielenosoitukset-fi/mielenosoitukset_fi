@@ -74,6 +74,36 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unsupported' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /internal/hallinto/v1/orders:
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      operationId: applyOrder
+      summary: Carry out a board roster or role removal order. Idempotency-Key is the order id.
+      security: [{ workload: [], actorProof: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - { $ref: '#/components/schemas/BoardRosterOrder' }
+                - { $ref: '#/components/schemas/RoleRemovalOrder' }
+      responses:
+        '200':
+          description: Confirmed order, or replay of a durable receipt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderReceipt' }
+        '202':
+          description: Durable pending result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderPendingReceipt' }
+        '403': { $ref: '#/components/responses/Denied' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unsupported' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /internal/hallinto/v1/operations/by-key:
     parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
@@ -273,3 +303,56 @@ components:
                 permissions: { type: array, items: { type: string } }
                 role: { type: [string, 'null'] }
       unevaluatedProperties: false
+    BoardRosterOrder:
+      type: object
+      additionalProperties: false
+      required: [order_id, kind, decision_id, decision_revision, roster, authority_attestation]
+      properties:
+        order_id: { $ref: '#/components/schemas/NonEmptyID' }
+        kind: { const: board_roster }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        roster: { type: array, minItems: 1, maxItems: 200, uniqueItems: true, items: { $ref: '#/components/schemas/AccountID' } }
+        authority_attestation: { type: string, minLength: 1, maxLength: 16384 }
+    RoleRemovalOrder:
+      type: object
+      additionalProperties: false
+      required: [order_id, kind, decision_id, decision_revision, account_id, role, authority_attestation]
+      properties:
+        order_id: { $ref: '#/components/schemas/NonEmptyID' }
+        kind: { const: role_removal }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        account_id: { $ref: '#/components/schemas/AccountID' }
+        role: { enum: [city_admin, admin, global_admin, superuser, god] }
+        authority_attestation: { type: string, minLength: 1, maxLength: 16384 }
+    OrderPendingReceipt:
+      type: object
+      required: [operation_id, order_id, kind, decision_id, decision_revision, status]
+      properties:
+        operation_id: { $ref: '#/components/schemas/NonEmptyID' }
+        order_id: { $ref: '#/components/schemas/NonEmptyID' }
+        kind: { enum: [board_roster, role_removal] }
+        account_id: { $ref: '#/components/schemas/AccountID' }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        status: { enum: [pending, reconciliation_required] }
+    OrderReceipt:
+      type: object
+      required: [operation_id, order_id, kind, decision_id, decision_revision, status, checked_at, effective]
+      properties:
+        operation_id: { $ref: '#/components/schemas/NonEmptyID' }
+        order_id: { $ref: '#/components/schemas/NonEmptyID' }
+        kind: { enum: [board_roster, role_removal] }
+        account_id: { $ref: '#/components/schemas/AccountID' }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        status: { const: confirmed }
+        checked_at: { type: string, format: date-time }
+        effective:
+          type: object
+          description: "board_roster: {roster}. role_removal: {role, global_admin}."
+          properties:
+            roster: { type: array, items: { $ref: '#/components/schemas/AccountID' } }
+            role: { type: [string, 'null'] }
+            global_admin: { type: boolean }

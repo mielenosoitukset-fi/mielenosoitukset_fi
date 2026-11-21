@@ -84,3 +84,30 @@ Body: `appointment_id` (the Idempotency-Key of the original appointment), `kind`
 - **Idempotent.** The same key and body replays the receipt. A new key for a grant that is already ended is a confirmed no-op.
 - **Receipt.** `status: confirmed` means the appointment's grant is no longer live. `effective` is everything the account still has: `cities`, `permissions`, `role`, `global_admin`, `governance_managed` and `other_scope_types` (live grants that are not city grants). Flask only reports it. Hallinto confirms its end when `status` is `confirmed` and `effective` shows nothing of the ended appointment's city, and should show anything else that remains to the verifier. If the grant is still live after the write, the operation is `reconciliation_required`.
 - **Errors.** Unknown appointment, a different city or an unconfirmed appointment give 422. A missing or demoted actor, a bad proof or a bad signature give 403. The target is never revealed.
+
+## Orders: board team and role removal (Hallinto H12, H17)
+
+`POST /internal/hallinto/v1/orders` carries out an order Hallinto decided. One route serves both kinds. The `Idempotency-Key` header is the order id (`order_id` in the body must equal it). Trust model as before: mTLS workload identity plus proxy secret, an actor proof and Hallinto's attestation.
+
+- **Attestation.** Ed25519 over `"hallinto-flask-order-v1-attestation\n" + order_digest`. The digest is built like the others: the body without `authority_attestation`, canonical JSON.
+- **Proof.** Action `flask_order_v1`. Send the verifier to `/admin/hallinto/approve?r=<base64url JSON of the order terms>&state=...`. The fragment returns `state` and `proof` only. A roster list must fit the request line (about 200 accounts at most; the real board is far smaller).
+
+### `kind: board_roster` (H12)
+
+Body: `order_id`, `kind`, `decision_id`, `decision_revision`, `roster` (sorted, unique account ids, 1 to 200), `authority_attestation`. Flask sets the board team (the memberships of `BOARD_ORG_ID`) to exactly that roster: accounts missing from the team are added with `grant_source: hallinto_decision`, accounts not listed are set `governance_approved: false`. Safeguards that stay in Flask, each answered 422 without a write:
+
+- every listed account must exist and be active and confirmed;
+- the board organization must be configured and exist;
+- Olivia's account (`OVERRIDE_OLIVIA_USER_ID`) is never removed by an order;
+- one order removes at most half of the current team.
+
+Receipt: `status: confirmed` with `effective: {roster: [...]}`, the team Flask has now. Hallinto confirms only when it equals the sent roster. The receipt has no `account_id`.
+
+### `kind: role_removal` (H17)
+
+Body: `order_id`, `kind`, `decision_id`, `decision_revision`, `account_id`, `role`, `authority_attestation`. Flask removes one role permanently. Removable roles: `city_admin`, `admin`, `global_admin`, `superuser`, `god`; any other role, the account named by `OVERRIDE_OLIVIA_USER_ID` and the acting verifier themselves are refused (422, 403). The effect for the higher roles is the one security cases already use: role `user`, `global_admin` off, global permissions cleared, `governance_managed` on, tokens and sessions revoked and the board and national team memberships ended. `city_admin` ends the account's city grants. The removal is idempotent: a new order for a role the account no longer has is a confirmed no-op.
+
+Receipt: `status: confirmed`, `account_id`, `effective: {role, global_admin}`, the account's role after the order. Hallinto confirms when `effective.role` differs from the removed role.
+
+Both kinds return the usual `pending`, `reconciliation_required` and `rejected` receipts, replayed by key.
+

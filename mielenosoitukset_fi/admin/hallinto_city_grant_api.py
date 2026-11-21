@@ -33,13 +33,14 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Blueprint, current_app, g, jsonify, request, url_for
 
-from . import city_grants, grant_proofs
+from . import city_grants, flask_orders, grant_proofs
 
 HELSINKI = ZoneInfo("Europe/Helsinki")
 INTEGRATION = "hallinto"
 AUDIENCE = "hallinto-city-grants"
 ATTESTATION_CONTEXT = b"hallinto-city-admin-v1-attestation\n"
 END_ATTESTATION_CONTEXT = b"hallinto-city-admin-end-v1-attestation\n"
+ORDER_ATTESTATION_CONTEXT = b"hallinto-flask-order-v1-attestation\n"
 
 
 def attestation_message(intent_digest: str) -> bytes:
@@ -50,6 +51,11 @@ def attestation_message(intent_digest: str) -> bytes:
 def end_attestation_message(intent_digest: str) -> bytes:
     """Ending signs a different context, so an appointment signature never ends a grant."""
     return END_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def order_attestation_message(intent_digest: str) -> bytes:
+    """Orders sign yet another context, so no other signature can carry one out."""
+    return ORDER_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def _b64url(value: str) -> bytes:
@@ -162,6 +168,23 @@ def build_blueprint(db) -> Blueprint:
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
         ))
 
+    @bp.post("/orders")
+    def apply_order():
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = flask_orders.order_digest(body)
+        if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key):
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_FLASK_ORDER_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, order_attestation_message):
+            return _error("denied")
+        return _reply(flask_orders.apply_order(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
     @bp.get("/operations/by-key")
     def read_receipt():
         key = request.headers.get("Idempotency-Key", "")
@@ -189,17 +212,24 @@ APPROVAL_FIELDS = {"account_id", "city", "template", "allow_city_enablement", "d
                    "decision_revision", "application_id", "valid_until"}
 END_APPROVAL_FIELDS = {"appointment_id", "kind", "account_id", "city", "template", "decision_id",
                        "decision_revision"}
+ORDER_APPROVAL_FIELDS = {
+    flask_orders.KIND_ROLE_REMOVAL: {"order_id", "kind", "decision_id", "decision_revision", "account_id", "role"},
+    flask_orders.KIND_BOARD_ROSTER: {"order_id", "kind", "decision_id", "decision_revision", "roster"},
+}
 STATE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 
 
 def _decode_fields(raw: str):
     """The appointment terms Hallinto sends, as base64url JSON."""
     try:
-        fields = json.loads(_b64url(raw or "").decode("utf-8")) if raw and len(raw) <= 4096 else None
+        # A board roster lists accounts; the longest still fits a request line.
+        fields = json.loads(_b64url(raw or "").decode("utf-8")) if raw and len(raw) <= 8000 else None
     except (ValueError, UnicodeDecodeError):
         return None
     if not isinstance(fields, dict):
         return None
+    if "order_id" in fields:
+        return fields if set(fields) == ORDER_APPROVAL_FIELDS.get(fields.get("kind")) else None
     if "kind" in fields:
         return fields if set(fields) == END_APPROVAL_FIELDS else None
     return fields if not set(fields) - APPROVAL_FIELDS else None
@@ -247,6 +277,13 @@ def build_approval_blueprint(db) -> Blueprint:
         state_param = request.values.get("state", "")
         if fields is None or not STATE.match(state_param):
             abort(400)
+        if "order_id" in fields:
+            # An order names no appointment: it is idempotent and checked at apply.
+            digest = flask_orders.order_digest({**fields, "authority_attestation": "-"})
+            if digest is None or (fields.get("account_id") and db.users.find_one(
+                    {"_id": ObjectId(fields["account_id"])}, {"_id": 1}) is None):
+                abort(400)
+            return fields, state_param, {"eligible": True}, digest
         state = city_grants.read_city_grant_state(db, str(fields.get("account_id", "")))
         if state is None:
             abort(400)
@@ -265,10 +302,20 @@ def build_approval_blueprint(db) -> Blueprint:
     @login_required
     def approve_page():
         fields, state_param, state, digest = prepare()
-        account = db.users.find_one({"_id": ObjectId(fields["account_id"])}, {"username": 1, "displayname": 1})
-        is_end = "kind" in fields
+        is_order = "order_id" in fields
+        account = (db.users.find_one({"_id": ObjectId(fields["account_id"])}, {"username": 1, "displayname": 1})
+                   if fields.get("account_id") else None)
+        roster_names = []
+        if is_order and fields.get("roster"):
+            names = {str(u["_id"]): u.get("displayname") or u.get("username") or "?" for u in db.users.find(
+                {"_id": {"$in": [ObjectId(a) for a in fields["roster"]]}}, {"username": 1, "displayname": 1})}
+            roster_names = [names.get(a, "?") for a in fields["roster"]]
+        is_end = "kind" in fields and not is_order
+        page_title = ("Vahvista roolin poisto" if fields.get("kind") == flask_orders.KIND_ROLE_REMOVAL
+                      else "Vahvista hallitustiimin päivitys" if is_order
+                      else "Vahvista nimityksen päättäminen" if is_end else "Vahvista nimitys")
         last_day = ""
-        if not is_end:
+        if not is_end and not is_order:
             end = city_grants.parse_valid_until(fields["valid_until"])
             last_day = (end.replace(tzinfo=timezone.utc).astimezone(HELSINKI)
                         - timedelta(seconds=1)).strftime("%-d.%-m.%Y")
@@ -277,8 +324,9 @@ def build_approval_blueprint(db) -> Blueprint:
         response = current_app.make_response(render_template(
             "admin_V2/hallinto/approve.html",
             fields=fields, state_param=state_param, raw=request.values.get("r", ""),
-            account=account or {}, city_name=CITY_KEY_TO_NAME.get(fields["city"], fields["city"]),
-            last_day=last_day, is_end=is_end, eligible=state["eligible"],
+            account=account or {}, city_name=CITY_KEY_TO_NAME.get(fields.get("city"), fields.get("city")),
+            last_day=last_day, is_end=is_end, is_order=is_order, roster_names=roster_names, page_title=page_title,
+            eligible=state["eligible"],
             elevated=has_strong_elevation(APPROVAL_WINDOW_SECONDS),
             has_passkey=webauthn.passkey_count(current_user._id) > 0,
             has_totp=_user_requires_totp(), hallinto_url=_hallinto_home(),
@@ -294,14 +342,16 @@ def build_approval_blueprint(db) -> Blueprint:
         if not has_strong_elevation(APPROVAL_WINDOW_SECONDS):
             return redirect(url_for(".approve_page", r=request.values.get("r"), state=state_param), code=303)
         factor = "passkey" if elevation_method() == "webauthn" else "password_totp"
-        is_end = "kind" in fields
+        is_order = "order_id" in fields
+        is_end = "kind" in fields and not is_order
+        action = (grant_proofs.ACTION_FLASK_ORDER_V1 if is_order
+                  else grant_proofs.ACTION_CITY_ADMIN_END_V1 if is_end else grant_proofs.ACTION_CITY_ADMIN_V1)
         proof = grant_proofs.issue_proof(
-            db, actor_id=current_user._id, audience=AUDIENCE,
-            action=grant_proofs.ACTION_CITY_ADMIN_END_V1 if is_end else grant_proofs.ACTION_CITY_ADMIN_V1,
-            intent_digest=digest, factor=factor, subject=str(fields["account_id"]),
+            db, actor_id=current_user._id, audience=AUDIENCE, action=action,
+            intent_digest=digest, factor=factor, subject=fields.get("account_id"),
         )
         returned = {"state": state_param, "proof": proof}
-        if not is_end:
+        if not is_end and not is_order:
             returned["expected_state"] = state["expected_state"]
         fragment = urlencode(returned)
         response = _no_framing(redirect(_settings()["return_url"] + "#" + fragment, code=303))

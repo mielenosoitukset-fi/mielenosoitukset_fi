@@ -527,10 +527,16 @@ def _receipt_identity(operation: dict) -> dict:
     intent = operation["intent"]
     identity = {
         "operation_id": str(operation["_id"]),
-        "account_id": operation["account_id"],
         "decision_id": intent["decision_id"],
         "decision_revision": intent["decision_revision"],
     }
+    if "order_id" in intent:
+        # A Flask order (flask_orders.py); a board roster names no account.
+        identity.update(order_id=intent["order_id"], kind=intent["kind"])
+        if "account_id" in intent:
+            identity["account_id"] = intent["account_id"]
+        return identity
+    identity["account_id"] = operation["account_id"]
     if "kind" in intent:
         return {**identity, "appointment_id": intent["appointment_id"], "kind": intent["kind"]}
     return {**identity, "valid_until": intent["valid_until"]}
