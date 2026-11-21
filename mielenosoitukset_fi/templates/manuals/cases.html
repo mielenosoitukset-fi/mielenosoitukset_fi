@@ -24,7 +24,8 @@
     </table>
   </div>
   {% call m.callout('tip') %}
-  <p>{{ _('Moni tapaus sulkeutuu itsestään, kun asia on hoidettu: esimerkiksi kun mielenosoitus hyväksytään tai ehdotus käsitellään. Näet ne listalla kohdassa') }} {{ m.ui(_('Automaattisesti suljetut')) }}.</p>
+  <p>{{ _('Moni tapaus sulkeutuu itsestään, kun asia on hoidettu: esimerkiksi kun mielenosoitus hyväksytään tai ehdotus käsitellään. Jos asia hoidettiin muualla, taustatyö sulkee tapauksen muutaman minuutin kuluessa. Listan avaaminen ei itse muuta tapauksia.') }}</p>
+  <p>{{ _('Lista näyttää ensin avoimet tapaukset, 50 kerrallaan. Valitse yläosan korteista') }} {{ m.ui(_('Eskaloinnit')) }}, {{ m.ui(_('Suljetut')) }} {{ _('tai') }} {{ m.ui(_('Kaikki')) }}. {{ _('Hakukentällä löydät tapauksen numeron, ilmoittajan, mielenosoituksen tai organisaation nimellä, ja tyyppivalinta rajaa listan yhteen tapaustyyppiin.') }}</p>
   {% endcall %}
 </section>
 

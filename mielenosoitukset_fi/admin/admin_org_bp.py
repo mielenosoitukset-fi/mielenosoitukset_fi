@@ -578,9 +578,18 @@ def validate_organization_fields(name, email, org_id):
 
 def get_social_media_links():
     """Retrieve social media links from form input."""
+    from mielenosoitukset_fi.utils.content_formatting import safe_href
+
     platforms = request.form.getlist("social_media_platform[]")
     urls = request.form.getlist("social_media_url[]")
-    return {platform: url for platform, url in zip(platforms, urls) if platform and url}
+    links = {}
+    for platform, url in zip(platforms, urls):
+        platform = (platform or "").strip().lower()[:40]
+        url = safe_href((url or "").strip())
+        # Only web links are kept; a platform key is a plain word.
+        if platform and url and not url.lower().startswith("mailto:") and platform.replace("-", "").isalnum():
+            links[platform] = url
+    return links
 
 
 def resolve_logo_value(current_logo: Optional[str] = None) -> tuple[Optional[str], bool]:
