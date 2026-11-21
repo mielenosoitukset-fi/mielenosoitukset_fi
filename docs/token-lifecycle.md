@@ -97,3 +97,15 @@ Use the production virtualenv's Python (`PRODUCTION_PYTHON`): it must have Flask
 application imports. `-B` keeps it from writing `.pyc` files. A file that cannot be parsed exits with a fixed
 message that never quotes `config.yaml`. The file ends at mode 600, which is fine for a systemd `EnvironmentFile`
 (systemd reads it as root). `--config` and `--env-file` override the default paths. Covered by `tests/test_confirmation_token_key.py`.
+
+## Scoped case links (admin emails, 20 Nov 2026)
+
+Admin moderation emails to a known admin carry a `case` link (`/admin/demo/case_link/<token>`):
+
+- One link per recipient admin and demonstration, valid 24 h; any decision on the demonstration revokes it (`TERMINAL_TOKEN_ACTIONS`), and a decision made with it marks it used.
+- A plain GET only shows an "Avaa tässä selaimessa" button, so mail scanners that prefetch links cannot claim it. The POST binds the link to that browser (HttpOnly cookie, only its hash is stored).
+- It never logs anyone in. It shows that one demonstration and offers approve or reject (with a reason); duplicates, escalation, take-down and everything else need a login.
+- Rights are checked against the recipient's current account on every request.
+- Second factor: an admin with TOTP must enter a code (the login verifier; a code is not accepted twice; five wrong codes revoke the link). An admin with passkeys only must log in to decide.
+- The decision runs through `apply_demo_decision` with `source="case_link"` and the actor marked `authentication: case_link`.
+- Recipients without a user account get the login link `/admin/demo/<id>/decide`.

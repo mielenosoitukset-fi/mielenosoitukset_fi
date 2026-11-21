@@ -27,7 +27,7 @@
     "src": "_public-detail-BuChzn6j.css"
   },
   "src/components/detail/DetailMap.tsx": {
-    "file": "assets/DetailMap-D71yWk6N.js",
+    "file": "assets/DetailMap-uKjRRwbO.js",
     "name": "DetailMap",
     "src": "src/components/detail/DetailMap.tsx",
     "isDynamicEntry": true,
@@ -55,7 +55,7 @@
     ]
   },
   "src/entries/detail.tsx": {
-    "file": "assets/detail-TROdNi-Q.js",
+    "file": "assets/detail-yxPYAG53.js",
     "name": "detail",
     "src": "src/entries/detail.tsx",
     "isEntry": true,
