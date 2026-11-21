@@ -218,6 +218,14 @@
       ],
       "sha256": "d363699f16fb63708681e9c7a13ce69322e9cbb829b72c4479cdf300451b2aa3"
     },
+    "mielenosoitukset_fi/admin/admin_shifts_bp.py": {
+      "count": 1,
+      "coverage": [
+        "integration",
+        "tests/test_duty_shifts.py"
+      ],
+      "sha256": "d5d4a68f963352953846e94710797fcc4078f1d562af8ef0faf2e0dcc7dbecf2"
+    },
     "mielenosoitukset_fi/admin/admin_site_analytics_bp.py": {
       "count": 2,
       "coverage": [

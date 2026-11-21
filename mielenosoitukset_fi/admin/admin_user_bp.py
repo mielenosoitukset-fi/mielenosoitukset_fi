@@ -321,7 +321,7 @@ def _check_user_assignment(actor, role, permissions, target=None):
         abort(403)
     if target and actor._id == target._id and role != target.role:
         abort(403)
-    if not actor.has_full_permissions() and not added <= set(actor.global_permissions):
+    if not actor.has_full_permissions() and not added <= set(actor.stored_global_permissions):
         abort(403)
 
 def safe_redirect(target):
