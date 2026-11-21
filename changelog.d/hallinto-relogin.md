@@ -1,1 +1,1 @@
-Hallinto asks the browser to sign out and back in by itself when its sign-in has lapsed (for example after a restart), and returns to the page, instead of showing a raw JSON error.
+- Hallinto asks the browser to sign out and back in by itself when its sign-in has lapsed (for example after a restart), and returns to the page, instead of showing a raw JSON error.
