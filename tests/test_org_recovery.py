@@ -271,3 +271,52 @@ def test_approval_page_off_and_wrong_shape(env):
     app.config["ORG_RECOVERY_ENABLED"] = True
     extra = {**fields, "extra": 1}
     assert verifier.get("/admin/hallinto/approve", query_string={"r": _b64url(json.dumps(extra).encode()), "state": STATE}).status_code == 400
+
+
+def test_accept_ignores_invitation_not_backed_by_a_confirmed_operation(env):
+    app, client, db, seeded, mailbox, org_id, owner, admin, person = env
+    forged = {"email": PERSON, "role": "owner", "role_granted_by": "x", "recovery_request_id": "x",
+              "replaces_owners": [str(owner)], "operation_id": str(ObjectId()), "invitation_id": "i"}
+    db.memberships.insert_one({"user_id": person, "organization_id": org_id, "role": "member", "permissions": []})
+    org_recovery.on_accept(db, org_id, forged, person)
+    assert db.memberships.find_one({"user_id": owner})["role"] == "owner"
+    assert db.memberships.find_one({"user_id": person})["role"] == "member"
+
+
+def test_accept_ignores_when_person_became_site_admin_meanwhile(env):
+    app, client, db, seeded, mailbox, org_id, owner, admin, person = env
+    _go(env)
+    invitation = invitation_for(db.organizations.find_one({"_id": org_id})["invitations"], PERSON)
+    db.memberships.insert_one({"user_id": person, "organization_id": org_id, "role": "member", "permissions": []})
+    db.users.update_one({"_id": person}, {"$set": {"role": "admin"}})
+    org_recovery.on_accept(db, org_id, invitation, person)
+    assert db.memberships.find_one({"user_id": owner})["role"] == "owner"
+
+
+def test_accept_demotes_only_the_owners_the_operation_named(env):
+    app, client, db, seeded, mailbox, org_id, owner, admin, person = env
+    _go(env)
+    invitation = dict(invitation_for(db.organizations.find_one({"_id": org_id})["invitations"], PERSON))
+    other = ObjectId()
+    db.memberships.insert_one({"user_id": other, "organization_id": org_id, "role": "owner", "permissions": []})
+    invitation["replaces_owners"] = [str(owner), str(other)]
+    db.memberships.insert_one({"user_id": person, "organization_id": org_id, "role": "owner", "permissions": []})
+    org_recovery.on_accept(db, org_id, invitation, person)
+    assert db.memberships.find_one({"user_id": other})["role"] == "owner"
+    assert db.memberships.find_one({"user_id": owner})["role"] == "owner"
+
+
+def test_recovery_invitation_wins_over_a_plain_one_for_the_same_address(env):
+    db, org_id = env[2], env[5]
+    _go(env)
+    db.organizations.update_one({"_id": org_id}, {"$push": {"invitations": PERSON}})
+    assert invited_role(invitation_for(db.organizations.find_one({"_id": org_id})["invitations"], PERSON)) == "owner"
+
+
+def test_audit_trail_keeps_no_invitee_address(env):
+    db = env[2]
+    from mielenosoitukset_fi.utils import audit_trail
+    change = audit_trail._scrub_invitation_emails(
+        {"$push": {"invitations": {"email": PERSON, "role": "owner"}}}, "organizations")
+    assert PERSON not in json.dumps(change) and change["$push"]["invitations"]["role"] == "owner"
+    assert audit_trail._scrub_invitation_emails({"email": PERSON}, "users") == {"email": PERSON}

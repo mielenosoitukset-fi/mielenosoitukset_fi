@@ -46,14 +46,17 @@ def invited_role(invitation) -> str:
 
 
 def invitation_for(invitations, email):
-    """The live invitation for ``email``, or None."""
+    """The live invitation for ``email``, or None. A decided recovery wins over a plain one."""
+    found = None
     for invitation in invitations or []:
         if isinstance(invitation, str) and invitation == email:
-            return invitation
+            found = found or invitation
         if (
             isinstance(invitation, dict)
             and invitation.get("email") == email
             and not invitation_expired(invitation)
         ):
-            return invitation
-    return None
+            if invitation.get("recovery_request_id"):
+                return invitation
+            found = found or invitation
+    return found

@@ -269,6 +269,8 @@ def _apply_fenced(db, operation: dict, intent: dict, actor) -> cg.Outcome:
     invitation_id = str(ObjectId())
     replaces = state["owners"] if intent["need"] != "add_member" else []
     expires = now + LIFETIME
+    # The journal remembers whom the accept step may demote; the invitation alone proves nothing.
+    db[cg.OPERATIONS].update_one({"_id": operation["_id"]}, {"$set": {"replaces_owners": replaces}})
     invitation = {
         # The stored address of the account, so the accept step's exact match holds.
         "email": person["email"], "invited_at": now, "expires_at": expires, "role": intent["person_role"],
@@ -320,6 +322,23 @@ def on_accept(db, organization_id: Any, invitation: Any, user_id: Any) -> None:
         org_id, uid = ObjectId(str(organization_id)), ObjectId(str(user_id))
         role = invitation.get("role")
         if role not in RANK or not invitation.get("role_granted_by"):
+            return
+        # Only a real, confirmed Hallinto operation counts: the invitation's own fields
+        # (they can be written by other tools) prove nothing.
+        operation = db[cg.OPERATIONS].find_one({"_id": ObjectId(str(invitation.get("operation_id")))}) \
+            if ObjectId.is_valid(str(invitation.get("operation_id"))) else None
+        intent = (operation or {}).get("intent") or {}
+        if (not operation or operation.get("status") != "confirmed"
+                or intent.get("request_id") != invitation.get("recovery_request_id")
+                or intent.get("organization_id") != str(org_id) or intent.get("person_role") != role
+                or (operation.get("receipt") or {}).get("effective", {}).get("invitation_id") != invitation.get("invitation_id")
+                or sorted(operation.get("replaces_owners") or []) != sorted(invitation.get("replaces_owners") or [])):
+            logger.warning("org recovery accept ignored: invitation does not match a confirmed operation")
+            return
+        # Eligibility is checked again: 14 days is long enough for things to change.
+        from mielenosoitukset_fi.utils.system_teams import protected_organization
+        if protected_organization(org_id) or not _person_ok(db, db.users.find_one({"_id": uid})):
+            logger.warning("org recovery accept ignored: organization or account no longer eligible")
             return
         both = {"$in": [org_id, str(org_id)]}
         mine = db.memberships.find_one({"organization_id": both, "user_id": {"$in": [uid, str(uid)]}})
