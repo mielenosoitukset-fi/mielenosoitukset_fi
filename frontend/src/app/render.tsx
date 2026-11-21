@@ -30,6 +30,8 @@ import CampaignScreen from './CampaignScreen';
 import FundraisingScreen from './FundraisingScreen';
 import ContactScreen from './ContactScreen';
 import CityAdminApplyScreen from './CityAdminApplyScreen';
+import OrgRequestScreen from './OrgRequestScreen';
+import OrgRequestStatusScreen from './OrgRequestStatusScreen';
 import OrganizationFillScreen from './OrganizationFillScreen';
 import SuggestChangeScreen from './SuggestChangeScreen';
 import ApiDocsScreen from './ApiDocsScreen';
@@ -60,6 +62,7 @@ import type { ProfileInitial } from './profile-route';
 import { volunteerConfirmCopy } from './volunteer-confirm';
 import { emailConfirmCopy } from './email-confirm';
 import { orgInviteCopy, orgInviteIdPattern } from './org-invite';
+import { orgRequestCopy } from './org-request-route';
 import { loadCancelLink, cancelLinkTitle, type CancelLinkState } from './cancel-link';
 import { loadStatus, statusTitle, type ServiceStatus } from './status';
 import { loadSuggestion, suggestionTitle, suggestionLead, type SuggestionDemo } from './suggest-change';
@@ -105,7 +108,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; logout?: string; registerNextSteps?: string; forcedPassword?: string; forcedIdentity?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; orgRequest?: string; orgRequestStatus?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; logout?: string; registerNextSteps?: string; forcedPassword?: string; forcedIdentity?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -504,6 +507,26 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<CityAdminApplyScreen session={session} apiBase={config.apiBase} />} />);
+  }
+
+  if (route.name === 'org-request') {
+    headers['Cache-Control'] = 'private, no-store';
+    extraHead = (assets.orgRequest ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The page renders its own no-JavaScript fallback inside the form card.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<OrgRequestScreen session={session} />} />);
+  }
+
+  if (route.name === 'org-request-status') {
+    // The token is in the fragment and read in the browser; the server renders only the shell.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.orgRequestStatus ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${orgRequestCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<OrgRequestStatusScreen />} />);
   }
 
   if (route.name === 'developer') {
