@@ -65,7 +65,7 @@ The Go API must **never** hold it (the security review of 20 November 2026 rejec
 which changes only Flask's token issue/verify side). `EMAIL_CONFIRM_JWT_KEY` is that derived value and nothing else; a
 Go process holding it can verify confirmation links but cannot forge sessions or reset tokens.
 
-- Until #1241 is merged, deployed and reviewed, `EMAIL_CONFIRM_JWT_KEY` stays **unset** and this route stays off.
+- #1241 is merged and deployed; since 21 November 2026 the deploy writes `EMAIL_CONFIRM_JWT_KEY` (see Activation).
 - The operator writes the derived key into the Go environment file with `sudo python3 scripts/write_confirmation_key.py`
   (from #1241): nothing on a command line or in shell history, mode 600, output only `written`
   (see `docs/token-lifecycle.md`).
@@ -83,17 +83,25 @@ literal, a regex-looking address matches nothing) against a disposable MongoDB
 
 ## Activation (later maintainer go; separate steps)
 
-1. Merge #1241, let it run, get the security SHIP.
-2. Run `sudo python3 scripts/write_confirmation_key.py` on the Flask host, add `EMAIL_CONFIRM_GO_ENABLED=true` to
-   `/etc/mielenosoitukset-api/environment`, restart Go. Check: a POST with garbage answers 400
-   `invalid`; GET answers 405.
-3. Uncomment the four Apache rules, `apachectl configtest`, reload.
-4. Register a test account with a maintainer mailbox, click the mail link, press the button, log in.
+Done on 21 November 2026 with the maintainer's go, through a pull request and the normal deploy:
+
+1. #1241 (derived key on the Flask side) is merged and deployed.
+2. `deploy/go-api/configure_environment.py` writes `EMAIL_CONFIRM_GO_ENABLED=true` and
+   `EMAIL_CONFIRM_JWT_KEY` with public submissions on, by default (`EMAIL_CONFIRM_GO: false` in
+   `config.yaml` opts out). The key is the same derived value as `derive_confirmation_key`, computed on
+   every deploy from `SECRET_KEY` in `config.yaml`; `SECRET_KEY` itself is never written to the Go
+   environment. The environment file is rewritten on every deploy, so a key written by hand with
+   `scripts/write_confirmation_key.py` would not last; the script stays for a manual repair.
+3. The four Apache rules are active. `deploy/release_routing.sh` installs them only after Go answers
+   `GET /api/account/confirm-email` with 405, so a Go API without the flag or key keeps the old routing.
+4. After the deploy: register a test account with a maintainer mailbox, click the mail link, press the
+   button, log in.
 
 ## Revert
 
-Re-comment the Apache rules and reload (Flask serves the old route again at once); remove the two
-environment variables and restart Go. No data migration, no schema change.
+Re-comment the Apache rules and deploy (Flask serves the old route again at once); set
+`EMAIL_CONFIRM_GO: false` in `config.yaml` to drop the two
+environment variables at the next deploy. No data migration, no schema change.
 
 ## Reviews requested
 

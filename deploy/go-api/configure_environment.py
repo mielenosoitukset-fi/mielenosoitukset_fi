@@ -49,6 +49,21 @@ def configure(source, target):
         # hand-set environment flag was lost at the next deploy.
         if config.get("SUGGESTIONS_GO", True) is True:
             values["SUGGESTIONS_GO_ENABLED"] = "true"
+        # Campaign volunteer confirmation by button and POST
+        # (docs/volunteer-confirm-react.md): on by default since 21 November 2026
+        # (maintainer's go); `VOLUNTEER_CONFIRM_GO: false` in config.yaml opts out.
+        if config.get("VOLUNTEER_CONFIRM_GO", True) is True:
+            values["VOLUNTEER_CONFIRM_GO_ENABLED"] = "true"
+        # E-mail confirmation by button and POST (docs/email-confirm-react.md): on
+        # by default since 21 November 2026; `EMAIL_CONFIRM_GO: false` opts out.
+        # Go gets only the derived key Flask signs these tokens with
+        # (utils/auth.py derive_confirmation_key), never SECRET_KEY, and it is
+        # derived here on every deploy so a rewrite cannot drop it.
+        if config.get("EMAIL_CONFIRM_GO", True) is True:
+            values["EMAIL_CONFIRM_GO_ENABLED"] = "true"
+            values["EMAIL_CONFIRM_JWT_KEY"] = hmac.new(
+                secret.encode(), b"moso-email-confirmation-token-v1", hashlib.sha256,
+            ).hexdigest()
     # Event analytics follow the Flask switch, which defaults to enabled when
     # the key is missing (app.py: config.get("SITE_ANALYTICS_ENABLED", True)),
     # so a redeploy keeps Go writes in step with Flask.

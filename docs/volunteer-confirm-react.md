@@ -64,20 +64,25 @@ Differences, all on purpose:
 - `tests/test_volunteer_confirm_client.py`: the page's request helper (verdict mapping, network and
   malformed answers never read as success or as a bad link).
 - `scripts/verify_public_host.mjs`: the rendered page, headers, no confirm request on GET, 404 for
-  malformed paths, and that the Apache rule is still commented out.
+  malformed paths, and that the Apache rules route GET/HEAD of the page and only POST of the confirm route.
 
-## Activation (later maintainer go; each step is separate)
+## Activation (21 November 2026, maintainer's go)
 
-1. Deploy this code (flag still off). Nothing changes.
-2. Add `VOLUNTEER_CONFIRM_GO_ENABLED=true` to `/etc/mielenosoitukset-api/environment` and restart the Go API.
-   Check: `POST` with a wrong token answers 400 `invalid`; `GET` answers 405.
-3. Uncomment the four rules in `deploy/apache/react-ssr-routing.conf`, check `apachectl configtest`, reload.
-4. Click one real confirmation link from a test signup (a mailbox of the maintainer's).
+Switched on through a pull request and the normal deploy, not by hand on the server:
+
+1. `deploy/go-api/configure_environment.py` writes `VOLUNTEER_CONFIRM_GO_ENABLED=true` with public
+   submissions on, by default (`VOLUNTEER_CONFIRM_GO: false` in `config.yaml` opts out). The Go
+   environment file is rewritten on every deploy, so a hand-set flag would not last.
+2. The four rules in `deploy/apache/react-ssr-routing.conf` are active. `deploy/release_routing.sh`
+   installs them only after Go answers `GET /api/campaign-volunteers/confirm` with 405, so a Go API
+   without the flag keeps the previous routing.
+3. After the deploy: click one real confirmation link from a test signup (a mailbox of the maintainer's).
 
 ## Revert
 
-Re-comment the four Apache rules and reload: Flask serves the old page again at once. Remove the
-environment flag and restart Go to switch the POST off. No data migration, no schema change.
+Re-comment the four Apache rules and deploy: Flask serves the old page again at once. Set
+`VOLUNTEER_CONFIRM_GO: false` in `config.yaml` to switch the POST off at the next deploy. No data
+migration, no schema change.
 
 ## Reviews requested
 
