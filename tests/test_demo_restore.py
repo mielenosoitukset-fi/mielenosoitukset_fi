@@ -77,3 +77,23 @@ def test_restored_email_template_renders():
     )
     assert "ei olekaan peruttu" in html
     assert "<b>x</b>" not in html
+
+
+def test_command_center_offers_restore_only_for_cancelled(admin_client, db, seeded_data):
+    demo_id = seeded_data["demo_id"]
+    page = admin_client.get(f"/admin/demo/command-center/{demo_id}").get_data(as_text=True)
+    assert 'data-command="restore"' not in page
+    assert 'data-command="cancel"' in page
+
+    db.demonstrations.update_one({"_id": demo_id}, {"$set": {"cancelled": True}})
+    page = admin_client.get(f"/admin/demo/command-center/{demo_id}").get_data(as_text=True)
+    assert 'data-command="restore"' in page
+    assert 'data-command="cancel"' not in page
+    assert f"/api/admin/demo/{demo_id}/restore" in page
+
+    db.demonstrations.update_one(
+        {"_id": demo_id}, {"$set": {"cancelled_by": {"source": "recurring_break", "user_id": None}}}
+    )
+    page = admin_client.get(f"/admin/demo/command-center/{demo_id}").get_data(as_text=True)
+    assert 'data-command="restore"' not in page
+    assert "taukopäivänä" in page

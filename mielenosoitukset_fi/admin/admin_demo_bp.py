@@ -3870,6 +3870,11 @@ def demo_command_center(demo_id):
     status_flags["can_cancel"] = not (
         status_flags["cancelled"] or status_flags["rejected"] or status_flags["taken_down"]
     )
+    cancelled_by_doc = demo_data.get("cancelled_by") if isinstance(demo_data.get("cancelled_by"), dict) else {}
+    status_flags["series_break"] = status_flags["cancelled"] and cancelled_by_doc.get("source") == "recurring_break"
+    status_flags["can_restore"] = (
+        status_flags["cancelled"] and not status_flags["series_break"] and not status_flags["rejected"]
+    )
 
     location_query = " ".join(
         part for part in [demo.address, demo.city if getattr(demo, "city", None) else None] if part
@@ -3885,6 +3890,7 @@ def demo_command_center(demo_id):
 
     action_endpoints = {
         "cancel": {"url": url_for("admin_demo_api.admin_cancel_demo", demo_id=demo_id_str), "method": "POST"},
+        "restore": {"url": url_for("admin_demo_api.admin_restore_demo", demo_id=demo_id_str), "method": "POST"},
         "recommend": {"url": url_for("admin_demo.recommend_demo", demo_id=demo_id_str), "method": "POST"},
         "unrecommend": {"url": url_for("admin_demo.unrecommend_demo", demo_id=demo_id_str), "method": "POST"},
         "duplicate": {"url": url_for("admin_demo.duplicate_demo", demo_id=demo_id_str), "method": "POST"},
