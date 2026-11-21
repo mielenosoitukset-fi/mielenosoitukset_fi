@@ -281,6 +281,37 @@ def test_marker_insert_outage_does_not_break_owner_login(owner, db, monkeypatch)
     assert _authorize(browser, params).status_code == 403
 
 
+def test_lapsed_marker_signs_out_and_back_in_by_itself(owner, db, monkeypatch):
+    from pymongo.errors import AutoReconnect
+
+    app, _ = owner
+    collection = type(db.hallinto_login_markers)
+    original = collection.insert_one
+
+    def insert(self, *args, **kwargs):
+        if self.name == "hallinto_login_markers":
+            raise AutoReconnect("simulated marker outage")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(collection, "insert_one", insert)
+    browser = app.test_client()
+    _login(browser)
+    _, params = _params()
+    page = _authorize(browser, params)
+    body = page.get_data(as_text=True)
+    assert page.status_code == 403 and page.mimetype == "text/html"
+    assert 'name="logout_token"' in body and "relogin=1" in body
+    # A second failure shows the plain error instead of looping.
+    again = _authorize(browser, {**params, "relogin": "1"})
+    assert again.status_code == 403 and again.is_json
+    # The sign-out form returns to the sign-in with the authorization URL.
+    token = body.split('name="logout_token" value="')[1].split('"')[0]
+    nxt = body.split('name="next" value="')[1].split('"')[0].replace("&amp;", "&")
+    out = browser.post("/users/auth/logout", base_url=ORIGIN, data={"logout_token": token, "next": nxt})
+    assert out.status_code == 302 and urlsplit(out.location).path == "/users/auth/login"
+    assert "authorize" in out.location
+
+
 def test_linked_logout_can_retry_a_marker_revocation_outage(owner, db, monkeypatch):
     from pymongo.errors import AutoReconnect
 

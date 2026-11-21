@@ -9,6 +9,7 @@ from mielenosoitukset_fi.utils.cities import CITY_KEY_TO_NAME
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from hmac import compare_digest
+from html import escape
 from time import time
 from urllib.parse import unquote_plus, urlsplit
 
@@ -20,7 +21,7 @@ from authlib.oauth2.rfc7636 import CodeChallenge
 from authlib.oidc.core import UserInfo
 from authlib.oidc.core.grants import OpenIDCode
 from bson import ObjectId
-from flask import Blueprint, jsonify, redirect, request, session, url_for
+from flask import Blueprint, jsonify, make_response, redirect, request, session, url_for
 from flask_login import current_user, user_logged_in
 from joserfc.jwk import RSAKey
 from pymongo.errors import DuplicateKeyError, PyMongoError
@@ -382,8 +383,33 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             return redirect(url_for("users.auth.login", next=request.full_path))
         marker = session.get(SESSION_MARKER)
         if session.get("hallinto_owner_revocation_pending") or not marker or not _live_marker(db, markers, _digest(marker), subject):
-            return jsonify(error="access_denied", error_description="Sign out and sign in again"), 403
+            if request.args.get("relogin"):
+                return jsonify(error="access_denied", error_description="Sign out and sign in again"), 403
+            return _relogin_page(subject)
         return auth.create_authorization_response(oauth_request, grant_user=subject, grant=grant)
+
+    def _relogin_page(subject):
+        """Sign the visitor out and back in by themselves, then return here.
+
+        The sign-out form carries its own token, so only this signed-in
+        browser can submit it; the sign-in returns to the authorization URL
+        once. A second failure shows the plain error instead of looping.
+        """
+        from mielenosoitukset_fi.utils.logout_token import make_logout_token
+
+        back = request.full_path.rstrip("?") + ("&" if "?" in request.full_path.rstrip("?") else "?") + "relogin=1"
+        page = (
+            "<!doctype html><html lang=\"fi\"><meta charset=\"utf-8\"><title>Kirjaudutaan uudelleen</title>"
+            "<body><p>Kirjaudutaan uudelleen…</p>"
+            f"<form id=\"f\" method=\"post\" action=\"{url_for('users.auth.logout')}\">"
+            f"<input type=\"hidden\" name=\"logout_token\" value=\"{make_logout_token(subject)}\">"
+            f"<input type=\"hidden\" name=\"next\" value=\"{escape(back)}\">"
+            "<noscript><button type=\"submit\">Jatka</button></noscript></form>"
+            "<script src=\"" + url_for("static", filename="js/hallinto-relogin.js") + "\"></script></body></html>"
+        )
+        response = make_response(page, 403)
+        response.headers["Content-Type"] = "text/html; charset=utf-8"
+        return response
 
     @bp.post("/token")
     def token():
