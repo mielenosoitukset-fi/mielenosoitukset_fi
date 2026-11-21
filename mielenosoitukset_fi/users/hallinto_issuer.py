@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import re
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, timedelta
 from hmac import compare_digest
@@ -25,6 +26,14 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from mielenosoitukset_fi.users.hallinto_sessions import AccountVersion, issue_marker, revoke_marker
 from mielenosoitukset_fi.users.models import User
+from mielenosoitukset_fi.utils.auth import generate_reset_token
+from mielenosoitukset_fi.utils.validators import (
+    is_reserved_identity_name,
+    normalize_email,
+    normalize_username,
+    valid_email,
+    validate_username,
+)
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from mielenosoitukset_fi.utils.webauthn_utils import PASSKEY_COLLECTION
 
@@ -88,6 +97,16 @@ _ACCOUNT_FIELDS = {"username": 1, "displayname": 1, "active": 1, "confirmed": 1,
 _ACCOUNT_ID = re.compile(r"[0-9a-f]{24}\Z")
 _ACCOUNT_SEARCH_LIMIT = 10
 _ACCOUNT_LOOKUP_LIMIT = 100
+_invite_sender = None
+
+
+def invite_sender():
+    """The emailer for account invites, created on first use."""
+    global _invite_sender
+    if _invite_sender is None:
+        from mielenosoitukset_fi.emailer.EmailSender import EmailSender
+        _invite_sender = EmailSender()
+    return _invite_sender
 
 
 def _account_view(doc: dict) -> dict:
@@ -426,5 +445,65 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             return jsonify(error="invalid_request"), 400
         rows = db.users.find({"_id": {"$in": [ObjectId(i) for i in set(ids)]}}, _ACCOUNT_FIELDS)
         return jsonify(items=[_account_view(row) for row in rows])
+
+    @bp.post("/accounts/invite")
+    def account_invite():
+        """Create an ordinary account for a person who has none and email
+        them a link to set their password. The admin signed in to Hallinto
+        is recorded as the creator."""
+        from mielenosoitukset_fi.admin.user_history import (
+            PENDING_HISTORY, flush_user_history, history_event, user_snapshot)
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        actor_doc = db.users.find_one({"_id": ObjectId(payload["sub"])})
+        actor = User.from_db(actor_doc)
+        if not (actor.has_full_permissions() or "CREATE_USER" in (actor.global_permissions or [])):
+            return jsonify(error="access_denied"), 403
+        email, username, name = (payload.get(k) for k in ("email", "username", "name"))
+        if not all(isinstance(v, str) for v in (email, username)) or not isinstance(name or "", str):
+            return jsonify(error="invalid_request"), 400
+        email, username = normalize_email(email), normalize_username(username)
+        name = (name or "").strip() or username
+        if (len(email) > 254 or not valid_email(email) or not validate_username(username)[0]
+                or len(name) > 64 or is_reserved_identity_name(name)):
+            return jsonify(error="invalid_request"), 400
+        existing = db.users.find_one({"email_canonical": email}, _ACCOUNT_FIELDS) or db.users.find_one(
+            {"email": {"$regex": "^" + re.escape(email) + "$", "$options": "i"}}, _ACCOUNT_FIELDS)
+        if existing:
+            return jsonify(error="email_in_use", account=_account_view(existing)), 409
+        if db.users.find_one({"$or": [{"username_canonical": username},
+                                      {"username": {"$regex": "^" + re.escape(username) + "$", "$options": "i"}}]},
+                             {"_id": 1}):
+            return jsonify(error="username_in_use"), 409
+
+        user_doc = User.create_user(username, secrets.token_urlsafe(48), email, name)
+        user_doc.update({"_id": ObjectId(), "active": True, "created_via": "hallinto"})
+        creator = {"id": str(actor._id), "username": actor.username, "role": actor.role, "via": "hallinto"}
+        user_doc[PENDING_HISTORY] = [history_event(user_doc["_id"], {}, user_snapshot(user_doc, {}),
+                                                   creator, "user_created")]
+        try:
+            db.users.insert_one(user_doc)
+        except DuplicateKeyError:
+            return jsonify(error="username_in_use"), 409
+        flush_user_history(db, user_doc["_id"])
+
+        reset_url = f"{origin.scheme}://{origin.netloc}" + url_for(
+            "users.auth.password_reset", token=generate_reset_token(email))
+        try:
+            invite_sender().queue_email(
+                template_name="hallinto_account_invite.html",
+                subject="Sinulle on luotu tili mielenosoitukset.fi-palveluun",
+                recipients=[email],
+                context={"user_name": name, "username": username, "reset_url": reset_url,
+                         "reset_request_url": f"{origin.scheme}://{origin.netloc}"
+                                              + url_for("users.auth.password_reset_request")},
+            )
+            sent = True
+        except Exception:  # The account exists; the person can still use "forgot password".
+            logging.getLogger(__name__).exception("Hallinto account invite email failed")
+            sent = False
+        return jsonify(account=_account_view(user_doc), invited=sent), 201
 
     app.register_blueprint(bp)
