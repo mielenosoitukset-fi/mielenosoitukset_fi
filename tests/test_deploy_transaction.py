@@ -52,6 +52,7 @@ def deployment(tmp_path):
     python_stub("install_dependencies.py", "assert Path(os.environ['PRODUCTION_MIGRATIONS_MANAGED_FILE']).exists()")
     python_stub("run_migrations.py", "if os.getenv('FAIL_MIGRATION') == '1': sys.exit(1)")
     python_stub("verify_health_sha.py", "")
+    python_stub("check_service_config_files.py", "if os.getenv('FAIL_CONFIG_CHECK') == '1': sys.exit(1)")
     package = seed / "mielenosoitukset_fi" / "scripts"
     package.mkdir(parents=True)
     (package.parent / "__init__.py").write_text("")
@@ -148,8 +149,10 @@ def test_one_routing_transaction_orders_public_and_records_receipt(deployment, r
     assert result.returncode == 0, result.stderr
     events = deployment.read_events()
     assert events.count("systemctl reload") == 1
-    assert events.index("provision") < events.index("systemctl reload")
-    assert events.index("systemctl reload") < events.index("backup-units") < events.index("public")
+    assert events.index("provision") < events.index("backup-units")
+    assert events.index("backup-units") < events.index("check_service_config_files.py")
+    assert events.index("check_service_config_files.py") < events.index("systemctl reload")
+    assert events.index("systemctl reload") < events.index("public")
     if routing:
         assert events.index("public") < events.index("routing")
     else:
@@ -164,6 +167,17 @@ def test_backup_unit_failure_warns_without_failing_the_release(deployment):
     assert "::warning::backup units were not updated" in result.stdout
     assert "public" in deployment.read_events()
     assert json.loads(deployment.receipt.read_text())["commit"] == deployment.target
+
+
+def test_unreadable_service_config_blocks_reload_and_keeps_old_build(deployment):
+    result = deployment.run(FAIL_CONFIG_CHECK=1)
+    assert result.returncode == 1
+    assert "refusing to reload" in result.stderr
+    events = deployment.read_events()
+    assert "check_service_config_files.py" in events
+    assert not any(event in events for event in ("systemctl reload", "public", "routing"))
+    assert (deployment.repo / ".deploy-build-sha").read_text().strip() == deployment.baseline
+    assert not deployment.receipt.exists()
 
 
 def test_new_main_during_public_stage_does_not_abort_original_transaction(deployment):

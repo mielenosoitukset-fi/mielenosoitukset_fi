@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const roleSelect = document.getElementById('role');
     const globalAdminOption = document.getElementById('role_global_admin');
     const clearanceInfoEl = document.getElementById('clearanceInfo');
+    if (!globalAdminOption || !clearanceInfoEl) return;
 
     // API endpoint to check clearance
     fetch('{{ url_for("board_compliance.get_clearance", user_id=user.id) }}')
@@ -54,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <div class="admin-user-page admin-page">
     {% call admin_page_hero(
         _('Muokkaa käyttäjää'),
-        _('Päivitä käyttäjän perustiedot, rooli ja sallitut käyttöoikeudet samasta näkymästä.'),
+        (_('Päivitä käyttäjän perustiedot. Ylläpito-oikeudet näet täällä, ja niitä muutetaan Hallinnossa.') if rights_in_hallinto else _('Päivitä käyttäjän perustiedot, rooli ja sallitut käyttöoikeudet samasta näkymästä.')),
         _('Käyttäjähallinta'),
         [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Käyttäjät'), url_for('admin_user.user_control')), (_('Muokkaa käyttäjää'), none)],
         back_url=url_for('admin_user.user_control'),
@@ -108,6 +109,49 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </section>
 
+      {% if rights_in_hallinto %}
+      <section class="admin-form-section admin-rights-readonly" aria-labelledby="rights-heading">
+        <div class="admin-form-section__header">
+          <h2 id="rights-heading">{{ _('Ylläpito-oikeudet') }}</h2>
+          <p>{{ _('Rooli, globaalit oikeudet, paikkakunnat ja organisaatioiden ylläpitäjyys myönnetään, muutetaan ja poistetaan Hallinnossa. Tässä näet voimassa olevat oikeudet.') }}</p>
+        </div>
+        <dl class="admin-rights-summary">
+          <div><dt>{{ _('Rooli') }}</dt><dd>{{ {'user': _('Käyttäjä'), 'translator': _('Kääntäjä'), 'city_admin': _('Kaupunkiadmin'), 'admin': _('Admin'), 'global_admin': _('Superkäyttäjä'), 'superuser': _('Superkäyttäjä'), 'god': _('Superkäyttäjä')}.get(user.role, user.role) }}</dd></div>
+          <div><dt>{{ _('Globaalit oikeudet') }}</dt><dd>
+            {% if global_permissions %}<ul>{% for perm in global_permissions|sort %}<li>{{ (permission_descriptions|default({})).get(perm, perm) }}</li>{% endfor %}</ul>
+            {% else %}{{ _('Ei globaaleja oikeuksia') }}{% endif %}
+          </dd></div>
+          <div><dt>{{ _('Paikkakunnat') }}</dt><dd>
+            {% if city_scope_names %}{{ city_scope_names|join(', ') }}
+            {% if city_scope_grant.permissions %}<ul>{% for permission in city_scope_grant.permissions %}<li>{{ city_permission_labels.get(permission, permission) }}</li>{% endfor %}</ul>{% endif %}
+            {% else %}{{ _('Ei paikkakuntakohtaisia oikeuksia') }}{% endif %}
+          </dd></div>
+          <div><dt>{{ _('Organisaatiot') }}</dt><dd>
+            {% if org_admin_memberships %}<ul>{% for membership in org_admin_memberships %}<li>{{ membership.name }} ({{ _('omistaja') if membership.role == 'owner' else _('ylläpitäjä') }})</li>{% endfor %}</ul>
+            {% else %}{{ _('Ei organisaatioiden ylläpitäjyyksiä') }}{% endif %}
+          </dd></div>
+        </dl>
+        <button type="button" class="btn btn-outline-secondary" id="rights-change-open" aria-haspopup="dialog" aria-controls="rights-change-dialog">
+          <i class="fas fa-landmark" aria-hidden="true"></i>{{ _('Muuta oikeuksia') }}
+        </button>
+        <dialog id="rights-change-dialog" class="admin-rights-dialog" aria-labelledby="rights-change-title">
+          <h2 id="rights-change-title">{{ _('Oikeudet muutetaan Hallinnossa') }}</h2>
+          <p>{{ _('Ylläpito-oikeuksien myöntäminen, muuttaminen ja poistaminen tehdään Hallinnossa. Siellä kirjataan päätös, perustelu ja voimassaoloaika, ja muutos näkyy täällä heti.') }}</p>
+          <p>{{ _('Tällä sivulla voit muuttaa vain käyttäjän perustietoja.') }}</p>
+          <div class="admin-rights-dialog__actions">
+            {% if hallinto_url %}<a class="btn btn-primary" href="{{ hallinto_url }}" target="_blank" rel="noopener">{{ _('Avaa Hallinto') }}</a>{% endif %}
+            <button type="button" class="btn btn-outline-secondary" id="rights-change-close">{{ _('Sulje') }}</button>
+          </div>
+        </dialog>
+        <script>
+        (() => {
+          const dialog = document.getElementById('rights-change-dialog');
+          document.getElementById('rights-change-open')?.addEventListener('click', () => dialog.showModal());
+          document.getElementById('rights-change-close')?.addEventListener('click', () => dialog.close());
+        })();
+        </script>
+      </section>
+      {% else %}
       <section class="admin-form-section">
         <div class="admin-form-section__header"><h2>{{ _('Rooli') }}</h2><p>{{ _('Rooli antaa oletusoikeudet. Erilliset oikeudet määritellään alempana.') }}</p></div>
         <div class="form-group admin-field">
@@ -230,6 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </section>
         {% endif %}
+      {% endif %}
 
         <div class="admin-sticky-actions">
             <a href="{{ url_for('admin_user.user_control') }}" class="btn btn-outline-secondary">{{ _('Peruuta')

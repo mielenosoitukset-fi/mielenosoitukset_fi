@@ -353,6 +353,9 @@ class User(UserMixin):
 
     @classmethod
     def from_db(cls, doc: dict) -> "User":
+        from mielenosoitukset_fi.utils.role_bundle_expiry import effective_role_permissions
+
+        role, global_permissions = effective_role_permissions(doc, DEFAULT_ROLE)
         return cls(
             user_id         = doc["_id"],
             username        = doc["username"],
@@ -370,8 +373,8 @@ class User(UserMixin):
             global_admin    = doc.get("global_admin", False)
                               or doc.get("role") in {"global_admin", "god", "superuser"},
             confirmed       = doc.get("confirmed", False),
-            global_permissions = doc.get("global_permissions", []),
-            role            = doc.get("role", DEFAULT_ROLE),
+            global_permissions = global_permissions,
+            role            = role,
             banned          = doc.get("banned", False),
             mfa_enabled     = doc.get("mfa_enabled", False),
             friends         = doc.get("friends", []),

@@ -343,6 +343,12 @@
               <input type="text" class="form-control" id="create-user-displayname" name="displayname" autocomplete="off">
               <small>{{ _('Näkyy käyttäjän nimenä hallinnassa.') }}</small>
             </div>
+            {% if rights_in_hallinto %}
+            <div class="create-user-field admin-field create-user-field-wide">
+              <input type="hidden" id="create-user-role" name="role" value="user">
+              <p class="admin-form-note" id="create-user-role-help">{{ _('Tili luodaan tavallisena käyttäjänä. Ylläpito-oikeudet myönnetään Hallinnossa.') }}</p>
+            </div>
+            {% else %}
             <div class="create-user-field admin-field create-user-field-wide">
               <label for="create-user-role">{{ _('Rooli') }} <span class="admin-required" aria-hidden="true">*</span></label>
               <select class="form-select" id="create-user-role" name="role" required aria-required="true" aria-describedby="create-user-role-help">
@@ -370,6 +376,7 @@
               </select>
               <small id="create-user-cities-help">{{ _('Valitse vähintään yksi paikkakunta. Kaupunkiadmin saa niiden mielenosoitusten käsittelyoikeudet.') }}</small>
             </div>
+            {% endif %}
             {% endif %}
           </div>
           <div id="create-user-status" class="create-user-status" aria-live="polite"></div>

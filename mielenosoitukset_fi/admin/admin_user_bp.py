@@ -37,6 +37,7 @@ from .city_grants import (
 )
 from .user_erasure import erase_user
 from mielenosoitukset_fi.utils.system_teams import SUPER_ROLES, team_ids, user_team_access
+from mielenosoitukset_fi.users.models import TRANSLATION_ONLY_PERMISSIONS
 from .user_history import (
     PENDING_HISTORY, MAX_PENDING_HISTORY,
     flush_user_history, history_event, history_query, present_history,
@@ -89,19 +90,63 @@ def protect_user_history_response(response):
     return response
 
 
+def _rights_in_hallinto() -> bool:
+    """Admin rights (role, global permissions, city grants) are decided in Hallinto.
+
+    While on, the site admin shows them read-only and its forms never write them.
+    """
+    return bool(current_app.config.get("ADMIN_RIGHTS_IN_HALLINTO", True))
+
+
+def _org_admin_memberships(user_id) -> list[dict]:
+    """Organisations where the user is admin or owner, for the read-only rights view."""
+    rows = list(mongo.memberships.find(
+        {"user_id": {"$in": [user_id, str(user_id)]}, "role": {"$in": ["admin", "owner"]}},
+        {"organization_id": 1, "role": 1},
+    ))
+    org_ids = []
+    for row in rows:
+        try:
+            org_ids.append(ObjectId(str(row.get("organization_id"))))
+        except (InvalidId, TypeError):
+            continue
+    names = {str(org["_id"]): org.get("name") for org in mongo.organizations.find({"_id": {"$in": org_ids}}, {"name": 1})}
+    return [
+        {"name": names.get(str(row.get("organization_id"))) or str(row.get("organization_id")), "role": row.get("role")}
+        for row in rows if str(row.get("organization_id")) in names
+    ]
+
+
+def _has_full_rights(user: dict) -> bool:
+    """Mirror ``User.has_full_permissions`` for a raw user document.
+
+    Governance-managed accounts get full rights only from approved national
+    team access; a stored flag or role does not count for them.
+    """
+    national = "national" in user_team_access(mongo, user["_id"])
+    if user.get("governance_managed"):
+        return national
+    return national or user.get("global_admin") is True or user.get("role") in SUPER_ROLES
+
+
 def _admin_scope_label_key(user: dict, *, has_city_grants: bool, is_org_admin: bool) -> str | None:
     """Say where an account's admin rights reach, for the user list role badge.
 
-    Organisation admins get ``role == "admin"`` too, so the role alone does not
-    mean site-wide rights; only global permissions or superuser access do.
+    Older organisation admins have ``role == "admin"`` too, so the role alone does
+    not mean site-wide rights; only global permissions or superuser access do.
     """
-    if user.get("global_admin") is True or user.get("role") in SUPER_ROLES:
+    if _has_full_rights(user):
         return "super"
+    if user.get("role") in SUPER_ROLES:
+        # A stored super role without governance approval gives no rights.
+        return "none"
     if user.get("role") != "admin":
+        # Organisation admin is shown from the membership, never stored on the account.
+        if user.get("role") in {None, "user", "member"} and is_org_admin and not has_city_grants:
+            return "org"
         return None
-    if "national" in user_team_access(mongo, user["_id"]):
-        return "super"
-    if user.get("global_permissions"):
+    if any(perm not in TRANSLATION_ONLY_PERMISSIONS and not str(perm).startswith("API_")
+           for perm in (user.get("global_permissions") or [])):
         return "site"
     if has_city_grants and is_org_admin:
         return "city_org"
@@ -211,7 +256,12 @@ def user_control():
         )
         if str(membership.get("organization_id")) not in system_team_org_ids
     }
+
+    from mielenosoitukset_fi.utils.role_bundle_expiry import effective_role_permissions
+
     for user in users:
+        # An expired role bundle no longer shows (or acts) as admin.
+        user["role"], user["global_permissions"] = effective_role_permissions(user, "user")
         if user.get("role") in {None, "user"} and str(user["_id"]) in scoped_user_ids:
             user["role"] = "city_admin"
         user["admin_scope"] = _admin_scope_label_key(
@@ -238,6 +288,7 @@ def user_control():
         user_summary=user_summary,
         visible_pages=visible_pages,
         can_manage_scope_grants=_can_manage_scope_grants(current_user),
+        rights_in_hallinto=_rights_in_hallinto(),
         city_list=CITY_LIST,
         enabled_city_list=enabled_city_names(mongo),
         city_name_to_key=CITY_NAME_TO_KEY,
@@ -504,6 +555,10 @@ def edit_user(user_id):
             ),
             "forced_identity_change": request.form.get("forced_identity_change") == "on",
         }
+        if _rights_in_hallinto():
+            # Rights are decided in Hallinto; this form never writes them.
+            incoming["role"] = current["role"]
+            incoming["global_permissions"] = current["global_permissions"]
         _check_user_assignment(current_user, incoming["role"], incoming["global_permissions"], user)
 
         # ─── validoinnit ────────────────────────────────────────────────────────
@@ -586,7 +641,7 @@ def edit_user(user_id):
         else:
             flash_message("Mitään ei muutettu.", "info")
 
-        if _can_manage_scope_grants(current_user):
+        if _can_manage_scope_grants(current_user) and not _rights_in_hallinto():
             city_scope_keys = request.form.getlist("admin_scope_cities[]")
             city_scope_permissions = request.form.getlist("admin_scope_permissions[city][]")
             _sync_city_scope_grant(user._id, city_scope_keys, city_scope_permissions)
@@ -604,6 +659,9 @@ def edit_user(user_id):
         permission_category_labels=PERMISSION_CATEGORY_LABELS if str(get_locale()) == "fi" else {},
         permission_descriptions=PERMISSION_DESCRIPTIONS if str(get_locale()) == "fi" else {},
         global_permissions=user.global_permissions,
+        rights_in_hallinto=_rights_in_hallinto(),
+        hallinto_url=current_app.config.get("HALLINTO_URL"),
+        org_admin_memberships=_org_admin_memberships(user._id),
         can_change_status=can_change_account_status(current_user, user),
         can_manage_scope_grants=_can_manage_scope_grants(current_user),
         city_list=CITY_LIST,
@@ -689,6 +747,10 @@ def save_user(user_id):
     role = request.form.get("role")
     confirmed = request.form.get("confirmed") == "on"
     global_permissions = _normalize_role_permissions(role, request.form.getlist("permissions[global][]"))
+    if _rights_in_hallinto():
+        # Rights are decided in Hallinto; this form never writes them.
+        role = user.role
+        global_permissions = list(user.global_permissions or [])
     forced_identity_change = request.form.get("forced_identity_change") == "on"
     _check_user_assignment(current_user, role, global_permissions, user)
 
@@ -778,7 +840,7 @@ def save_user(user_id):
         flash_message("Käyttäjänimi tai sähköpostiosoite on jo käytössä.", "error")
         return redirect(url_for("admin_user.edit_user", user_id=user_id))
 
-    if _can_manage_scope_grants(current_user):
+    if _can_manage_scope_grants(current_user) and not _rights_in_hallinto():
         _sync_city_scope_grant(
             user._id, request.form.getlist("admin_scope_cities[]"),
             request.form.getlist("admin_scope_permissions[city][]"),
@@ -1010,6 +1072,12 @@ def create_user():
         return redirect(request.referrer or url_for("admin_user.user_control"))
     if is_reserved_identity_name(displayname):
         flash_message("Admin-nimitys on varattu palvelun sisäiseen käyttöön.", "error")
+        return redirect(request.referrer or url_for("admin_user.user_control"))
+
+    if _rights_in_hallinto() and (
+        role != "user" or data.get("admin_scope_cities") or request.form.getlist("admin_scope_cities[]")
+    ):
+        flash_message("Ylläpito-oikeudet myönnetään Hallinnossa. Luo tili tavallisena käyttäjänä.", "error")
         return redirect(request.referrer or url_for("admin_user.user_control"))
 
     # Basic validation

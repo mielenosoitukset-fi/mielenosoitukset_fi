@@ -1,0 +1,154 @@
+{% extends 'admin_base.html' %}
+{% from 'admin_V2/macros.html' import admin_page_hero %}
+{% block title %}{{ page_title }} – Mielenosoitukset.fi{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/users.css', v='20261121-hallinto-approve') }}">{% endblock %}
+{% block main_content %}
+<section class="admin-page admin-workspace hallinto-approve">
+  {{ admin_page_hero(page_title, 'Hallinnossa hyväksytty päätös tulee voimaan vasta, kun vahvistat sen tässä.' if (is_end or is_order) else 'Hallinnossa hyväksytty nimitys tulee voimaan vasta, kun vahvistat sen tässä.', 'Hallinto', [('Hallintapaneeli', url_for('admin.admin_dashboard')), (page_title, none)], back_url=hallinto_url, back_label='Takaisin Hallintoon') }}
+  <section class="admin-form-section" aria-labelledby="approve-terms-heading">
+    <div class="admin-form-section__header">
+      <span class="admin-form-section__icon"><i class="fas fa-user-shield" aria-hidden="true"></i></span>
+      <div>
+        <h2 id="approve-terms-heading">{{ 'Hallitustiimi' if fields.kind == 'board_roster' else 'Roolin pysyvä poisto' if is_order else ('Roolipaketti: ' ~ bundle_label) if is_bundle else 'Kaupunkiadmin' }}</h2>
+        <p>{{ 'Hallinnossa hyväksytty päätös' if (is_end or is_order) else 'Hallinnossa hyväksytyt ehdot' }}</p>
+      </div>
+    </div>
+    <div class="admin-form-section__body">
+    {% if is_order %}
+    <dl class="admin-message-meta">
+      {% if fields.kind == 'role_removal' %}
+      <div><dt>Käyttäjä</dt><dd>{{ account.displayname or account.username }}{% if account.displayname and account.username %} ({{ account.username }}){% endif %}</dd></div>
+      <div><dt>Rooli</dt><dd>{{ fields.role }}</dd></div>
+      {% else %}
+      <div><dt>Jäseniä</dt><dd>{{ roster_names|length }}</dd></div>
+      {% endif %}
+      <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
+    </dl>
+    {% if fields.kind == 'board_roster' %}
+    <p>Flaskin hallitustiimistä tulee täsmälleen tämä joukko: {{ roster_names|join(', ') }}.</p>
+    <p>Lisätään: {{ added_names|join(', ') if added_names else 'ei kukaan' }}.</p>
+    <p>Poistetaan tiimistä: {{ removed_names|join(', ') if removed_names else 'ei kukaan' }}.</p>
+    {% endif %}
+    {% else %}
+    <dl class="admin-message-meta">
+      <div><dt>Käyttäjä</dt><dd>{{ account.displayname or account.username }}{% if account.displayname and account.username %} ({{ account.username }}){% endif %}</dd></div>
+      {% if is_bundle %}<div><dt>Paketti</dt><dd>{{ bundle_label }}</dd></div>{% else %}<div><dt>Kaupunki</dt><dd>{{ city_name }}</dd></div>{% endif %}
+      <div>{% if is_end %}<dt>Toimenpide</dt><dd>{{ 'Nimityksen peruminen' if fields.kind == 'revoke' else 'Nimityksen jäädytys' }}</dd>{% else %}<dt>Voimassa</dt><dd>{{ last_day }} asti</dd>{% endif %}</div>
+      <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
+    </dl>
+    {% endif %}
+    {% if is_order %}
+    <p class="mb-0">{% if fields.kind == 'role_removal' and fields.role == 'city_admin' %}Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% elif fields.kind == 'role_removal' %}Käyttäjä menettää roolin pysyvästi, ja hänen istuntonsa ja avaimensa mitätöidään.{% else %}Tiimistä poistetaan ne, jotka eivät ole listalla. Yksi vahvistus voi poistaa enintään puolet tiimistä.{% endif %}</p>
+    {% elif is_bundle and is_end %}
+    <p class="mb-0">Käyttäjän roolipaketin oikeudet poistetaan heti, ja hän palaa tavalliseksi käyttäjäksi.{% if fields.kind == 'freeze' %} Jäädytys päättyy vasta uudella nimityspäätöksellä.{% endif %}</p>
+    {% elif is_bundle %}
+    <p>Käyttäjä saa täsmälleen nämä oikeudet. Aiempi roolipaketti korvataan.</p>
+    <ul class="mb-0">{% for text in permission_copy %}<li>{{ text }}</li>{% endfor %}</ul>
+    {% elif is_end %}
+    <p class="mb-0">Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% if fields.kind == 'freeze' %} Jäädytys päättyy vasta uudella nimityspäätöksellä.{% endif %}</p>
+    {% else %}
+    <p class="mb-0">Käyttäjä saa kaupungin mielenosoitusten ja asioiden käsittelyoikeudet.{% if fields.allow_city_enablement %} Jos kaupunki ei ole vielä käytössä, se otetaan käyttöön.{% endif %}</p>
+    {% endif %}
+    {% if not eligible %}<div class="alert alert-warning mb-0" role="alert">Käyttäjälle ei voi antaa tätä nimitystä nyt: hänellä on jo ylläpito-oikeuksia tai käyttäjätili ei ole käytössä. Nimitystä ei voi vahvistaa.</div>{% endif %}
+    </div>
+  </section>
+
+  <form method="post" action="{{ url_for('hallinto_city_grant_approval.approve_confirm') }}" id="approveForm" class="hallinto-approve-actions{% if not (elevated and eligible) %} d-none{% endif %}">
+    <input type="hidden" name="r" value="{{ raw }}">
+    <input type="hidden" name="state" value="{{ state_param }}">
+    {% if elevated and eligible %}
+    <button type="submit" class="workflow-button btn btn-primary"><i class="fas fa-check" aria-hidden="true"></i>{{ 'Vahvista' if is_order else 'Vahvista päättäminen' if is_end else 'Vahvista nimitys' }}</button>
+    <a class="workflow-button btn btn-outline-secondary" href="{{ hallinto_url }}">Peruuta</a>
+    {% endif %}
+  </form>
+
+  {% if eligible and not elevated %}
+  {% if not has_passkey and not has_totp %}
+  <div class="alert alert-warning mb-0" role="alert">
+    Nimityksen vahvistaminen vaatii passkeyn tai kaksivaiheisen tunnistautumisen.
+    <a href="{{ url_for('users.auth.settings') }}">Lisää passkey asetuksissa</a> ja palaa sitten Hallintoon.
+  </div>
+  {% else %}
+  <section class="workflow-step-up" aria-labelledby="stepUpTitle">
+    <div class="workflow-step-up-heading">
+      <span class="workflow-heading-icon"><i class="fas fa-shield-halved" aria-hidden="true"></i></span>
+      <div>
+        <h2 class="h6" id="stepUpTitle">Vahvista henkilöllisyytesi</h2>
+        <p>Vahvistus on voimassa 15 minuuttia.</p>
+      </div>
+    </div>
+    <div class="workflow-status" id="stepUpStatus" role="status" aria-live="polite"></div>
+    {% if has_passkey %}
+    <button type="button" class="workflow-button workflow-step-up-passkey btn btn-outline-primary" id="stepUpPasskeyBtn">
+      <i class="fas fa-key" aria-hidden="true"></i>Vahvista passkeyllä
+    </button>
+    {% endif %}
+    {% if has_totp %}
+    {% if has_passkey %}<div class="workflow-step-up-divider" role="separator"><span>tai</span></div>{% endif %}
+    <form id="stepUpPasswordForm" class="workflow-step-up-form">
+      <div class="admin-field">
+        <label for="stepUpPassword">Salasana</label>
+        <input type="password" id="stepUpPassword" class="form-control" autocomplete="current-password" required>
+      </div>
+      <div class="admin-field">
+        <label for="stepUpTotp">MFA-koodi</label>
+        <input type="text" id="stepUpTotp" class="form-control" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" required>
+      </div>
+      <button type="submit" class="workflow-button btn btn-primary" id="stepUpPasswordBtn">
+        <i class="fas fa-lock" aria-hidden="true"></i>Vahvista ja jatka
+      </button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+  {% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+{% if eligible and not elevated and (has_passkey or has_totp) %}
+<script src="{{ url_for('static', filename='js/webauthn.js') }}"></script>
+<script>
+  (function () {
+    const status = document.getElementById('stepUpStatus');
+    const confirmForm = document.getElementById('approveForm');
+    function fail(message) { status.textContent = message; status.classList.add('danger'); }
+    async function json(response) {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.status !== 'success') { throw Object.assign(new Error(data.message || 'Vahvistus epäonnistui.'), { data }); }
+      return data;
+    }
+    const passkey = document.getElementById('stepUpPasskeyBtn');
+    if (passkey) {
+      if (!(window.PublicKeyCredential && navigator.credentials)) { passkey.hidden = true; }
+      passkey.addEventListener('click', async () => {
+        passkey.disabled = true;
+        try {
+          const options = await json(await fetch('/users/auth/api/v2/step-up/webauthn/options', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }));
+          const credential = await navigator.credentials.get({ publicKey: decodePublicKeyOptions(options.options) });
+          await json(await fetch('/users/auth/api/v2/step-up/webauthn/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential: formatAssertionCredential(credential) }) }));
+          confirmForm.submit();
+        } catch (err) {
+          fail(err.name === 'NotAllowedError' ? 'Passkey-vahvistus keskeytettiin. Yritä uudelleen.' : err.message);
+          passkey.disabled = false;
+        }
+      });
+    }
+    const passwordForm = document.getElementById('stepUpPasswordForm');
+    if (passwordForm) {
+      passwordForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = document.getElementById('stepUpPasswordBtn');
+        button.disabled = true;
+        try {
+          await json(await fetch('/users/auth/api/v2/step-up/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: document.getElementById('stepUpPassword').value, totp_code: document.getElementById('stepUpTotp').value.trim() }) }));
+          confirmForm.submit();
+        } catch (err) {
+          fail(err.message);
+          button.disabled = false;
+        }
+      });
+    }
+  }());
+</script>
+{% endif %}
+{% endblock %}

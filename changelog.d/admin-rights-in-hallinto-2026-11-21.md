@@ -1,0 +1,1 @@
+- Site admin no longer edits admin rights. The user page shows the account's role, global permissions, city rights and organisation admin roles read-only, and "Muuta oikeuksia" explains that rights change in Hallinto. New accounts are created as plain users. `ADMIN_RIGHTS_IN_HALLINTO: false` restores the old editing; `HALLINTO_URL` adds an "Avaa Hallinto" link.

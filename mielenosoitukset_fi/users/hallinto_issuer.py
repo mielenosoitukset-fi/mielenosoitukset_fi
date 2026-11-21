@@ -102,6 +102,34 @@ _ACCOUNT_SEARCH_LIMIT = 10
 # "unconfirmed" stays hidden until the applicant has opened the mailed link.
 _ORG_REQUEST_STATUSES = ("received", "verifying", "in_review", "needs_info", "approved", "rejected", "withdrawn")
 _ACCOUNT_LOOKUP_LIMIT = 100
+_ORG_REQUEST_MAILS = {
+    "approved": "Organisaatiotilihakemuksesi on hyväksytty",
+    "rejected": "Organisaatiotilihakemuksesi on hylätty",
+    "needs_info": "Organisaatiotilihakemuksesi tarvitsee lisätietoja",
+}
+
+
+def _mail_org_request_status(db, row, status):
+    """Tell the applicant about a decision on their organization request. Best
+    effort: the status is already saved, so a failed mail is only logged."""
+    try:
+        applicant = row.get("applicant") or {}
+        email = applicant.get("email")
+        if not email and applicant.get("user_id"):
+            account = db.users.find_one({"_id": applicant["user_id"]}, {"email": 1})
+            email = (account or {}).get("email")
+        if not email:
+            return
+        invite_sender().queue_email(
+            template_name="org_request_status.html",
+            subject=_ORG_REQUEST_MAILS[status],
+            recipients=[email],
+            context={"applicant_name": applicant.get("name") or "", "status": status,
+                     "organization_name": (row.get("organization") or {}).get("name") or "",
+                     "message": row.get("status_message") or ""},
+        )
+    except Exception:
+        logging.getLogger(__name__).exception("Organization request status email failed")
 _invite_sender = None
 
 
@@ -416,9 +444,9 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         request.max_content_length = 4096
         return auth.create_token_response()
 
-    def client_payload():
+    def client_payload(limit=4096):
         """Authenticate the Hallinto client and read its JSON object body."""
-        request.max_content_length = 4096
+        request.max_content_length = limit
         credentials = request.authorization
         if (not credentials or credentials.type != "basic"
                 or unquote_plus(credentials.username or "") != client.client_id
@@ -436,17 +464,38 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             return error
         return jsonify(active=bool(_live_marker(db, markers, payload.get("sid"), payload.get("sub"))))
 
-    def admin_payload():
+    def admin_payload(limit=4096):
         """Require the client and a live Hallinto sign-in of an admin account."""
-        payload, error = client_payload()
+        payload, error = client_payload(limit)
         if error:
             return None, error
         if not _live_marker(db, markers, payload.get("sid"), payload.get("sub")):
             return None, (jsonify(error="access_denied"), 403)
-        actor = db.users.find_one({"_id": ObjectId(payload["sub"])}, {"role": 1, "global_admin": 1})
-        if not actor or not (actor.get("global_admin") or actor.get("role") in _ACCOUNT_LOOKUP_ROLES):
+        actor = db.users.find_one({"_id": ObjectId(payload["sub"])},
+                                  {"role": 1, "global_admin": 1, "global_permissions": 1, "role_bundle": 1})
+        # An expired role bundle no longer makes the account an admin.
+        from mielenosoitukset_fi.utils.role_bundle_expiry import effective_role_permissions
+        role = effective_role_permissions(actor, "user")[0] if actor else None
+        if not actor or not (actor.get("global_admin") or role in _ACCOUNT_LOOKUP_ROLES):
             return None, (jsonify(error="access_denied"), 403)
         return payload, None
+
+    @bp.post("/moderation-blocks/sync")
+    def moderation_blocks_sync():
+        """Store the organizer bans and publishing precedents Hallinto recorded.
+
+        Hallinto decides; this site enforces. Needs a signed-in admin, and
+        storing by id makes repeating it harmless."""
+        from mielenosoitukset_fi.utils import moderation_blocks
+
+        payload, error = admin_payload(256 * 1024)
+        if error:
+            return error
+        try:
+            stored = moderation_blocks.sync(db, payload.get("items"))
+        except ValueError:
+            return jsonify(error="invalid_request"), 400
+        return jsonify(stored=stored)
 
     @bp.post("/city-admin-applications/list")
     def city_admin_applications_list():
@@ -652,6 +701,8 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             "represents": bool(row.get("represents")), "access": row.get("access"),
             "invite_email": row.get("invite_email"), "onboarding": bool(row.get("onboarding")),
             "status_message": row.get("status_message"), "case": row.get("hallinto_case"),
+            "organization_id": str(row["organization_id"]) if row.get("organization_id") else None,
+            "owner_state": row.get("owner_state"), "logo_state": row.get("logo_state"),
             "created_at": stamp(row.get("created_at")), "updated_at": stamp(row.get("updated_at")),
         }
 
@@ -667,6 +718,89 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             {"status_token_hash": 0, "logo.data": 0},
         ).sort("created_at", -1).limit(100)
         return jsonify(items=[_org_request_view(row) for row in rows])
+
+    @bp.post("/organization-requests/create")
+    def organization_requests_create():
+        """A request typed in by a Hallinto member (Lomakkeet), so one that came by
+        phone, mail or a meeting is handled in the same process as the web form's.
+        It becomes an ordinary `received` request; the applicant has no status link
+        and no account is linked. Hallinto decides who may enter requests."""
+        from urllib.parse import urlsplit as _split
+
+        from mielenosoitukset_fi.utils.cities import normalize_city_key, valid_city_key
+
+        payload, error = admin_payload()
+        if error:
+            return error
+
+        def text(key, low, high):
+            value = payload.get(key)
+            value = value.strip() if isinstance(value, str) else ""
+            return value if low <= len(value) <= high else None
+
+        name, applicant_name = text("name", 2, 120), text("applicant_name", 2, 120)
+        description, role = text("description", 0, 1500), text("applicant_role", 0, 120)
+        if name is None or applicant_name is None or description is None or role is None:
+            return jsonify(error="invalid_request"), 400
+        represents = payload.get("represents") is True
+        links, raw_links = [], payload.get("links")
+        if not isinstance(raw_links, list):
+            return jsonify(error="invalid_request"), 400
+        for value in raw_links:
+            value = value.strip() if isinstance(value, str) else ""
+            if not value:
+                continue
+            value = value if "://" in value else "https://" + value
+            parts = _split(value)
+            if (parts.scheme not in ("http", "https") or not parts.hostname or "." not in parts.hostname
+                    or parts.username or len(value) > 300):
+                return jsonify(error="invalid_link"), 400
+            if parts.geturl() not in links:
+                links.append(parts.geturl())
+        if not 1 <= len(links) <= 5:
+            return jsonify(error="invalid_link"), 400
+        org = {"name": name, "links": links, "description": description}
+        org_email = normalize_email(payload.get("email") or "")
+        if org_email:
+            if len(org_email) > 254 or not valid_email(org_email):
+                return jsonify(error="invalid_email"), 400
+            org["email"] = org_email
+        business_id = (payload.get("business_id") or "").strip() if isinstance(payload.get("business_id"), str) else ""
+        if business_id:
+            if not re.fullmatch(r"\d{7}-\d", business_id):
+                return jsonify(error="invalid_business_id"), 400
+            org["business_id"] = business_id
+        city = (payload.get("city") or "").strip() if isinstance(payload.get("city"), str) else ""
+        if city:
+            if not valid_city_key(normalize_city_key(city)):
+                return jsonify(error="invalid_city"), 400
+            org["city"] = normalize_city_key(city)
+        applicant = {"name": applicant_name, "role": role}
+        applicant_email = normalize_email(payload.get("applicant_email") or "")
+        if applicant_email:
+            if len(applicant_email) > 254 or not valid_email(applicant_email):
+                return jsonify(error="invalid_email"), 400
+            applicant["email"] = applicant_email
+        now = utcnow()
+        row = {"organization": org, "applicant": applicant, "represents": represents,
+               "onboarding": payload.get("onboarding") is True, "status": "received",
+               "created_at": now, "updated_at": now, "email_confirmed_at": now,
+               "source": "hallinto-manual", "entered_by": payload["sub"], "case_pending": False,
+               "history": [{"status": "received", "at": now, "by": payload["sub"]}]}
+        if represents:
+            access = payload.get("access")
+            # An own account needs a signed-in applicant, which a typed-in request has not.
+            if access not in ("organization_account", "invite") or (access == "organization_account" and "email" not in org):
+                return jsonify(error="invalid_access"), 400
+            row["access"] = access
+            if access == "invite":
+                invite_email = normalize_email(payload.get("invite_email") or "")
+                if not invite_email or len(invite_email) > 254 or not valid_email(invite_email):
+                    return jsonify(error="invalid_email"), 400
+                row["invite_email"] = invite_email
+        inserted = db.organization_requests.insert_one(row)
+        row["_id"] = inserted.inserted_id
+        return jsonify(item=_org_request_view(row)), 201
 
     @bp.post("/organization-requests/update")
     def organization_requests_update():
@@ -697,15 +831,88 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
                     return jsonify(error="invalid_request"), 400
                 update["invite_email"] = invite_email
             update["access"] = access
+        flt = {"_id": ObjectId(request_id), "status": {"$in": list(_ORG_REQUEST_STATUSES)},
+               **({"represents": True} if access else {})}
+        projection = {"status_token_hash": 0, "logo.data": 0}
+        before = db.organization_requests.find_one(flt, projection)
+        if not before:
+            return jsonify(error="not_found"), 404
+        # A closed request stays closed: approved, rejected and withdrawn never change.
+        if before.get("status") in ("approved", "rejected", "withdrawn") and before.get("status") != status:
+            return jsonify(error="request_closed"), 409
+        # A repeat of the same step changes nothing: no second history entry, no second mail.
+        unchanged = (before.get("status") == status
+                     and (message is None or before.get("status_message") == update["status_message"])
+                     and (not case or before.get("hallinto_case") == case)
+                     and (not access or (before.get("access") == access
+                                         and (access != "invite" or before.get("invite_email") == update["invite_email"]))))
+        if unchanged:
+            return jsonify(item=_org_request_view(before))
         row = db.organization_requests.find_one_and_update(
-            {"_id": ObjectId(request_id), "status": {"$in": list(_ORG_REQUEST_STATUSES)},
-             **({"represents": True} if access else {})},
+            {**flt, "status": before.get("status")},
             {"$set": update, "$push": {"history": {"status": status, "at": update["updated_at"],
                                                    "by": payload["sub"], "access": access}}},
-            projection={"status_token_hash": 0, "logo.data": 0}, return_document=True,
+            projection=projection, return_document=True,
         )
         if not row:
             return jsonify(error="not_found"), 404
+        if before.get("status") != status and status in _ORG_REQUEST_MAILS:
+            _mail_org_request_status(db, row, status)
         return jsonify(item=_org_request_view(row))
+
+    @bp.post("/organization-requests/create-organization")
+    def organization_requests_create_organization():
+        """Carry out an approved request (slice O4): create the organization, copy
+        the logo and give the owner access as the request's access choice says.
+        Idempotent: a repeat finishes the steps that are missing. Hallinto has
+        decided; this only needs the request to be approved by the named case."""
+        from flask import current_app
+
+        from mielenosoitukset_fi.utils.org_request_owner import OwnerError, create_for_request
+        from mielenosoitukset_fi.utils.s3 import upload_image_fileobj
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        actor = User.from_db(db.users.find_one({"_id": ObjectId(payload["sub"])}))
+        if not (actor.has_full_permissions() or "CREATE_ORGANIZATION" in (actor.global_permissions or [])):
+            return jsonify(error="access_denied"), 403
+        request_id, case = payload.get("id"), payload.get("case")
+        if (not isinstance(request_id, str) or not _ACCOUNT_ID.fullmatch(request_id)
+                or not isinstance(case, str) or not 0 < len(case) <= 64):
+            return jsonify(error="invalid_request"), 400
+        row = db.organization_requests.find_one({"_id": ObjectId(request_id)}, {"status_token_hash": 0})
+        if not row:
+            return jsonify(error="not_found"), 404
+        base = f"{origin.scheme}://{origin.netloc}"
+
+        def send_invite(email, context):
+            invite_sender().queue_email(
+                template_name="invite_to_organization.html",
+                subject=f"Kutsu liittyä organisaatioon {context['organization_name']}",
+                recipients=[email],
+                context={"invite_url": base + url_for("users.user_orgs.accept_invite",
+                                                      organization_id=context["organization_id"]),
+                         "inviter_name": "Mielenosoitukset.fi",
+                         "organization_name": context["organization_name"]})
+
+        def send_account_invite(user_doc, email):
+            invite_sender().queue_email(
+                template_name="hallinto_account_invite.html",
+                subject="Organisaatiollesi on luotu tili mielenosoitukset.fi-palveluun",
+                recipients=[email],
+                context={"user_name": user_doc.get("displayname") or user_doc["username"],
+                         "username": user_doc["username"],
+                         "reset_url": base + url_for("users.auth.password_reset", token=generate_reset_token(email)),
+                         "reset_request_url": base + url_for("users.auth.password_reset_request")})
+
+        try:
+            result = create_for_request(
+                db, row, actor_id=payload["sub"], case=case, now=utcnow(),
+                send_invite=send_invite, send_account_invite=send_account_invite,
+                upload=upload_image_fileobj, bucket=current_app.config.get("S3_BUCKET"))
+        except OwnerError as failure:
+            return jsonify(error=failure.code), failure.status
+        return jsonify(**result)
 
     app.register_blueprint(bp)

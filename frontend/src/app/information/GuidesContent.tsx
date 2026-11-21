@@ -222,27 +222,26 @@ export function GuidesContent() {
 
             <div className="guide-org-grid">
               <div>
-                <h3>Lähetä tukeen</h3>
+                <h3>Täytä lomake</h3>
                 <ul className="guide-compact-list">
-                  <li><i className="fas fa-check" aria-hidden="true" /> organisaation nimi</li>
-                  <li><i className="fas fa-check" aria-hidden="true" /> virallinen sähköpostiosoite</li>
+                  <li><i className="fas fa-check" aria-hidden="true" /> organisaation nimi ja julkinen sähköpostiosoite</li>
                   <li><i className="fas fa-check" aria-hidden="true" /> verkkosivu ja somekanavat</li>
                   <li><i className="fas fa-check" aria-hidden="true" /> lyhyt kuvaus toiminnasta</li>
-                  <li><i className="fas fa-check" aria-hidden="true" /> kutsuttavien henkilöiden nimet ja sähköpostit</li>
+                  <li><i className="fas fa-check" aria-hidden="true" /> miten tiliä hallitaan</li>
                 </ul>
               </div>
               <div className="guide-org-process">
                 <h3>Mitä tapahtuu seuraavaksi?</h3>
                 <ol>
-                  <li><span>1</span><p>Lähetät tiedot sähköpostitse.</p></li>
-                  <li><span>2</span><p>Luomme profiilin ja lisäämme kutsut.</p></li>
-                  <li><span>3</span><p>Saat sähköpostin, kun profiili on valmis.</p></li>
+                  <li><span>1</span><p>Täytät lomakkeen. Kirjautumista ei tarvita.</p></li>
+                  <li><span>2</span><p>Varmistamme, että organisaatio on hakemuksen takana.</p></li>
+                  <li><span>3</span><p>Kun hakemus hyväksytään, lähetämme kutsun tilin käyttöön ottamiseen.</p></li>
                 </ol>
               </div>
             </div>
-            <a className="guide-button guide-button-primary" href="mailto:tuki@mielenosoitukset.fi?subject=Organisaatiotili">
-              <i className="fas fa-envelope" aria-hidden="true" />
-              Pyydä organisaatiotiliä
+            <a className="guide-button guide-button-primary" href="/organisaatiot/hae">
+              <i className="fas fa-users" aria-hidden="true" />
+              Hae organisaatiotiliä
             </a>
           </section>
 

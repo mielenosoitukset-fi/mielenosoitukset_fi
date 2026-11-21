@@ -76,6 +76,22 @@ during route imports or application migrations. A failure stops deployment
 before reloading workers. Operators using a different deployment entrypoint
 must run this idempotent command before starting replacement workers.
 
+Before the reload the script also installs the backup units
+(`deploy/backup/install_units.sh`, which may create or tighten host directories)
+and then runs `deploy/check_service_config_files.py <service>`. The check reads
+the unit's `User` and every `*_CONFIG_FILE` variable from `systemctl show`
+(drop-ins included) and confirms, with `runuser`, that the service user can read
+each file. A miss stops the deploy before the HUP, so the old workers keep
+serving. Without it a worker that cannot open its config fails to boot, Gunicorn
+halts and takes the old workers with it, and systemd restarts it in a loop (the
+21 November 2026 outage). Boot errors name the failing exception class, for
+example `Hallinto city grant configuration is invalid (PermissionError)`, but
+never paths or values.
+
+Keep each service secret in its own directory, owned by the service user. Do not
+put Flask config files in `/etc/mielenosoitukset`: that is the root-only (0700)
+backup secret directory, and every deploy resets its mode.
+
 Configure the GitHub `production` environment with:
 
 - variables `PRODUCTION_SSH_HOST` and `PRODUCTION_SSH_USER`

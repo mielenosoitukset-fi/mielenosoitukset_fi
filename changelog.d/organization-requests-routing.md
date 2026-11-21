@@ -1,0 +1,1 @@
+- Organization account requests open: the form at /organisaatiot/hae and the status page are routed to the new React pages and Go API.

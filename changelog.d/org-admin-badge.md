@@ -1,0 +1,2 @@
+- Admin user list shows "Organisaatioadmin" for anyone who is admin or owner of an organisation without site-wide or city rights. It is read from the organisation membership; the account role is not changed.
+- The "Superkäyttäjä" badge now follows real full rights: a governance-managed account needs approved national team access, and a stored flag or role alone no longer shows it.

@@ -47,6 +47,123 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unsupported' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /internal/hallinto/v1/city-appointment-ends:
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      operationId: endCityAppointment
+      summary: Revoke or freeze a confirmed appointment at once. Idempotent.
+      security: [{ workload: [], actorProof: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/End' }
+      responses:
+        '200':
+          description: Effective access after the end, or replay of a durable receipt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EndReceipt' }
+        '202':
+          description: Durable pending result, including an unresolved partial operation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EndPendingReceipt' }
+        '403': { $ref: '#/components/responses/Denied' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unsupported' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /internal/hallinto/v1/orders:
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      operationId: applyOrder
+      summary: Carry out a board roster or role removal order. Idempotency-Key is the order id.
+      security: [{ workload: [], actorProof: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - { $ref: '#/components/schemas/BoardRosterOrder' }
+                - { $ref: '#/components/schemas/RoleRemovalOrder' }
+      responses:
+        '200':
+          description: Confirmed order, or replay of a durable receipt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderReceipt' }
+        '202':
+          description: Durable pending result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderPendingReceipt' }
+        '403': { $ref: '#/components/responses/Denied' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unsupported' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /internal/hallinto/v1/role-bundles:
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      operationId: applyRoleBundle
+      summary: Give one account exactly one role bundle (translator_v1, api_access_v1, admin_v1). Idempotency-Key is the appointment id.
+      security: [{ workload: [], actorProof: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [account_id, template, decision_id, decision_revision, valid_until, expected_state, authority_attestation]
+              properties:
+                account_id: { type: string }
+                template: { type: string, enum: [translator_v1, api_access_v1, admin_v1] }
+                decision_id: { type: string }
+                decision_revision: { type: integer, minimum: 1 }
+                valid_until: { type: string, description: RFC 3339 UTC with seconds }
+                expected_state: { type: string }
+                authority_attestation: { type: string, description: Ed25519 over the context hallinto-role-bundle-v1-attestation and the intent digest }
+      responses:
+        '200': { description: 'Confirmed receipt; effective holds role, city "", sorted permissions and valid_until' }
+        '202': { description: Durable pending result }
+        '403': { $ref: '#/components/responses/Denied' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unsupported' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /internal/hallinto/v1/role-bundles/{appointment_id}/end:
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - { name: appointment_id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: endRoleBundle
+      summary: Revoke or freeze the bundle an appointment wrote, at once. Idempotent.
+      security: [{ workload: [], actorProof: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [appointment_id, kind, account_id, template, decision_id, decision_revision, authority_attestation]
+              properties:
+                appointment_id: { type: string, description: Must equal the path }
+                kind: { type: string, enum: [revoke, freeze] }
+                account_id: { type: string }
+                template: { type: string, enum: [translator_v1, api_access_v1, admin_v1] }
+                decision_id: { type: string }
+                decision_revision: { type: integer, minimum: 1 }
+                authority_attestation: { type: string, description: Ed25519 over the context hallinto-role-bundle-end-v1-attestation and the intent digest }
+      responses:
+        '200': { description: 'Confirmed receipt; effective holds role, permissions, global_admin and bundle' }
+        '202': { description: Durable pending result }
+        '403': { $ref: '#/components/responses/Denied' }
+        '422': { $ref: '#/components/responses/Unsupported' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /internal/hallinto/v1/operations/by-key:
     parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
@@ -195,3 +312,109 @@ components:
             effective: { $ref: '#/components/schemas/Scope' }
             resulted_in_city_enablement: { type: boolean }
       unevaluatedProperties: false
+    End:
+      type: object
+      additionalProperties: false
+      required: [appointment_id, kind, account_id, city, template, decision_id, decision_revision, authority_attestation]
+      properties:
+        appointment_id: { $ref: '#/components/schemas/NonEmptyID', description: Idempotency-Key of the original appointment }
+        kind: { enum: [revoke, freeze] }
+        account_id: { $ref: '#/components/schemas/AccountID' }
+        city: { $ref: '#/components/schemas/CityKey' }
+        template: { const: city_admin_v1 }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        authority_attestation: { type: string, minLength: 1, maxLength: 16384 }
+    EndReceiptIdentity:
+      type: object
+      required: [operation_id, account_id, decision_id, decision_revision, appointment_id, kind]
+      properties:
+        operation_id: { $ref: '#/components/schemas/NonEmptyID' }
+        account_id: { $ref: '#/components/schemas/AccountID' }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        appointment_id: { $ref: '#/components/schemas/NonEmptyID' }
+        kind: { enum: [revoke, freeze] }
+    EndPendingReceipt:
+      allOf:
+        - $ref: '#/components/schemas/EndReceiptIdentity'
+        - type: object
+          required: [status]
+          properties:
+            status: { enum: [pending, reconciliation_required] }
+      unevaluatedProperties: false
+    EndReceipt:
+      allOf:
+        - $ref: '#/components/schemas/EndReceiptIdentity'
+        - type: object
+          required: [status, checked_at, effective]
+          properties:
+            status: { const: confirmed }
+            checked_at: { type: string, format: date-time }
+            effective:
+              type: object
+              description: Everything the account still has after the end, not only the ended city.
+              required: [cities, permissions, role, global_admin, governance_managed, other_scope_types]
+              properties:
+                global_admin: { type: boolean }
+                governance_managed: { type: boolean }
+                other_scope_types: { type: array, items: { type: string } }
+                cities: { type: array, items: { $ref: '#/components/schemas/CityKey' } }
+                permissions: { type: array, items: { type: string } }
+                role: { type: [string, 'null'] }
+      unevaluatedProperties: false
+    BoardRosterOrder:
+      type: object
+      additionalProperties: false
+      required: [order_id, kind, decision_id, decision_revision, roster, authority_attestation]
+      properties:
+        order_id: { $ref: '#/components/schemas/NonEmptyID' }
+        kind: { const: board_roster }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        roster: { type: array, minItems: 1, maxItems: 200, uniqueItems: true, items: { $ref: '#/components/schemas/AccountID' } }
+        authority_attestation: { type: string, minLength: 1, maxLength: 16384 }
+    RoleRemovalOrder:
+      type: object
+      additionalProperties: false
+      required: [order_id, kind, decision_id, decision_revision, account_id, role, authority_attestation]
+      properties:
+        order_id: { $ref: '#/components/schemas/NonEmptyID' }
+        kind: { const: role_removal }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        account_id: { $ref: '#/components/schemas/AccountID' }
+        role: { enum: [city_admin, admin, global_admin, superuser, god] }
+        authority_attestation: { type: string, minLength: 1, maxLength: 16384 }
+    OrderPendingReceipt:
+      type: object
+      required: [operation_id, order_id, kind, decision_id, decision_revision, status]
+      properties:
+        operation_id: { $ref: '#/components/schemas/NonEmptyID' }
+        order_id: { $ref: '#/components/schemas/NonEmptyID' }
+        kind: { enum: [board_roster, role_removal] }
+        account_id: { $ref: '#/components/schemas/AccountID' }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        status: { enum: [pending, reconciliation_required] }
+    OrderReceipt:
+      type: object
+      required: [operation_id, order_id, kind, decision_id, decision_revision, status, checked_at, effective]
+      properties:
+        operation_id: { $ref: '#/components/schemas/NonEmptyID' }
+        order_id: { $ref: '#/components/schemas/NonEmptyID' }
+        kind: { enum: [board_roster, role_removal] }
+        account_id: { $ref: '#/components/schemas/AccountID' }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        status: { const: confirmed }
+        checked_at: { type: string, format: date-time }
+        effective:
+          type: object
+          description: "board_roster: {roster}. role_removal: {role, global_admin, full_permissions, system_team_access}."
+          properties:
+            roster: { type: array, items: { $ref: '#/components/schemas/AccountID' } }
+            role: { type: [string, 'null'] }
+            global_admin: { type: boolean }
+            full_permissions: { type: boolean }
+            system_team_access: { type: array, items: { enum: [national, board] } }

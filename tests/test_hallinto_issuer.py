@@ -238,7 +238,7 @@ def test_issuer_refuses_unprotected_config(app_factory, tmp_path, monkeypatch, f
         link.symlink_to(path)
         path = link
     monkeypatch.setenv("HALLINTO_ISSUER_CONFIG_FILE", str(path))
-    with pytest.raises(RuntimeError, match=r"^Hallinto issuer needs a readable, restricted JSON file$"):
+    with pytest.raises(RuntimeError, match=r"^Hallinto issuer needs a readable, restricted JSON file \((ValueError|OSError|JSONDecodeError)\)$"):
         app_factory()
 
 
@@ -258,7 +258,7 @@ def test_issuer_refuses_invalid_state_database(app_factory, tmp_path, monkeypatc
     path.write_text(json.dumps(_production_settings(name, uri)))
     path.chmod(0o600)
     monkeypatch.setenv("HALLINTO_ISSUER_CONFIG_FILE", str(path))
-    with pytest.raises(RuntimeError, match=r"^Hallinto issuer configuration is invalid$"):
+    with pytest.raises(RuntimeError, match=r"^Hallinto issuer configuration is invalid \(ValueError\)$"):
         app_factory()
 
 
@@ -420,6 +420,79 @@ def _org_requests(owner_client, claims, path, body, auth=(CLIENT, SECRET)):
                              json={"sub": claims["sub"], "sid": claims["sid"], **body})
 
 
+def test_organization_request_typed_in_by_a_member(owner, db):
+    app, subject = owner
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    body = {"name": "Rauha ry", "email": "Info@Rauha.example", "links": ["rauha.example", "https://instagram.com/rauha"],
+            "city": "Tampere", "business_id": "1234567-8", "description": "Rauhanmarsseja.",
+            "applicant_name": "Puhelun soittaja", "applicant_role": "puheenjohtaja",
+            "represents": True, "access": "organization_account"}
+    created = []
+    try:
+        assert _org_requests(app.test_client(), claims, "create", body, auth=("x", "y")).status_code in (401, 403)
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+        for bad in ({"name": ""}, {"links": []}, {"links": ["ei osoite"]}, {"email": "nope"}, {"business_id": "123"},
+                    {"city": "Ei kaupunki"}, {"access": "own_account"}, {"access": "invite"},
+                    {"access": "invite", "invite_email": "nope"}, {"email": "", "access": "organization_account"}):
+            assert _org_requests(app.test_client(), claims, "create", {**body, **bad}).status_code == 400, bad
+        response = _org_requests(app.test_client(), claims, "create", body)
+        assert response.status_code == 201
+        item = response.json["item"]
+        created.append(ObjectId(item["id"]))
+        row = db.organization_requests.find_one({"_id": created[0]})
+        assert row["status"] == "received" and row["source"] == "hallinto-manual" and row["entered_by"] == subject
+        assert row["organization"]["email"] == "info@rauha.example" and row["organization"]["city"] == "tampere"
+        assert row["organization"]["links"] == ["https://rauha.example", "https://instagram.com/rauha"]
+        assert "status_token_hash" not in row and row["case_pending"] is False
+        listed = _org_requests(app.test_client(), claims, "list", {}).json["items"]
+        assert any(i["id"] == item["id"] for i in listed)
+        invite = _org_requests(app.test_client(), claims, "create",
+                               {**body, "access": "invite", "invite_email": "PJ@rauha.example"})
+        created.append(ObjectId(invite.json["item"]["id"]))
+        assert invite.status_code == 201 and invite.json["item"]["invite_email"] == "pj@rauha.example"
+        suggestion = _org_requests(app.test_client(), claims, "create", {**body, "represents": False, "access": None})
+        created.append(ObjectId(suggestion.json["item"]["id"]))
+        assert suggestion.status_code == 201 and suggestion.json["item"]["represents"] is False
+    finally:
+        db.organization_requests.delete_many({"_id": {"$in": created}})
+
+
+def test_organization_request_status_mail_once(owner, db, monkeypatch):
+    from datetime import datetime, timezone
+    from mielenosoitukset_fi.users import hallinto_issuer
+    app, subject = owner
+    mails = []
+
+    class Sender:
+        def queue_email(self, **kwargs):
+            mails.append(kwargs)
+
+    monkeypatch.setattr(hallinto_issuer, "invite_sender", lambda: Sender())
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+    now = datetime.now(timezone.utc)
+    rid = db.organization_requests.insert_one({
+        "organization": {"name": "Rauha ry", "email": "info@rauha.example"},
+        "applicant": {"name": "Hakija", "email": "hakija@example.test"}, "represents": True,
+        "access": "organization_account", "status": "in_review", "status_token_hash": "x",
+        "created_at": now, "updated_at": now}).inserted_id
+    try:
+        step = {"id": str(rid), "status": "rejected", "message": "Ei sopiva.", "case": "c1"}
+        for _ in range(2):
+            assert _org_requests(app.test_client(), claims, "update", step).status_code == 200
+        assert _org_requests(app.test_client(), claims, "update", {**step, "status": "approved"}).status_code == 409
+        stored = db.organization_requests.find_one({"_id": rid})
+        assert len(stored["history"]) == 1
+        assert len(mails) == 1 and mails[0]["recipients"] == ["hakija@example.test"]
+        assert mails[0]["context"]["message"] == "Ei sopiva." and mails[0]["context"]["status"] == "rejected"
+    finally:
+        db.organization_requests.delete_one({"_id": rid})
+
+
 def test_organization_requests_for_hallinto(owner, db):
     from datetime import datetime, timezone
     app, subject = owner
@@ -463,6 +536,129 @@ def test_organization_requests_for_hallinto(owner, db):
         assert _org_requests(app.test_client(), claims, "update", no_access).status_code == 200
     finally:
         db.organization_requests.delete_many({"_id": {"$in": [confirmed, hidden, suggestion]}})
+
+
+def test_create_organization_for_approved_request(owner, db, monkeypatch):
+    """Slice O4: an approved request becomes an organization with its owner access."""
+    import io
+    from datetime import datetime, timezone
+
+    from mielenosoitukset_fi.users import hallinto_issuer
+    from mielenosoitukset_fi.utils import s3
+
+    sent, uploads = [], []
+    monkeypatch.setattr(hallinto_issuer, "_invite_sender",
+                        type("Sender", (), {"queue_email": lambda self, **kw: sent.append(kw)})())
+    monkeypatch.setattr(s3, "upload_image_fileobj",
+                        lambda bucket, fileobj, name, kind: uploads.append((bucket, fileobj.read())) or "https://s3.test/logo.jpg")
+    app, subject = owner
+    app.config["S3_BUCKET"] = "bucket"
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    now = datetime.now(timezone.utc)
+
+    def request(**extra):
+        row = {"organization": {"name": "Rauhan ystävät ry", "email": "info@rauha.example",
+                                "links": ["https://rauha.example"], "city": "tampere", "description": "Rauhaa."},
+               "applicant": {"name": "Hakija", "email": "hakija@example.test"}, "represents": True,
+               "access": "organization_account", "status": "approved", "hallinto_case": "case-1",
+               "logo": {"content_type": "image/png", "data": b"\x89PNGdata", "size": 8},
+               "status_token_hash": "secret", "created_at": now, "updated_at": now, **extra}
+        return db.organization_requests.insert_one(row).inserted_id
+
+    created_requests, created_orgs, created_users = [], [], []
+    try:
+        first = request()
+        created_requests.append(first)
+        call = lambda rid, case="case-1": _org_requests(app.test_client(), claims, "create-organization",
+                                                         {"id": str(rid), "case": case})
+        # Needs an admin with the right to create organizations, and an approved request of that case.
+        assert call(first).status_code == 403
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin", "global_permissions": ["CREATE_ORGANIZATION"]}})
+        assert call(first, "other-case").status_code == 409
+        in_review = request(status="in_review")
+        suggestion = request(represents=False)
+        created_requests += [in_review, suggestion]
+        assert call(in_review).json["error"] == "not_approved" and call(suggestion).json["error"] == "not_approved"
+
+        # An organization account: the organization, its logo, a new account as owner and one mail.
+        result = call(first)
+        assert result.status_code == 200 and result.json["access"] == "organization_account" and result.json["logo"] == "copied"
+        org = db.organizations.find_one({"_id": ObjectId(result.json["organization_id"])})
+        created_orgs.append(org["_id"])
+        assert org["name"] == "Rauhan ystävät ry" and org["verified"] is True and org["logo"] == "https://s3.test/logo.jpg"
+        assert org["website"] == "https://rauha.example"
+        assert set(org) <= {"_id", "name", "description", "email", "website", "logo", "social_media_links", "members",
+                            "verified", "invitations"}
+        account = db.users.find_one({"email": "info@rauha.example"})
+        created_users.append(account["_id"])
+        assert account["account_kind"] == "organization" and account["created_via"] == "organization_request"
+        assert db.memberships.find_one({"user_id": account["_id"], "organization_id": org["_id"]})["role"] == "owner"
+        assert len(sent) == 1 and sent[0]["recipients"] == ["info@rauha.example"] and uploads == [("bucket", b"\x89PNGdata")]
+        # A repeat changes nothing: one organization, one account, one mail, one upload.
+        again = call(first)
+        assert again.status_code == 200 and again.json["organization_id"] == str(org["_id"])
+        assert db.organizations.count_documents({"_id": org["_id"]}) == 1
+        assert db.users.count_documents({"email": "info@rauha.example"}) == 1
+        assert db.memberships.count_documents({"organization_id": org["_id"]}) == 1
+        assert len(sent) == 1 and len(uploads) == 1
+
+        # The address already has an account: nothing is created, so the access choice can change.
+        taken = request(organization={"name": "Toinen ry", "email": "info@rauha.example", "links": []})
+        created_requests.append(taken)
+        refused = call(taken)
+        assert refused.status_code == 409 and refused.json["error"] == "email_in_use"
+        assert db.organization_requests.find_one({"_id": taken}).get("organization_id") is None
+
+        # An invitation: the owner role is marked as granted by the Hallinto case, and mailed once.
+        invite = request(access="invite", invite_email="pj@vanha.example",
+                         organization={"name": "Vanha ry", "email": "x@vanha.example", "links": []}, logo=None)
+        created_requests.append(invite)
+        sent.clear()
+        result = call(invite)
+        assert result.status_code == 200 and result.json["owner_state"] == "invited" and result.json["logo"] == "none"
+        org2 = db.organizations.find_one({"_id": db.organization_requests.find_one({"_id": invite})["organization_id"]})
+        created_orgs.append(org2["_id"])
+        assert org2["invitations"][0]["role"] == "owner" and org2["invitations"][0]["role_granted_by"] == "hallinto:case-1"
+        assert org2["invitations"][0]["email"] == "pj@vanha.example"
+        assert len(sent) == 1 and "/accept_invite" in sent[0]["context"]["invite_url"]
+        call(invite)
+        assert len(db.organizations.find_one({"_id": org2["_id"]})["invitations"]) == 1 and len(sent) == 1
+
+        # The applicant's own account becomes owner; a missing account is refused.
+        own = request(access="own_account", applicant={"name": "Hakija", "email": "h@example.test", "user_id": ObjectId(subject)},
+                      organization={"name": "Kolmas ry", "email": "x@kolmas.example", "links": []}, logo=None)
+        lost = request(access="own_account", applicant={"name": "X", "user_id": ObjectId()},
+                       organization={"name": "Neljäs ry", "email": "x@neljas.example", "links": []})
+        created_requests += [own, lost]
+        assert call(lost).json["error"] == "applicant_account_missing"
+        assert call(own).status_code == 200
+        org3 = db.organizations.find_one({"_id": db.organization_requests.find_one({"_id": own})["organization_id"]})
+        created_orgs.append(org3["_id"])
+        assert db.memberships.find_one({"user_id": ObjectId(subject), "organization_id": org3["_id"]})["role"] == "owner"
+
+        # A logo store that is down is not fatal: the logo stays pending and a retry copies it.
+        app.config["S3_BUCKET"] = None
+        late = request(organization={"name": "Viides ry", "email": "x@viides.example", "links": []},
+                       access="invite", invite_email="a@viides.example")
+        created_requests.append(late)
+        pending = call(late)
+        assert pending.status_code == 200 and pending.json["logo"] == "pending"
+        org4 = db.organizations.find_one({"_id": db.organization_requests.find_one({"_id": late})["organization_id"]})
+        created_orgs.append(org4["_id"])
+        assert "logo" not in org4
+        app.config["S3_BUCKET"] = "bucket"
+        assert call(late).json["logo"] == "copied"
+        assert db.organizations.find_one({"_id": org4["_id"]})["logo"] == "https://s3.test/logo.jpg"
+        # The list shows where each request stands, never the logo's bytes.
+        item = next(i for i in _org_requests(app.test_client(), claims, "list", {}).json["items"] if i["id"] == str(first))
+        assert item["organization_id"] == str(org["_id"]) and item["owner_state"] == "account"
+    finally:
+        db.organization_requests.delete_many({"_id": {"$in": created_requests}})
+        db.organizations.delete_many({"_id": {"$in": created_orgs}})
+        db.memberships.delete_many({"organization_id": {"$in": created_orgs}})
+        db.users.delete_many({"_id": {"$in": created_users}})
 
 
 def _applications(owner_client, claims, path, body, auth=(CLIENT, SECRET)):
@@ -513,3 +709,30 @@ def test_city_admin_applications_for_hallinto(owner, db):
         assert stored["status"] == "declined" and stored["decided_by"] == subject and len(stored["history"]) == 2
     finally:
         db.city_admin_applications.delete_many({"_id": {"$in": [open_id, withdrawn]}})
+
+
+def test_hallinto_sends_bans_and_precedents_to_flask(owner, db):
+    app, subject = owner
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    items = [{"id": "ban-1", "kind": "organizer", "organizer": "Esimerkki ry", "reason": "R", "from": "2026-11-01", "until": ""},
+             {"id": "pre-1", "kind": "demo", "organizer": "Mielenosoitus X", "organization_id": "0123456789abcdef01234567",
+              "reason": "R", "from": "2026-11-01", "until": ""}]
+
+    def send(body, auth=(CLIENT, SECRET)):
+        return app.test_client().post(PREFIX + "/moderation-blocks/sync", base_url=ORIGIN, auth=auth,
+                                      json={"sub": claims["sub"], "sid": claims["sid"], **body})
+
+    try:
+        assert send({"items": items}).status_code == 403  # Not an admin.
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+        assert send({"items": items}, auth=(CLIENT, "x" * 40)).status_code == 401
+        assert send({"items": "no"}).status_code == 400
+        assert send({"items": items}).json == {"stored": 2}
+        assert send({"items": items}).json == {"stored": 2}
+        assert db.moderation_blocks.count_documents({}) == 2
+    finally:
+        db.moderation_blocks.delete_many({})
+        db.users.update_one({"_id": ObjectId(subject)}, {"$unset": {"role": ""}})
+

@@ -189,15 +189,20 @@ def fence_held(db, user_id, token) -> bool:
 def sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissions: list[str], actor, *,
                           allow_city_enablement: bool = True, additive_only: bool = False,
                           before_write: Optional[Callable[[], None]] = None,
-                          fenced: bool = False, expires_at: Optional[datetime] = None) -> SyncResult:
+                          fenced: bool = False, expires_at: Optional[datetime] = None,
+                          end_marker: Optional[dict] = None, only_grant_id: Optional[ObjectId] = None) -> SyncResult:
     """Replace the user's city grant under the account fence.
 
     ``fenced=True`` means the caller already holds ``account_fence``.
     ``expires_at`` (naive UTC, exclusive) sets the grant's end. Without it an
     existing grant keeps its expiry, so a legacy save never extends one.
+    ``end_marker`` (revoked_reason, frozen) is stored on grants a removal ends;
+    ``only_grant_id`` limits that removal to one grant. A frozen account takes
+    no legacy grant until a new appointment (additive) lifts the freeze.
     """
     options = dict(allow_city_enablement=allow_city_enablement, additive_only=additive_only,
-                   before_write=before_write, expires_at=expires_at)
+                   before_write=before_write, expires_at=expires_at, end_marker=end_marker,
+                   only_grant_id=only_grant_id)
     if fenced:
         return _sync_city_scope_grant(db, user_id, city_keys, permissions, actor, **options)
     with account_fence(db, user_id):
@@ -207,7 +212,9 @@ def sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissio
 def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissions: list[str], actor, *,
                            allow_city_enablement: bool = True, additive_only: bool = False,
                            before_write: Optional[Callable[[], None]] = None,
-                           expires_at: Optional[datetime] = None) -> SyncResult:
+                           expires_at: Optional[datetime] = None,
+                           end_marker: Optional[dict] = None,
+                           only_grant_id: Optional[ObjectId] = None) -> SyncResult:
     """Replace the user's city grant; audit each scope mutation in its own outbox.
 
     ``allow_city_enablement=False`` and ``additive_only=True`` raise
@@ -226,6 +233,9 @@ def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissi
             raise CityGrantConflict("granting would enable a city the caller did not allow")
     if additive_only and (not granting or db.admin_scope_grants.find_one(query)):
         raise CityGrantConflict("an additive grant found an existing city grant")
+    owner = {"$in": [user_id, str(user_id)]}
+    if granting and not additive_only and db.admin_scope_grants.find_one({"user_id": owner, "frozen": True}):
+        raise CityGrantConflict("the account is frozen; a new appointment decision lifts the freeze")
     if before_write is not None:
         before_write()
     enabled: list[str] = []
@@ -267,11 +277,11 @@ def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissi
             raise CityGrantConflict("the form re-submitted a city grant that has ended")
 
     if not city_keys or not permissions:
-        for grant in db.admin_scope_grants.find(query):
-            update_grant(grant, {"revoked_at": utcnow(), "revoked_by": str(actor._id)},
+        for grant in db.admin_scope_grants.find({**query, "_id": only_grant_id} if only_grant_id else query):
+            update_grant(grant, {"revoked_at": utcnow(), "revoked_by": str(actor._id), **(end_marker or {})},
                          {"city_scope_keys": [], "city_scope_permissions": []})
         document = db.users.find_one({"_id": user_id})
-        if document and document.get("role") == "city_admin":
+        if document and document.get("role") == "city_admin" and not db.admin_scope_grants.find_one(query):
             commit_profile_change(db, document, {"role": "user"}, actor)
         flush_user_history(db, user_id)
         return SyncResult([], [], enabled)
@@ -300,6 +310,10 @@ def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissi
             user_id, {"city_scope_keys": [], "city_scope_permissions": []}, after, attribution,
         )]
         db.admin_scope_grants.insert_one(payload)
+    if additive_only:
+        # A new appointment decision lifts an earlier freeze.
+        db.admin_scope_grants.update_many({"user_id": owner, "frozen": True},
+                                          {"$set": {"frozen": False, "unfrozen_at": utcnow()}})
     document = db.users.find_one({"_id": user_id})
     if document and document.get("role") not in {"admin", "global_admin", "god", "city_admin"}:
         commit_profile_change(db, document, {"role": "city_admin"}, actor)
@@ -311,8 +325,8 @@ def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissi
 # city_admin_v1 appointment operation (Hallinto, disabled: no route)
 # --------------------------------------------------------------------------- #
 OPERATIONS = "city_grant_operations"
-IDEMPOTENCY_KEY = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
-ACCOUNT_ID = re.compile(r"^[a-f0-9]{24}$")
+IDEMPOTENCY_KEY = re.compile(r"^[A-Za-z0-9_-]{16,128}\Z")
+ACCOUNT_ID = re.compile(r"^[a-f0-9]{24}\Z")
 # An operation still pending after this long is reported reconciliation_required.
 APPLY_LEASE = timedelta(minutes=5)
 ERROR_STATUS = {
@@ -323,7 +337,7 @@ REQUEST_FIELDS = {
     "account_id", "city", "template", "expected_state", "allow_city_enablement",
     "decision_id", "decision_revision", "application_id", "authority_attestation", "valid_until",
 }
-VALID_UNTIL = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+VALID_UNTIL = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
 # Hallinto allows a last valid day under five years ahead; the end is the next midnight.
 MAX_VALIDITY = timedelta(days=5 * 366 + 1)
 INSTANT = "%Y-%m-%dT%H:%M:%SZ"
@@ -388,6 +402,12 @@ def validate_appointment(request: Any) -> Optional[dict]:
     intent = {key: request[key] for key in sorted(REQUEST_FIELDS - {"authority_attestation"}) if key in request}
     intent["permissions"] = CITY_ADMIN_V1_PERMISSIONS
     return intent
+
+
+def intent_digest(request: Any) -> Optional[str]:
+    """Canonical digest of a valid request's intent (attestation excluded)."""
+    intent = validate_appointment(request)
+    return _digest(intent) if intent is not None else None
 
 
 def _digest(value) -> str:
@@ -488,6 +508,10 @@ def _load_user(doc):
     return User.from_db(doc)
 
 
+def authorized_actor(db, actor_id) -> Optional[Any]:
+    return _actor_authorized(db, actor_id)
+
+
 def _actor_authorized(db, actor_id) -> Optional[Any]:
     """Reload the actor; require an active account allowed to manage grants."""
     from mielenosoitukset_fi.utils.system_teams import active_account
@@ -500,13 +524,22 @@ def _actor_authorized(db, actor_id) -> Optional[Any]:
 
 
 def _receipt_identity(operation: dict) -> dict:
-    return {
+    intent = operation["intent"]
+    identity = {
         "operation_id": str(operation["_id"]),
-        "account_id": operation["account_id"],
-        "decision_id": operation["intent"]["decision_id"],
-        "decision_revision": operation["intent"]["decision_revision"],
-        "valid_until": operation["intent"]["valid_until"],
+        "decision_id": intent["decision_id"],
+        "decision_revision": intent["decision_revision"],
     }
+    if "order_id" in intent:
+        # A Flask order (flask_orders.py); a board roster names no account.
+        identity.update(order_id=intent["order_id"], kind=intent["kind"])
+        if "account_id" in intent:
+            identity["account_id"] = intent["account_id"]
+        return identity
+    identity["account_id"] = operation["account_id"]
+    if "kind" in intent:
+        return {**identity, "appointment_id": intent["appointment_id"], "kind": intent["kind"]}
+    return {**identity, "valid_until": intent["valid_until"]}
 
 
 def _outcome_for(operation: dict) -> Outcome:
@@ -694,6 +727,177 @@ def _apply_fenced(db, operation, intent, actor, integration, account_id, fence) 
         "checked_at": utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "effective": verified["effective"], "resulted_in_city_enablement": enabled,
     }
+    live = [g for g in _active_grants(db, account_id) if g.get("scope_type") == "city"]
+    grant_id = live[0]["_id"] if len(live) == 1 else None
+    return _outcome_for(_transition(db, operation, {"pending"}, "confirmed", receipt, grant_id=grant_id))
+
+
+# --------------------------------------------------------------------------- #
+# city_admin_end_v1: revoke or freeze a confirmed appointment (Hallinto B3c)
+# --------------------------------------------------------------------------- #
+
+END_KINDS = {"revoke": "hallinto_revoked", "freeze": "hallinto_frozen"}
+END_FIELDS = {"appointment_id", "kind", "account_id", "city", "template",
+              "decision_id", "decision_revision", "authority_attestation"}
+
+
+def validate_end(request: Any) -> Optional[dict]:
+    """Canonical end intent, or None for an unsupported shape.
+
+    ``appointment_id`` is the Idempotency-Key of the original appointment.
+    """
+    if not isinstance(request, dict) or set(request) != END_FIELDS:
+        return None
+    revision = request["decision_revision"]
+    attestation = request["authority_attestation"]
+    city = request["city"]
+    if not (isinstance(request["account_id"], str) and ACCOUNT_ID.match(request["account_id"])
+            and isinstance(request["appointment_id"], str) and IDEMPOTENCY_KEY.match(request["appointment_id"])
+            and request["kind"] in END_KINDS
+            and isinstance(city, str) and 1 <= len(city) <= 128
+            and normalize_city_key(city) == city and city in CITY_KEY_TO_NAME
+            and request["template"] == CITY_ADMIN_V1_TEMPLATE
+            and _non_empty_id(request["decision_id"])
+            and type(revision) is int and revision >= 1
+            and isinstance(attestation, str) and 1 <= len(attestation) <= 16384):
+        return None
+    return {key: request[key] for key in sorted(END_FIELDS - {"authority_attestation"})}
+
+
+def end_digest(request: Any) -> Optional[str]:
+    intent = validate_end(request)
+    return _digest(intent) if intent is not None else None
+
+
+def _remaining_access(db, account_id: ObjectId) -> dict:
+    """Everything the account still has (reloaded): city scopes, permissions,
+    role, full admin, governance management and live grants of other types."""
+    doc = db.users.find_one({"_id": account_id}) or {}
+    grants = _active_grants(db, account_id)
+    scopes = _scopes(grants)
+    other = sorted({str(g.get("scope_type")) for g in grants if g.get("scope_type") != "city"})
+    return {
+        "cities": sorted({scope["city"] for scope in scopes}),
+        "permissions": sorted({p for scope in scopes for p in scope["permissions"]}
+                              | {p for g in grants if g.get("scope_type") != "city" for p in g.get("permissions") or []}
+                              | set(doc.get("global_permissions") or [])),
+        "role": doc.get("role"),
+        "global_admin": bool(doc.get("global_admin")),
+        "governance_managed": bool(doc.get("governance_managed")),
+        "other_scope_types": other,
+    }
+
+
+def apply_city_admin_end_v1(db, *, integration: str, actor_id, idempotency_key: str, request: Any) -> Outcome:
+    """Revoke or freeze the city grant of a confirmed appointment, immediately.
+
+    Same trust model as ``apply_city_admin_v1``: the caller verified workload
+    identity, the action-bound proof and Hallinto's attestation. Ending is
+    idempotent: when nothing is left to end the receipt is still confirmed and
+    reports what the account has. Flask only reports; Hallinto confirms its end
+    when ``effective`` shows no city, permission or role left.
+    """
+    if not isinstance(integration, str) or not integration:
+        return _error("denied")
+    if not isinstance(idempotency_key, str) or not IDEMPOTENCY_KEY.match(idempotency_key):
+        return _error("unsupported_scope")
+    intent = validate_end(request)
+    if intent is None:
+        return _error("unsupported_scope")
+    actor = _actor_authorized(db, actor_id)
+    if actor is None or str(actor._id) == intent["account_id"]:
+        return _error("denied")
+
+    digest = _digest(intent)
+    now = utcnow()
+    operation = {
+        "_id": ObjectId(), "integration": integration, "actor_id": str(actor._id),
+        "idempotency_key": idempotency_key, "intent_digest": digest, "intent": intent,
+        "account_id": intent["account_id"], "status": "pending", "phase": "allocated",
+        "created_at": now, "updated_at": now, "transitions": [{"status": "pending", "at": now}],
+    }
+    key = {"integration": integration, "actor_id": str(actor._id), "idempotency_key": idempotency_key}
+    try:
+        db[OPERATIONS].insert_one(operation)
+    except DuplicateKeyError:
+        existing = db[OPERATIONS].find_one(key)
+        if existing is None:
+            return _error("unavailable")
+        return _replay(db, existing, digest)
+    _log(operation, "pending")
+
+    account_id = ObjectId(intent["account_id"])
+    try:
+        with account_fence(db, account_id) as fence:
+            return _end_fenced(db, operation, intent, actor, integration, account_id, fence)
+    except CityGrantConflict:
+        current = db[OPERATIONS].find_one({"_id": operation["_id"]})
+        if current and current["status"] == "pending" and current.get("phase") == "allocated":
+            return _outcome_for(_reject(db, current, "stale_state"))
+        return _outcome_for(current) if current else _error("unavailable")
+
+
+def _original_appointment(db, integration: str, intent: dict) -> Optional[dict]:
+    """The confirmed appointment this end refers to, for the same account and city."""
+    return db[OPERATIONS].find_one({
+        "integration": integration, "idempotency_key": intent["appointment_id"],
+        "account_id": intent["account_id"], "status": "confirmed",
+        "intent.city": intent["city"], "intent.template": intent["template"],
+        "intent.kind": {"$exists": False},
+    })
+
+
+def _end_fenced(db, operation, intent, actor, integration, account_id, fence) -> Outcome:
+    if db.users.find_one({"_id": account_id}) is None:
+        return _outcome_for(_reject(db, operation, "denied"))
+    original = _original_appointment(db, integration, intent)
+    if original is None or not original.get("grant_id"):
+        return _outcome_for(_reject(db, operation, "unsupported_scope"))
+
+    def applying():
+        nonlocal operation
+        if not fence_held(db, account_id, fence):
+            raise CityGrantConflict("account fence expired before the write")
+        stored = db[OPERATIONS].find_one_and_update(
+            {"_id": operation["_id"], "status": "pending", "phase": "allocated"},
+            {"$set": {"phase": "applying", "updated_at": utcnow()}},
+            return_document=ReturnDocument.AFTER,
+        )
+        if stored is None:
+            raise CityGrantConflict("operation was moved by another process")
+        operation = stored
+
+    from mielenosoitukset_fi.utils.audit_trail import audit_scope
+
+    marker = {"revoked_reason": END_KINDS[intent["kind"]]}
+    if intent["kind"] == "freeze":
+        marker["frozen"] = True
+    try:
+        with audit_scope("integration", integration, actor={"kind": "user", "user_id": str(actor._id)},
+                         operation_id=str(operation["_id"])):
+            # Only the appointment's own grant: a later appointment or a legacy
+            # grant for the account stays.
+            sync_city_scope_grant(db, account_id, [], [], actor, before_write=applying,
+                                  fenced=True, end_marker=marker, only_grant_id=original["grant_id"])
+    except CityGrantConflict:
+        if operation.get("phase") != "applying":
+            return _outcome_for(_reject(db, operation, "stale_state"))
+        return _outcome_for(_transition(db, operation, {"pending"}, "reconciliation_required"))
+    except PyMongoError:
+        logger.exception("city_admin_end_v1 operation=%s write failed", operation["_id"])
+        if operation.get("phase") != "applying":
+            return _outcome_for(_reject(db, operation, "stale_state"))
+        try:
+            return _outcome_for(_transition(db, operation, {"pending"}, "reconciliation_required"))
+        except PyMongoError:
+            return _error("unavailable")
+
+    remaining = _remaining_access(db, account_id)
+    still_live = db.admin_scope_grants.count_documents({"_id": original["grant_id"], **live_grant_filter()}, limit=1)
+    if still_live or not fence_held(db, account_id, fence):
+        return _outcome_for(_transition(db, operation, {"pending"}, "reconciliation_required"))
+    receipt = {**_receipt_identity(operation), "status": "confirmed",
+               "checked_at": utcnow().strftime(INSTANT), "effective": remaining}
     return _outcome_for(_transition(db, operation, {"pending"}, "confirmed", receipt))
 
 

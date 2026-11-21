@@ -76,9 +76,33 @@ Per client: 3 submissions a minute and 10 an hour; 20 status reads a minute and
 counts against the site-wide signup mail caps (`signup_mail_cap.go`, route
 `org-request`). The panic switch closes the form.
 
+## Carrying out an approval (O4)
+
+Hallinto calls `/hallinto-oidc/organization-requests/create-organization` once a case's
+verified decision approves an organization's own request (see
+`docs/hallinto-isolated-issuer.md`). The code is `utils/org_request_owner.py`. The
+organization document only gets fields `Organization.from_dict` accepts, because any other
+key breaks every loader: the organization has no city field, so the city stays on the request.
+
 ## Open before activation
 
 - A TTL index or job removing unconfirmed requests after `expires_at`, and rejected
   ones after the reconsideration period.
 - A privacy statement entry for the new register.
 - Hallinto intake (O3).
+- Replace the "05 Järjestöt ja ryhmät / Organisaatiotilit" section of `/ohjeet` (maintainer, 21 November 2026). It
+  now says to email the details to support. When the form opens, it points to
+  `/organisaatiot/hae` instead. The copy is in two places that change together:
+  `frontend/src/app/information/GuidesContent.tsx` (`#org-help`) and
+  `mielenosoitukset_fi/templates/ohjeet/index.html`. Ship the copy change with the
+  Apache rules and `ORG_REQUESTS_GO_ENABLED`, not before: until then the form is
+  dark and the email instructions are still correct.
+
+## Status updates from Hallinto
+
+`organization_requests_update` is idempotent: repeating the same status, message,
+case and access changes nothing, adds no `history` entry and sends no mail. A real
+move to `approved`, `rejected` or `needs_info` queues one email to the applicant
+(`applicant.email`, or the account email for a signed-in applicant) from
+`templates/emails/org_request_status.html`; a rejection carries the reason. The
+mail is best effort: a failure is logged and the saved status stands.

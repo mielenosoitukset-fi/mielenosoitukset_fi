@@ -268,7 +268,7 @@ def step_up_webauthn_verify():
     if error or not record:
         return jsonify({"status": "error", "message": error or "Tuntematon passkey."}), 403
 
-    grant_elevation("webauthn")
+    grant_elevation("webauthn", strong=True)
     return jsonify({"status": "success", "message": "Henkilöllisyys vahvistettu."})
 
 
@@ -292,6 +292,7 @@ def step_up_password():
         record_step_up_failure(attempt, "password")
         return jsonify({"status": "error", "message": "Väärä salasana."}), 403
 
+    totp_verified = False
     if _user_requires_totp():
         totp_code = data.get("totp_code")
         if not isinstance(totp_code, str) or not totp_code.strip():
@@ -302,9 +303,10 @@ def step_up_password():
         if not UserMFA(user._id).verify_token(totp_code.strip()):
             record_step_up_failure(attempt, "totp")
             return jsonify({"status": "error", "message": "Väärä MFA-koodi."}), 403
+        totp_verified = True
 
     clear_step_up_failures()
-    grant_elevation("password_totp")
+    grant_elevation("password_totp", strong=totp_verified)
     return jsonify({"status": "success", "message": "Henkilöllisyys vahvistettu."})
 
 
