@@ -511,6 +511,8 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
 
   if (route.name === 'org-request') {
     headers['Cache-Control'] = 'private, no-store';
+    // The ?kutsu= invitation token is in this page's address; it must not travel in a Referer.
+    headers['Referrer-Policy'] = 'no-referrer';
     extraHead = (assets.orgRequest ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
     // The page renders its own no-JavaScript fallback inside the form card.
     noscript = '';

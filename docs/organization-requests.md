@@ -108,3 +108,13 @@ move to `approved`, `rejected` or `needs_info` queues one email to the applicant
 (`applicant.email`, or the account email for a signed-in applicant) from
 `templates/emails/org_request_status.html`; a rejection carries the reason. The
 mail is best effort: a failure is logged and the saved status stands.
+
+## Invitation link (O6)
+
+An outbound invitation mail links to `/organisaatiot/hae?kutsu=<token>`. The form reads
+the token from the address and sends it as `invitation`. Go claims it once: it finds the
+invitation by the token's hash (`org_invitations`, status `sent`, not expired, never used),
+marks it used and stores `invitation_id` and `invitation_case` on the request. Hallinto
+reads `invitation_case` from the request list and links the two cases. A wrong, expired or
+spent token changes nothing and says nothing, and the token proves nothing about the
+organization: the channel proof still happens in Hallinto.
