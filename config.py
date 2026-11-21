@@ -224,6 +224,11 @@ class Config:
         # limiter so support ingress can be contained without affecting other
         # public routes.
         cls.CONTACT_FORM_ENABLED = bool(config.get("CONTACT_FORM_ENABLED", True))
+        # Admin rights (role, global permissions, city grants) are decided in
+        # Hallinto: the site admin shows them read-only. Rollback: set false.
+        cls.ADMIN_RIGHTS_IN_HALLINTO = bool(config.get("ADMIN_RIGHTS_IN_HALLINTO", True))
+        # Optional link to Hallinto shown in the "change rights" dialog.
+        cls.HALLINTO_URL = config.get("HALLINTO_URL") or None
         # Off by default: lets /api/session answer the Go/React auth bridge's
         # read-only permission and anonymous flash scopes. See docs/auth-bridge.md.
         cls.AUTH_BRIDGE_SCOPES = bool(config.get("AUTH_BRIDGE_SCOPES", False))
