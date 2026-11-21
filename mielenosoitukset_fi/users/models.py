@@ -53,10 +53,36 @@ class User(UserMixin):
         from mielenosoitukset_fi.utils.system_teams import BOARD_PERMISSIONS
         return permission in BOARD_PERMISSIONS and "board" in self.system_team_access
 
+    @property
+    def stored_global_permissions(self) -> List[str]:
+        """Global permissions as stored, without duty-shift rights."""
+        if self._stored_global_permissions is not None:
+            return list(self._stored_global_permissions)
+        return list(self.global_permissions)
+
+    def apply_active_duty(self, now=None) -> None:
+        """Add the moderation rights of a current duty shift for this request.
+
+        Called when the signed-in account is loaded, so the rights follow the
+        stored shift windows on every request and end without a scheduled job.
+        The stored permissions are kept apart and are what ``to_dict`` saves.
+        """
+        from mielenosoitukset_fi.utils.duty_shifts import active_duty
+
+        if self._stored_global_permissions is not None:
+            self.global_permissions = list(self._stored_global_permissions)
+        self._stored_global_permissions = list(self.global_permissions)
+        self.active_duty = active_duty(_get_mongo(), self._id, now) if self.is_active else None
+        if self.active_duty:
+            self.global_permissions = sorted(
+                set(self._stored_global_permissions) | set(self.active_duty["permissions"])
+            )
+
     def has_admin_access(self) -> bool:
         """Return whether this account may enter any admin workspace."""
         return (
-            self.has_full_permissions()
+            bool(self.active_duty)
+            or self.has_full_permissions()
             or self.role == "admin"
             or self.role == "translator"
             or any(
@@ -277,6 +303,10 @@ class User(UserMixin):
         # CACHED memberships (lazy)  --------------------------------------------
         self._memberships: Optional[List[MemberShip]] = None
         self._admin_scope_grants: Optional[List[dict]] = None
+        # National moderator duty (see utils/duty_shifts.py). Set only for the
+        # signed-in account by apply_active_duty; never stored.
+        self.active_duty: Optional[dict] = None
+        self._stored_global_permissions: Optional[List[str]] = None
 
     # ---------- CLASS HELPERS ----------------------------------------------------
 
@@ -666,7 +696,7 @@ class User(UserMixin):
             "global_admin": self._global_admin,
             "governance_managed": self._governance_managed,
             "confirmed": self.confirmed,
-            "global_permissions": self.global_permissions,
+            "global_permissions": self.stored_global_permissions,
             "role": self.role,
             "banned": self.banned,
             "mfa_enabled": self.mfa_enabled,
