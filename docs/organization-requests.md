@@ -82,3 +82,10 @@ counts against the site-wide signup mail caps (`signup_mail_cap.go`, route
   ones after the reconsideration period.
 - A privacy statement entry for the new register.
 - Hallinto intake (O3).
+- Replace the "05 Järjestöt ja ryhmät / Organisaatiotilit" section of `/ohjeet` (maintainer, 21 November 2026). It
+  now says to email the details to support. When the form opens, it points to
+  `/organisaatiot/hae` instead. The copy is in two places that change together:
+  `frontend/src/app/information/GuidesContent.tsx` (`#org-help`) and
+  `mielenosoitukset_fi/templates/ohjeet/index.html`. Ship the copy change with the
+  Apache rules and `ORG_REQUESTS_GO_ENABLED`, not before: until then the form is
+  dark and the email instructions are still correct.
