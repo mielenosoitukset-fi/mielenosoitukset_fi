@@ -21,7 +21,7 @@ export function parseDetail(value: unknown, expectedId: string): DetailEvent {
     throw new Error('Invalid demonstration response');
   }
   const result: DetailEvent = {
-    _id: expectedId, title: data.title, description: text(data.description) ?? '', date: text(data.date),
+    _id: expectedId, title: data.title, description: text(data.description) ?? '', date: text(data.date), end_date: text(data.end_date),
     start_time: text(data.start_time), end_time: text(data.end_time), city: text(data.city), address: text(data.address),	  latitude: coordinate(data.latitude, 90), longitude: coordinate(data.longitude, 180), tags: strings(data.tags), likes: count(data.likes),
     route: strings(data.route), cancelled: data.cancelled, event_type: text(data.event_type), facebook: text(data.facebook),
     img: text(data.img), cover_picture: text(data.cover_picture), preview_image: text(data.preview_image), gallery_images: strings(data.gallery_images),

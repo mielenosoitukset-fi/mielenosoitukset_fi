@@ -1,0 +1,1 @@
+- The organization invitation link (`/users/orgs/accept_invite`) gets a new page that shows the invitation and joins the organization only when a button is pressed, plus Go endpoints for reading and accepting the invitation. They are switched off by default and not routed yet, so visitors see no change.

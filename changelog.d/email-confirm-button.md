@@ -1,0 +1,1 @@
+- The e-mail confirmation link in the registration mail gets a new page where the address is confirmed with a button instead of by merely opening the link, plus a Go endpoint that does the write. It is switched off by default and not routed yet, so visitors see no change.

@@ -6,7 +6,6 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-.suggest-change-page .public-page-header,
 .suggest-change-page .public-prose-card {
   border-radius: 12px;
 }

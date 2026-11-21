@@ -1,0 +1,74 @@
+{# Change history rows built by admin/audit_history.py from audit_events. #}
+{% macro audit_field(field) %}
+            <span class="diff-unchanged"><strong>{{ field.field }}</strong></span>
+            {% if field.before is not none %}<span class="diff-remove"><span class="visually-hidden">{{ _('Ennen:') }} </span>{{ field.before }}</span>{% endif %}
+            <span class="diff-add"><span class="visually-hidden">{{ _('Jälkeen:') }} </span>{{ field.after }}</span>
+{% endmacro %}
+
+{% macro audit_history_table(rows, heading_id, empty_text) %}
+{% if rows %}
+<div class="admin-data-view__viewport">
+  <table class="admin-data-view__table admin-data-view__table--stacked" aria-labelledby="{{ heading_id }}">
+    <thead>
+      <tr>
+        <th scope="col">{{ _('Aika') }}</th>
+        <th scope="col">{{ _('Tekijä ja reitti') }}</th>
+        <th scope="col">{{ _('Muutokset') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="admin-diff-field">
+          <span class="admin-table-cell-label">{{ _('Aika') }}</span>
+          <time datetime="{{ row.at.isoformat() if row.at else '' }}">{{ row.at_display }}</time>
+          {% if row.op.key == 'create' %}<span class="admin-status-badge admin-status-badge--success"><i class="fas fa-plus" aria-hidden="true"></i>{{ row.op.label }}</span>
+          {% elif row.op.key == 'delete' %}<span class="admin-status-badge admin-status-badge--danger"><i class="fas fa-trash" aria-hidden="true"></i>{{ row.op.label }}</span>
+          {% else %}<span class="admin-status-badge admin-status-badge--info"><i class="fas fa-pen" aria-hidden="true"></i>{{ row.op.label }}</span>{% endif %}
+          {% if not row.ok %}<span class="admin-status-badge admin-status-badge--warning"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i>{{ _('Epäonnistui') }}</span>{% endif %}
+        </td>
+        <td>
+          <span class="admin-table-cell-label">{{ _('Tekijä ja reitti') }}</span>
+          <div class="admin-entity-identity">
+            <span class="admin-entity-avatar" aria-hidden="true">{{ ((row.actor.name or '?')[:1])|upper }}</span>
+            <span class="admin-entity-identity__copy">
+              <strong>{{ row.actor.name }}</strong>
+              {% if row.actor.username %}<span>@{{ row.actor.username }}</span>{% endif %}
+              {% if not row.via_is_actor %}<span>{{ row.via }}</span>{% endif %}
+              {% if row.reason %}<span>{{ row.reason }}</span>{% endif %}
+            </span>
+          </div>
+        </td>
+        <td>
+          <span class="admin-table-cell-label">{{ _('Muutokset') }}</span>
+          {% if row.fields %}
+          <div class="admin-diff-block">
+            {% for field in row.fields[:6] %}{{ audit_field(field) }}{% endfor %}
+          </div>
+          {% if row.fields|length > 6 %}
+          <details class="mt-2">
+            <summary>{{ _('Näytä %(count)s muuta kenttää', count=row.fields|length - 6) }}</summary>
+            <div class="admin-diff-block mt-2">
+              {% for field in row.fields[6:] %}{{ audit_field(field) }}{% endfor %}
+            </div>
+          </details>
+          {% endif %}
+          {% elif row.op.key == 'delete' %}
+          <span class="text-muted">{{ _('Asiakirja poistettiin.') }}</span>
+          {% else %}
+          <span class="text-muted">{{ _('Ei näytettäviä kenttiä.') }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="admin-empty-state">
+  <span class="admin-empty-state__icon"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i></span>
+  <h2 class="admin-empty-state__title">{{ _('Ei kirjattuja muutoksia') }}</h2>
+  <p>{{ empty_text }}</p>
+</div>
+{% endif %}
+{% endmacro %}

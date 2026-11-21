@@ -827,6 +827,17 @@ body {
   border-radius: .25rem;
 }
 
+/* Change history (audit trail): rows read from the top; the last table keeps the card's rounded corners. */
+.admin-audit-history .admin-data-view__table td {
+  vertical-align: top;
+}
+
+.admin-audit-history > .admin-data-view__viewport:last-child {
+  overflow-x: auto;
+  border-bottom-left-radius: calc(1rem - 1px);
+  border-bottom-right-radius: calc(1rem - 1px);
+}
+
 .admin-diff-preview {
   display: grid;
   gap: .75rem;

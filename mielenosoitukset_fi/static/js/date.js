@@ -36,6 +36,9 @@ function initializeDatePickers() {
  
 
     flatpickr("#date", date_picker_config);
+    if (document.getElementById("end_date")) {
+        flatpickr("#end_date", date_picker_config);
+    }
     flatpickr("#start_time", time_picker_config);
     flatpickr("#end_time", time_picker_config);
 }
