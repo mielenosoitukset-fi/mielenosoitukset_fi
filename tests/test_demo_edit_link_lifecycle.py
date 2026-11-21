@@ -308,4 +308,5 @@ def test_recurring_editor_does_not_offer_regular_demo_edit_links(
     page = response.get_data(as_text=True)
     assert "generate-edit-link-btn" not in page
     assert "send_edit_link_email" not in page
-    assert "duplicate-demo-btn" in page
+    # The old copy button posted to a removed route; repeating series have no copy action.
+    assert "duplicate-demo-btn" not in page
