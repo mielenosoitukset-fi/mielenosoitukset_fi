@@ -40,6 +40,13 @@
   <p>{{ _('Kun 30 minuuttia on kulunut, käytä') }} {{ m.ui(_('Poista julkaisusta')) }}.</p>
   <h3 id="poista-julkaisusta">{{ _('Poista julkaisusta') }}</h3>
   <p>{{ _('Hyväksytyn mielenosoituksen voi ottaa pois sivustolta poistamatta sitä. Valitse tapauksessa') }} {{ m.ui(_('Poista julkaisusta')) }} {{ _('ja kirjoita syy. Syy on pakollinen ja näkyy julkisesti.') }}</p>
+  <p>{{ _('Poisto vaatii toisen ylläpitäjän vahvistuksen. Valitse jompikumpi:') }}</p>
+  <ul>
+    <li>{{ m.ui(_('Lähetä vahvistettavaksi')) }}: {{ _('mielenosoitus näkyy sivustolla, kunnes toinen ylläpitäjä valitsee tapauksessa') }} {{ m.ui(_('Vahvista poisto')) }}.</li>
+    <li>{{ m.ui(_('Kiireellinen')) }}: {{ _('mielenosoitus poistuu heti, ja toisen ylläpitäjän pitää vahvistaa poisto 48 tunnin kuluessa. Tapaus näyttää määräajan ja kertoo, jos vahvistus on myöhässä.') }}</li>
+  </ul>
+  <p>{{ _('Kukaan ei voi vahvistaa omaa pyyntöään. Toinen ylläpitäjä voi myös hylätä pyynnön, ja tekijä voi perua sen. Silloin mielenosoitus pysyy julkisena, ilmoittajalle ei lähetetä viestiä ja merkintä jää tapauksen historiaan.') }}</p>
+  <p>{{ _('Kun poisto on vahvistettu:') }}</p>
   <ul>
     <li>{{ _('mielenosoitus poistuu listoilta, hausta ja kartalta, ja sen sivulla näkyy lyhyt ilmoitus syineen') }}</li>
     <li>{{ _('ilmoittaja saa sähköpostin, jossa on syy') }}</li>
@@ -63,7 +70,7 @@
 
 <section id="muokkaa-osio">
   <h2>{{ _('Muokkaa ja palauta') }}</h2>
-  <p>{{ _('Jokainen muutos tallentuu muokkaushistoriaan. Historiasta näet, kuka muutti mitä ja milloin.') }}</p>
+  <p>{{ _('Jokainen muutos tallentuu muokkaushistoriaan. Historiasta näet, kuka muutti mitä ja milloin. Tallennettujen versioiden alla on') }} {{ m.ui(_('Kaikki kirjatut muutokset')) }}{{ _(': jokainen muutos kentittäin vanhoine ja uusine arvoineen sekä reitti, jota kautta se tehtiin (ylläpito, julkinen lomake, linkki, taustatyö tai skripti). Loki alkaa sen käyttöönotosta 20.11.2026.') }}</p>
   {% call m.task('muokkaa', _('Palauta aiempi versio'), _('Joku on muuttanut tietoja väärin, ja haluat palauttaa aiemman version.'), demos_url, _('Avaa mielenosoitukset')) %}
     {% call m.step() %}<p>{{ _('Etsi mielenosoitus listalta ja avaa') }} {{ m.ui(_('Muokkaushistoria')) }}.</p>{% endcall %}
     {% call m.step() %}<p>{{ _('Valitse muutos, jota ennen tiedot olivat oikein, ja avaa') }} {{ m.ui(_('Näytä muutos')) }}. {{ _('Vertailu näyttää vanhan ja uuden arvon rinnakkain.') }}</p>{% endcall %}

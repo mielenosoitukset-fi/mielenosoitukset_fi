@@ -25,6 +25,7 @@ from mielenosoitukset_fi.scripts.auto_close_cases import main as auto_close_case
 from mielenosoitukset_fi.scripts.process_support_tickets import main as process_support_tickets
 from mielenosoitukset_fi.scripts.process_email_queue import run as process_email_queue
 from mielenosoitukset_fi.scripts.escalate_city_assignments import main as escalate_city_assignments
+from mielenosoitukset_fi.scripts.expire_undecided_demos import main as expire_undecided_demos
 from mielenosoitukset_fi.scripts.deliver_city_admin_applications import main as deliver_city_admin_applications
 from mielenosoitukset_fi.scripts.purge_city_admin_applications import main as purge_city_admin_applications
 from mielenosoitukset_fi.scripts.deliver_case_notices import main as deliver_case_notices
@@ -180,6 +181,14 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         description="Escalates city-admin assigned demonstrations with no decision within 24 h to the national team.",
         func=escalate_city_assignments,
         default_trigger=_interval(minutes=30),
+        allow_interval_override=True,
+    ),
+    JobDefinition(
+        key="expire_undecided_demos",
+        name="Close undecided past demonstrations",
+        description="Closes demonstrations nobody approved or rejected before their date as expired (Vanhentunut) through the decision service. Submitters of demos that passed within EXPIRED_DEMO_NOTIFY_DAYS (14) get an apology email; older ones close quietly. EXPIRE_UNDECIDED_DEMOS=false turns it off.",
+        func=expire_undecided_demos,
+        default_trigger=_interval(hours=6),
         allow_interval_override=True,
     ),
     JobDefinition(

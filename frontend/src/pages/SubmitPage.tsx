@@ -33,6 +33,7 @@ const FIELD_IDS: Record<string, string> = {
   date: 'date-display',
   startTime: 'start_time-display',
   endTime: 'end_time-display',
+  endDate: 'end_date-display',
   eventType: 'type',
   route: 'route',
   city: 'city-trigger',
@@ -43,6 +44,15 @@ const FIELD_IDS: Record<string, string> = {
   acceptTerms: 'accept_terms',
 };
 
+/** A multi-day end date is on or after the start and at most 13 days later (14 days in all). */
+function endDateFits(start: string, end: string): boolean {
+  const from = Date.parse(`${start}T00:00:00Z`);
+  const to = Date.parse(`${end}T00:00:00Z`);
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return false;
+  const days = (to - from) / 86_400_000;
+  return days >= 0 && days <= 13;
+}
+
 const ADDRESS_PATTERN = /^.+(?:,\s*\d{3,5})?$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -50,6 +60,7 @@ type ImportEvent = {
   title?: string;
   description_html?: string;
   start_date?: string;
+  end_date?: string;
   start_time?: string;
   end_time?: string;
   city?: string;
@@ -82,6 +93,7 @@ export function SubmitPage(props: SubmitPageProps) {
     date: '',
     startTime: '',
     endTime: '',
+    endDate: '',
     eventType: '',
     route: '',
     city: '',
@@ -241,6 +253,9 @@ export function SubmitPage(props: SubmitPageProps) {
       if (fields.address.trim() && !ADDRESS_PATTERN.test(fields.address.trim())) {
         problems.push({ name: 'address', message: messages.addressHelper });
       }
+      if (fields.endDate && !endDateFits(fields.date, fields.endDate)) {
+        problems.push({ name: 'endDate', message: messages.endDateInvalid });
+      }
     }
     if (target === 4) {
       const named = organizers.filter((organizer) => organizer.name.trim());
@@ -269,6 +284,8 @@ export function SubmitPage(props: SubmitPageProps) {
       : FIELD_IDS[first.name];
     const element = id ? document.getElementById(id) : null;
     element?.focus({ preventScroll: true });
+    // Focus opens a date picker at the field's pre-scroll position; keep it closed.
+    (element as (HTMLElement & { _flatpickr?: { close: () => void } }) | null)?._flatpickr?.close();
     element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [messages, organizers]);
 
@@ -300,6 +317,7 @@ export function SubmitPage(props: SubmitPageProps) {
       ...current,
       title: event.title ?? current.title,
       date: event.start_date ?? current.date,
+      endDate: event.end_date && event.end_date > (event.start_date ?? current.date) && endDateFits(event.start_date ?? current.date, event.end_date) ? event.end_date : current.endDate,
       startTime: event.start_time ?? current.startTime,
       endTime: event.end_time ?? current.endTime,
       city: event.city ?? current.city,
@@ -381,6 +399,7 @@ export function SubmitPage(props: SubmitPageProps) {
     data.set('date', fields.date);
     data.set('start_time', fields.startTime);
     data.set('end_time', fields.endTime);
+    data.set('end_date', fields.endDate);
     data.set('type', fields.eventType);
     data.set('route', fields.eventType === 'marssi' ? fields.route : '');
     data.set('city', fields.city);
@@ -865,6 +884,22 @@ export function SubmitPage(props: SubmitPageProps) {
                   required
                   label={messages.startTimeLabel}
                 />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label id="end_date-label" htmlFor="end_date-display">{messages.endDateLabel}</label>
+              <DateField
+                id="end_date"
+                name="end_date"
+                invalid={invalid.has('endDate')}
+                value={fields.endDate}
+                onChange={(value) => set('endDate', value)}
+                describedBy="end_date-helper"
+                labelledBy="end_date-label"
+              />
+              <div className="helper-text" id="end_date-helper">
+                <i className="fa-solid fa-calendar-days" aria-hidden="true" /> {messages.endDateHelper}
               </div>
             </div>
 

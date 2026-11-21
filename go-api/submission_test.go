@@ -350,3 +350,22 @@ func TestSubmissionErrorsNameTheFailedCheck(t *testing.T) {
 		}
 	}
 }
+
+func TestSubmissionEndDate(t *testing.T) {
+	token := "0123456789abcdef0123456789abcdef"
+	locales := map[string]bool{"fi": true}
+	stored := map[string]any{"": nil, "2099-01-01": nil, "2099-01-03": "2099-01-03", "2099-01-14": "2099-01-14"}
+	for value, want := range stored {
+		input, err := readSubmission(httptest.NewRecorder(), submissionRequest(token, "Title", map[string]string{"end_date": value}), locales)
+		if err != nil || input.Event["end_date"] != want {
+			t.Fatalf("end_date %q: got %v, %v", value, input.Event["end_date"], err)
+		}
+	}
+	for _, value := range []string{"2098-12-31", "2099-01-15", "2099-02-30", "2099-1-3", "<script>"} {
+		_, err := readSubmission(httptest.NewRecorder(), submissionRequest(token, "Title", map[string]string{"end_date": value}), locales)
+		reason, ok := err.(submissionError)
+		if !ok || reason.Code != "SUBMIT_INVALID_FIELD" || !strings.Contains(reason.Message, "Päättymispäivä ei voi") {
+			t.Fatalf("end_date %q accepted: %#v", value, err)
+		}
+	}
+}

@@ -1746,30 +1746,13 @@ def generate_demo_preview_link(demo_id: str, *, recipient: dict | None = None) -
     return url_for("admin_demo.preview_demo_with_token", token=token, _external=True)
 
 def generate_demo_approve_link(demo_id: str, *, recipient: dict | None = None) -> str:
-    token = serializer.dumps(_magic_link_payload(demo_id), salt="approve-demo")
-    actor = _get_actor_label()
-    _registry_upsert_initial(_hash_token(token), "approve", str(demo_id), actor, recipient=recipient)
-    demo = _load_demo_or_bust(demo_id)
-    log_demo_audit_entry(
-        demo_id,
-        action="token_created",
-        message=_safe_translate("%(user)s loi hyväksyntälinkin", user=actor),
-        details={"token_type": "approve", "demo_date": demo.get("date"), "demo_city": demo.get("city")},
-    )
-    return url_for("admin_demo.approve_demo_with_token", token=token, _external=True)
+    """Admin email link. It opens the case; it never decides (20 Nov 2026)."""
+    return demo_decision_link(demo_id)
+
 
 def generate_demo_reject_link(demo_id: str, *, recipient: dict | None = None) -> str:
-    token = serializer.dumps(_magic_link_payload(demo_id), salt="reject-demo")
-    actor = _get_actor_label()
-    _registry_upsert_initial(_hash_token(token), "reject", str(demo_id), actor, recipient=recipient)
-    demo = _load_demo_or_bust(demo_id)
-    log_demo_audit_entry(
-        demo_id,
-        action="token_created",
-        message=_safe_translate("%(user)s loi hylkäyslinkin", user=actor),
-        details={"token_type": "reject", "demo_date": demo.get("date"), "demo_city": demo.get("city")},
-    )
-    return url_for("admin_demo.reject_demo_with_token", token=token, _external=True)
+    """Kept for callers; same case link as ``generate_demo_approve_link``."""
+    return demo_decision_link(demo_id)
 
 def _create_demo_edit_link(demo_id: str, duration_key: str = "24h"):
     duration_key, duration_seconds = _edit_link_duration(duration_key)
@@ -1905,107 +1888,58 @@ def preview_demo_with_token(token):
 # APPROVE / REJECT – require POST confirm to avoid link prefetch/GET abuse
 # ------------------------------------------------------------------------------
 
+def _demo_id_from_link_token(action: str, token: str):
+    """Read the demo id from an old approve/reject email link, or None."""
+    try:
+        payload = serializer.loads(token, salt=f"{action}-demo")
+    except BadSignature:
+        return None
+    demo_id = str(payload.get("demo_id")) if isinstance(payload, dict) else str(payload)
+    return demo_id if ObjectId.is_valid(demo_id) else None
+
+
 @admin_demo_bp.route("/approve_demo_with_token/<token>", methods=["GET", "POST"])
-def approve_demo_with_token(token):
-    """
-    Two-step:
-     - GET: validate/bind & show confirm page with a CSRF-protected POST.
-     - POST: perform the action, mark token used.
-    """
-    if request.method == "GET":
-        doc = _check_and_bind("approve", token)
-        demo = _load_demo_or_bust(doc["demo_id"])
-        return render_template("admin_V2/cc/confirm_action.html",
-                               action="approve",
-                               token=token,
-                               demo=demo)
-
-    # POST
-    doc = _check_and_bind("approve", token)  # re-check before state change
-    demo_id = doc["demo_id"]
-    try:
-        result = _apply_demo_decision(
-            demo_id,
-            "approved",
-            source="token",
-            used_token_id=doc["_id"],
-        )
-    except Exception:
-        logger.exception("Failed to approve demo %s via token %s", demo_id, doc.get("_id"))
-        flash_message("Hyväksyntä epäonnistui. Yritä uudelleen.", "error")
-        return redirect(url_for("admin_demo.approve_demo_with_token", token=token))
-    _mark_used(doc["_id"])
-    flash_message(
-        "Mielenosoitus hyväksyttiin onnistuneesti!"
-        if result.changed
-        else "Mielenosoitus oli jo hyväksytty.",
-        "success" if result.changed else "info",
-    )
-    return redirect(
-        url_for("demonstration_detail", demo_id=demo_id, _external=True)
-    )
-
-
 @admin_demo_bp.route("/reject_demo_with_token/<token>", methods=["GET", "POST"])
-def reject_demo_with_token(token):
-    """
-    Two-step:
-     - GET: validate/bind & show confirm page with a CSRF-protected POST.
-     - POST: perform the action, mark token used.
-    """
-    if request.method == "GET":
-        doc = _check_and_bind("reject", token)
-        demo = _load_demo_or_bust(doc["demo_id"])
-        return render_template("admin_V2/cc/confirm_action.html",
-                               action="reject",
-                               token=token,
-                               demo=demo)
+def legacy_decision_link(token):
+    """Old one-click email links open the case instead of deciding.
 
-    # POST
-    doc = _check_and_bind("reject", token)  # re-check before state change
-    demo_id = doc["demo_id"]
-    try:
-        result = _apply_demo_decision(
-            demo_id,
-            "rejected",
-            source="token",
-            used_token_id=doc["_id"],
-        )
-    except Exception:
-        logger.exception("Failed to reject demo %s via token %s", demo_id, doc.get("_id"))
-        flash_message("Hylkäys epäonnistui. Yritä uudelleen.", "error")
-        return redirect(url_for("admin_demo.reject_demo_with_token", token=token))
-    _mark_used(doc["_id"])
-    flash_message(
-        "Mielenosoitus hylättiin onnistuneesti!"
-        if result.changed
-        else "Mielenosoitus oli jo hylätty.",
-        "success" if result.changed else "info",
-    )
-    return redirect(url_for("index"))
+    Maintainer decision (20 Nov 2026): new demonstrations are decided only in
+    the case, where the preview and side effects are shown first.
+    """
+    action = "approve" if "/approve_demo_with_token/" in request.path else "reject"
+    demo_id = _demo_id_from_link_token(action, token)
+    if not demo_id:
+        abort(404)
+    return redirect(url_for("admin_demo.open_demo_decision", demo_id=demo_id))
+
+
 from flask import request, render_template
 from mielenosoitukset_fi.utils.multi_day import normalize_end_date
 from flask_login import login_required, current_user
 from datetime import datetime, date
 from bson.objectid import ObjectId as BsonObjectId
 
-from flask import request, render_template
-from flask_login import login_required, current_user
-from bson.objectid import ObjectId as BsonObjectId
-from datetime import datetime, date
 
-from flask import request, render_template, session
-from flask_login import login_required, current_user
-from bson.objectid import ObjectId as BsonObjectId
+@admin_demo_bp.route("/<demo_id>/decide", methods=["GET"])
+@login_required
+@admin_required
+def open_demo_decision(demo_id):
+    """Stable link for emails: the one page where this admin decides the demo."""
+    if not ObjectId.is_valid(demo_id):
+        abort(404)
+    if not mongo.demonstrations.find_one({"_id": ObjectId(demo_id)}, {"_id": 1}):
+        abort(404)
+    if not _user_can_access_demo(demo_id, "ACCEPT_DEMO"):
+        if _user_can_access_demo(demo_id, "VIEW_DEMO"):
+            return redirect(url_for("admin_demo.demo_command_center", demo_id=demo_id))
+        abort(403)
+    return redirect(_decision_urls([demo_id])[demo_id])
 
-from flask import request, render_template, session
-from flask_login import login_required, current_user
-from bson.objectid import ObjectId as BsonObjectId
-from datetime import date
 
-from flask import request, render_template
-from flask_login import login_required, current_user
-from bson.objectid import ObjectId as BsonObjectId
+def demo_decision_link(demo_id) -> str:
+    """Absolute link for admin emails; opens the case (or review page)."""
+    return url_for("admin_demo.open_demo_decision", demo_id=str(demo_id), _external=True)
+
 
 @admin_demo_bp.route("/")
 @login_required

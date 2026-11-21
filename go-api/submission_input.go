@@ -152,6 +152,13 @@ func validateSubmissionFields(r *http.Request) error {
 	if err != nil || date.Format("2006-01-02") != get("date") {
 		return invalidSubmissionField("Päivämäärä ei kelpaa. Valitse päivä kalenterista.")
 	}
+	endDate := get("end_date")
+	if endDate != "" {
+		last, err := time.Parse("2006-01-02", endDate)
+		if err != nil || last.Format("2006-01-02") != endDate || last.Before(date) || last.After(date.AddDate(0, 0, maxDemoDays-1)) {
+			return invalidSubmissionField("Päättymispäivä ei voi olla ennen alkamispäivää, ja mielenosoitus voi kestää enintään 14 päivää.")
+		}
+	}
 	for _, key := range []string{"start_time", "end_time"} {
 		if value := get(key); value != "" {
 			if parsed, err := time.Parse("15:04", value); err != nil || parsed.Format("15:04") != value {
@@ -218,7 +225,12 @@ func readSubmission(w http.ResponseWriter, r *http.Request, locales map[string]b
 			}
 		}
 	}
-	event := bson.M{"title": get("title"), "date": get("date"), "start_time": get("start_time"), "end_time": get("end_time"),
+	// validateSubmissionFields checked the end date; a same-day one means one day.
+	endDate := get("end_date")
+	if endDate <= get("date") {
+		endDate = ""
+	}
+	event := bson.M{"title": get("title"), "date": get("date"), "end_date": nilIfEmpty(endDate), "start_time": get("start_time"), "end_time": get("end_time"),
 		"city": city.Name, "city_key": city.Key, "address": get("address"), "description": cleanSubmissionHTML(get("description")), "tags": tags,
 		"default_language": locale, "translations": bson.M{}, "event_type": eventType, "route": route, "organizers": organizers,
 		"facebook": safeSubmissionURL(get("facebook")), "approved": false, "hide": false, "rejected": false, "cancelled": false, "recurs": false, "in_past": false, "aliases": bson.A{}}

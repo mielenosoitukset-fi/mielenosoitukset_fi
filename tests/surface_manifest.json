@@ -118,7 +118,7 @@
     ]
   },
   "background_jobs": {
-    "count": 29,
+    "count": 30,
     "coverage": [
       "jobs",
       "tests/test_urgent_review_delivery.py",
@@ -128,9 +128,10 @@
       "tests/test_purge_suggestion_ips.py",
       "tests/test_demo_suggestion_cases.py",
       "tests/test_user_erasure.py",
-      "tests/test_scrub_admin_log_secrets.py"
+      "tests/test_scrub_admin_log_secrets.py",
+      "tests/test_expire_undecided_demos.py"
     ],
-    "sha256": "f548e6d59b106b2f2d96f3130ae5dc4e7e2a1cacb609c6745c89303368573bbd"
+    "sha256": "47da2a590194ff1dc9de6135771b0f17f5813a780c4d05aafdd0bbe360348c14"
   },
   "routes": {
     "mielenosoitukset_fi/admin/admin_bp.py": {
@@ -158,16 +159,17 @@
       "sha256": "651daec4ff338a32e0ee863fb56c268fe26cafac872b016a53066275b7490b46"
     },
     "mielenosoitukset_fi/admin/admin_demo_bp.py": {
-      "count": 53,
+      "count": 54,
       "coverage": [
         "integration",
         "e2e-admin",
         "tests/test_urgent_review_route.py",
         "tests/test_admin_demo_preview.py",
         "tests/test_demo_decision_preview.py",
+        "tests/test_token_lifecycle.py",
         "tests/test_demo_take_down.py"
       ],
-      "sha256": "c2574b18472401574ad3ddf1ac157b8e544f7957694eebe337f804f549fd8578"
+      "sha256": "14c0d87a3d50e29d2c34078876bca880494bf300903c95f430c13452e9f325db"
     },
     "mielenosoitukset_fi/admin/admin_dev_bp.py": {
       "count": 6,
@@ -317,12 +319,12 @@
       "sha256": "5d848cdfb95e77ff83cb7831e7b8f7b256e5103ebb0c5f42c82294a660448739"
     },
     "mielenosoitukset_fi/users/BPs/auth.py": {
-      "count": 31,
+      "count": 32,
       "coverage": [
         "integration",
         "e2e-auth"
       ],
-      "sha256": "7d8d53bf2194ea184b7b4b7885d525ae00d84b9e0c6446e5f9f7077b8910130f"
+      "sha256": "35ff3cbf5427668b340583068edba5784b396ada572567866f44bf4432da93d5"
     },
     "mielenosoitukset_fi/users/BPs/orgs.py": {
       "count": 3,

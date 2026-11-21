@@ -25,7 +25,7 @@ def _pause_geocoder(monkeypatch, resume, coordinates):
     return started
 
 
-def test_preview_geocoding_after_email_approval_preserves_approval(
+def test_preview_geocoding_after_approval_preserves_approval(
     app, db, seeded_data, monkeypatch
 ):
     resume = Event()
@@ -37,17 +37,15 @@ def test_preview_geocoding_after_email_approval_preserves_approval(
     )
 
     detail_client = _admin_client(app, seeded_data["admin_id"])
-    approval_client = app.test_client()
+    approval_client = _admin_client(app, seeded_data["admin_id"])
     with ThreadPoolExecutor(max_workers=1) as pool:
         preview = pool.submit(
             detail_client.get, f"/demonstration/{demo_id}?preview=1"
         )
         try:
             assert started.wait(10), "preview did not reach geocoding"
-            approval = approval_client.post(
-                f"/admin/demo/approve_demo_with_token/{seeded_data['approve_token']}"
-            )
-            assert approval.status_code == 302
+            approval = approval_client.post(f"/api/admin/demo/{demo_id}/approve")
+            assert approval.status_code == 200
             approved = db.demonstrations.find_one({"_id": demo_id})
             assert approved["approved"] is True
             assert approved["moderation_decision"]["status"] == "approved"
@@ -60,7 +58,7 @@ def test_preview_geocoding_after_email_approval_preserves_approval(
     assert final["approved"] is True
     assert final["rejected"] is False
     assert final["moderation_decision"]["status"] == "approved"
-    assert final["moderation_decision"]["source"] == "token"
+    assert final["moderation_decision"]["source"] == "admin_api"
     assert final["latitude"] == "60.1699"
     assert final["longitude"] == "24.9384"
 
@@ -77,17 +75,15 @@ def test_preview_geocoding_does_not_replace_coordinates_added_while_waiting(
     )
 
     detail_client = _admin_client(app, seeded_data["admin_id"])
-    approval_client = app.test_client()
+    approval_client = _admin_client(app, seeded_data["admin_id"])
     with ThreadPoolExecutor(max_workers=1) as pool:
         preview = pool.submit(
             detail_client.get, f"/demonstration/{demo_id}?preview=1"
         )
         try:
             assert started.wait(10), "preview did not reach geocoding"
-            approval = approval_client.post(
-                f"/admin/demo/approve_demo_with_token/{seeded_data['approve_token']}"
-            )
-            assert approval.status_code == 302
+            approval = approval_client.post(f"/api/admin/demo/{demo_id}/approve")
+            assert approval.status_code == 200
             db.demonstrations.update_one(
                 {"_id": demo_id},
                 {"$set": {"latitude": "60.2000", "longitude": "24.9000"}},

@@ -56,3 +56,11 @@ func demoDaysStages() []bson.D {
 		{{Key: "$unwind", Value: "$_day"}},
 	}
 }
+
+// nilIfEmpty stores an empty optional string as null.
+func nilIfEmpty(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
