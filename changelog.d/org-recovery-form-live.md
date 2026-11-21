@@ -1,0 +1,1 @@
+- Organisaation tilin käytön palautuslomake (`/organisaatiot/palautus`) on nyt käytössä: pyynnön käsittelee Hallinto, eikä pyyntö anna pääsyä itsestään.

@@ -185,6 +185,18 @@ if grep -q '^RewriteRule "\^/organisaatiot/hae\$" "http://127.0.0.1:8091' "$revi
   fi
 fi
 
+# Organization access recovery: same 405 on GET when the flag is on.
+if grep -q '^RewriteRule "\^/organisaatiot/palautus\$" "http://127.0.0.1:8091' "$reviewed"; then
+  org_recovery_ready() {
+    [[ $(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' \
+      http://127.0.0.1:8091/api/organization-requests/recovery || true) == 405 ]]
+  }
+  if ! retry 5 2 org_recovery_ready; then
+    log "Go organization recovery is not enabled/ready; keeping the current routing"
+    exit 1
+  fi
+fi
+
 install -d -m 0700 "$backup_root"
 backup="$backup_root/mielenosoitukset-react-ssr.conf.$(date -u +%Y%m%dT%H%M%SZ)"
 cp -a "$include" "$backup"

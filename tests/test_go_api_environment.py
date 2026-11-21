@@ -405,6 +405,7 @@ def test_org_requests_flag_follows_public_submissions_and_defaults_on(tmp_path):
         module.configure(source, target)
         values = dict(line.split("=", 1) for line in target.read_text().splitlines())
         assert ("ORG_REQUESTS_GO_ENABLED" in values) is expected
+        assert ("ORG_RECOVERY_GO_ENABLED" in values) is expected
 
 
 def test_org_requests_routing_is_guarded_by_the_release_check():
@@ -415,6 +416,9 @@ def test_org_requests_routing_is_guarded_by_the_release_check():
     assert 'RewriteRule "^/organisaatiot/hae$" "http://127.0.0.1:8091/api/organization-requests" [P,L]' in lines
     assert "http://127.0.0.1:8091/api/organization-requests || true) == 405" in release
     assert release.index("org_requests_ready") < release.index('install -d -m 0700 "$backup_root"')
+    assert 'RewriteRule "^/organisaatiot/palautus$" "http://127.0.0.1:8091/api/organization-requests/recovery" [P,L]' in lines
+    assert "http://127.0.0.1:8091/api/organization-requests/recovery || true) == 405" in release
+    assert release.index("org_recovery_ready") < release.index('install -d -m 0700 "$backup_root"')
 
 
 def test_unconfirmed_org_requests_expire_through_a_ttl_index():

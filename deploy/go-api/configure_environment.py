@@ -60,6 +60,11 @@ def configure(source, target):
         # Apache rules were already live; `ORG_REQUESTS_GO: false` opts out.
         if config.get("ORG_REQUESTS_GO", True) is True:
             values["ORG_REQUESTS_GO_ENABLED"] = "true"
+            # Access recovery form (docs/organization-requests.md, O5): on with the
+            # requests above since 21 November 2026 (maintainer: "approve everything");
+            # `ORG_RECOVERY_GO: false` opts out.
+            if config.get("ORG_RECOVERY_GO", True) is True:
+                values["ORG_RECOVERY_GO_ENABLED"] = "true"
         # Suggestion form writes (docs/go-public-api.md): need public submissions, as
         # above. On by default since 20 November 2026 (maintainer's go);
         # `SUGGESTIONS_GO: false` in config.yaml opts out. Without this line a
