@@ -1,0 +1,1 @@
+- Admin: `/admin/` opens the dashboard instead of a 404. The dashboard's panic mode card no longer shows buttons that led to a 403; admins who can use the security cases page get a link there, where the lockdown needs a second admin. The duplicate "Lokit ja tapahtumat" button in the sidebar is gone.

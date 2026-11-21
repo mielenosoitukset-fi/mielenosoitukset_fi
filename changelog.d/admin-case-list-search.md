@@ -1,0 +1,1 @@
+- Ylläpidon tapauslista näyttää ensin avoimet tapaukset 50 kerrallaan, ja siinä on haku (numero, ilmoittaja, mielenosoitus, organisaatio) ja tyyppisuodatin. Listan avaaminen ei enää sulje tapauksia: taustatyö sulkee muualla ratkaistut tapaukset 10 minuutin välein ja kirjaa sulkemisen tapauksen historiaan.

@@ -43,24 +43,18 @@ def test_undeclared_case_route_fails_closed(app, admin_client):
     assert admin_client.get('/admin/case/undeclared-check/').status_code == 403
 
 
-def test_case_list_reuses_edit_scope_and_preserves_autoclose(app, db, seeded_data, monkeypatch):
-    from inspect import unwrap
-    route_globals = unwrap(app.view_functions['admin_case.cases']).__globals__
+def test_case_list_never_writes_and_job_closes_resolved(app, db, seeded_data):
+    from mielenosoitukset_fi.scripts.auto_close_cases import _resolve
     client, _actor, own, foreign, _demo = _city_cases(app, db, seeded_data)
-    original = db.cases.find_one({'_id': own})
-    additional = [dict(deepcopy(original), _id=ObjectId(), running_num=900000 + index) for index in range(6)]
-    db.cases.insert_many(additional)
     db.demonstrations.update_one({'_id': seeded_data['pending_demo_id']}, {'$set': {'approved': True}})
-    calls = []
-    scope_query = route_globals['case_scope_query']
-    def counted(user, permission):
-        calls.append(permission)
-        return scope_query(user, permission)
-    monkeypatch.setitem(route_globals, 'case_scope_query', counted)
+    before = db.cases.find_one({'_id': own})
     assert client.get('/admin/case/').status_code == 200
-    assert calls.count('EDIT_CASE') == 1
-    for case_id in [own, *[case['_id'] for case in additional]]:
-        assert db.cases.find_one({'_id': case_id})['meta']['closed'] is True
+    assert db.cases.find_one({'_id': own}) == before
+    _resolve(db)
+    closed = db.cases.find_one({'_id': own})
+    assert closed['meta']['closed'] is True
+    assert closed['case_history'][-1]['mech_action'] == 'auto_close_job'
+    assert closed['action_logs'][-1]['action_type'] == 'auto_close'
     assert not (db.cases.find_one({'_id': foreign}).get('meta') or {}).get('closed')
 
 
