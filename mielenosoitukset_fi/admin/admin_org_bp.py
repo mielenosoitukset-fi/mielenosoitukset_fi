@@ -542,8 +542,9 @@ def update_organization(org_id):
     description = request.form.get("description")
     website = request.form.get("website")
     social_media_links = get_social_media_links()
-    current_logo_doc = mongo.organizations.find_one({"_id": ObjectId(org_id)}, {"logo": 1})
+    current_logo_doc = mongo.organizations.find_one({"_id": ObjectId(org_id)}, {"logo": 1, "verified": 1})
     current_logo = current_logo_doc.get("logo") if current_logo_doc else None
+    previous_verified = bool((current_logo_doc or {}).get("verified", False))
     logo_value, logo_changed = resolve_logo_value(current_logo)
 
     update_payload = {
@@ -564,6 +565,15 @@ def update_organization(org_id):
             "$set": update_payload
         },
     )
+    # The checkbox stays until Hallinto handles organization decisions (O3), but
+    # every change of the flag leaves an explicit admin-log entry with who, old and new value.
+    if "verified" in update_payload and update_payload["verified"] != previous_verified:
+        _log_org_event(
+            "organization_verified_changed",
+            organization_id=str(org_id),
+            previous=previous_verified,
+            new=update_payload["verified"],
+        )
     return True
 
 
