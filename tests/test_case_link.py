@@ -1,8 +1,9 @@
-"""Scoped case links in admin emails (maintainer, 20 Nov 2026).
+"""Scoped case links in admin emails (maintainer, 20 Nov 2026; one page, 21 Nov 2026).
 
-The link opens one demonstration without login and lets that admin approve or
-reject it. It never logs anyone in, binds to the first browser, needs the
-admin's TOTP code when they use two-factor, and stops working after a decision.
+The link opens the demonstration's case page, the same page as in Tapaukset,
+without login and lets that admin approve, reject or escalate that case only.
+It never logs anyone in, binds to the first browser, needs the admin's TOTP
+code when they use two-factor, and stops working for decisions after one.
 """
 
 import re
@@ -29,114 +30,153 @@ def _csrf(body):
 
 
 def _open(browser, path):
-    """GET shows an open button (scanners stop here); the POST binds this browser."""
+    """GET shows an open button (scanners stop here); the POST binds this browser and shows the case."""
     first = browser.get(path)
-    assert first.status_code == 200 and "Avaa tässä selaimessa" in first.get_data(as_text=True)
+    assert first.status_code == 200 and "Avaa ilmoitus" in first.get_data(as_text=True)
     return browser.post(path, data={"csrf": _csrf(first.get_data(as_text=True)), "open": "1"})
 
 
-def test_link_opens_one_demo_without_login_and_binds_browser(app, db, seeded_data):
+def _case_path(db, seeded_data):
+    return f"/admin/case/{_case(db, seeded_data)['_id']}/"
+
+
+def _act(browser, db, seeded_data, action, **extra):
+    return browser.post(
+        _case_path(db, seeded_data) + "demo_action", json={"action": action, **extra}
+    )
+
+
+def test_link_opens_the_case_page_without_login_and_binds_browser(app, db, seeded_data):
+    _case(db, seeded_data)
     path = _link(app, db, seeded_data)
     browser = app.test_client()
-    page = _open(browser, path)
+    opened = _open(browser, path)
+    assert opened.status_code == 302 and opened.headers["Location"] == _case_path(db, seeded_data)
+    page = browser.get(opened.headers["Location"])
     body = page.get_data(as_text=True)
     assert page.status_code == 200, body[:500]
-    assert "Pending Demonstration" in body and "Hyväksy ja julkaise" in body
-    assert page.headers["Cache-Control"] == "no-store"
+    assert "Pending Demonstration" in body and "Hyväksy mielenosoitus" in body and "Hylkää mielenosoitus" in body
+    # Same page, without the admin menu and without the submitter's contact details.
+    assert 'id="sidebarMenu"' not in body and "Piilotettu" in body and "Sisäiset muistiinpanot" not in body
 
     # It never logs in: the rest of the admin still needs a login.
+    with browser.session_transaction() as session:
+        assert "_user_id" not in session
     assert browser.get("/admin/dashboard").status_code in (302, 401, 403)
+    assert browser.get("/admin/case/").status_code in (302, 401, 403)
     # Another browser cannot use the same link, and plain GETs never bind.
     assert app.test_client().get(path).status_code == 403
 
 
+def test_link_reaches_only_its_own_case(app, db, seeded_data):
+    _case(db, seeded_data)
+    other = db.cases.insert_one({"type": "new_demo", "demo_id": ObjectId(), "meta": {}}).inserted_id
+    browser = app.test_client()
+    _open(browser, _link(app, db, seeded_data))
+    assert browser.get(f"/admin/case/{other}/").status_code in (302, 401, 403)
+    assert browser.post(f"/admin/case/{other}/demo_action", json={"action": "accept"}).status_code in (302, 401, 403)
+    assert browser.get(f"/admin/case/{_case(db, seeded_data)['_id']}/").status_code == 200
+
+
+def test_link_cannot_do_the_logged_in_only_actions(app, db, seeded_data):
+    _case(db, seeded_data)
+    browser = app.test_client()
+    _open(browser, _link(app, db, seeded_data))
+    for action in ("take_down", "undo_approval"):
+        assert _act(browser, db, seeded_data, action).status_code == 403
+    assert browser.post(_case_path(db, seeded_data) + "close/").status_code in (302, 401, 403)
+
+
 def test_prefetch_does_not_claim_the_link(app, db, seeded_data):
+    _case(db, seeded_data)
     path = _link(app, db, seeded_data)
     scanner = app.test_client()
     scanner.get(path)
     scanner.get(path)
-    assert _open(app.test_client(), path).status_code == 200
+    assert _open(app.test_client(), path).status_code == 302
 
 
 def test_approve_through_link_uses_decision_service_and_ends_link(app, db, seeded_data):
+    _case(db, seeded_data)
     path = _link(app, db, seeded_data)
     browser = app.test_client()
-    csrf = _csrf(_open(browser, path).get_data(as_text=True))
+    _open(browser, path)
 
-    response = browser.post(path, data={"csrf": csrf, "decision": "approved"})
+    response = _act(browser, db, seeded_data, "accept")
 
-    assert response.status_code == 200, response.get_data(as_text=True)[:500]
+    assert response.status_code == 200, response.get_data(as_text=True)
     demo = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
     assert demo["approved"] is True
     decision = demo["moderation_decision"]
     assert decision["source"] == "case_link"
     assert decision["actor"]["authentication"] == "case_link"
-    assert browser.get(path).status_code == 410
-
-
-def test_missing_csrf_is_refused(app, db, seeded_data):
-    path = _link(app, db, seeded_data)
-    browser = app.test_client()
-    _open(browser, path)
-    assert browser.post(path, data={"decision": "approved"}).status_code == 400
-    assert db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})["approved"] is False
+    # The page stays readable in this browser and says what happened; the link decides nothing more.
+    after = browser.get(_case_path(db, seeded_data))
+    assert after.status_code == 200 and "Päätös on tehty" in after.get_data(as_text=True)
+    assert _act(browser, db, seeded_data, "reject", reason_key="spam").status_code in (302, 401, 403)
+    assert app.test_client().get(path).status_code == 410
 
 
 def test_reject_needs_reason_and_records_it(app, db, seeded_data):
-    path = _link(app, db, seeded_data)
+    _case(db, seeded_data)
     browser = app.test_client()
-    csrf = _csrf(_open(browser, path).get_data(as_text=True))
-    assert browser.post(path, data={"csrf": csrf, "decision": "rejected"}).status_code == 400
+    _open(browser, _link(app, db, seeded_data))
+    assert _act(browser, db, seeded_data, "reject").status_code == 400
 
-    response = browser.post(path, data={"csrf": csrf, "decision": "rejected", "reason_key": "spam"})
+    response = _act(browser, db, seeded_data, "reject", reason_key="spam")
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.get_data(as_text=True)
     assert db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})["rejected"] is True
 
 
 def test_two_factor_user_needs_a_code(app, db, seeded_data):
+    _case(db, seeded_data)
     secret = pyotp.random_base32()
     db.users.update_one({"_id": seeded_data["admin_id"]}, {"$set": {"mfa_enabled": True}})
     db.mfas.insert_one({"user_id": seeded_data["admin_id"], "secret": secret})
     path = _link(app, db, seeded_data)
     browser = app.test_client()
-    body = _open(browser, path).get_data(as_text=True)
-    assert "Vahvistuskoodi" in body
-    csrf = _csrf(body)
+    _open(browser, path)
 
-    assert browser.post(path, data={"csrf": csrf, "decision": "approved"}).status_code == 400
-    assert browser.post(path, data={"csrf": csrf, "decision": "approved", "code": "000000"}).status_code == 400
+    assert _act(browser, db, seeded_data, "accept").status_code == 400
+    assert _act(browser, db, seeded_data, "accept", code="000000").status_code == 400
     assert db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})["approved"] is False
 
-    ok = browser.post(path, data={"csrf": csrf, "decision": "approved", "code": pyotp.TOTP(secret).now()})
-    assert ok.status_code == 200
+    ok = _act(browser, db, seeded_data, "accept", code=pyotp.TOTP(secret).now())
+    assert ok.status_code == 200, ok.get_data(as_text=True)
     demo = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
     assert demo["approved"] is True and demo["moderation_decision"]["actor"]["second_factor"] == "totp"
 
 
 def test_too_many_bad_codes_revoke_the_link(app, db, seeded_data):
+    _case(db, seeded_data)
     db.users.update_one({"_id": seeded_data["admin_id"]}, {"$set": {"mfa_enabled": True}})
     db.mfas.insert_one({"user_id": seeded_data["admin_id"], "secret": pyotp.random_base32()})
     path = _link(app, db, seeded_data)
     browser = app.test_client()
-    csrf = _csrf(_open(browser, path).get_data(as_text=True))
+    _open(browser, path)
     for _ in range(5):
-        browser.post(path, data={"csrf": csrf, "decision": "approved", "code": "123456"})
-    assert browser.get(path).status_code == 410
+        _act(browser, db, seeded_data, "accept", code="123456")
+    assert app.test_client().get(path).status_code == 410
+    assert browser.get(_case_path(db, seeded_data)).status_code in (302, 401, 403)
 
 
 def test_passkey_only_account_must_log_in(app, db, seeded_data):
     from mielenosoitukset_fi.utils.webauthn_utils import PASSKEY_COLLECTION
 
+    _case(db, seeded_data)
     db[PASSKEY_COLLECTION].insert_one({"user_id": seeded_data["admin_id"], "credential_id": "x"})
     path = _link(app, db, seeded_data)
     browser = app.test_client()
-    body = _open(browser, path).get_data(as_text=True)
-    assert "pääsyavainta" in body and 'name="csrf"' not in body
+    _open(browser, path)
+    body = browser.get(_case_path(db, seeded_data)).get_data(as_text=True)
+    assert "pääsyavainta" in body and "onclick=\"approveDemo()\"" not in body
+    assert _act(browser, db, seeded_data, "accept").status_code == 403
     assert db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})["approved"] is False
 
 
 def test_link_follows_current_rights(app, db, seeded_data):
+    _case(db, seeded_data)
     path = _link(app, db, seeded_data)
     db.users.update_one({"_id": seeded_data["admin_id"]}, {"$set": {"active": False}})
     assert app.test_client().get(path).status_code == 403
@@ -170,12 +210,12 @@ def _case(db, seeded_data):
 
 def test_escalate_through_link_needs_reason_and_keeps_demo_pending(app, db, seeded_data):
     _case(db, seeded_data)
-    path = _link(app, db, seeded_data)
     browser = app.test_client()
-    csrf = _csrf(_open(browser, path).get_data(as_text=True))
+    _open(browser, _link(app, db, seeded_data))
+    url = _case_path(db, seeded_data) + "demo_escalate"
 
-    assert browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": " "}).status_code == 400
-    ok = browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": "En tunne järjestäjää"})
+    assert browser.post(url, json={"reason": " "}).status_code == 400
+    ok = browser.post(url, json={"reason": "En tunne järjestäjää"})
     assert ok.status_code == 200, ok.get_data(as_text=True)[:500]
 
     case = _case(db, seeded_data)
@@ -187,12 +227,12 @@ def test_escalate_through_link_needs_reason_and_keeps_demo_pending(app, db, seed
     # Nobody is on duty, so level 1 is skipped: straight to the national team.
     assert case["meta"]["escalation_level"] == 2
     # A full admin can raise it again. No OT member is known, so OT is skipped: Johtoryhmä.
-    second = browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": "Päätös kuuluu Johtoryhmälle"})
+    second = browser.post(url, json={"reason": "Päätös kuuluu Johtoryhmälle"})
     assert second.status_code == 200, second.get_data(as_text=True)[:500]
     assert _case(db, seeded_data)["meta"]["escalation_level"] == 4
     # Johtoryhmä is the last level: nothing above it, nothing duplicated.
     history = len(_case(db, seeded_data)["case_history"])
-    third = browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": "Vielä ylemmäs"})
+    third = browser.post(url, json={"reason": "Vielä ylemmäs"})
     assert third.status_code == 409
     assert len(_case(db, seeded_data)["case_history"]) == history
 
@@ -247,28 +287,27 @@ def test_escalate_through_link_needs_code_and_refuses_passkey_only(app, db, seed
     secret = pyotp.random_base32()
     db.users.update_one({"_id": seeded_data["admin_id"]}, {"$set": {"mfa_enabled": True}})
     db.mfas.insert_one({"user_id": seeded_data["admin_id"], "secret": secret})
-    path = _link(app, db, seeded_data)
     browser = app.test_client()
-    body = _open(browser, path).get_data(as_text=True)
-    csrf = _csrf(body)
-    form = {"csrf": csrf, "decision": "escalate", "escalate_reason": "Tarvitsen apua"}
-    assert browser.post(path, data=form).status_code == 400
+    _open(browser, _link(app, db, seeded_data))
+    url = _case_path(db, seeded_data) + "demo_escalate"
+    form = {"reason": "Tarvitsen apua"}
+    assert browser.post(url, json=form).status_code == 400
     assert not _case(db, seeded_data).get("meta", {}).get("superior_needed")
-    assert browser.post(path, data={**form, "code": pyotp.TOTP(secret).now()}).status_code == 200
+    assert browser.post(url, json={**form, "code": pyotp.TOTP(secret).now()}).status_code == 200
     assert _case(db, seeded_data)["meta"]["superior_needed"] is True
 
 
 def test_reject_form_offers_the_matching_johtoryhma_decision_first(app, db, seeded_data):
     from mielenosoitukset_fi.utils import moderation_blocks
 
+    _case(db, seeded_data)
     demo_id = str(seeded_data["pending_demo_id"])
-    path = _link(app, db, seeded_data)
     browser = app.test_client()
-    body = _open(browser, path).get_data(as_text=True)
-    csrf = _csrf(body)
-    assert "Johtoryhmän päätös" not in body
+    _open(browser, _link(app, db, seeded_data))
+    page = _case_path(db, seeded_data)
+    assert "jory_decision" not in browser.get(page).get_data(as_text=True)
     # Without a decision on this demonstration nobody can claim one.
-    refused = browser.post(path, data={"csrf": csrf, "decision": "rejected", "reason_key": "jory_decision"})
+    refused = _act(browser, db, seeded_data, "reject", reason_key="jory_decision")
     assert refused.status_code == 400
     assert db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})["rejected"] is False
 
@@ -276,12 +315,11 @@ def test_reject_form_offers_the_matching_johtoryhma_decision_first(app, db, seed
                                  "organization_id": demo_id, "reason": "Ei sovi periaatteisiin",
                                  "from": "2026-11-01", "until": "", "source": "MOSO/JORY/ENN/2026/007"}])
     try:
-        shown = browser.get(path).get_data(as_text=True)
-        assert 'value="jory_decision" selected' in shown
-        assert "Johtoryhmän päätös MOSO/JORY/ENN/2026/007" in shown
-        ok = browser.post(path, data={"csrf": csrf, "decision": "rejected", "reason_key": "jory_decision"})
+        shown = browser.get(page).get_data(as_text=True)
+        assert "jory_decision" in shown and "MOSO/JORY/ENN/2026/007" in shown
+        ok = _act(browser, db, seeded_data, "reject", reason_key="jory_decision")
         assert ok.status_code == 200, ok.get_data(as_text=True)[:400]
-        case = db.cases.find_one({"type": "new_demo", "demo_id": {"$in": [seeded_data["pending_demo_id"], demo_id]}})
+        case = _case(db, seeded_data)
         entry = next(e for e in case["case_history"] if e.get("mech_action") == "reject_demo")
         assert entry["metadata"]["decision_id"] == "MOSO/JORY/ENN/2026/007"
         assert "Johtoryhmän päätös MOSO/JORY/ENN/2026/007" in entry["metadata"]["reason"]

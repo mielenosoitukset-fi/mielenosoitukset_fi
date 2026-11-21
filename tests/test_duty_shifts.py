@@ -125,14 +125,14 @@ def test_request_time_enforcement_and_use_log(app, db, seeded_data):
     client = _client_for_user(app, user_id)
     pending = seeded_data["pending_demo_id"]
 
-    assert client.get(f"/admin/demo/review/{pending}").status_code == 200
-    client.post(f"/admin/demo/accept_demo/{pending}")
+    assert client.get(f"/admin/demo/{pending}/decide").status_code == 302
+    client.post(f"/api/admin/demo/{pending}/approve")
     use = db.moderator_duty_uses.find_one({"user_id": user_id})
     assert use and use["shift_id"] == shift["_id"] and use["method"] == "POST"
 
     # No scheduled job: cancelling the stored shift ends access on the next request.
     duty_shifts.cancel_shift(db, shift_id=shift["_id"], reason="vuoro loppui", actor=actor)
-    assert client.get(f"/admin/demo/review/{pending}").status_code in (302, 403)
+    assert client.post(f"/api/admin/demo/{pending}/approve").status_code in (302, 403)
     assert db.users.find_one({"_id": user_id})["global_permissions"] == []
 
 

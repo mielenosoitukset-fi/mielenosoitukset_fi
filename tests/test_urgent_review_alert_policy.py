@@ -121,7 +121,7 @@ def test_message_is_bounded_escaped_and_has_only_an_authenticated_canonical_link
     assert "&lt;b&gt;Helsinki&lt;/b&gt;" in snapshot["text"]
     assert len(snapshot["text"]) < 2000
     assert snapshot["text"].count('<a href="') == 1
-    assert f'https://mielenosoitukset.fi/admin/demo/review/{DEMO_ID}' in snapshot["text"]
+    assert f'https://mielenosoitukset.fi/admin/demo/{DEMO_ID}/decide' in snapshot["text"]
     assert "evil.test" not in snapshot["text"]
     assert set(snapshot) == {
         "demo_id", "state", "urgency", "threshold_hours", "responsibility",

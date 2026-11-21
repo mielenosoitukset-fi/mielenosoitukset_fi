@@ -5,7 +5,7 @@ from mielenosoitukset_fi.utils.time_utils import utcnow
 from datetime import datetime
 import logging
 from bson.objectid import ObjectId
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for, abort, current_app
+from flask import Blueprint, jsonify, redirect, render_template, request, url_for, abort, current_app, g
 from flask_login import current_user, login_required
 from flask_babel import _
 
@@ -19,7 +19,7 @@ from mielenosoitukset_fi.utils.flashing import flash_message
 from mielenosoitukset_fi.utils.variables import CITY_LIST
 from mielenosoitukset_fi.utils.cities import normalize_city_key
 from mielenosoitukset_fi.utils import case_reasons
-from mielenosoitukset_fi.utils.wrappers import admin_required, permission_required
+from mielenosoitukset_fi.utils.wrappers import admin_required, permission_required, has_demo_approval_permission
 from .utils import mongo, log_admin_action_V2, AdminActParser, _ADMIN_TEMPLATE_FOLDER
 from mielenosoitukset_fi.utils.demo_cancellation import cancel_demo
 from mielenosoitukset_fi.utils.case_access import (
@@ -44,7 +44,18 @@ def log_request_info():
         abort(403)
 
 
-def case_permission(permission, *, allow_city=False):
+def _approves_new_demo(case_id):
+    """True when the signed-in admin may approve the demonstration this new-demo case is about."""
+    oid = _safe_objectid(case_id)
+    if not oid:
+        return False
+    case_doc = mongo.cases.find_one({"_id": oid, "type": "new_demo"}, {"demo_id": 1})
+    demo_oid = _safe_objectid((case_doc or {}).get("demo_id"))
+    demo = mongo.demonstrations.find_one({"_id": demo_oid}) if demo_oid else None
+    return bool(demo) and has_demo_approval_permission(current_user, demo)
+
+
+def case_permission(permission, *, allow_city=False, approver=False):
     """Declare capability, city boundary and target checks on the route itself."""
     def decorate(function):
         @wraps(function)
@@ -52,6 +63,19 @@ def case_permission(permission, *, allow_city=False):
             required = permission.get(request.method) if isinstance(permission, dict) else permission
             if not required:
                 abort(403)
+            decides_only = request.endpoint != "admin_case.demo_action" or (
+                (request.get_json(silent=True) or {}).get("action") in {"accept", "reject"}
+            )
+            if approver and decides_only and _approves_new_demo(kwargs.get("case_id")):
+                # Whoever may decide the demonstration may open and decide its case.
+                log_admin_action_V2(AdminActParser().log_request_info(request.__dict__, current_user))
+                return function(*args, **kwargs)
+            link = getattr(g, "case_link", None)
+            if link and str(kwargs.get("case_id")) == link["case_id"]:
+                # The email link of this very case: its routes check the demo
+                # decision right themselves (``_link_gate``).
+                log_admin_action_V2(AdminActParser().log_request_info(request.__dict__, current_user))
+                return function(*args, **kwargs)
             scope = case_scope_query(current_user, required)
             if scope is None or (scope and not allow_city):
                 abort(403)
@@ -557,7 +581,7 @@ def blocklist_remove(block_id):
 
 @admin_case_bp.route("/<case_id>/")
 @login_required
-@case_permission("VIEW_CASE", allow_city=True)
+@case_permission("VIEW_CASE", allow_city=True, approver=True)
 def single_case(case_id):
     case = Case.get(case_id)
     if not case:
@@ -713,12 +737,34 @@ def single_case(case_id):
     case_data["notified_users"] = notice_doc.get("notified_users") or []
     case_data["notified_at"] = notice_doc.get("notified_at")
 
+    link = getattr(g, "case_link", None)
+    demo_for_rights = mongo.demonstrations.find_one({"_id": _safe_objectid(case.demo_id)}) if case.demo_id else None
+    can_decide_demo = bool(
+        case.case_type == "new_demo" and demo_for_rights
+        and has_demo_approval_permission(current_user, demo_for_rights)
+    )
+    link_factor = None
+    # The email link, and an approver without case rights, see what is needed to
+    # decide: no submitter contact details, notes, history or other admins.
+    restricted = bool(link) or not can_access_case(current_user, "VIEW_CASE", case._id)
+    if restricted:
+        case_data["submitter"] = {}
+        case_data["submitter_label"] = _("Piilotettu")
+    if link:
+        from mielenosoitukset_fi.utils import case_links
+
+        link_factor = case_links.second_factor(mongo, current_user)
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}cases/case.html",
         case=case,
         case_data=case_data,
-        can_edit_case=can_access_case(current_user, "EDIT_CASE", case._id),
-        global_case_controls=global_case_permission(current_user, "EDIT_CASE"),
+        case_link_mode=bool(link),
+        restricted_view=restricted,
+        link_factor=link_factor,
+        link_ended=bool(link and link["ended"]),
+        can_decide_demo=can_decide_demo,
+        can_edit_case=False if link else can_access_case(current_user, "EDIT_CASE", case._id),
+        global_case_controls=False if link else global_case_permission(current_user, "EDIT_CASE"),
         escalation_level=_esc.current_level(case.meta),
         escalation_name=_esc.LEVEL_NAMES[_esc.current_level(case.meta)],
         escalate_label=_esc.ask_label(mongo, case.meta),
@@ -1130,10 +1176,53 @@ def delete_action(case_id, action_idx):
     return redirect(url_for("admin_case.single_case", case_id=case_id))
 
 
+
+def _link_gate(demo, *, actions=None, action=None):
+    """Extra checks when the request comes through the case's email link.
+
+    Returns ``(json, status)`` to refuse, or ``None`` to go on. The link may
+    only approve, reject or escalate its own pending demonstration, the same
+    way as before; two-factor accounts give their code, passkey-only accounts
+    log in. A login session is not affected.
+    """
+    link = getattr(g, "case_link", None)
+    if not link:
+        return None
+    from mielenosoitukset_fi.admin.admin_demo_bp import _CASE_LINK_ERRORS
+    from mielenosoitukset_fi.utils import case_links
+
+    if actions is not None and action not in actions:
+        return {"error": _("Tämä toiminto vaatii kirjautumisen.")}, 403
+    if not has_demo_approval_permission(current_user, demo):
+        return {"error": _(_CASE_LINK_ERRORS["no_rights"][1])}, 403
+    try:
+        case_links.require_second_factor(mongo, link, current_user)
+        if case_links.second_factor(mongo, current_user) == "totp":
+            payload = request.get_json(silent=True) or {}
+            case_links.check_code(mongo, link["doc"], current_user, payload.get("code"))
+    except case_links.CaseLinkError as exc:
+        code, message = _CASE_LINK_ERRORS.get(exc.code, (400, "Vahvistus epäonnistui."))
+        return {"error": _(message)}, code
+    return None
+
+
+def _decision_failed(result):
+    """The decision routes answer with an error status when nothing was decided."""
+    response = result[0] if isinstance(result, tuple) else result
+    status = result[1] if isinstance(result, tuple) else getattr(response, "status_code", 200)
+    return (response, status) if status >= 400 else None
+
+
+def _link_done():
+    """A decision ends the link; the page stays readable, the buttons stay away."""
+    link = getattr(g, "case_link", None)
+    if link:
+        mongo.magic_links.update_one({"_id": link["doc"]["_id"]}, {"$set": {"used_at": utcnow()}})
+
 @admin_case_bp.route("/<case_id>/demo_action", methods=["POST"])
 @login_required
 @admin_required
-@case_permission("EDIT_CASE")
+@case_permission("EDIT_CASE", approver=True)
 def demo_action(case_id):
     from mielenosoitukset_fi.admin.admin_demo_bp import approve_demo, reject_demo
     
@@ -1149,10 +1238,22 @@ def demo_action(case_id):
     if not demo:
         return jsonify({"error": _("Mielenosoitusta ei löytynyt.")}), 404
 
+    refused = _link_gate(demo, actions={"accept", "reject"}, action=data["action"])
+    if refused:
+        return jsonify(refused[0]), refused[1]
+    if data["action"] in {"accept", "reject"}:
+        from mielenosoitukset_fi.utils import case_escalation as esc
+
+        if esc.current_level(case.meta) >= 1 and not getattr(current_user, "global_admin", False):
+            return jsonify({"error": _("Tapaus on siirretty ylemmälle tasolle. Päätöksen tekee se taso.")}), 403
+
     response_status = ""
 
     if data["action"] == "accept":
-        approve_demo(demo_id=case.demo_id)
+        failed = _decision_failed(approve_demo(demo_id=case.demo_id))
+        if failed:
+            return failed
+        _link_done()
         response_status = "accepted"
 
     elif data["action"] == "reject":
@@ -1163,7 +1264,10 @@ def demo_action(case_id):
         except case_reasons.ReasonError as error:
             return jsonify({"error": str(error)}), 400
 
-        reject_demo(case.demo_id)
+        failed = _decision_failed(reject_demo(demo_id=case.demo_id))
+        if failed:
+            return failed
+        _link_done()
         response_status = "rejected"
         now = utcnow()
         mongo.cases.update_one(
@@ -1335,7 +1439,7 @@ def decline_cancellation(case_id):
 @admin_case_bp.route("/<case_id>/demo_escalate", methods=["POST"])
 @login_required
 @admin_required
-@case_permission("EDIT_CASE")
+@case_permission("EDIT_CASE", approver=True)
 def demo_escalate(case_id):
     case = Case.get(case_id)
     if not case or case.case_type != "new_demo" or not case.demo_id:
@@ -1356,6 +1460,9 @@ def demo_escalate(case_id):
 
     from mielenosoitukset_fi.utils import case_escalation as esc
 
+    refused = _link_gate(demo)
+    if refused:
+        return jsonify(refused[0]), refused[1]
     payload = request.get_json(silent=True) or {}
     try:
         reason = esc.clean_reason(payload.get("reason"))
@@ -1363,7 +1470,16 @@ def demo_escalate(case_id):
         return jsonify({"error": _("Kirjoita lyhyt syy (5–500 merkkiä).")}), 400
     case_doc = mongo.cases.find_one({"_id": ObjectId(case_id)})
     try:
-        level = esc.escalate(mongo, case_doc, current_user, reason, authentication="login")
+        link = getattr(g, "case_link", None)
+        if link:
+            from mielenosoitukset_fi.utils import case_links
+
+            level = esc.escalate(
+                mongo, case_doc, current_user, reason, authentication="case_link",
+                second_factor=case_links.second_factor(mongo, current_user) or "none",
+            )
+        else:
+            level = esc.escalate(mongo, case_doc, current_user, reason, authentication="login")
     except esc.EscalationError as exc:
         messages = {
             "top_level": _("Tapaus on jo Johtoryhmän arvioitavana. Ylempää tasoa ei ole."),
