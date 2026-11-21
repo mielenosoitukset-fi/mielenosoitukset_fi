@@ -23,3 +23,25 @@ main.container-main-content.demo-preview-embed {
 main.demo-preview-embed > [data-react-island] .public-detail {
   margin-top: 1rem;
 }
+
+/* Staff-only status above a standalone preview; widths follow .public-detail. */
+.staff-preview-bar {
+  width: calc(100% - 3rem);
+  margin: 1.25rem auto -1rem;
+  padding: .6rem 1rem;
+  border: 1px dashed var(--product-border);
+  border-radius: .5rem;
+  background: var(--product-surface-muted);
+  color: var(--product-text-muted);
+  font-size: .9rem;
+  line-height: 1.4;
+}
+.staff-preview-bar strong {
+  color: var(--product-text);
+}
+@media (max-width: 560px) {
+  .staff-preview-bar {
+    width: calc(100% - 2rem);
+    margin: 1rem auto -.25rem;
+  }
+}

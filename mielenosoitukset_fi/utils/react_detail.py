@@ -248,6 +248,21 @@ def render_public_detail(db, identifier, locale, recurring_context=None):
     return response
 
 
+def preview_state_label(demo):
+    """Short review state for the staff bar above a standalone preview."""
+    if demo.get("cancelled") is True:
+        return _("Peruttu")
+    if demo.get("hide") is True:
+        return _("Piilotettu")
+    if demo.get("taken_down") is True:
+        return _("Poistettu julkaisusta")
+    if demo.get("rejected") is True:
+        return _("Hylätty")
+    if demo.get("approved") is True:
+        return _("Julkaistu")
+    return _("Odottaa hyväksyntää")
+
+
 def render_demo_preview(demo, locale, embed=False):
     """Show a demonstration exactly as the public detail page will show it.
 
@@ -271,7 +286,8 @@ def render_demo_preview(demo, locale, embed=False):
              "preview": {"event": event}}
     response = make_response(render_template(
         "demo_preview.html", props=props,
-        metadata_title=event.get("title") or _("Mielenosoitus"), embed=embed))
+        metadata_title=event.get("title") or _("Mielenosoitus"), embed=embed,
+        preview_state=preview_state_label(demo)))
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Robots-Tag"] = "noindex, nofollow"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
