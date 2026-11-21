@@ -833,6 +833,9 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         before = db.organization_requests.find_one(flt, projection)
         if not before:
             return jsonify(error="not_found"), 404
+        # A closed request stays closed: approved, rejected and withdrawn never change.
+        if before.get("status") in ("approved", "rejected", "withdrawn") and before.get("status") != status:
+            return jsonify(error="request_closed"), 409
         # A repeat of the same step changes nothing: no second history entry, no second mail.
         unchanged = (before.get("status") == status
                      and (message is None or before.get("status_message") == update["status_message"])

@@ -484,6 +484,7 @@ def test_organization_request_status_mail_once(owner, db, monkeypatch):
         step = {"id": str(rid), "status": "rejected", "message": "Ei sopiva.", "case": "c1"}
         for _ in range(2):
             assert _org_requests(app.test_client(), claims, "update", step).status_code == 200
+        assert _org_requests(app.test_client(), claims, "update", {**step, "status": "approved"}).status_code == 409
         stored = db.organization_requests.find_one({"_id": rid})
         assert len(stored["history"]) == 1
         assert len(mails) == 1 and mails[0]["recipients"] == ["hakija@example.test"]
