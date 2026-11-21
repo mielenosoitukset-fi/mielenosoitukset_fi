@@ -71,3 +71,21 @@ def test_user_list_shows_org_admin_from_membership(admin_client, db, seeded_data
     page = admin_client.get("/admin/user/?search=aaa-plain-owner").get_data(as_text=True)
     assert "Organisaatioadmin" in _role_badge(page, "aaa-plain-owner")
     assert db.users.find_one({"_id": user_id})["role"] == "user"
+
+
+def test_user_list_governance_account_needs_national_team_for_superuser_badge(admin_client, db, seeded_data):
+    db.users.insert_one({"_id": ObjectId(), "username": "aaa-gov-flag", "email": "govflag@example.test",
+                         "role": "admin", "global_admin": True, "governance_managed": True,
+                         "global_permissions": [], "confirmed": True})
+    db.users.insert_one({"_id": ObjectId(), "username": "aaa-gov-role", "email": "govrole@example.test",
+                         "role": "superuser", "governance_managed": True, "global_permissions": [], "confirmed": True})
+    page = admin_client.get("/admin/user/?search=aaa-gov-").get_data(as_text=True)
+    assert "Superkäyttäjä" not in _role_badge(page, "aaa-gov-flag")
+    assert "Superkäyttäjä" not in _role_badge(page, "aaa-gov-role")
+
+
+def test_user_list_api_only_admin_is_not_site_wide(admin_client, db, seeded_data):
+    db.users.insert_one({"_id": ObjectId(), "username": "aaa-api-only", "email": "apionly@example.test",
+                         "role": "admin", "global_permissions": ["API_READ"], "confirmed": True})
+    page = admin_client.get("/admin/user/?search=aaa-api-only").get_data(as_text=True)
+    assert "Admin, koko sivusto" not in _role_badge(page, "aaa-api-only")

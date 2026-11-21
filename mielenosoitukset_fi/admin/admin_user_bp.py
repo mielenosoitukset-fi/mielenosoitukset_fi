@@ -37,6 +37,7 @@ from .city_grants import (
 )
 from .user_erasure import erase_user
 from mielenosoitukset_fi.utils.system_teams import SUPER_ROLES, team_ids, user_team_access
+from mielenosoitukset_fi.users.models import TRANSLATION_ONLY_PERMISSIONS
 from .user_history import (
     PENDING_HISTORY, MAX_PENDING_HISTORY,
     flush_user_history, history_event, history_query, present_history,
@@ -89,22 +90,36 @@ def protect_user_history_response(response):
     return response
 
 
+def _has_full_rights(user: dict) -> bool:
+    """Mirror ``User.has_full_permissions`` for a raw user document.
+
+    Governance-managed accounts get full rights only from approved national
+    team access; a stored flag or role does not count for them.
+    """
+    national = "national" in user_team_access(mongo, user["_id"])
+    if user.get("governance_managed"):
+        return national
+    return national or user.get("global_admin") is True or user.get("role") in SUPER_ROLES
+
+
 def _admin_scope_label_key(user: dict, *, has_city_grants: bool, is_org_admin: bool) -> str | None:
     """Say where an account's admin rights reach, for the user list role badge.
 
     Older organisation admins have ``role == "admin"`` too, so the role alone does
     not mean site-wide rights; only global permissions or superuser access do.
     """
-    if user.get("global_admin") is True or user.get("role") in SUPER_ROLES:
+    if _has_full_rights(user):
         return "super"
+    if user.get("role") in SUPER_ROLES:
+        # A stored super role without governance approval gives no rights.
+        return "none"
     if user.get("role") != "admin":
         # Organisation admin is shown from the membership, never stored on the account.
         if user.get("role") in {None, "user", "member"} and is_org_admin and not has_city_grants:
             return "org"
         return None
-    if "national" in user_team_access(mongo, user["_id"]):
-        return "super"
-    if user.get("global_permissions"):
+    if any(perm not in TRANSLATION_ONLY_PERMISSIONS and not str(perm).startswith("API_")
+           for perm in (user.get("global_permissions") or [])):
         return "site"
     if has_city_grants and is_org_admin:
         return "city_org"
