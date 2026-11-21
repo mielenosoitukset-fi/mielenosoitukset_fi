@@ -1,0 +1,105 @@
+{% extends 'admin_base.html' %}
+{% from 'admin_V2/macros.html' import admin_page_hero %}
+
+{% block title %}{{ _('Ilmoittautumiset') }} – Mielenosoitukset.fi{% endblock %}
+
+{% block main_content %}
+    <div class="admin-page campaign-admin-page">
+        {{ admin_page_hero(
+            _('Ilmoittautumiset'),
+            _('Kaikki vapaaehtois- ja ilmoittautumislomakkeet yhdessä paikassa'),
+            _('Kampanjat'),
+            [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Kampanjan hallinta'), url_for('admin_kampanja.index')), (_('Ilmoittautumiset'), none)],
+            back_url=url_for('admin_kampanja.index')
+        ) }}
+
+        <div class="admin-workspace-summary campaign-summary">
+            {% for item in sources %}
+            <a class="admin-workspace-summary-card{{ ' is-active' if item.key == source.key else '' }}"
+               href="{{ url_for('admin_kampanja.signups', lahde=item.key) }}"
+               {% if item.key == source.key %}aria-current="page"{% endif %}>
+                <span class="admin-workspace-summary-icon"><i class="fa-solid fa-user-check"></i></span>
+                <div><strong>{{ item.total }}</strong><span>{{ item.label }} ({{ item.confirmed }} {{ _('vahvistettua') }}, {{ item.pending }} {{ _('odottaa') }})</span></div>
+            </a>
+            {% endfor %}
+        </div>
+
+        <form class="admin-panel admin-filter-bar" method="get" action="{{ url_for('admin_kampanja.signups') }}">
+            <input type="hidden" name="lahde" value="{{ source.key }}">
+            <div class="admin-filter-bar__primary">
+                <div class="admin-field">
+                    <label for="status-filter">{{ _('Tila') }}</label>
+                    <select id="status-filter" name="tila">
+                        <option value="">{{ _('Kaikki tilat') }}</option>
+                        <option value="confirmed" {{ 'selected' if status == 'confirmed' }}>{{ _('Vahvistetut') }}</option>
+                        <option value="pending" {{ 'selected' if status == 'pending' }}>{{ _('Odottavat') }}</option>
+                    </select>
+                </div>
+                <div class="admin-row-actions">
+                    <button type="submit" class="btn btn-outline-secondary">{{ _('Suodata') }}</button>
+                    <a class="btn btn-outline-primary" href="{{ url_for('admin_kampanja.signups_csv', source_key=source.key, tila=status) }}">
+                        <i class="fa-solid fa-file-csv" aria-hidden="true"></i> {{ _('Vie CSV') }}
+                    </a>
+                </div>
+            </div>
+        </form>
+
+        <section class="admin-data-view admin-data-view--scrollable" aria-labelledby="signupsTitle">
+            <header class="admin-data-view__header">
+                <h2 id="signupsTitle"><i class="fa-solid fa-table" aria-hidden="true"></i> {{ source.label }}</h2>
+                <span class="admin-result-summary"><strong>{{ rows|length }}</strong> {{ _('ilmoittautumista') }}</span>
+            </header>
+            <div class="admin-section-card__body">
+            <p class="admin-data-value">
+                {{ _('Tiedot poistuvat automaattisesti %(date)s.', date=(sources|selectattr('key', 'equalto', source.key)|first).purge_after.strftime('%-d.%-m.%Y')) }}
+                {{ _('Vahvistuksen tekee vain ilmoittautuja itse sähköpostin linkistä. Pääkäyttäjä voi vain viedä tiedot tai poistaa rivin syyn kanssa.') }}
+            </p>
+            </div>
+            <div class="admin-data-view__viewport">
+                <table class="admin-data-view__table">
+                    <thead>
+                        <tr>
+                            <th scope="col">{{ _('Toiminnot') }}</th>
+                            {% for header, _field in source.table_columns %}<th scope="col">{{ header }}</th>{% endfor %}
+                            <th scope="col">{{ _('Tila') }}</th>
+                            <th scope="col">{{ _('Ilmoittautunut') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                        <tr>
+                            <td>
+                                <a class="btn btn-sm btn-outline-danger" href="{{ url_for('admin_kampanja.signup_delete_confirm', source_key=source.key, row_id=row.id) }}">{{ _('Poista') }}</a>
+                            </td>
+                            {% for cell in row.cells %}<td>{{ cell or '-' }}</td>{% endfor %}
+                            <td><span class="admin-status-badge {{ 'admin-status-badge--success' if row.status == 'confirmed' else 'admin-status-badge--warning' }}">{{ status_labels[row.status] }}</span></td>
+                            <td>{{ row.created_at.strftime('%-d.%-m.%Y') if row.created_at else '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="{{ source.table_columns|length + 4 }}">{{ _('Ei ilmoittautumisia.') }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <nav class="admin-data-view__footer admin-pagination" aria-label="{{ _('Ilmoittautumisten sivutus') }}">
+                <div class="admin-pagination__info">{{ _('Näytetään enintään 500 uusinta riviä. Koko lista tulee CSV-viennissä.') }}</div>
+            </nav>
+        </section>
+
+        <section class="admin-section-card" aria-labelledby="signupActionsTitle">
+            <header class="admin-section-card__header"><div class="admin-section-card__title">
+                <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+                <h2 id="signupActionsTitle">{{ _('Viimeisimmät toimet') }}</h2>
+            </div></header>
+            <div class="admin-section-card__body">
+                <ul>
+                    {% for action in recent_actions %}
+                    <li>{{ action.at.strftime('%-d.%-m.%Y %H:%M') }} UTC · {{ _('vienti') if action.action == 'export' else _('poisto') }} · {{ action.source }} · {{ action.count }} {{ _('riviä') }}{% if action.reason %} · {{ action.reason }}{% endif %}</li>
+                    {% else %}
+                    <li>{{ _('Ei toimia vielä.') }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+    </div>
+{% endblock %}
