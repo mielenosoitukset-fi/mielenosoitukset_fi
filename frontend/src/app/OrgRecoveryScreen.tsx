@@ -42,7 +42,7 @@ export default function OrgRecoveryScreen({ session }: { session: SessionSummary
       if (response.ok && data.success) {
         setResult({ kind: 'success', message: data.status === 'received'
           ? 'Kiitos, pyyntö on vastaanotettu. Käsittelemme sen ja ilmoitamme asiasta organisaation tunnetuille osoitteille.'
-          : 'Kiitos! Tarkista sähköpostisi: lähetimme vahvistuslinkin, jos pyynnön voi ottaa käsittelyyn. Avaa linkki 7 päivän kuluessa.' });
+          : 'Kiitos! Tarkista sähköpostisi: lähetimme vahvistuslinkin, jos pyynnön voi ottaa käsittelyyn. Avaa linkki 7 päivän kuluessa. Jos viestiä ei kuulu 30 minuutissa, tarkista roskaposti tai ota yhteyttä ylläpitoon yhteydenottolomakkeella.' });
       } else {
         setResult({ kind: 'error', message: typeof data.message === 'string' ? data.message : 'Pyyntöä ei voitu lähettää. Yritä uudelleen.' });
       }

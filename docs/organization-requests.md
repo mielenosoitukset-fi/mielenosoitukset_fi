@@ -128,9 +128,12 @@ commented out. Enable the POST and GET rules together, after the page has been r
 
 The answer never says whether the organization exists, is protected or already has a
 request. Quietly dropped, and answered like success: a bot, an address with two unconfirmed
-requests, an organization name with three requests in 30 days, and a full site mail cap. A
-request for an organization with an open one is stored with `duplicate_of` and a
-status message, and is not reviewed twice. Only the client's own limit (2 a minute, 5 an
+requests, an organization name with three confirmed requests in 30 days, and a full site mail cap. A
+request for an organization with a confirmed open one is stored with `duplicate_of` and
+nothing shown to the sender, and is not reviewed twice. Only confirmed requests count
+toward the open and monthly limits, so unconfirmed requests cannot lock an organization
+out. The per-address count ignores `+tag`, and a form sent without `started_at` is treated
+as a bot. Only the client's own limit (2 a minute, 5 an
 hour) answers 429. An owner change and an added member name `person_email`; a lost-access
 request uses the applicant's confirmed address. Hallinto reads them with
 `POST /organization-requests/list {"kind": "access_recovery"}`; the ordinary list leaves

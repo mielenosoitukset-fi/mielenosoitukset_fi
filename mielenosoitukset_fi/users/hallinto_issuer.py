@@ -107,6 +107,11 @@ _ORG_REQUEST_MAILS = {
     "rejected": "Organisaatiotilihakemuksesi on hylätty",
     "needs_info": "Organisaatiotilihakemuksesi tarvitsee lisätietoja",
 }
+_ORG_RECOVERY_MAILS = {
+    "approved": "Pyyntösi organisaation tilin käytöstä on hyväksytty",
+    "rejected": "Pyyntösi organisaation tilin käytöstä on hylätty",
+    "needs_info": "Pyyntösi organisaation tilin käytöstä tarvitsee lisätietoja",
+}
 
 
 def _mail_org_request_status(db, row, status):
@@ -122,9 +127,10 @@ def _mail_org_request_status(db, row, status):
             return
         invite_sender().queue_email(
             template_name="org_request_status.html",
-            subject=_ORG_REQUEST_MAILS[status],
+            subject=(_ORG_RECOVERY_MAILS if row.get("kind") == "access_recovery" else _ORG_REQUEST_MAILS)[status],
             recipients=[email],
             context={"applicant_name": applicant.get("name") or "", "status": status,
+                     "recovery": row.get("kind") == "access_recovery",
                      "organization_name": (row.get("organization") or {}).get("name") or "",
                      "message": row.get("status_message") or ""},
         )
@@ -841,8 +847,9 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
                     return jsonify(error="invalid_request"), 400
                 update["invite_email"] = invite_email
             update["access"] = access
+        # Access and invite choices belong to account requests, never to a recovery request.
         flt = {"_id": ObjectId(request_id), "status": {"$in": list(_ORG_REQUEST_STATUSES)},
-               **({"represents": True} if access else {})}
+               **({"represents": True, "kind": {"$ne": "access_recovery"}} if access else {})}
         projection = {"status_token_hash": 0, "logo.data": 0}
         before = db.organization_requests.find_one(flt, projection)
         if not before:

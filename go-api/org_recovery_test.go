@@ -22,7 +22,7 @@ func recoveryRig(t *testing.T, actor bson.ObjectID) (*orgRequests, func(string) 
 }
 
 const recoveryBody = `{"need":"owner_change","organization_name":"Rauhan  Ystävät ry","applicant_name":"Testi Hakija",
-"applicant_email":"hakija@example.com","person_email":"Uusi@Example.com","links":["rauha.example"],"consent":true,"homepage":"","started_at":0}`
+"applicant_email":"hakija@example.com","person_email":"Uusi@Example.com","links":["rauha.example"],"consent":true,"homepage":"","started_at":1}`
 
 func TestValidateOrgRecovery(t *testing.T) {
 	good := orgRecoveryInput{Need: "owner_change", Name: "Rauha ry", Applicant: "Hakija", Email: "H@Example.com", PersonEmail: "uusi@example.com", Consent: true}
@@ -86,34 +86,57 @@ func TestOrgRecoveryFlow(t *testing.T) {
 	if job["recipients"].(bson.A)[0] != "hakija@example.com" || strings.Contains(job["html"].(string), "uusi@example.com") {
 		t.Fatalf("the mail goes to the applicant and never names the other person: %v", job)
 	}
-	// A second request for the same organization is kept, linked to the first, and answered
-	// the same. A third and fourth hit the per-address cap and the monthly cap quietly.
-	for i := 0; i < 2; i++ {
-		other := strings.Replace(recoveryBody, "hakija@example.com", "toinen"+string(rune('a'+i))+"@example.com", 1)
-		if code, body := post(other); code != 201 || !strings.Contains(body, `"status":"unconfirmed"`) {
-			t.Fatalf("duplicate %d: %d %s", i, code, body)
-		}
+	// Only a confirmed request counts: an unconfirmed one neither blocks nor duplicates.
+	other := func(name string) string {
+		return strings.Replace(recoveryBody, "hakija@example.com", name+"@example.com", 1)
+	}
+	if code, _ := post(other("ensimmainen")); code != 201 {
+		t.Fatalf("unconfirmed rows do not count: %d", code)
 	}
 	requests := o.db.Collection("organization_requests")
-	if n, _ := requests.CountDocuments(ctx, bson.M{"duplicate_of": bson.M{"$exists": true}}); n != 2 {
+	if n, _ := requests.CountDocuments(ctx, bson.M{"duplicate_of": bson.M{"$exists": true}}); n != 0 {
+		t.Fatalf("unconfirmed duplicate linked: %d", n)
+	}
+	confirm := func(letter string) {
+		token := strings.Repeat("t", 21) + letter
+		h := o.handler(nil)
+		if r := orgCall(h, "POST", orgRequestsStatusPath, `{"token":"`+token+`"}`); r.Code != 200 {
+			t.Fatalf("confirm %s: %d %s", letter, r.Code, r.Body.String())
+		}
+	}
+	confirm("b")
+	// A request for an organization with a confirmed open one is kept and linked, and says nothing about it.
+	if code, body := post(other("toinen")); code != 201 || !strings.Contains(body, `"status":"unconfirmed"`) {
+		t.Fatalf("duplicate: %d %s", code, body)
+	}
+	if n, _ := requests.CountDocuments(ctx, bson.M{"duplicate_of": bson.M{"$exists": true}}); n != 1 {
 		t.Fatalf("duplicates: %d", n)
 	}
-	if n, _ := requests.CountDocuments(ctx, bson.M{}); n != 3 {
-		t.Fatalf("stored: %d", n)
+	if n, _ := requests.CountDocuments(ctx, bson.M{"status_message": bson.M{"$exists": true}}); n != 0 {
+		t.Fatal("a duplicate must not show the sender anything")
 	}
-	// The monthly cap drops further requests silently with the same answer.
-	over := strings.Replace(recoveryBody, "hakija@example.com", "kolmas@example.com", 1)
-	if code, body := post(over); code != 201 || !strings.Contains(body, `"status":"unconfirmed"`) {
+	confirm("d")
+	confirm("c")
+	// The monthly cap counts confirmed requests only, and drops further ones silently.
+	if code, body := post(other("kolmas")); code != 201 || !strings.Contains(body, `"status":"unconfirmed"`) {
 		t.Fatalf("capped: %d %s", code, body)
 	}
-	if n, _ := requests.CountDocuments(ctx, bson.M{}); n != 3 {
-		t.Fatalf("capped request stored: %d", n)
+	before, _ := requests.CountDocuments(ctx, bson.M{})
+	if code, _ := post(other("neljas")); code != 201 {
+		t.Fatalf("over the cap: %d", code)
+	}
+	if n, _ := requests.CountDocuments(ctx, bson.M{}); n != before {
+		t.Fatalf("capped request stored: %d != %d", n, before)
+	}
+	// +tag variants are one mailbox.
+	if code, _ := post(other("viides+a")); code != 201 {
+		t.Fatal("tag")
 	}
 	// Bots get the normal answer and nothing is stored.
 	if code, _ := post(strings.Replace(recoveryBody, `"homepage":""`, `"homepage":"x"`, 1)); code != 201 {
 		t.Fatalf("bot: %d", code)
 	}
-	if n, _ := requests.CountDocuments(ctx, bson.M{}); n != 3 {
+	if n, _ := requests.CountDocuments(ctx, bson.M{}); n != before {
 		t.Fatalf("bot stored: %d", n)
 	}
 	// A broken form is refused, and the client's own rate limit answers 429.

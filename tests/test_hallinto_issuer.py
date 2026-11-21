@@ -517,6 +517,9 @@ def test_recovery_requests_stay_apart_from_account_requests(owner, db):
         step = {"id": str(recovery), "status": "in_review", "case": "c-1"}
         assert _org_requests(app.test_client(), claims, "update", step).status_code == 200
         assert _org_requests(app.test_client(), claims, "create-organization", {"id": str(recovery), "case": "c-1"}).status_code == 404
+        # Access and invite choices are for account requests only.
+        choice = {"id": str(recovery), "status": "in_review", "access": "invite", "invite_email": "x@example.test"}
+        assert _org_requests(app.test_client(), claims, "update", choice).status_code == 404
     finally:
         db.organization_requests.delete_many({"_id": {"$in": [recovery, account]}})
 

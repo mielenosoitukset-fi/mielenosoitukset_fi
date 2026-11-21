@@ -20,7 +20,17 @@
         </div>
         <div class="content">
             <p>Hei {{ applicant_name }},</p>
+            {% if recovery %}
             {% if status == "approved" %}
+            <p>Pyyntösi organisaation <strong>{{ organization_name }}</strong> tilin käytöstä on hyväksytty. Henkilö saa kutsun sähköpostiinsa.</p>
+            {% elif status == "rejected" %}
+            <p>Pyyntöäsi organisaation <strong>{{ organization_name }}</strong> tilin käytöstä ei hyväksytty. Pääsyä ei annettu.</p>
+            {% if message %}<p>Perustelu:</p><p class="reason">{{ message }}</p>{% endif %}
+            {% else %}
+            <p>Pyyntösi organisaation <strong>{{ organization_name }}</strong> tilin käytöstä tarvitsee lisätietoja.</p>
+            {% if message %}<p class="reason">{{ message }}</p>{% endif %}
+            {% endif %}
+            {% elif status == "approved" %}
             <p>Hakemuksesi organisaatiolle <strong>{{ organization_name }}</strong> on hyväksytty. Saat erillisen viestin, kun organisaatiotili on valmis.</p>
             {% elif status == "rejected" %}
             <p>Hakemuksesi organisaatiolle <strong>{{ organization_name }}</strong> on hylätty. Tiliä ei luotu.</p>

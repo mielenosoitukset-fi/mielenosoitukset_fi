@@ -218,6 +218,16 @@ func (o *orgRequests) recoveryHandler(next http.Handler) http.Handler {
 	})
 }
 
+// orgRecoveryAddressKey is an address with its +tag removed, so one mailbox cannot be counted as many.
+func orgRecoveryAddressKey(email string) string {
+	local, domain, found := strings.Cut(strings.ToLower(strings.TrimSpace(email)), "@")
+	if !found {
+		return email
+	}
+	local, _, _ = strings.Cut(local, "+")
+	return local + "@" + domain
+}
+
 // serveRecovery stores one request. Everything that depends on the organization or on what
 // else exists (a duplicate, a full quota, the site's mail cap) is dropped quietly and
 // answered like success, so the form cannot be used to probe. Only the client's own rate
@@ -254,7 +264,7 @@ func (o *orgRequests) serveRecovery(ctx context.Context, w http.ResponseWriter, 
 		status = "received"
 	}
 	answer := func() { writeJSON(w, 201, bson.M{"success": true, "status": status}) }
-	if strings.TrimSpace(input.Honeypot) != "" || (input.StartedAtMS > 0 && now.Sub(time.UnixMilli(input.StartedAtMS)) < 2*time.Second) {
+	if strings.TrimSpace(input.Honeypot) != "" || input.StartedAtMS <= 0 || now.Sub(time.UnixMilli(input.StartedAtMS)) < 2*time.Second {
 		answer()
 		return
 	}
@@ -276,13 +286,15 @@ func (o *orgRequests) serveRecovery(ctx context.Context, w http.ResponseWriter, 
 		applicant["email"] = strings.ToLower(email)
 	}
 	email, _ := applicant["email"].(string)
+	emailKey := orgRecoveryAddressKey(email)
+	applicant["email_key"] = emailKey
 	if fields["need"] == "lost_access" {
 		fields["person_email"] = email
 	}
 	requests := o.db.Collection("organization_requests")
 	unavailable := func() { applicationFailure(w, 503, "ORG_UNAVAILABLE", "Yritä uudelleen hetken kuluttua.") }
 	if status == "unconfirmed" {
-		pending, err := requests.CountDocuments(ctx, bson.M{"kind": "access_recovery", "applicant.email": email,
+		pending, err := requests.CountDocuments(ctx, bson.M{"kind": "access_recovery", "applicant.email_key": emailKey,
 			"status": "unconfirmed", "expires_at": bson.M{"$gt": now}}, options.Count().SetLimit(orgRecoveryPendingLimit))
 		if err != nil {
 			unavailable()
@@ -295,7 +307,7 @@ func (o *orgRequests) serveRecovery(ctx context.Context, w http.ResponseWriter, 
 	}
 	key := fields["organization"].(bson.M)["key"]
 	month, err := requests.CountDocuments(ctx, bson.M{"kind": "access_recovery", "organization.key": key,
-		"created_at": bson.M{"$gt": now.AddDate(0, 0, -30)}}, options.Count().SetLimit(orgRecoveryMonthlyLimit))
+		"email_confirmed_at": bson.M{"$gt": now.AddDate(0, 0, -30)}}, options.Count().SetLimit(orgRecoveryMonthlyLimit))
 	if err != nil {
 		unavailable()
 		return
@@ -308,8 +320,7 @@ func (o *orgRequests) serveRecovery(ctx context.Context, w http.ResponseWriter, 
 		ID bson.ObjectID `bson:"_id"`
 	}
 	err = requests.FindOne(ctx, bson.M{"kind": "access_recovery", "organization.key": key, "duplicate_of": bson.M{"$exists": false},
-		"$or": bson.A{bson.M{"status": bson.M{"$in": bson.A{"received", "verifying", "in_review", "needs_info"}}},
-			bson.M{"status": "unconfirmed", "expires_at": bson.M{"$gt": now}}}},
+		"status": bson.M{"$in": bson.A{"received", "verifying", "in_review", "needs_info"}}},
 		options.FindOne().SetProjection(bson.M{"_id": 1})).Decode(&open)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
 		unavailable()
@@ -317,7 +328,6 @@ func (o *orgRequests) serveRecovery(ctx context.Context, w http.ResponseWriter, 
 	}
 	if err == nil {
 		fields["duplicate_of"] = open.ID
-		fields["status_message"] = "Samasta organisaatiosta on jo avoin pyyntö. Käsittelemme ne yhdessä."
 	}
 	if status == "unconfirmed" {
 		capped, err := o.mailCap(ctx)
