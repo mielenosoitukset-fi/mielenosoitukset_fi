@@ -232,6 +232,25 @@ def _can_invite_to_organization(user, organization) -> bool:
     )
 
 
+def _can_grant_organization_role(user, organization, role) -> bool:
+    """Who may put a role on an invitation.
+
+    The route needs EDIT_ORGANIZATION, which organization admins hold too, so the
+    role needs its own check: ``admin`` needs explicit EDIT_ORGANIZATION outside the
+    city-admin implied grants, and ``owner`` needs full permissions or ownership.
+    """
+    org_id = organization.get("_id") if isinstance(organization, dict) else getattr(organization, "_id", None)
+    if role == "member":
+        return True
+    if role not in ("admin", "owner") or org_id is None or _is_limited_city_admin(user):
+        return False
+    if user.has_full_permissions():
+        return True
+    if role == "admin":
+        return _has_explicit_organization_permission(user, "EDIT_ORGANIZATION", org_id)
+    return user.role_in(org_id) == "owner"
+
+
 
 
 # Organization control panel
@@ -1646,6 +1665,9 @@ def set_invite_role() -> Tuple[Response, int]:
     if not _can_invite_to_organization(current_user, org):
         _log_org_event("organization_invite_role_error", reason="forbidden", organization_id=org_id, email=email)
         return jsonify({"status": "error", "error": _("Sinulla ei ole oikeutta tähän toimintoon.")}), 403
+    if not _can_grant_organization_role(current_user, org, role):
+        _log_org_event("organization_invite_role_error", reason="role_forbidden", organization_id=org_id, email=email, role=role)
+        return jsonify({"status": "error", "error": _("Sinulla ei ole oikeutta antaa tätä roolia.")}), 403
 
     # --- Process invitations ---
     invitations = org.get("invitations", [])
@@ -1654,18 +1676,19 @@ def set_invite_role() -> Tuple[Response, int]:
     for invite in invitations:
         if isinstance(invite, dict) and _invite_matches_email(invite, email):
             invite["role"] = role
+            invite["role_granted_by"] = current_user._id
             updated = True
             break
 
         # Legacy format: invite stored as just email string
         if isinstance(invite, str) and _invite_matches_email(invite, email):
-            invitations[invitations.index(invite)] = {"email": email, "role": role, "invited_at": utcnow()}
+            invitations[invitations.index(invite)] = {"email": email, "role": role, "role_granted_by": current_user._id, "invited_at": utcnow()}
             updated = True
             break
 
     if not updated:
         # No existing invite → add a new one
-        invitations.append({"email": email, "role": role, "invited_at": utcnow()})
+        invitations.append({"email": email, "role": role, "role_granted_by": current_user._id, "invited_at": utcnow()})
 
     # --- Update organization ---
     mongo.organizations.update_one(

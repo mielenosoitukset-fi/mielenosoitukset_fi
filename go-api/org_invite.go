@@ -17,8 +17,9 @@ package main
 //   - the invitation is matched by the account's exact e-mail address against
 //     organizations.invitations (plain strings, or {email, invited_at}); a dict older
 //     than 30 days is expired and ignored (utils/invitations.py);
-//   - accepting removes every entry with that address and adds a "member" membership with
-//     the member default permissions; an existing membership is left alone;
+//   - accepting removes every entry with that address and adds a membership with the
+//     invited role's default permissions (admin or owner only when the invitation records
+//     role_granted_by, otherwise member); an existing membership is left alone;
 //   - system teams (NATIONAL_ADMIN_ORG_ID, BOARD_ORG_ID) refuse ordinary joining with the
 //     same message as forbid_ordinary_team_write.
 // Differences, on purpose: the removal is one conditional update on the exact invitation
@@ -52,6 +53,17 @@ var orgInvitePath = regexp.MustCompile(`^/api/organizations/([0-9a-f]{24})/invit
 
 // MemberShip.DEFAULT_PERMISSIONS["member"], sorted as MemberShip stores them.
 var orgMemberPermissions = []string{"INVITE_TO_ORGANIZATION", "LIST_ORGANIZATIONS", "VIEW_ORGANIZATION"}
+
+// MemberShip.DEFAULT_PERMISSIONS for every role, sorted as MemberShip stores them.
+var orgRolePermissions = map[string][]string{
+	"member": orgMemberPermissions,
+	"admin": {"CREATE_DEMO", "CREATE_RECURRING_DEMO", "EDIT_DEMO", "EDIT_ORGANIZATION", "EDIT_RECURRING_DEMO",
+		"GENERATE_EDIT_LINK", "INVITE_TO_ORGANIZATION", "LIST_DEMOS", "LIST_ORGANIZATIONS", "LIST_RECURRING_DEMOS",
+		"VIEW_DEMO", "VIEW_ORGANIZATION", "VIEW_RECURRING_DEMO"},
+	"owner": {"CREATE_DEMO", "CREATE_RECURRING_DEMO", "DELETE_DEMO", "DELETE_ORGANIZATION", "DELETE_RECURRING_DEMO",
+		"EDIT_DEMO", "EDIT_ORGANIZATION", "EDIT_RECURRING_DEMO", "GENERATE_EDIT_LINK", "INVITE_TO_ORGANIZATION",
+		"LIST_DEMOS", "LIST_ORGANIZATIONS", "LIST_RECURRING_DEMOS", "VIEW_DEMO", "VIEW_ORGANIZATION", "VIEW_RECURRING_DEMO"},
+}
 
 const orgProtectedMessage = "Tämän organisaation jäsenyyttä hallitaan hallinnon hyväksyntöjen kautta."
 
@@ -92,8 +104,9 @@ type orgInviteStore interface {
 	GovernanceManaged(ctx context.Context, id bson.ObjectID) (bool, error)
 	// ReplaceInvitations sets invitations to next only while they still equal expected.
 	ReplaceInvitations(ctx context.Context, id bson.ObjectID, expected, next bson.A) (bool, error)
-	// AddMember inserts a member membership unless one exists.
-	AddMember(ctx context.Context, user, org bson.ObjectID) error
+	// AddMember inserts a membership with the role's default permissions unless one
+	// exists. A new admin or owner gets the admin panel (users.role "admin").
+	AddMember(ctx context.Context, user, org bson.ObjectID, role string) error
 	Audit(ctx context.Context, doc bson.M) error
 }
 
@@ -140,14 +153,24 @@ func (s mongoOrgInviteStore) ReplaceInvitations(ctx context.Context, id bson.Obj
 	return result.ModifiedCount == 1, nil
 }
 
-func (s mongoOrgInviteStore) AddMember(ctx context.Context, user, org bson.ObjectID) error {
-	_, err := s.db.Collection("memberships").UpdateOne(ctx,
+func (s mongoOrgInviteStore) AddMember(ctx context.Context, user, org bson.ObjectID, role string) error {
+	permissions, ok := orgRolePermissions[role]
+	if !ok {
+		role, permissions = "member", orgMemberPermissions
+	}
+	result, err := s.db.Collection("memberships").UpdateOne(ctx,
 		bson.M{"user_id": user, "organization_id": org},
-		bson.M{"$setOnInsert": bson.M{"role": "member", "permissions": orgMemberPermissions}},
+		bson.M{"$setOnInsert": bson.M{"role": role, "permissions": permissions}},
 		options.UpdateOne().SetUpsert(true))
 	if mongo.IsDuplicateKeyError(err) {
 		return nil
 	}
+	if err != nil || result.UpsertedCount == 0 || role == "member" {
+		return err
+	}
+	// change_access_level and Flask's accept give org admins and owners the admin panel.
+	_, err = s.db.Collection("users").UpdateOne(ctx,
+		bson.M{"_id": user, "role": bson.M{"$in": bson.A{"user", "member"}}}, bson.M{"$set": bson.M{"role": "admin"}})
 	return err
 }
 
@@ -186,6 +209,38 @@ func invitationEntry(entry any, now time.Time) (email string, live bool) {
 		return address, true
 	}
 	return "", false
+}
+
+// invitationRole is the role a stored invitation grants (Flask's invited_role): admin
+// or owner only when set_invite_role recorded who checked it (role_granted_by).
+func invitationRole(entry any) string {
+	var fields map[string]any
+	switch value := entry.(type) {
+	case bson.D:
+		fields = map[string]any{}
+		for _, item := range value {
+			fields[item.Key] = item.Value
+		}
+	case bson.M:
+		fields = value
+	default:
+		return "member"
+	}
+	role, _ := fields["role"].(string)
+	if _, known := orgRolePermissions[role]; !known || fields["role_granted_by"] == nil {
+		return "member"
+	}
+	return role
+}
+
+// invitedRole is the role of the live invitation for email.
+func invitedRole(invitations bson.A, email string, now time.Time) string {
+	for _, entry := range invitations {
+		if address, live := invitationEntry(entry, now); live && address == email && email != "" {
+			return invitationRole(entry)
+		}
+	}
+	return "member"
 }
 
 // invitationState says whether the address holds a live invitation and returns the
@@ -349,6 +404,7 @@ func (o *orgInvites) accept(ctx context.Context, w http.ResponseWriter, r *http.
 		return nil
 	}
 	_, remaining := invitationState(org.Invitations, email, o.now().UTC())
+	role := invitedRole(org.Invitations, email, o.now().UTC())
 	// One conditional update claims the invitation: a second click or a changed list loses.
 	claimed, err := o.store.ReplaceInvitations(ctx, orgID, org.Invitations, remaining)
 	if err != nil {
@@ -358,7 +414,7 @@ func (o *orgInvites) accept(ctx context.Context, w http.ResponseWriter, r *http.
 		writeJSON(w, http.StatusOK, bson.M{"state": inviteStateNotInvited, "success": false})
 		return nil
 	}
-	if err := o.store.AddMember(ctx, user, orgID); err != nil {
+	if err := o.store.AddMember(ctx, user, orgID, role); err != nil {
 		// Put the invitation back so the visitor can try again; best effort.
 		restoreCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 		defer cancel()
@@ -367,7 +423,7 @@ func (o *orgInvites) accept(ctx context.Context, w http.ResponseWriter, r *http.
 		}
 		return err
 	}
-	doc := bson.M{"user_id": user, "action": "organization invitation accepted", "organization_id": orgID,
+	doc := bson.M{"user_id": user, "action": "organization invitation accepted", "organization_id": orgID, "role": role,
 		"ip_address": submissionClientAddress(r), "timestamp": bson.NewDateTimeFromTime(o.now().UTC()), "source": "go-api"}
 	// A failed audit write must not hide a join that already happened.
 	if err := o.store.Audit(ctx, doc); err != nil {
