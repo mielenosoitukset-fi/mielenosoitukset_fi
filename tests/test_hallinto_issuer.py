@@ -420,6 +420,45 @@ def _org_requests(owner_client, claims, path, body, auth=(CLIENT, SECRET)):
                              json={"sub": claims["sub"], "sid": claims["sid"], **body})
 
 
+def test_organization_request_typed_in_by_a_member(owner, db):
+    app, subject = owner
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    body = {"name": "Rauha ry", "email": "Info@Rauha.example", "links": ["rauha.example", "https://instagram.com/rauha"],
+            "city": "Tampere", "business_id": "1234567-8", "description": "Rauhanmarsseja.",
+            "applicant_name": "Puhelun soittaja", "applicant_role": "puheenjohtaja",
+            "represents": True, "access": "organization_account"}
+    created = []
+    try:
+        assert _org_requests(app.test_client(), claims, "create", body, auth=("x", "y")).status_code in (401, 403)
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+        for bad in ({"name": ""}, {"links": []}, {"links": ["ei osoite"]}, {"email": "nope"}, {"business_id": "123"},
+                    {"city": "Ei kaupunki"}, {"access": "own_account"}, {"access": "invite"},
+                    {"access": "invite", "invite_email": "nope"}, {"email": "", "access": "organization_account"}):
+            assert _org_requests(app.test_client(), claims, "create", {**body, **bad}).status_code == 400, bad
+        response = _org_requests(app.test_client(), claims, "create", body)
+        assert response.status_code == 201
+        item = response.json["item"]
+        created.append(ObjectId(item["id"]))
+        row = db.organization_requests.find_one({"_id": created[0]})
+        assert row["status"] == "received" and row["source"] == "hallinto-manual" and row["entered_by"] == subject
+        assert row["organization"]["email"] == "info@rauha.example" and row["organization"]["city"] == "tampere"
+        assert row["organization"]["links"] == ["https://rauha.example", "https://instagram.com/rauha"]
+        assert "status_token_hash" not in row and row["case_pending"] is False
+        listed = _org_requests(app.test_client(), claims, "list", {}).json["items"]
+        assert any(i["id"] == item["id"] for i in listed)
+        invite = _org_requests(app.test_client(), claims, "create",
+                               {**body, "access": "invite", "invite_email": "PJ@rauha.example"})
+        created.append(ObjectId(invite.json["item"]["id"]))
+        assert invite.status_code == 201 and invite.json["item"]["invite_email"] == "pj@rauha.example"
+        suggestion = _org_requests(app.test_client(), claims, "create", {**body, "represents": False, "access": None})
+        created.append(ObjectId(suggestion.json["item"]["id"]))
+        assert suggestion.status_code == 201 and suggestion.json["item"]["represents"] is False
+    finally:
+        db.organization_requests.delete_many({"_id": {"$in": created}})
+
+
 def test_organization_requests_for_hallinto(owner, db):
     from datetime import datetime, timezone
     app, subject = owner
