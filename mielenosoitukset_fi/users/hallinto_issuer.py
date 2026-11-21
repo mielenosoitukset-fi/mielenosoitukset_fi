@@ -96,6 +96,9 @@ _ACCOUNT_LOOKUP_ROLES = {"admin", "global_admin"}
 _ACCOUNT_FIELDS = {"username": 1, "displayname": 1, "active": 1, "confirmed": 1, "banned": 1, "security_suspension": 1}
 _ACCOUNT_ID = re.compile(r"[0-9a-f]{24}\Z")
 _ACCOUNT_SEARCH_LIMIT = 10
+# Organization request states Hallinto may see and set (docs/organization-requests.md).
+# "unconfirmed" stays hidden until the applicant has opened the mailed link.
+_ORG_REQUEST_STATUSES = ("received", "verifying", "in_review", "needs_info", "approved", "rejected", "withdrawn")
 _ACCOUNT_LOOKUP_LIMIT = 100
 _invite_sender = None
 
@@ -505,5 +508,73 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             logging.getLogger(__name__).exception("Hallinto account invite email failed")
             sent = False
         return jsonify(account=_account_view(user_doc), invited=sent), 201
+
+    def _org_request_view(row):
+        org = row.get("organization") or {}
+        applicant = row.get("applicant") or {}
+        stamp = lambda value: value.replace(tzinfo=UTC).isoformat() if value else None
+        return {
+            "id": str(row["_id"]), "status": row.get("status"),
+            "organization": {key: org.get(key) for key in ("name", "email", "links", "business_id", "description")},
+            "applicant": {"name": applicant.get("name"), "email": applicant.get("email"), "role": applicant.get("role"),
+                          "account": str(applicant["user_id"]) if applicant.get("user_id") else None},
+            "represents": bool(row.get("represents")), "access": row.get("access"),
+            "invite_email": row.get("invite_email"), "onboarding": bool(row.get("onboarding")),
+            "status_message": row.get("status_message"), "case": row.get("hallinto_case"),
+            "created_at": stamp(row.get("created_at")), "updated_at": stamp(row.get("updated_at")),
+        }
+
+    @bp.post("/organization-requests/list")
+    def organization_requests_list():
+        """Requests whose applicant confirmed the address, newest first. Hallinto
+        decides who may handle them; this only needs a signed-in admin account."""
+        payload, error = admin_payload()
+        if error:
+            return error
+        rows = db.organization_requests.find(
+            {"status": {"$in": list(_ORG_REQUEST_STATUSES)}},
+            {"status_token_hash": 0},
+        ).sort("created_at", -1).limit(100)
+        return jsonify(items=[_org_request_view(row) for row in rows])
+
+    @bp.post("/organization-requests/update")
+    def organization_requests_update():
+        """Record a handling step from Hallinto: the status the applicant sees, an
+        optional message, the Hallinto case and a changed access choice. Nothing here
+        creates an organization or grants access."""
+        payload, error = admin_payload()
+        if error:
+            return error
+        request_id, status, message = payload.get("id"), payload.get("status"), payload.get("message")
+        case, access, invite_email = payload.get("case"), payload.get("access"), payload.get("invite_email")
+        if (not isinstance(request_id, str) or not _ACCOUNT_ID.fullmatch(request_id)
+                or status not in _ORG_REQUEST_STATUSES or status == "received"
+                or not isinstance(message or "", str) or len(message or "") > 1000
+                or not isinstance(case or "", str) or len(case or "") > 64
+                or access not in (None, "organization_account", "own_account", "invite")
+                or not isinstance(invite_email or "", str)):
+            return jsonify(error="invalid_request"), 400
+        update = {"status": status, "updated_at": utcnow(), "case_pending": False}
+        if message is not None:
+            update["status_message"] = message.strip()
+        if case:
+            update["hallinto_case"] = case
+        if access:
+            if access == "invite":
+                invite_email = normalize_email(invite_email or "")
+                if len(invite_email) > 254 or not valid_email(invite_email):
+                    return jsonify(error="invalid_request"), 400
+                update["invite_email"] = invite_email
+            update["access"] = access
+        row = db.organization_requests.find_one_and_update(
+            {"_id": ObjectId(request_id), "status": {"$in": list(_ORG_REQUEST_STATUSES)},
+             **({"represents": True} if access else {})},
+            {"$set": update, "$push": {"history": {"status": status, "at": update["updated_at"],
+                                                   "by": payload["sub"], "access": access}}},
+            projection={"status_token_hash": 0}, return_document=True,
+        )
+        if not row:
+            return jsonify(error="not_found"), 404
+        return jsonify(item=_org_request_view(row))
 
     app.register_blueprint(bp)
