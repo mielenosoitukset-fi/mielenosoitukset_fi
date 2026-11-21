@@ -670,6 +670,89 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         ).sort("created_at", -1).limit(100)
         return jsonify(items=[_org_request_view(row) for row in rows])
 
+    @bp.post("/organization-requests/create")
+    def organization_requests_create():
+        """A request typed in by a Hallinto member (Lomakkeet), so one that came by
+        phone, mail or a meeting is handled in the same process as the web form's.
+        It becomes an ordinary `received` request; the applicant has no status link
+        and no account is linked. Hallinto decides who may enter requests."""
+        from urllib.parse import urlsplit as _split
+
+        from mielenosoitukset_fi.utils.cities import normalize_city_key, valid_city_key
+
+        payload, error = admin_payload()
+        if error:
+            return error
+
+        def text(key, low, high):
+            value = payload.get(key)
+            value = value.strip() if isinstance(value, str) else ""
+            return value if low <= len(value) <= high else None
+
+        name, applicant_name = text("name", 2, 120), text("applicant_name", 2, 120)
+        description, role = text("description", 0, 1500), text("applicant_role", 0, 120)
+        if name is None or applicant_name is None or description is None or role is None:
+            return jsonify(error="invalid_request"), 400
+        represents = payload.get("represents") is True
+        links, raw_links = [], payload.get("links")
+        if not isinstance(raw_links, list):
+            return jsonify(error="invalid_request"), 400
+        for value in raw_links:
+            value = value.strip() if isinstance(value, str) else ""
+            if not value:
+                continue
+            value = value if "://" in value else "https://" + value
+            parts = _split(value)
+            if (parts.scheme not in ("http", "https") or not parts.hostname or "." not in parts.hostname
+                    or parts.username or len(value) > 300):
+                return jsonify(error="invalid_link"), 400
+            if parts.geturl() not in links:
+                links.append(parts.geturl())
+        if not 1 <= len(links) <= 5:
+            return jsonify(error="invalid_link"), 400
+        org = {"name": name, "links": links, "description": description}
+        org_email = normalize_email(payload.get("email") or "")
+        if org_email:
+            if len(org_email) > 254 or not valid_email(org_email):
+                return jsonify(error="invalid_email"), 400
+            org["email"] = org_email
+        business_id = (payload.get("business_id") or "").strip() if isinstance(payload.get("business_id"), str) else ""
+        if business_id:
+            if not re.fullmatch(r"\d{7}-\d", business_id):
+                return jsonify(error="invalid_business_id"), 400
+            org["business_id"] = business_id
+        city = (payload.get("city") or "").strip() if isinstance(payload.get("city"), str) else ""
+        if city:
+            if not valid_city_key(normalize_city_key(city)):
+                return jsonify(error="invalid_city"), 400
+            org["city"] = normalize_city_key(city)
+        applicant = {"name": applicant_name, "role": role}
+        applicant_email = normalize_email(payload.get("applicant_email") or "")
+        if applicant_email:
+            if len(applicant_email) > 254 or not valid_email(applicant_email):
+                return jsonify(error="invalid_email"), 400
+            applicant["email"] = applicant_email
+        now = utcnow()
+        row = {"organization": org, "applicant": applicant, "represents": represents,
+               "onboarding": payload.get("onboarding") is True, "status": "received",
+               "created_at": now, "updated_at": now, "email_confirmed_at": now,
+               "source": "hallinto-manual", "entered_by": payload["sub"], "case_pending": False,
+               "history": [{"status": "received", "at": now, "by": payload["sub"]}]}
+        if represents:
+            access = payload.get("access")
+            # An own account needs a signed-in applicant, which a typed-in request has not.
+            if access not in ("organization_account", "invite") or (access == "organization_account" and "email" not in org):
+                return jsonify(error="invalid_access"), 400
+            row["access"] = access
+            if access == "invite":
+                invite_email = normalize_email(payload.get("invite_email") or "")
+                if not invite_email or len(invite_email) > 254 or not valid_email(invite_email):
+                    return jsonify(error="invalid_email"), 400
+                row["invite_email"] = invite_email
+        inserted = db.organization_requests.insert_one(row)
+        row["_id"] = inserted.inserted_id
+        return jsonify(item=_org_request_view(row)), 201
+
     @bp.post("/organization-requests/update")
     def organization_requests_update():
         """Record a handling step from Hallinto: the status the applicant sees, an

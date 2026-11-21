@@ -1,0 +1,1 @@
+Hallinto members can enter an organization account request by hand from Lomakkeet, so requests that arrive by phone, mail or in a meeting are handled in the same process as the web form's.
