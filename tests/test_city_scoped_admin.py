@@ -398,7 +398,7 @@ def test_dashboard_hides_edit_link_quick_action_without_scoped_permission(
 
     assert response.status_code == 200
     page = response.get_data(as_text=True)
-    assert "Avaa julkinen esikatselu" in page
+    assert "Avaa julkinen sivu" in page or "Esikatsele (ei julkinen)" in page
     assert 'data-demo-edit-link-trigger' not in page
     assert 'id="dashboardEditLinkModal"' not in page
 

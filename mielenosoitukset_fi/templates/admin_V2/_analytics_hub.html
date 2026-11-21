@@ -1,0 +1,15 @@
+{#
+  One analytics hub: the same tabs on every analytics page. "Tilastot" shows
+  the demos this admin may see; the site-wide pages show only for admins with
+  site-wide analytics access. Each demo has one analytics page, linked from
+  its row in Tilastot and from its command center.
+#}
+{% macro analytics_tabs(active) %}
+<nav class="admin-section-tabs" aria-label="{{ _('Analytiikan osiot') }}" data-analytics-tabs>
+  <a href="{{ url_for('admin.stats') }}"{% if active == 'stats' %} aria-current="page"{% endif %}><i class="fa-solid fa-chart-line" aria-hidden="true"></i>{{ _('Mielenosoitusten katselut') }}</a>
+  {% if analytics_has_global_scope() %}
+  <a href="{{ url_for('admin_site_analytics.site_overview') }}"{% if active == 'site' %} aria-current="page"{% endif %}><i class="fa-solid fa-chart-simple" aria-hidden="true"></i>{{ _('Koko palvelu') }}</a>
+  <a href="{{ url_for('admin.analytics_overall_24h') }}"{% if active == '24h' %} aria-current="page"{% endif %}><i class="fa-solid fa-clock" aria-hidden="true"></i>{{ _('Viimeiset 24 h') }}</a>
+  {% endif %}
+</nav>
+{% endmacro %}

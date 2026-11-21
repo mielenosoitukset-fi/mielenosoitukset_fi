@@ -1,0 +1,1 @@
+- Admin lists use one row pattern: the demo, organisation or series name opens its main admin page, every demo row has the same buttons, and the menu lists only actions that fit the demo (freeze only for repeating events, recommend and share image only for public demos, no greyed-out items).

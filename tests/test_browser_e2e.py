@@ -344,7 +344,7 @@ def test_admin_pages_share_responsive_theme_aware_heroes(
         "/admin/user/",
         "/admin/organization/",
         "/admin/stats",
-        "/admin/demo_analytics",
+        "/admin/analytics/",
         "/admin/cities/",
         "/admin/governance/",
         "/admin/background-jobs",

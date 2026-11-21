@@ -46,9 +46,9 @@
           {% for org in organizations %}
           <tr>
             <td class="admin-selection-column"><input class="form-check-input admin-selection-checkbox" type="checkbox" name="selected_orgs" value="{{ org._id }}" aria-label="{{ _('Valitse organisaatio') }} {{ org.name }}"></td>
-            <td><div class="admin-entity-identity"><span class="admin-entity-avatar">{{ (org.name or '?')[:1] }}</span><div class="admin-entity-identity__copy"><strong>{{ org.name }}</strong><span>{{ org.email or _('Ei sähköpostia') }}</span></div></div></td>
+            <td><div class="admin-entity-identity"><span class="admin-entity-avatar">{{ (org.name or '?')[:1] }}</span><div class="admin-entity-identity__copy"><strong>{% if current_user.has_permission("VIEW_ORGANIZATION", org._id) %}<a class="admin-entity-title-link" href="{{ url_for('admin_org.view_organization', org_id=org._id) }}">{{ org.name }}</a>{% else %}{{ org.name }}{% endif %}</strong><span>{{ org.email or _('Ei sähköpostia') }}</span></div></div></td>
             <td><div class="admin-entity-description">{{ org.description or _('Ei kuvausta.') }}</div></td>
-            <td><div class="admin-entity-contact">{% if org.website %}<a href="{{ org.website }}" target="_blank" rel="noopener noreferrer">{{ org.website }}</a>{% else %}{{ _('Ei verkkosivua') }}{% endif %}</div></td>
+            <td><div class="admin-entity-contact">{% if org.website and org.website|safe_href %}<a href="{{ org.website|safe_href }}" target="_blank" rel="noopener noreferrer">{{ org.website }}</a>{% else %}{{ _('Ei verkkosivua') }}{% endif %}</div></td>
             <td>{% if org.verified %}<span class="admin-status-badge admin-status-badge--success"><i class="fas fa-check" aria-hidden="true"></i>{{ _('Vahvistettu') }}</span>{% else %}<span class="admin-status-badge"><i class="fas fa-clock" aria-hidden="true"></i>{{ _('Vahvistamaton') }}</span>{% endif %}</td>
             <td>
               <div class="dropdown">

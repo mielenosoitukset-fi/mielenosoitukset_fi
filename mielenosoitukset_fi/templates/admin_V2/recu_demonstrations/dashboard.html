@@ -78,7 +78,7 @@
       <tbody>
         {% for demo in recurring_demos %}
         <tr id="recu-demo-{{ demo._id }}" {% if not demo.approved %}class="needs-attention"{% endif %}>
-          <td>{{ demo.title }}</td>
+          <td>{% if current_user.has_permission("EDIT_RECURRING_DEMO") %}<a class="admin-entity-title-link" href="{{ url_for('admin_recu_demo.edit_recu_demo', demo_id=demo._id) }}">{{ demo.title }}</a>{% else %}{{ demo.title }}{% endif %}</td>
           <td>{{ demo.repeat_schedule.as_finnish() }}</td>
           <td>{{ demo.start_time }} - {{ demo.end_time }}</td>
           <td>{{ demo.city }}</td>
@@ -94,10 +94,6 @@
             <a href="{{ url_for('admin_recu_demo.edit_recu_demo', demo_id=demo._id) }}" class="btn btn-sm btn-outline-primary">
               <i class="fas fa-edit"></i> {{ _('Muokkaa') }}
             </a>
-            {% else %}
-            <span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true" data-tooltip="{{ _('Ei käyttöoikeutta') }}">
-              <i class="fas fa-ban"></i> {{ _('Muokkaa') }}
-            </span>
             {% endif %}
 
             {% if current_user.has_permission("DELETE_RECURRING_DEMO") %}
@@ -105,10 +101,6 @@
               data-demo-title="{{ demo.title }}" onclick="openModal(event, this.dataset.demoTitle, '{{ demo._id }}', 'recu')">
               <i class="fas fa-trash-alt"></i> {{ _('Poista') }}
             </button>
-            {% else %}
-            <span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true" data-tooltip="{{ _('Ei käyttöoikeutta') }}">
-              <i class="fas fa-ban"></i> {{ _('Poista') }}
-            </span>
             {% endif %}
           </td>
         </tr>
