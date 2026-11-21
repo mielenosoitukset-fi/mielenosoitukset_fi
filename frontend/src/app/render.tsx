@@ -32,6 +32,7 @@ import ContactScreen from './ContactScreen';
 import CityAdminApplyScreen from './CityAdminApplyScreen';
 import OrgRequestScreen from './OrgRequestScreen';
 import OrgRequestStatusScreen from './OrgRequestStatusScreen';
+import OrgRecoveryScreen from './OrgRecoveryScreen';
 import OrganizationFillScreen from './OrganizationFillScreen';
 import SuggestChangeScreen from './SuggestChangeScreen';
 import ApiDocsScreen from './ApiDocsScreen';
@@ -108,7 +109,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; orgRequest?: string; orgRequestStatus?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; logout?: string; registerNextSteps?: string; forcedPassword?: string; forcedIdentity?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; orgRequest?: string; orgRequestStatus?: string; orgRecovery?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; logout?: string; registerNextSteps?: string; forcedPassword?: string; forcedIdentity?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -516,6 +517,14 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<OrgRequestScreen session={session} />} />);
+  }
+
+  if (route.name === 'org-recovery') {
+    headers['Cache-Control'] = 'private, no-store';
+    extraHead = (assets.orgRecovery ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<OrgRecoveryScreen session={session} />} />);
   }
 
   if (route.name === 'org-request-status') {

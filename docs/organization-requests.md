@@ -108,3 +108,31 @@ move to `approved`, `rejected` or `needs_info` queues one email to the applicant
 (`applicant.email`, or the account email for a signed-in applicant) from
 `templates/emails/org_request_status.html`; a rejection carries the reason. The
 mail is best effort: a failure is logged and the saved status stands.
+
+## Access recovery form (O5)
+
+`/organisaatiot/palautus` asks for access to an organization's account: `lost_access`,
+`owner_change` or `add_member`. Go stores it in `organization_requests` with
+`kind: "access_recovery"`, the same status machine and status link as O2 (the status
+page and `POST /organisaatiot/hakemus` are shared). Hallinto decides; Flask only
+invites a person afterwards (`docs/hallinto-city-grant.md`, `org-recoveries`).
+
+| Path | Method | Served by |
+| --- | --- | --- |
+| `/organisaatiot/palautus` | GET | React host, `noindex` |
+| `/organisaatiot/palautus` | POST | Go `POST /api/organization-requests/recovery` |
+
+Shipped dark in two ways: Go registers the route only with
+`ORG_RECOVERY_GO_ENABLED=true`, and the Apache rules in `react-ssr-routing.conf` are
+commented out. Enable the POST and GET rules together, after the page has been reviewed.
+
+The answer never says whether the organization exists, is protected or already has a
+request. Quietly dropped, and answered like success: a bot, an address with two unconfirmed
+requests, an organization name with three requests in 30 days, and a full site mail cap. A
+request for an organization with an open one is stored with `duplicate_of` and a
+status message, and is not reviewed twice. Only the client's own limit (2 a minute, 5 an
+hour) answers 429. An owner change and an added member name `person_email`; a lost-access
+request uses the applicant's confirmed address. Hallinto reads them with
+`POST /organization-requests/list {"kind": "access_recovery"}`; the ordinary list leaves
+them out and `create-organization` refuses them, so no recovery request can create an
+organization.

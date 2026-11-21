@@ -77,3 +77,23 @@ export function requestPayload(body: ReturnType<typeof orgRequestBody>, logo: Fi
   data.append('logo', logo);
   return { body: data, headers };
 }
+
+/** The JSON body of the access recovery form (go-api/org_recovery.go, orgRecoveryInput). */
+export function orgRecoveryBody(form: FormData, startedAt: number) {
+  const need = String(form.get('need') ?? '');
+  return {
+    need,
+    organization_name: String(form.get('organization_name') ?? ''),
+    applicant_name: String(form.get('applicant_name') ?? ''),
+    applicant_email: String(form.get('applicant_email') ?? ''),
+    applicant_role: String(form.get('applicant_role') ?? ''),
+    // Lost access names no one else; the server takes the applicant's own address.
+    person_email: need === 'lost_access' ? '' : String(form.get('person_email') ?? ''),
+    person_role: need === 'add_member' ? String(form.get('person_role') ?? '') : '',
+    links: splitLinks(String(form.get('links') ?? '')),
+    description: String(form.get('description') ?? ''),
+    consent: form.get('consent') === 'on',
+    homepage: String(form.get('homepage') ?? ''),
+    started_at: startedAt,
+  };
+}
