@@ -30,13 +30,13 @@
     <input type="hidden" name="state" value="{{ state_param }}">
     {% if elevated and eligible %}
     <button type="submit" class="workflow-button btn btn-primary"><i class="fas fa-check" aria-hidden="true"></i>Vahvista nimitys</button>
-    <a class="btn btn-link" href="{{ hallinto_url }}">Peruuta</a>
+    <a class="workflow-button btn btn-outline-secondary" href="{{ hallinto_url }}">Peruuta</a>
     {% endif %}
   </form>
 
   {% if eligible and not elevated %}
   {% if not has_passkey and not has_totp %}
-  <div class="alert alert-warning" role="alert">
+  <div class="alert alert-warning mb-0" role="alert">
     Nimityksen vahvistaminen vaatii passkeyn tai kaksivaiheisen tunnistautumisen.
     <a href="{{ url_for('users.auth.settings') }}">Lisää passkey asetuksissa</a> ja palaa sitten Hallintoon.
   </div>
@@ -76,7 +76,7 @@
   {% endif %}
   {% if not (elevated and eligible) %}
   <div class="hallinto-approve-actions">
-    <a class="btn btn-outline-secondary" href="{{ hallinto_url }}"><i class="fas fa-arrow-left" aria-hidden="true"></i> Takaisin Hallintoon</a>
+    <a class="workflow-button btn btn-outline-secondary" href="{{ hallinto_url }}"><i class="fas fa-arrow-left" aria-hidden="true"></i>Takaisin Hallintoon</a>
   </div>
   {% endif %}
 </section>

@@ -302,6 +302,10 @@
   align-items: center;
 }
 
+@media (max-width: 575.98px) {
+  .hallinto-approve-actions .workflow-button { width: 100%; }
+}
+
 .workflow-step-up-divider {
   display: flex;
   gap: .65rem;
