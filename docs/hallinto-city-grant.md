@@ -40,3 +40,33 @@ Scope the key by authenticated integration identity and acting subject. An exact
 First allocate a durable operation and serialize with the existing writer. Use a transaction where proven or a fenced, resumable journal where effects span writes. After mutation, check the exact effective city/permission result with newly loaded owner state. Return `confirmed` only when it matches the authorized plan. Report later drift separately. Unknown or partial operations stay pending/reconciliation-required. Locate them by the original key, preserve the receipt and never guess a successful outcome. Logs must correlate actor, case decision, account, operation ID and state transitions.
 
 Until C02/C04 prove compatibility, keep API disabled. Required staging checks include native UI parity, no cross-city or protected effects, duplicate commands, competing saves, revocation racing with grants, interruptions between legacy effects, and authoritative positive and negative permission readback. Recovery disables new API operations and reconciles pending receipts. Reversal is a new authorized owner action.
+
+## Internal route and fresh proof (C02 step 3, I02 remainder)
+
+Off unless `HALLINTO_CITY_GRANT_CONFIG_FILE` names a restricted JSON file (mode 0600, owned by the service user or root) with:
+
+- `proxy_secret_sha256`: lowercase SHA-256 of the secret the internal vhost adds as `X-Hallinto-Proxy-Secret`. A client certificate is public, so the forwarded certificate alone is not proof that the request came through the mTLS vhost.
+- `workload_cert_sha256`: lowercase SHA-256 fingerprints of the DER client certificates Hallinto presents.
+- `attestation_public_key`: Hallinto's Ed25519 public key, raw 32 bytes in base64url.
+- `return_url`: the exact `https://` Hallinto URL that receives the proof.
+
+Approval flow (Olivia, 21 November 2026: approve in Hallinto, step up on Flask by redirect, passkey or password+TOTP, 15 minutes):
+
+1. In Hallinto the verifier presses "Hyväksy". Hallinto redirects the browser to `/admin/hallinto/approve?r=<base64url JSON terms>&state=<16–128 chars>`. The terms are `account_id`, `city`, `template`, `allow_city_enablement`, `decision_id`, `decision_revision`, optional `application_id`, and `valid_until`.
+2. Flask shows the terms. The verifier must be allowed to manage city grants and must have stepped up with a passkey or password plus TOTP within 15 minutes. Password-only elevation does not count. Without either factor the page links to the account settings.
+3. On "Vahvista nimitys", a same-origin POST, Flask fills `expected_state` from current owner state. It issues a proof (single use, five minutes) bound to the actor, the audience `hallinto-city-grants`, the action and the intent digest. It then redirects with 303 to `return_url#state=…&proof=…&expected_state=…`. The fragment keeps the proof out of server logs and Referer headers.
+4. Hallinto checks `state` and signs `"hallinto-city-admin-v1-attestation\n" + intent_digest` with its Ed25519 key. It calls `POST /internal/hallinto/v1/city-appointments` with mTLS, `Authorization: Bearer <proof>`, `Idempotency-Key` and the full request, including `expected_state` and `authority_attestation` (base64url signature).
+
+`intent_digest` is the SHA-256 hex digest of the canonical intent: the request without `authority_attestation`, plus `"permissions"` (the nine A3 permissions, sorted). It is serialized as JSON with sorted keys, no whitespace and unescaped UTF-8, which is Python's `json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False)`. In Go, marshal a map with `SetEscapeHTML(false)` and drop the trailing newline.
+
+The first use of a proof binds it to its `Idempotency-Key`. Only a retry of the same command can present the proof again, and only until it expires. `GET /operations/by-key` takes an unexpired proof already bound to that `Idempotency-Key`. `GET /city-grants/{account_id}` takes an unexpired proof issued for that account. The actor is re-checked. The approval page and its redirect send `X-Frame-Options: DENY` and `frame-ancestors 'none'`.
+
+Apache (internal vhost only, production activation needs Olivia's go-ahead): `SSLVerifyClient require` against the Hallinto CA. Overwrite the forwarded headers on every request, so a client value never reaches Gunicorn:
+
+    RequestHeader unset X-SSL-Client-Cert
+    RequestHeader unset X-SSL-Client-Verify
+    RequestHeader set X-SSL-Client-Verify "%{SSL_CLIENT_VERIFY}s"
+    RequestHeader set X-SSL-Client-Cert "expr=%{escape:%{SSL_CLIENT_CERT}}"
+    RequestHeader set X-Hallinto-Proxy-Secret "<secret from a root-only include>"
+
+Route only `/internal/hallinto/` through that vhost. Include `deploy/apache/hallinto-public-vhost-guard.conf` in every public vhost: it strips all three headers and denies `/internal/`.

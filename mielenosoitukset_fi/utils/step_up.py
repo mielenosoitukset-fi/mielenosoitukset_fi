@@ -41,14 +41,24 @@ def _configured_timeout() -> float:
         return 900.0
 
 
-def grant_elevation(method: str) -> None:
-    """Mark the current user as recently step-up authenticated."""
+def grant_elevation(method: str, *, strong: bool = False) -> None:
+    """Mark the current user as recently step-up authenticated.
+
+    ``strong`` records that a passkey or a TOTP code was verified, not just
+    the password.
+    """
     session[SUDO_SESSION_KEY] = {
         "authenticated_at": time.time(),
         "method": method,
+        "strong": bool(strong),
         "user_id": str(current_user._id),
     }
     session.modified = True
+
+
+def has_strong_elevation(timeout_seconds: Optional[float] = None) -> bool:
+    """Elevated within the window by a passkey or password plus TOTP."""
+    return has_elevation(timeout_seconds) and bool(session.get(SUDO_SESSION_KEY, {}).get("strong"))
 
 
 def clear_elevation() -> None:
