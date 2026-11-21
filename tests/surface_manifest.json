@@ -118,7 +118,7 @@
     ]
   },
   "background_jobs": {
-    "count": 30,
+    "count": 31,
     "coverage": [
       "jobs",
       "tests/test_urgent_review_delivery.py",
@@ -131,7 +131,7 @@
       "tests/test_scrub_admin_log_secrets.py",
       "tests/test_expire_undecided_demos.py"
     ],
-    "sha256": "47da2a590194ff1dc9de6135771b0f17f5813a780c4d05aafdd0bbe360348c14"
+    "sha256": "3e8831b0d51c2243a9eea391f2c3279bc3c316d098d6d959e72298a5060c4d2a"
   },
   "routes": {
     "mielenosoitukset_fi/admin/admin_bp.py": {
@@ -217,6 +217,14 @@
         "e2e-admin"
       ],
       "sha256": "d363699f16fb63708681e9c7a13ce69322e9cbb829b72c4479cdf300451b2aa3"
+    },
+    "mielenosoitukset_fi/admin/admin_shifts_bp.py": {
+      "count": 1,
+      "coverage": [
+        "integration",
+        "tests/test_duty_shifts.py"
+      ],
+      "sha256": "d5d4a68f963352953846e94710797fcc4078f1d562af8ef0faf2e0dcc7dbecf2"
     },
     "mielenosoitukset_fi/admin/admin_site_analytics_bp.py": {
       "count": 2,

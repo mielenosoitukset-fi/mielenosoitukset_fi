@@ -369,7 +369,9 @@ def _seed_database(app, db):
                 "_id": ObjectId(),
                 "user_id": user_id,
                 "organization_id": org_id,
-                "role": "admin",
+                # A member with extra rights, not an org admin: alice stays a
+                # regular account outside the admin panel.
+                "role": "member",
                 "permissions": ["VIEW_ORGANIZATION", "EDIT_ORGANIZATION", "CREATE_DEMO", "EDIT_DEMO", "VIEW_DEMO"],
             },
         ]

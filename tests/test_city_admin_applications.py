@@ -139,3 +139,25 @@ def test_duplicate_check_pipeline_is_read_only_and_groups_open_per_user():
     stages = [next(iter(stage)) for stage in module.PIPELINE]
     assert stages == ["$match", "$group", "$match", "$sort"]
     assert module.OPEN_STATUSES == ["received", "in_review"]
+
+
+def test_hallinto_switch_stops_flask_cases_and_flask_decisions(admin_client, db, seeded_data, monkeypatch):
+    from mielenosoitukset_fi.utils import city_admin_applications as module
+    applicant = seeded_data["user_id"]
+    monkeypatch.setenv(module.HALLINTO_ENV_FLAG, "true")
+    application = _application(db, applicant, ["tampere"])
+    assert deliver_pending(db) == 0
+    assert not db.cases.find_one({"_id": application})
+    assert db.city_admin_applications.find_one({"_id": application})["case_pending"] is True
+
+    # A case made before the switch: once Hallinto links its own case, only Hallinto decides.
+    monkeypatch.delenv(module.HALLINTO_ENV_FLAG)
+    assert deliver_pending(db) == 1
+    module.hallinto_update(db, application, "in_review", "hallinto-case", "actor")
+    assert module.set_status(db, application, "approved", "admin") is False
+    assert db.city_admin_applications.find_one({"_id": application})["status"] == "in_review"
+    module.hallinto_update(db, application, "declined", "hallinto-case", "actor")
+    case = db.cases.find_one({"_id": application})
+    assert case["meta"]["closed"] is True and case["case_history"][-1]["metadata"]["hallinto_case"] == "hallinto-case"
+    assert module.handled_in_hallinto({}) is False
+    assert module.handled_in_hallinto({module.HALLINTO_ENV_FLAG: "true"}) is True

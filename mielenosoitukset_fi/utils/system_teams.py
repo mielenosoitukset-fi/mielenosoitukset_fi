@@ -65,6 +65,12 @@ def clearance_approved(db, user_id):
 
 def clearance_record_approved(record):
     requests = record.get("team_requests") or {}
+    national = requests.get("national") or {}
+    if national.get("source") == "hallinto_decision":
+        # A Hallinto decision (roadmap phase F) is the only evidence of this
+        # grant, and only until its end: no job is needed to end access.
+        from mielenosoitukset_fi.admin.elevated_grants import hallinto_evidence_valid
+        return record.get("approved") is True and hallinto_evidence_valid(national)
     emergency = requests.get("god_emergency") or {}
     if (record.get("approved") is True and emergency.get("approved") is True
             and emergency.get("method") == "usb_and_god"

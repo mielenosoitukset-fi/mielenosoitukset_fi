@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <title>Tarkistus viivästyy</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; background-color: #f8f8f8; color: #333; padding: 20px; }
+        .container { max-width: 700px; margin: 0 auto; background-color: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .message { background-color: #f1f1f1; padding: 15px; border-radius: 6px; margin: 20px 0; white-space: pre-line; }
+        .details p { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Tarkistus viivästyy</h2>
+        <p>Ilmoituksesi hylkäyksen tarkistus kestää tavallista kauemmin. Hylkäys on yhä väliaikainen, eikä se vahvistu itsestään. Kerromme tuloksen perusteluineen heti, kun tarkistus on valmis.</p>
+
+        <div class="details">
+            <p><strong>Otsikko:</strong> {{ title }}</p>
+            <p><strong>Päivämäärä:</strong> {{ date }}</p>
+            <p><strong>Kaupunki:</strong> {{ city }}</p>
+        </div>
+        <p>Ystävällisin terveisin<br>Mielenosoitukset.fi-tiimi</p>
+    </div>
+</body>
+</html>

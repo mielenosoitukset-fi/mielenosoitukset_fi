@@ -2,6 +2,7 @@ from copy import deepcopy
 from flask import current_app, jsonify, redirect, request, Blueprint, url_for, session
 import re
 from bson.objectid import ObjectId
+from mielenosoitukset_fi.utils.wrappers import has_demo_permission
 from mielenosoitukset_fi.utils.audit_trail import set_request_actor
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from datetime import datetime, timedelta
@@ -648,6 +649,12 @@ def get_unapproved_demonstrations():
 @api_bp.route("/admin/demonstrations/<demo_id>", methods=["GET"])
 @_token_or_session_required(required_scopes=["admin"], required_perms=["VIEW_DEMO"])
 def admin_get_demo_info(demo_id):
+    if not request.headers.get("Authorization") and not (
+        "VIEW_DEMO" in (current_user.global_permissions or [])
+        or has_demo_permission(current_user, demo_id, "VIEW_DEMO")
+    ):
+        # Session callers see only demos their own organisation, city or editor rights cover.
+        raise ApiException(Message("Insufficient permissions", "insufficient_permissions"), 403)
     demo = mongo.demonstrations.find_one(
         {"_id": ObjectId(demo_id)}, {"_pending_rollback_history": 0},
     )

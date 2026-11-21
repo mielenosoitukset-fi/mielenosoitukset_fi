@@ -1,0 +1,54 @@
+{% extends 'admin_base.html' %}
+{% from 'admin_V2/macros.html' import admin_page_hero %}
+{% block title %}Vuorot – Mielenosoitukset.fi{% endblock %}
+{% block main_content %}
+{% set labels = {'requested': 'Odottaa hyväksyntää', 'approved': 'Hyväksytty', 'running': 'Käynnissä', 'grace': 'Jälkiaika', 'ended': 'Päättynyt', 'cancelled': 'Peruttu', 'inactive': 'Nimitys ei voimassa'} %}
+<section class="admin-page admin-workspace">
+  {{ admin_page_hero('Vuorot', 'Valtakunnallisen moderaattorin oikeudet ovat voimassa vain hyväksytyn vuoron aikana ja ' ~ grace_minutes ~ ' minuuttia sen jälkeen.', 'Moderointi', [('Hallintapaneeli', url_for('admin.admin_dashboard')), ('Vuorot', none)], back_url=url_for('admin.admin_dashboard')) }}
+  {% if grants %}
+  <section class="admin-form-section p-3 mb-2" aria-labelledby="shift-book-heading">
+    <h2 id="shift-book-heading" class="h4">Varaa vuoro</h2>
+    <form method="post" class="admin-form-grid">
+      <input type="hidden" name="csrf_token" value="{{ governance_csrf_token }}">
+      <input type="hidden" name="action" value="book">
+      <div class="admin-field"><label for="shift-grant">Moderaattori</label>
+        <select id="shift-grant" name="grant_id" class="form-select">
+          {% for grant in grants %}<option value="{{ grant.id }}">{{ 'Minä' if grant.own else grant.moderator }} · nimitys voimassa {{ grant.valid_until|datetimeformat('%d.%m.%Y') }} asti{% if grant.needs_approval %} · tarvitsee hyväksynnän{% endif %}</option>{% endfor %}
+        </select></div>
+      <div class="admin-field"><label for="shift-start">Alkaa</label><input id="shift-start" name="starts_at" type="datetime-local" class="form-control" required></div>
+      <div class="admin-field"><label for="shift-end">Päättyy</label><input id="shift-end" name="ends_at" type="datetime-local" class="form-control" required><span class="admin-field__help">Suomen aikaa.</span></div>
+      <div class="align-self-end"><button class="btn btn-primary" type="submit">Varaa</button></div>
+    </form>
+  </section>
+  {% endif %}
+  <h2 class="h4 mb-0">Kaikki vuorot</h2>
+  {% if rows %}
+  <ul class="list-group">
+    {% for row in rows %}
+    <li class="list-group-item d-flex flex-wrap gap-2 align-items-center">
+      <div class="flex-grow-1">
+        <div class="fw-semibold">{{ row.moderator }}</div>
+        <div>{{ row.starts_at|datetimeformat('%d.%m.%Y %H:%M') }} – {{ row.ends_at|datetimeformat('%H:%M') if (row.starts_at|datetimeformat('%d.%m.%Y')) == (row.ends_at|datetimeformat('%d.%m.%Y')) else row.ends_at|datetimeformat('%d.%m.%Y %H:%M') }}</div>
+        {% if row.cancel_reason %}<div class="admin-field__help">{{ row.cancel_reason }}</div>{% endif %}
+      </div>
+      <span class="badge text-bg-{{ {'running': 'success', 'grace': 'warning', 'requested': 'secondary', 'approved': 'primary', 'inactive': 'danger'}.get(row.state, 'light') }}">{{ labels[row.state] }}</span>
+      {% if row.can_approve or row.can_cancel %}
+      <div class="d-flex flex-wrap gap-2 align-items-start">
+        {% if row.can_approve %}
+        <form method="post"><input type="hidden" name="csrf_token" value="{{ governance_csrf_token }}"><input type="hidden" name="action" value="approve"><input type="hidden" name="shift_id" value="{{ row.id }}"><button class="btn btn-sm btn-primary" type="submit">Hyväksy</button></form>
+        {% endif %}
+        {% if row.can_cancel %}
+        <details><summary class="btn btn-sm btn-outline-danger">Peru</summary>
+          <form method="post" class="mt-2 d-flex gap-1"><input type="hidden" name="csrf_token" value="{{ governance_csrf_token }}"><input type="hidden" name="action" value="cancel"><input type="hidden" name="shift_id" value="{{ row.id }}">
+            <label class="visually-hidden" for="reason-{{ row.id }}">Perustelu</label><input id="reason-{{ row.id }}" name="reason" class="form-control form-control-sm" placeholder="Perustelu" required maxlength="300">
+            <button class="btn btn-sm btn-danger" type="submit">Peru vuoro</button></form>
+        </details>
+        {% endif %}
+      </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<div class="admin-empty-state"><strong class="admin-empty-state__title">Ei vuoroja</strong><span>Varatut ja hyväksytyt vuorot näkyvät tässä.</span></div>{% endif %}
+</section>
+{% endblock %}

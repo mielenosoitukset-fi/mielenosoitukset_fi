@@ -1,0 +1,2 @@
+- Admin: the organization `verified` checkbox now writes an admin-log entry (who, old and new value) on every change; it stays until Hallinto handles organization decisions.
+- Operations: the root scripts `grant_admin_rights.py` and `grant_all_rights.py` are replaced by `scripts/emergency/grant_rights.py`, which needs an explicit emergency flag, actor, reason and repeated email, and is audited.

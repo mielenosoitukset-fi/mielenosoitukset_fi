@@ -73,15 +73,12 @@ def _logo_url(db, row: dict, upload: Callable[..., str | None], bucket: str | No
 def _membership(db, org_id: ObjectId, user_id: ObjectId) -> None:
     """Make the account an owner of the organization; a repeat changes nothing."""
     from mielenosoitukset_fi.utils.classes.Organization import Organization
-    from mielenosoitukset_fi.users.BPs.orgs import _grant_admin_panel
-    from mielenosoitukset_fi.users.models import User
 
     org = Organization.from_dict(db.organizations.find_one({"_id": org_id}))
     if org.is_member(user_id=user_id):
         return
+    # Organisation roles live in the membership only; the account role is never raised.
     org.add_member(user_id, role=OWNER_ROLE, permissions=[])
-    user = User.from_db(db.users.find_one({"_id": user_id}))
-    _grant_admin_panel(user, OWNER_ROLE)
 
 
 def create_for_request(

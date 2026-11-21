@@ -166,6 +166,10 @@ mongo["demo_suggestions"].create_index([("demo_id", ASCENDING), ("created_at", D
 mongo["admin_logs"].create_index("timestamp", background=True)
 mongo["super_audit_logs"].create_index("timestamp", background=True)
 
+from mielenosoitukset_fi.utils import moderation_reviews as _moderation_reviews  # noqa: E402
+
+_moderation_reviews.ensure_indexes(mongo)
+
 
 def ensure_audit_pagination_indexes(database):
     """Create the indexes used by deterministic audit-log pagination."""
@@ -2568,7 +2572,10 @@ def init_routes(app):
             user_role = getattr(current_user, 'role', None)
         except Exception:
             user_role = None
-        test_mode_allowed = bool(current_user.is_authenticated and user_role in ("admin", "global_admin"))
+        test_mode_allowed = bool(
+            current_user.is_authenticated
+            and (user_role == "global_admin" or current_user.has_site_wide_admin_reach())
+        )
         # Determine whether current user can edit demonstrations
         try:
             can_edit_demo = bool(current_user.is_authenticated and current_user.has_permission("EDIT_DEMO"))

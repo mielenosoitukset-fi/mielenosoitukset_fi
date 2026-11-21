@@ -16,9 +16,11 @@ email and need an explicit go-ahead.
 - **Grantable permissions** (`admin_user_bp.py:220-230`): `LIST_DEMOS`,
   `VIEW_DEMO`, `EDIT_DEMO`, `ACCEPT_DEMO` (publish), `CREATE_DEMO`,
   `GENERATE_EDIT_LINK`, and optionally `LIST_CASES`, `VIEW_CASE` and `EDIT_CASE`.
-- **Implicit permissions:** every city admin also gets organization
-  permissions without them being listed in the grant (`LIST/VIEW/CREATE/EDIT_ORGANIZATION`,
-  `INVITE_TO_ORGANIZATION`; `users/models.py:25-31, 561-569`).
+- **Implicit permissions:** every city admin can list and view organizations
+  without it being listed in the grant (`LIST_ORGANIZATIONS`, `VIEW_ORGANIZATION`;
+  `CITY_ADMIN_ORGANIZATION_PERMISSIONS` in `users/models.py`). Since 21 November 2026
+  they no longer create, edit or invite to organizations: new organizations are
+  suggested through the organization request form and decided in Hallinto.
 - **Revoking and auditing:** a grant is revoked by setting `revoked_at`, and
   every grant change is written to the user history (`PENDING_HISTORY`,
   `flush_user_history`).
