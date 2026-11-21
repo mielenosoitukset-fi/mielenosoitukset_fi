@@ -144,7 +144,7 @@ PAGES = {
             ("lista", "Lista ja suodattimet", "hae suodata menneet toistuvat tunniste"),
             ("hyvaksy", "Hyväksy tai hylkää", "hyväksy hylkää odottaa käsittele päätös tapaus julkaise heti julkaisun tila"),
             ("peru-hyvaksynta", "Peru hyväksyntä", "peru hyväksyntä vahinko undo kumoa 30 minuuttia"),
-            ("poista-julkaisusta", "Poista julkaisusta", "poista julkaisusta take down piilota julkaise uudelleen"),
+            ("poista-julkaisusta", "Poista julkaisusta", "poista julkaisusta take down piilota julkaise uudelleen vahvista poisto kiireellinen toinen ylläpitäjä"),
             ("komentokeskus", "Komentokeskus", "command center hallintanäkymä"),
             ("muokkaa", "Muokkaa ja palauta aiempi versio", "muokkaa historia palauta rollback muutoshistoria"),
             ("muokkauslinkki", "Luo muokkauslinkki järjestäjälle", "muokkauslinkki linkki järjestäjä ilman kirjautumista edit link"),
@@ -177,6 +177,7 @@ PAGES = {
         "topics": [
             ("toiminnot", "Keskeiset toiminnot", "luo muokkaa poista organisaatio"),
             ("jasenet", "Jäsenet ja kutsut", "kutsu jäsen rooli"),
+            ("historia", "Organisaation muutoshistoria", "historia muutoshistoria loki audit kuka muutti"),
             ("muutospyynnot", "Organisaation muutospyynnöt", "muutospyyntö ehdotus organisaatio"),
         ],
     },

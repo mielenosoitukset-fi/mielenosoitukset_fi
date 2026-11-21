@@ -1,0 +1,1 @@
+- The public "Ilmoita mielenosoituksesta" form has an optional end date for demonstrations that last several days (up to 14 days). The draft keeps the end date, and the server rejects an end date before the start or more than 13 days after it.

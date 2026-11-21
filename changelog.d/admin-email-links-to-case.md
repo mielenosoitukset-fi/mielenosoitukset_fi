@@ -1,0 +1,1 @@
+- Admin: moderation emails now have one "Avaa tapaus" button instead of approve and reject links, so every new demonstration is decided in its case after the preview and side-effect confirm. Old approve and reject links in sent emails open the case and never decide. The link needs an admin login.
