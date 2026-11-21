@@ -336,8 +336,16 @@ def _username_taken_by_other(username: str, user_id: ObjectId) -> bool:
 
 @auth_bp.before_app_request
 def enforce_required_identity_change():
-    """Keep flagged accounts in the identity-change flow until it is complete."""
-    if not current_user.is_authenticated or not getattr(current_user, "forced_identity_change", False):
+    """Keep flagged accounts in the forced password and identity flow until it is complete."""
+    if not current_user.is_authenticated:
+        return None
+    if getattr(current_user, "forced_pwd_reset", False):
+        target = url_for("users.auth.forced_pwd_reset")
+        message = "Salasana on vaihdettava ennen palvelun käyttöä."
+    elif getattr(current_user, "forced_identity_change", False):
+        target = url_for("users.auth.forced_identity_change")
+        message = "Käyttäjänimi ja näyttönimi on vaihdettava ennen palvelun käyttöä."
+    else:
         return None
 
     allowed_endpoints = {
@@ -345,15 +353,19 @@ def enforce_required_identity_change():
         "users.auth.forced_identity_change",
         "users.auth.forced_pwd_reset",
         "users.auth.logout",
+        # The React pages of this flow read the header session, their notices and,
+        # on the identity page, whether a username is free.
+        "public_session_summary",
+        "get_flash_message_messages",
+        "users.auth.api_username_free",
     }
     if request.endpoint in allowed_endpoints:
         return None
 
-    target = url_for("users.auth.forced_identity_change")
     if request.path.startswith("/api/") or request.path.startswith("/users/auth/api/"):
         return jsonify({
             "status": "error",
-            "message": "Käyttäjänimi ja näyttönimi on vaihdettava ennen palvelun käyttöä.",
+            "message": message,
             "redirect": target,
         }), 428
     return redirect(target)
@@ -1139,6 +1151,10 @@ from datetime import datetime
 @auth_bp.route("/forced_pwd_reset/", methods=["GET", "POST"])
 @login_required
 def forced_pwd_reset():
+    # This form changes the password without the current one, so it is only for
+    # accounts an administrator flagged; anyone else uses the settings page.
+    if not getattr(current_user, "forced_pwd_reset", False):
+        return redirect(url_for("users.auth.settings"))
     ip = get_client_ip()
     user_agent = request.headers.get("User-Agent", "")
 

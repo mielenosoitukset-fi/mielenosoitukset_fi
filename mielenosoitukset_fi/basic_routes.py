@@ -1888,6 +1888,11 @@ def init_routes(app):
                 "has_admin_access": bool(current_user.has_admin_access()),
                 "actor_id": str(current_user._id),
                 "logout_token": make_logout_token(current_user.get_id()),
+                # Steps an administrator requires before the account can be used.
+                "forced": {
+                    "password": bool(getattr(current_user, "forced_pwd_reset", False)),
+                    "identity": bool(getattr(current_user, "forced_identity_change", False)),
+                },
             })
             try:
                 payload["unread"] = sum(

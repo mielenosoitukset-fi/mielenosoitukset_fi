@@ -1,0 +1,1 @@
+- The required password change and the required new-name pages are now part of the new site. An account flagged for either step now stays on that step everywhere, including the new pages, and the password form without the current password is only for flagged accounts.
