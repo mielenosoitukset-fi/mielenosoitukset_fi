@@ -484,11 +484,21 @@ def configure(app, db) -> None:
         register(app, db, test_settings)
         return
     from mielenosoitukset_fi.users.hallinto_issuer_config import _read_settings, config_error_reason
+    from mielenosoitukset_fi.utils.logger import logger
 
     try:
         settings = _read_settings(path)
         register(app, db, settings)
-    except Exception as exc:
-        # Only the exception class reaches the journal, never values or paths.
-        raise RuntimeError(
-            f"Hallinto city grant configuration is invalid ({config_error_reason(exc)})") from None
+    except Exception as error:  # noqa: BLE001
+        # A missing, unreadable or invalid file must not crash every worker and
+        # take the whole site down (incident 2026-11-21). The optional grant
+        # routes stay off, nothing is registered, and the error is loud. The
+        # message names no path or value: they may be secrets.
+        app.extensions.pop("hallinto_city_grants", None)
+        reason = config_error_reason(error)
+        app.extensions["hallinto_city_grants_disabled"] = reason
+        logger.error(
+            "HALLINTO_CITY_GRANT_CONFIG_FILE is set but unusable (%s): the Hallinto grant, "
+            "end, order and role-bundle routes are DISABLED. Fix the file (readable by the "
+            "service user, mode 0600, valid JSON) and restart.", reason,
+        )

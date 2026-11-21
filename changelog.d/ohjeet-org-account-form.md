@@ -1,0 +1,1 @@
+- The guide's organisation account section now links to the application form instead of asking people to email support.

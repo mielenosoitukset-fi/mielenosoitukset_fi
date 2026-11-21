@@ -97,3 +97,12 @@ key breaks every loader: the organization has no city field, so the city stays o
   `mielenosoitukset_fi/templates/ohjeet/index.html`. Ship the copy change with the
   Apache rules and `ORG_REQUESTS_GO_ENABLED`, not before: until then the form is
   dark and the email instructions are still correct.
+
+## Status updates from Hallinto
+
+`organization_requests_update` is idempotent: repeating the same status, message,
+case and access changes nothing, adds no `history` entry and sends no mail. A real
+move to `approved`, `rejected` or `needs_info` queues one email to the applicant
+(`applicant.email`, or the account email for a signed-in applicant) from
+`templates/emails/org_request_status.html`; a rejection carries the reason. The
+mail is best effort: a failure is logged and the saved status stands.

@@ -421,3 +421,29 @@ def test_a_freeze_blocks_legacy_grants_until_a_new_appointment(api):
         city_grants.sync_city_scope_grant(db, target, ["kuopio"], city_grants.CITY_ADMIN_V1_PERMISSIONS, actor,
                                           additive_only=True, expires_at=city_grants.parse_valid_until(VALID_UNTIL))
     assert db.admin_scope_grants.count_documents({"user_id": target, "frozen": True}) == 0
+
+
+@pytest.mark.parametrize("problem", ["missing", "unreadable", "wide-mode", "not-json", "incomplete"])
+def test_a_bad_config_file_disables_the_routes_instead_of_crashing_the_site(app_factory, monkeypatch, tmp_path, problem, caplog):
+    import logging
+    import os
+    path = tmp_path / "config.json"
+    if problem != "missing":
+        path.write_text('{"proxy_secret_sha256": "x"}' if problem == "incomplete" else "not json")
+        os.chmod(path, 0o644 if problem == "wide-mode" else 0o600)
+    if problem == "unreadable":
+        os.chmod(path, 0o000)
+    monkeypatch.setenv("HALLINTO_CITY_GRANT_CONFIG_FILE", str(path))
+    with caplog.at_level(logging.ERROR):
+        app = app_factory()  # must not raise
+    try:
+        assert app.test_client().post("/internal/hallinto/v1/orders", json={}).status_code == 404
+        assert app.test_client().get("/admin/hallinto/approve").status_code in {302, 404}
+        assert "hallinto_city_grants" not in app.extensions and "hallinto_city_grants_disabled" in app.extensions
+        message = " ".join(record.getMessage() for record in caplog.records)
+        assert "DISABLED" in message and str(path) not in message
+        # The rest of the site still answers.
+        assert app.test_client().get("/health").status_code in {200, 204, 404}
+    finally:
+        from tests.conftest import _cleanup_app_resources
+        _cleanup_app_resources(app)
