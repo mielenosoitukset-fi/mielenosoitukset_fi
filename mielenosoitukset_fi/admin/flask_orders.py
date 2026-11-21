@@ -35,6 +35,9 @@ ROLE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 # Roles an order may take away. Everything else is refused, not guessed at.
 REMOVABLE_ROLES = {"city_admin", "admin", "global_admin", "superuser", "god"}
 MAX_ROSTER = 200
+BOOTSTRAP_ADDITIONS = 5  # An order may add this many even to a small or empty team.
+# Higher rank needs a higher actor: only god and superuser accounts can take those roles.
+ROLE_RANK = {"city_admin": 1, "admin": 2, "global_admin": 3, "superuser": 4, "god": 5}
 BOARD_FENCE = "board-team"
 
 
@@ -125,7 +128,7 @@ def _order_fenced(db, operation, intent, actor, integration, target, fence) -> c
     if intent["kind"] == KIND_ROLE_REMOVAL:
         write = _plan_role_removal(db, operation, intent, actor)
     else:
-        write = _plan_board_roster(db, operation, intent)
+        write = _plan_board_roster(db, operation, intent, actor)
     if isinstance(write, str):
         return cg._outcome_for(cg._reject(db, operation, write))
     apply_write, verify = write
@@ -171,7 +174,7 @@ def _order_fenced(db, operation, intent, actor, integration, target, fence) -> c
     return cg._outcome_for(cg._transition(db, operation, {"pending"}, "confirmed", receipt))
 
 
-def _plan_board_roster(db, operation, intent):
+def _plan_board_roster(db, operation, intent, actor):
     """Return a rejection code, or (write, verify) for a board roster."""
     from mielenosoitukset_fi.utils.system_teams import active_account, board_ids, olivia_user_id
 
@@ -185,21 +188,27 @@ def _plan_board_roster(db, operation, intent):
     current = set(board_ids(db))
     added = sorted(set(roster) - current)
     removed = sorted(current - set(roster))
-    # Safeguards that stay in Flask: Olivia is never removed by an order, and
-    # one order never removes more than half of the current team.
+    # Safeguards that stay in Flask: Olivia is never removed by an order, one
+    # order never removes more than half of the current team, never adds more
+    # than the team has (at least BOOTSTRAP_ADDITIONS), and nobody adds themselves.
     if olivia_user_id() in removed or (current and len(removed) * 2 > len(current)):
+        return "unsupported_scope"
+    if len(added) > max(len(current), BOOTSTRAP_ADDITIONS) or str(actor._id) in added:
         return "unsupported_scope"
     operation_id = str(operation["_id"])
 
-    def write(actor):
+    def write(acting):
         for account in added:
-            db.memberships.update_one(
-                {"user_id": ObjectId(account), "organization_id": organization},
-                {"$set": {"governance_approved": True, "grant_source": "hallinto_decision",
-                          "approval_request_id": operation_id},
-                 "$setOnInsert": {"role": "member", "permissions": [], "created_at": utcnow()}},
-                upsert=True,
-            )
+            uid = ObjectId(account)
+            row = {"user_id": {"$in": [uid, account]}, "organization_id": {"$in": [organization, str(organization)]}}
+            fields = {"governance_approved": True, "grant_source": "hallinto_decision",
+                      "approval_request_id": operation_id, "role": "member", "permissions": []}
+            if db.memberships.count_documents(row, limit=1):
+                # Re-approval resets whatever role or permissions the old row held.
+                db.memberships.update_many(row, {"$set": fields})
+            else:
+                db.memberships.insert_one({**fields, "user_id": uid, "organization_id": organization,
+                                           "created_at": utcnow()})
         for account in removed:
             uid = ObjectId(account)
             db.memberships.update_many(
@@ -214,9 +223,20 @@ def _plan_board_roster(db, operation, intent):
     return write, verify
 
 
+def _actor_rank(actor) -> int:
+    """An authorized actor manages grants, which makes them at least global admin."""
+    return {"god": 5, "superuser": 4}.get(getattr(actor, "role", None), 3)
+
+
 def _plan_role_removal(db, operation, intent, actor):
-    """Return a rejection code, or (write, verify) for a permanent role removal."""
-    from mielenosoitukset_fi.utils.system_teams import SUPER_ROLES, olivia_user_id, team_ids
+    """Return a rejection code, or (write, verify) for a permanent role removal.
+
+    Only the named role changes. The check and the receipt use the loaded
+    ``User`` model, so access that comes from a team rather than a stored field
+    is seen too.
+    """
+    from mielenosoitukset_fi.users.models import User
+    from mielenosoitukset_fi.utils.system_teams import olivia_user_id, team_ids
 
     role = intent["role"]
     account_id = ObjectId(intent["account_id"])
@@ -225,9 +245,15 @@ def _plan_role_removal(db, operation, intent, actor):
         return "denied"  # Conceal existence.
     if role not in REMOVABLE_ROLES or intent["account_id"] == olivia_user_id():
         return "unsupported_scope"
+    if ROLE_RANK[role] > _actor_rank(actor):
+        return "denied"
 
     def holds(document) -> bool:
-        return document.get("role") == role or (role == "global_admin" and document.get("global_admin") is True)
+        if role == "global_admin":
+            # The stored flag, the role, or the national team. A super role is a different role.
+            return (document.get("role") == "global_admin" or document.get("global_admin") is True
+                    or "national" in User.from_db(document).system_team_access)
+        return document.get("role") == role
 
     def write(acting):
         document = db.users.find_one({"_id": account_id})
@@ -239,23 +265,33 @@ def _plan_role_removal(db, operation, intent, actor):
             return  # Already gone: removal is idempotent.
         from mielenosoitukset_fi.utils.security_cases import _revoke
 
-        cg.commit_profile_change(
-            db, document,
-            {"role": "user", "global_admin": False, "global_permissions": [], "governance_managed": True},
-            acting, "hallinto_role_removed")
-        db.users.update_one({"_id": account_id}, {"$inc": {"auth_epoch": 1}})
+        updates = {"auth_epoch": (document.get("auth_epoch") or 0) + 1}
+        new_role = "user" if document.get("role") == role else document.get("role")
+        updates["role"] = new_role
+        if new_role not in {"superuser", "god"}:
+            # Later grants must come through governance. Not for a remaining
+            # super role: governance-managed accounts get no power from a role.
+            updates["governance_managed"] = True
+        if role == "global_admin":
+            updates.update(global_admin=False, global_permissions=[])
+            national = team_ids().get("national")
+            if national:
+                db.memberships.update_many(
+                    {"user_id": {"$in": [account_id, str(account_id)]},
+                     "organization_id": {"$in": [national, str(national)]}},
+                    {"$set": {"governance_approved": False, "removed_by_operation": str(operation["_id"])}})
+        cg.commit_profile_change(db, document, updates, acting, "hallinto_role_removed")
         _revoke(db, document, operation["_id"])
-        if role in SUPER_ROLES or role == "admin":
-            teams = [*team_ids().values(), *(str(v) for v in team_ids().values())]
-            db.memberships.update_many(
-                {"user_id": {"$in": [account_id, str(account_id)]}, "organization_id": {"$in": teams}},
-                {"$set": {"governance_approved": False, "removed_by_operation": str(operation["_id"])}})
 
     def verify():
         after = db.users.find_one({"_id": account_id}) or {}
+        user = User.from_db(after) if after else None
         gone = not holds(after)
         if role == "city_admin":
             gone = gone and not cg._active_grants(db, account_id)
-        return gone, {"role": after.get("role"), "global_admin": bool(after.get("global_admin"))}
+        effective = {"role": after.get("role"), "global_admin": bool(user and user.global_admin),
+                     "full_permissions": bool(user and user.has_full_permissions()),
+                     "system_team_access": sorted(user.system_team_access) if user else []}
+        return gone, effective
 
     return write, verify

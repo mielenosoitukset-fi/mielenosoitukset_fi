@@ -137,7 +137,7 @@ def test_an_empty_or_unsorted_roster_is_not_an_order(orders):
 @pytest.mark.parametrize("role,fields", [
     ("admin", {"role": "admin"}),
     ("global_admin", {"role": "user", "global_admin": True}),
-    ("superuser", {"role": "superuser"}),
+    ("global_admin", {"role": "global_admin"}),
 ])
 def test_role_removal_takes_the_role_and_the_sessions(orders, role, fields):
     env = orders
@@ -148,7 +148,8 @@ def test_role_removal_takes_the_role_and_the_sessions(orders, role, fields):
     response, proof = _send(env, body, digest, subject=str(victim))
     assert response.status_code == 200, response.get_json()
     receipt = response.get_json()
-    assert receipt["effective"] == {"role": "user", "global_admin": False} and receipt["account_id"] == str(victim)
+    assert receipt["effective"] == {"role": "user", "global_admin": False, "full_permissions": False,
+                                    "system_team_access": []} and receipt["account_id"] == str(victim)
     doc = db.users.find_one({"_id": victim})
     assert doc["role"] == "user" and doc["governance_managed"] is True and doc.get("auth_epoch") == 1
     assert db.api_tokens.find_one({"user_id": victim})["revoked_at"] is not None
@@ -175,7 +176,7 @@ def test_role_removal_of_a_city_admin_ends_its_grants(orders):
     assert db.admin_scope_grants.count_documents({"user_id": victim, "revoked_at": None}) == 0
 
 
-@pytest.mark.parametrize("who", ["olivia", "unsupported_role", "self"])
+@pytest.mark.parametrize("who", ["olivia", "unsupported_role", "self", "god_by_a_global_admin"])
 def test_role_removal_refusals(orders, who):
     env = orders
     app, client, db, seeded, person, team, roster_of, olivia = env[:8]
@@ -183,6 +184,8 @@ def test_role_removal_refusals(orders, who):
         account, role, status = olivia, "admin", 422
     elif who == "unsupported_role":
         account, role, status = person("pekka", role="user"), "user", 422
+    elif who == "god_by_a_global_admin":
+        account, role, status = person("jumala", role="god"), "god", 403
     else:
         account, role, status = seeded["admin_id"], "global_admin", 403
     body, digest = _order("role_removal", account_id=str(account), role=role)
@@ -241,3 +244,87 @@ def test_approval_page_and_proof_for_orders(orders):
     assert "Vahvista roolin poisto" in page.get_data(as_text=True)
     unknown = {**removal, "account_id": str(ObjectId())}
     assert verifier.get("/admin/hallinto/approve", query_string={"r": _terms(unknown), "state": STATE}).status_code == 400
+
+
+def test_removing_global_admin_changes_only_that_role(orders):
+    env = orders
+    app, client, db, seeded, person = env[:5]
+    # A superuser who also carries the flag keeps the superuser role.
+    both = person("kahden", role="superuser", global_admin=True)
+    body, digest = _order("role_removal", account_id=str(both), role="global_admin")
+    response, _ = _send(env, body, digest, subject=str(both))
+    assert response.status_code == 200
+    after = db.users.find_one({"_id": both})
+    assert after["role"] == "superuser" and after["global_admin"] is False
+    assert response.get_json()["effective"]["full_permissions"] is True  # The superuser role is untouched.
+
+
+def test_global_admin_from_the_national_team_is_removed_and_seen(orders):
+    env = orders
+    app, client, db, seeded, person = env[:5]
+    national = ObjectId()
+    db.organizations.insert_one({"_id": national, "name": "Kansallinen"})
+    app.config["NATIONAL_ADMIN_ORG_ID"] = str(national)
+    member = person("kansallinen")
+    db.memberships.insert_one({"user_id": member, "organization_id": national, "governance_approved": True,
+                               "grant_source": "maintainer_bootstrap", "role": "member", "permissions": []})
+    body, digest = _order("role_removal", account_id=str(member), role="global_admin")
+    response, _ = _send(env, body, digest, subject=str(member))
+    assert response.status_code == 200, response.get_json()
+    effective = response.get_json()["effective"]
+    assert effective["global_admin"] is False and effective["system_team_access"] == []
+    assert db.memberships.find_one({"user_id": member})["governance_approved"] is False
+
+
+def test_a_god_can_be_removed_by_a_god(orders):
+    env = orders
+    app, client, db, seeded, person = env[:5]
+    db.users.update_one({"_id": seeded["admin_id"]}, {"$set": {"role": "god"}})
+    target = person("toinen", role="god")
+    body, digest = _order("role_removal", account_id=str(target), role="god")
+    response, _ = _send(env, body, digest, subject=str(target))
+    assert response.status_code == 200, response.get_json()
+    assert db.users.find_one({"_id": target})["role"] == "user"
+
+
+def test_roster_additions_are_capped_and_never_include_the_actor(orders):
+    env = orders
+    app, client, db, seeded, person, team, roster_of = env[:7]
+    old = [person(f"vanha{i}") for i in range(2)]
+    team(*old)
+    new = [person(f"uusi{i}") for i in range(6)]  # more than max(team size, 5)
+    body, digest = _order("board_roster", roster=_roster(*old, *new))
+    assert _send(env, body, digest)[0].status_code == 422
+    # The approving verifier cannot add themselves.
+    body, digest = _order("board_roster", order_id="hallinto-order-0000000000004",
+                          roster=_roster(*old, seeded["admin_id"]))
+    assert _send(env, body, digest, key="hallinto-order-0000000000004")[0].status_code == 422
+    assert roster_of() == _roster(*old)
+
+
+def test_re_approval_resets_an_old_membership_row(orders):
+    env = orders
+    app, client, db, seeded, person, team, roster_of = env[:7]
+    keep, back = person("pysyy"), person("palaa")
+    team(keep)
+    board = next(iter(db.organizations.find({"name": "Hallitus"})))["_id"]
+    db.memberships.insert_one({"user_id": str(back), "organization_id": board, "governance_approved": False,
+                               "role": "owner", "permissions": ["EVERYTHING"]})
+    body, digest = _order("board_roster", roster=_roster(keep, back))
+    assert _send(env, body, digest)[0].status_code == 200
+    rows = list(db.memberships.find({"organization_id": board, "user_id": {"$in": [back, str(back)]}}))
+    assert len(rows) == 1 and rows[0]["role"] == "member" and rows[0]["permissions"] == []
+    assert roster_of() == _roster(keep, back)
+
+
+def test_the_page_lists_who_is_added_and_removed(orders):
+    env = orders
+    app, client, db, seeded, person, team = env[:6]
+    stays, goes, comes = person("jaa"), person("lahtee", displayname="Lähtijä"), person("tulee", displayname="Tulija")
+    team(stays, goes)
+    fields = {"order_id": ORDER, "kind": "board_roster", "decision_id": "d", "decision_revision": 1,
+              "roster": _roster(stays, comes)}
+    page = _verifier(app, seeded["admin_id"], strong=True, age=60).get(
+        "/admin/hallinto/approve", query_string={"r": _terms(fields), "state": STATE})
+    text = page.get_data(as_text=True)
+    assert "Lisätään: Tulija" in text and "Poistetaan tiimistä: Lähtijä" in text

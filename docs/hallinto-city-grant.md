@@ -99,15 +99,24 @@ Body: `order_id`, `kind`, `decision_id`, `decision_revision`, `roster` (sorted, 
 - every listed account must exist and be active and confirmed;
 - the board organization must be configured and exist;
 - Olivia's account (`OVERRIDE_OLIVIA_USER_ID`) is never removed by an order;
-- one order removes at most half of the current team.
+- one order removes at most half of the current team, and adds at most as many accounts as the team has (at least five, so a new team can be set up);
+- the account that signs the order in Flask cannot be on the list as an addition.
+
+Re-approving an old membership row resets its role to `member` and its permissions to none. The approval page lists who is added and who is removed.
 
 Receipt: `status: confirmed` with `effective: {roster: [...]}`, the team Flask has now. Hallinto confirms only when it equals the sent roster. The receipt has no `account_id`.
 
 ### `kind: role_removal` (H17)
 
-Body: `order_id`, `kind`, `decision_id`, `decision_revision`, `account_id`, `role`, `authority_attestation`. Flask removes one role permanently. Removable roles: `city_admin`, `admin`, `global_admin`, `superuser`, `god`; any other role, the account named by `OVERRIDE_OLIVIA_USER_ID` and the acting verifier themselves are refused (422, 403). The effect for the higher roles is the one security cases already use: role `user`, `global_admin` off, global permissions cleared, `governance_managed` on, tokens and sessions revoked and the board and national team memberships ended. `city_admin` ends the account's city grants. The removal is idempotent: a new order for a role the account no longer has is a confirmed no-op.
+Body: `order_id`, `kind`, `decision_id`, `decision_revision`, `account_id`, `role`, `authority_attestation`. Flask removes the one named role and nothing else. Removable roles: `city_admin`, `admin`, `global_admin`, `superuser`, `god`. Refused: any other role, the account named by `OVERRIDE_OLIVIA_USER_ID` and the acting verifier themselves (422, 403), and a role ranked above the actor (403): `god` needs a god actor and `superuser` a superuser or god actor, others need a global admin.
 
-Receipt: `status: confirmed`, `account_id`, `effective: {role, global_admin}`, the account's role after the order. Hallinto confirms when `effective.role` differs from the removed role.
+- `admin`, `superuser`, `god`: the role becomes `user`.
+- `global_admin`: the stored flag, the role `global_admin` and the national team membership all end. A `superuser` or `god` role the account also has stays.
+- `city_admin`: the account's city grants end and the role returns to `user`.
+- Tokens and sessions are revoked and `auth_epoch` rises. Board team membership is not touched; the roster order owns that.
+- Idempotent: a new order for a role the account no longer has is a confirmed no-op. "Permanent" means Hallinto will not grant it again by itself; the legacy admin views can still give a role, until they are retired.
+
+Receipt: `status: confirmed`, `account_id`, `effective: {role, global_admin, full_permissions, system_team_access}`, read from the loaded account so access that comes from a team shows too. Hallinto confirms when `effective.role` differs from the removed role (for `global_admin`, when `effective.global_admin` is false unless a super role remains). If the named role is still held after the write the operation is `reconciliation_required`.
 
 Both kinds return the usual `pending`, `reconciliation_required` and `rejected` receipts, replayed by key.
 

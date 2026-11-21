@@ -26,6 +26,8 @@
     </dl>
     {% if fields.kind == 'board_roster' %}
     <p>Flaskin hallitustiimistä tulee täsmälleen tämä joukko: {{ roster_names|join(', ') }}.</p>
+    <p>Lisätään: {{ added_names|join(', ') if added_names else 'ei kukaan' }}.</p>
+    <p>Poistetaan tiimistä: {{ removed_names|join(', ') if removed_names else 'ei kukaan' }}.</p>
     {% endif %}
     {% else %}
     <dl class="admin-message-meta">
@@ -36,7 +38,7 @@
     </dl>
     {% endif %}
     {% if is_order %}
-    <p class="mb-0">{% if fields.kind == 'role_removal' and fields.role == 'city_admin' %}Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% elif fields.kind == 'role_removal' %}Käyttäjä menettää roolin pysyvästi, ja hänen istuntonsa ja avaimensa mitätöidään.{% else %}Tiimistä poistetaan ne, jotka eivät ole listalla.{% endif %}</p>
+    <p class="mb-0">{% if fields.kind == 'role_removal' and fields.role == 'city_admin' %}Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% elif fields.kind == 'role_removal' %}Käyttäjä menettää roolin pysyvästi, ja hänen istuntonsa ja avaimensa mitätöidään.{% else %}Tiimistä poistetaan ne, jotka eivät ole listalla. Yksi vahvistus voi poistaa enintään puolet tiimistä.{% endif %}</p>
     {% elif is_end %}
     <p class="mb-0">Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% if fields.kind == 'freeze' %} Jäädytys päättyy vasta uudella nimityspäätöksellä.{% endif %}</p>
     {% else %}

@@ -305,11 +305,17 @@ def build_approval_blueprint(db) -> Blueprint:
         is_order = "order_id" in fields
         account = (db.users.find_one({"_id": ObjectId(fields["account_id"])}, {"username": 1, "displayname": 1})
                    if fields.get("account_id") else None)
-        roster_names = []
+        roster_names, removed_names, added_names = [], [], []
         if is_order and fields.get("roster"):
             names = {str(u["_id"]): u.get("displayname") or u.get("username") or "?" for u in db.users.find(
                 {"_id": {"$in": [ObjectId(a) for a in fields["roster"]]}}, {"username": 1, "displayname": 1})}
             roster_names = [names.get(a, "?") for a in fields["roster"]]
+            from mielenosoitukset_fi.utils.system_teams import board_ids
+            current = set(board_ids(db))
+            leaving = sorted(current - set(fields["roster"]))
+            removed_names = [u.get("displayname") or u.get("username") or "?" for u in db.users.find(
+                {"_id": {"$in": [ObjectId(a) for a in leaving]}}, {"username": 1, "displayname": 1})]
+            added_names = [names.get(a, "?") for a in fields["roster"] if a not in current]
         is_end = "kind" in fields and not is_order
         page_title = ("Vahvista roolin poisto" if fields.get("kind") == flask_orders.KIND_ROLE_REMOVAL
                       else "Vahvista hallitustiimin päivitys" if is_order
@@ -325,7 +331,8 @@ def build_approval_blueprint(db) -> Blueprint:
             "admin_V2/hallinto/approve.html",
             fields=fields, state_param=state_param, raw=request.values.get("r", ""),
             account=account or {}, city_name=CITY_KEY_TO_NAME.get(fields.get("city"), fields.get("city")),
-            last_day=last_day, is_end=is_end, is_order=is_order, roster_names=roster_names, page_title=page_title,
+            last_day=last_day, is_end=is_end, is_order=is_order, roster_names=roster_names, removed_names=removed_names, added_names=added_names,
+            page_title=page_title,
             eligible=state["eligible"],
             elevated=has_strong_elevation(APPROVAL_WINDOW_SECONDS),
             has_passkey=webauthn.passkey_count(current_user._id) > 0,

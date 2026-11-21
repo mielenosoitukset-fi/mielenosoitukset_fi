@@ -351,8 +351,10 @@ components:
         checked_at: { type: string, format: date-time }
         effective:
           type: object
-          description: "board_roster: {roster}. role_removal: {role, global_admin}."
+          description: "board_roster: {roster}. role_removal: {role, global_admin, full_permissions, system_team_access}."
           properties:
             roster: { type: array, items: { $ref: '#/components/schemas/AccountID' } }
             role: { type: [string, 'null'] }
             global_admin: { type: boolean }
+            full_permissions: { type: boolean }
+            system_team_access: { type: array, items: { enum: [national, board] } }
