@@ -154,6 +154,10 @@ if (container) {
       void import('./OrgRequestScreen').then(({ default: OrgRequestScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<OrgRequestScreen session={props.session} />} />);
       }).catch(error => console.error('Could not start the organization request page', error));
+    } else if (route?.name === 'org-recovery') {
+      void import('./OrgRecoveryScreen').then(({ default: OrgRecoveryScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<OrgRecoveryScreen session={props.session} />} />);
+      }).catch(error => console.error('Could not start the organization recovery page', error));
     } else if (route?.name === 'org-request-status') {
       void import('./OrgRequestStatusScreen').then(({ default: OrgRequestStatusScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<OrgRequestStatusScreen />} />);

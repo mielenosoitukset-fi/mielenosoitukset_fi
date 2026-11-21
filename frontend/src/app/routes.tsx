@@ -7,7 +7,7 @@ import { informationPageForPath, informationPages } from './information';
 import { contactCopy, contactPath } from './contact-route';
 import { campaignCopy, campaignPath } from './campaign-route';
 import { cityAdminCopy, cityAdminPath } from './city-admin-route';
-import { orgRequestCopy, orgRequestPath, orgRequestStatusPath } from './org-request-route';
+import { orgRecoveryCopy, orgRecoveryPath, orgRequestCopy, orgRequestPath, orgRequestStatusPath } from './org-request-route';
 import { developerCopy, developerPath } from './developer-route';
 import { volunteerConfirmCopy } from './volunteer-confirm';
 import { emailConfirmCopy } from './email-confirm';
@@ -42,6 +42,7 @@ export type AppRoute =
   | { name: 'city-admin' }
   | { name: 'org-request' }
   | { name: 'org-request-status' }
+  | { name: 'org-recovery' }
   | { name: 'api-docs' }
   | { name: 'campaign' }
   | { name: 'fundraising' }
@@ -107,6 +108,7 @@ export function routeForPath(path: string): AppRoute | null {
   if (path === cityAdminPath) return { name: 'city-admin' };
   if (path === orgRequestPath) return { name: 'org-request' };
   if (path === orgRequestStatusPath) return { name: 'org-request-status' };
+  if (path === orgRecoveryPath) return { name: 'org-recovery' };
   if (path === '/api-docs/') return { name: 'api-docs' };
   if (path === campaignPath) return { name: 'campaign' };
   if (path === '/keräys' || path === '/ker%C3%A4ys' || path === '/ker%c3%a4ys') return { name: 'fundraising' };
@@ -250,6 +252,11 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   if (route.name === 'org-request') {
     return { title: `${orgRequestCopy.title} | Mielenosoitukset.fi`, description: orgRequestCopy.description,
       robots: 'index, follow', canonical: config.origin + orgRequestPath };
+  }
+  if (route.name === 'org-recovery') {
+    // A private form: not for search engines, and not linked from the sitemap.
+    return { title: `${orgRecoveryCopy.title} | Mielenosoitukset.fi`, description: orgRecoveryCopy.description,
+      robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'org-request-status') {
     return { title: `${orgRequestCopy.statusTitle} | Mielenosoitukset.fi`, description: orgRequestCopy.statusTitle,

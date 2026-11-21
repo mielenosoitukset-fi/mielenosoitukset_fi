@@ -1,0 +1,1 @@
+- Lisätty lomake organisaation tilin käytön palautukseen (`/organisaatiot/palautus`): pääsyn menetys, hallinnoijan vaihto ja jäsenen lisäys. Lomake ja sen Apache-reitit ovat pois päältä, kunnes ne otetaan käyttöön erikseen; pyyntö ei koskaan luo organisaatiota tai anna pääsyä itsestään, vaan Hallinto päättää.

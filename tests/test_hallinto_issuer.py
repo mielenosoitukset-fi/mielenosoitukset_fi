@@ -493,6 +493,37 @@ def test_organization_request_status_mail_once(owner, db, monkeypatch):
         db.organization_requests.delete_one({"_id": rid})
 
 
+def test_recovery_requests_stay_apart_from_account_requests(owner, db):
+    from datetime import datetime, timezone
+    app, subject = owner
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin", "global_permissions": ["CREATE_ORGANIZATION"]}})
+    now = datetime.now(timezone.utc)
+    row = {"organization": {"name": "Rauha ry", "links": []}, "applicant": {"name": "H", "email": "h@example.test"},
+           "represents": True, "status": "received", "status_token_hash": "x", "created_at": now, "updated_at": now}
+    recovery = db.organization_requests.insert_one({**row, "kind": "access_recovery", "need": "owner_change",
+        "person_email": "uusi@example.test", "person_role": "owner"}).inserted_id
+    account = db.organization_requests.insert_one(row).inserted_id
+    try:
+        plain = _org_requests(app.test_client(), claims, "list", {}).json["items"]
+        ids = {item["id"] for item in plain}
+        assert str(account) in ids and str(recovery) not in ids
+        asked = _org_requests(app.test_client(), claims, "list", {"kind": "access_recovery"}).json["items"]
+        assert [item["id"] for item in asked] == [str(recovery)]
+        assert asked[0]["kind"] == "access_recovery" and asked[0]["need"] == "owner_change" and asked[0]["person_email"] == "uusi@example.test"
+        # It can be handled like any request, but never turned into an organization.
+        step = {"id": str(recovery), "status": "in_review", "case": "c-1"}
+        assert _org_requests(app.test_client(), claims, "update", step).status_code == 200
+        assert _org_requests(app.test_client(), claims, "create-organization", {"id": str(recovery), "case": "c-1"}).status_code == 404
+        # Access and invite choices are for account requests only.
+        choice = {"id": str(recovery), "status": "in_review", "access": "invite", "invite_email": "x@example.test"}
+        assert _org_requests(app.test_client(), claims, "update", choice).status_code == 404
+    finally:
+        db.organization_requests.delete_many({"_id": {"$in": [recovery, account]}})
+
+
 def test_organization_requests_for_hallinto(owner, db):
     from datetime import datetime, timezone
     app, subject = owner

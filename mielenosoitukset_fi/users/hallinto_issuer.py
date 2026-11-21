@@ -107,6 +107,11 @@ _ORG_REQUEST_MAILS = {
     "rejected": "Organisaatiotilihakemuksesi on hylätty",
     "needs_info": "Organisaatiotilihakemuksesi tarvitsee lisätietoja",
 }
+_ORG_RECOVERY_MAILS = {
+    "approved": "Pyyntösi organisaation tilin käytöstä on hyväksytty",
+    "rejected": "Pyyntösi organisaation tilin käytöstä on hylätty",
+    "needs_info": "Pyyntösi organisaation tilin käytöstä tarvitsee lisätietoja",
+}
 
 
 def _mail_org_request_status(db, row, status):
@@ -122,9 +127,10 @@ def _mail_org_request_status(db, row, status):
             return
         invite_sender().queue_email(
             template_name="org_request_status.html",
-            subject=_ORG_REQUEST_MAILS[status],
+            subject=(_ORG_RECOVERY_MAILS if row.get("kind") == "access_recovery" else _ORG_REQUEST_MAILS)[status],
             recipients=[email],
             context={"applicant_name": applicant.get("name") or "", "status": status,
+                     "recovery": row.get("kind") == "access_recovery",
                      "organization_name": (row.get("organization") or {}).get("name") or "",
                      "message": row.get("status_message") or ""},
         )
@@ -701,6 +707,11 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             "represents": bool(row.get("represents")), "access": row.get("access"),
             "invite_email": row.get("invite_email"), "onboarding": bool(row.get("onboarding")),
             "status_message": row.get("status_message"), "case": row.get("hallinto_case"),
+            # Access recovery (O5): what is asked, for whom, and the open request it duplicates.
+            "kind": row.get("kind") or "account",
+            "need": row.get("need"), "person_email": row.get("person_email"), "person_role": row.get("person_role"),
+            "target_organization": row.get("target_organization_id"),
+            "duplicate_of": str(row["duplicate_of"]) if row.get("duplicate_of") else None,
             # The outbound invitation (O6) this request answers, if it came from one.
             "invitation_case": row.get("invitation_case"),
             "organization_id": str(row["organization_id"]) if row.get("organization_id") else None,
@@ -715,8 +726,13 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         payload, error = admin_payload()
         if error:
             return error
+        # Access recovery requests (O5) are never listed with account requests, so
+        # nothing that handles those can mistake one for a request to create an
+        # organization. They are read with {"kind": "access_recovery"}.
+        recovery = payload.get("kind") == "access_recovery"
         rows = db.organization_requests.find(
-            {"status": {"$in": list(_ORG_REQUEST_STATUSES)}},
+            {"status": {"$in": list(_ORG_REQUEST_STATUSES)},
+             "kind": "access_recovery" if recovery else {"$ne": "access_recovery"}},
             {"status_token_hash": 0, "logo.data": 0},
         ).sort("created_at", -1).limit(100)
         return jsonify(items=[_org_request_view(row) for row in rows])
@@ -833,8 +849,9 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
                     return jsonify(error="invalid_request"), 400
                 update["invite_email"] = invite_email
             update["access"] = access
+        # Access and invite choices belong to account requests, never to a recovery request.
         flt = {"_id": ObjectId(request_id), "status": {"$in": list(_ORG_REQUEST_STATUSES)},
-               **({"represents": True} if access else {})}
+               **({"represents": True, "kind": {"$ne": "access_recovery"}} if access else {})}
         projection = {"status_token_hash": 0, "logo.data": 0}
         before = db.organization_requests.find_one(flt, projection)
         if not before:
@@ -884,7 +901,8 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
                 or not isinstance(case, str) or not 0 < len(case) <= 64):
             return jsonify(error="invalid_request"), 400
         row = db.organization_requests.find_one({"_id": ObjectId(request_id)}, {"status_token_hash": 0})
-        if not row:
+        if not row or row.get("kind") == "access_recovery":
+            # A recovery request never creates an organization; it only invites a person.
             return jsonify(error="not_found"), 404
         base = f"{origin.scheme}://{origin.netloc}"
 

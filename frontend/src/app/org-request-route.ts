@@ -49,3 +49,18 @@ export const orgRequestAccessLabels: Record<string, string> = {
   own_account: 'Oma käyttäjätilini',
   invite: 'Kutsulinkki toiseen osoitteeseen',
 };
+
+/** Access recovery (O5): the form page and the same-origin POST Apache routes to Go's recovery endpoint. */
+export const orgRecoveryPath = '/organisaatiot/palautus';
+export const orgRecoverySubmitPath = '/organisaatiot/palautus';
+
+export const orgRecoveryCopy = {
+  title: 'Pyydä pääsyä organisaation tiliin',
+  description: 'Jos organisaation tilin hallinnoija on vaihtunut, tiliin ei enää pääse tai siihen pitää lisätä jäsen, pyydä apua tällä lomakkeella.',
+};
+
+export const orgRecoveryNeeds: { value: string; label: string; hint: string }[] = [
+  { value: 'lost_access', label: 'En pääse organisaation tiliin', hint: 'Olen organisaation puolesta, ja pääsy tiliin on kadonnut.' },
+  { value: 'owner_change', label: 'Hallinnoija vaihtuu', hint: 'Organisaatiolle nimetään uusi hallinnoija.' },
+  { value: 'add_member', label: 'Lisää jäsen', hint: 'Organisaation tiliin lisätään uusi henkilö.' },
+];
