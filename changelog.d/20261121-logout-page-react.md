@@ -1,0 +1,1 @@
+- The sign-out confirmation page is now part of the new site. Signing out still needs the button press, so links and prefetches never end a session.

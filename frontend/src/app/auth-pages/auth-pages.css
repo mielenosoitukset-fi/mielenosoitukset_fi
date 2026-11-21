@@ -79,3 +79,6 @@
   .register-actions { flex-direction: column-reverse; align-items: stretch; }
   .register-actions .detail-button { width: 100%; justify-content: center; }
 }
+
+/* Sign-out confirmation */
+.logout-form > .detail-actions { margin-top: 0; }

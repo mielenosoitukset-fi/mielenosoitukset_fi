@@ -46,6 +46,7 @@ import NotificationsScreen from './NotificationsScreen';
 import PasswordResetRequestScreen from './PasswordResetRequestScreen';
 import RegisterScreen from './RegisterScreen';
 import PasswordResetScreen from './PasswordResetScreen';
+import LogoutScreen from './LogoutScreen';
 import LoginScreen from './LoginScreen';
 import { loginLegacyLocation } from './login-route';
 import { accountCopy } from './account-settings-route';
@@ -100,7 +101,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; logout?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -588,6 +589,19 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<PasswordResetScreen config={config} token={route.token} />} />);
+  }
+
+  if (route.name === 'logout') {
+    // Like Flask: a signed-out visitor goes to the login page. The form carries this account's token.
+    if (!session.authenticated && !session.unverified) return { status: 302, html: '', redirect: config.urls.login,
+      headers: { 'Cache-Control': 'private, no-store' } };
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    extraHead = (assets.logout ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<LogoutScreen config={config} session={session} />} />);
   }
 
   if (route.name === 'register') {
