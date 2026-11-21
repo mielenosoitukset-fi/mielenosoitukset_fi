@@ -10,9 +10,12 @@ const SOCIAL = [
 ] as const;
 
 /** The existing public footer, owned by React in the standalone application. */
-export function SiteFooter({ config, session, text }: {
+export function SiteFooter({ config, session, text, hideLogout = false }: {
   config: AppConfig; session: SessionSummary; text: Catalog;
+  /** The logout confirmation page has its own button; a second one in the footer would confuse. */
+  hideLogout?: boolean;
 }) {
+  const showAuth = !(hideLogout && session.authenticated);
   const links = [
     { href: config.urls.info, label: text.footer.info },
     { href: config.urls.privacy, label: text.footer.privacy },
@@ -35,7 +38,7 @@ export function SiteFooter({ config, session, text }: {
           </a>
         </li>)}
       </ul>
-      <ul className="footer-links auth-buttons public-site-footer__auth" aria-label={text.footer.account}>
+      {showAuth && <ul className="footer-links auth-buttons public-site-footer__auth" aria-label={text.footer.account}>
         {session.authenticated
           ? <li>{session.logoutToken
             ? <form method="post" action={config.urls.logout} className="footer-logout-form">
@@ -46,7 +49,7 @@ export function SiteFooter({ config, session, text }: {
             : <a href={config.urls.logout}>{text.account.logout}</a>}</li>
           : <><li><a href={config.urls.login}>{text.account.login}</a></li>
             <li><a href={config.urls.register}>{text.account.register}</a></li></>}
-      </ul>
+      </ul>}
     </div>
   </footer>;
 }
