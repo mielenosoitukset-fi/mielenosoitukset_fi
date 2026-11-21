@@ -389,9 +389,9 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         request.max_content_length = 4096
         return auth.create_token_response()
 
-    def client_payload():
+    def client_payload(limit=4096):
         """Authenticate the Hallinto client and read its JSON object body."""
-        request.max_content_length = 4096
+        request.max_content_length = limit
         credentials = request.authorization
         if (not credentials or credentials.type != "basic"
                 or unquote_plus(credentials.username or "") != client.client_id
@@ -409,9 +409,9 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             return error
         return jsonify(active=bool(_live_marker(db, markers, payload.get("sid"), payload.get("sub"))))
 
-    def admin_payload():
+    def admin_payload(limit=4096):
         """Require the client and a live Hallinto sign-in of an admin account."""
-        payload, error = client_payload()
+        payload, error = client_payload(limit)
         if error:
             return None, error
         if not _live_marker(db, markers, payload.get("sid"), payload.get("sub")):
@@ -420,6 +420,23 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         if not actor or not (actor.get("global_admin") or actor.get("role") in _ACCOUNT_LOOKUP_ROLES):
             return None, (jsonify(error="access_denied"), 403)
         return payload, None
+
+    @bp.post("/moderation-blocks/sync")
+    def moderation_blocks_sync():
+        """Store the organizer bans and publishing precedents Hallinto recorded.
+
+        Hallinto decides; this site enforces. Needs a signed-in admin, and
+        storing by id makes repeating it harmless."""
+        from mielenosoitukset_fi.utils import moderation_blocks
+
+        payload, error = admin_payload(256 * 1024)
+        if error:
+            return error
+        try:
+            stored = moderation_blocks.sync(db, payload.get("items"))
+        except ValueError:
+            return jsonify(error="invalid_request"), 400
+        return jsonify(stored=stored)
 
     @bp.post("/accounts/search")
     def account_search():
