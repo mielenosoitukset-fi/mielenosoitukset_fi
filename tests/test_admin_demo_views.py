@@ -26,7 +26,7 @@ def test_create_demo_hides_edit_only_controls(admin_client):
     assert 'name="preview_image"' in page
     assert "Linkit ja kuvat" in page
     assert "Luo muokkauslinkki" not in page
-    assert "Luo kopio mielenosoituksesta" not in page
+    assert "Kopioi uuden pohjaksi" not in page
 
 
 def test_edit_demo_shows_edit_only_controls(admin_client, seeded_data):
@@ -35,7 +35,7 @@ def test_edit_demo_shows_edit_only_controls(admin_client, seeded_data):
     assert response.status_code == 200
     page = response.get_data(as_text=True)
     assert "Luo muokkauslinkki" in page
-    assert "Luo kopio mielenosoituksesta" in page
+    assert "Kopioi uuden pohjaksi" in page
     assert 'class="editor-save-bar"' in page
     assert 'class="admin-page-hero__nav editor-section-nav"' in page
 
@@ -48,7 +48,7 @@ def test_demo_dashboard_has_scoped_preview_and_edit_link_quick_actions(
     assert response.status_code == 200
     page = response.get_data(as_text=True)
     assert 'target="_blank" rel="noopener"' in page
-    assert "Avaa julkinen esikatselu" in page
+    assert "Avaa julkinen sivu" in page or "Esikatsele (ei julkinen)" in page
     assert 'data-bs-target="#dashboardEditLinkModal"' in page
     assert 'data-demo-edit-link-trigger' in page
     assert page.count('id="dashboardEditLinkModal"') == 1

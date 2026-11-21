@@ -1,0 +1,180 @@
+{#
+  One row pattern for every demo in the admin list, whatever its state.
+
+  The title opens the demo's command center, the one place to act on it.
+  The buttons are always the same three in the same order (view, command
+  center, edit link) and the menu lists only the actions that apply to this
+  demo in its current state, so nothing appears that would only fail.
+#}
+{% macro demo_row(demo, group) %}
+{% set grants = demo_actions.get(demo._id|string, []) %}
+{% set is_public = demo.approved and not demo.rejected and not demo.taken_down and not demo.hide %}
+{% set can_view = 'VIEW_DEMO' in grants %}
+<tr id="demo-{{ demo._id }}"
+    class="{{ 'admin-data-row--attention' if group == 'pending' else 'admin-data-row' }}"
+    data-demo-row="{{ group }}"
+    data-search-row="true" data-search-text="{{ (demo.title ~ ' ' ~ demo.city ~ ' ' ~ demo.date ~ ' ' ~ (demo.address or '') ~ ' ' ~ ((demo.tags or [])|join(' ')))|lower }}">
+
+    <td class="select-col">
+        <input type="checkbox" class="demo-select form-check-input admin-selection-checkbox" value="{{ demo._id }}" data-demo-id="{{ demo._id }}" aria-label="{{ _('Valitse mielenosoitus') }} {{ demo.title }}"{{ '' if group != 'rejected' and current_user.has_permission('EDIT_DEMO') and 'EDIT_DEMO' in grants else ' disabled' }}>
+    </td>
+
+    <td class="demo-title-cell">
+        {% if can_view %}
+        <a class="admin-entity-title-link" href="{{ url_for('admin_demo.demo_command_center', demo_id=demo._id) }}">{{ demo.title }}</a>
+        {% else %}
+        {{ demo.title }}
+        {% endif %}
+    </td>
+    <td>{{ demo.city }}</td>
+    <td>{{ demo.date }}</td>
+
+    <td>
+        {% if demo.recurs or demo.parent %}
+            <i class="fa-solid fa-check-circle admin-status-icon admin-status-icon--success" aria-hidden="true"></i> {{ _('Kyllä') }}
+        {% else %}
+            <i class="fa-solid fa-times-circle admin-status-icon admin-status-icon--danger" aria-hidden="true"></i> {{ _('Ei') }}
+        {% endif %}
+    </td>
+
+    <td data-col="approved">
+        {% if group == 'rejected' %}
+            <span class="badge bg-secondary">{{ _('Hylätty') }}</span>
+        {% elif group == 'approved' %}
+            <i class="fa-solid fa-check-circle admin-status-icon admin-status-icon--success" aria-hidden="true"></i> {{ _('Kyllä') }}
+        {% elif demo.city_assignment and demo.city_assignment.escalated %}
+            <span class="badge bg-warning text-dark">{{ _('Eskaloitu') }}</span>
+        {% elif demo.city_assignment %}
+            <span class="badge bg-info text-dark">{{ _('Kaupungin vastuulla') }}</span>
+        {% else %}
+            <span class="badge bg-warning text-dark">{{ _('Odottaa') }}</span>
+        {% endif %}
+    </td>
+
+    {% if show_cancelled %}
+    <td>
+        {% if demo.cancelled %}
+            <span class="badge bg-danger">{{ _('Peruttu') }}</span>
+            {% if demo.cancelled_at %}
+                <div class="text-muted small">{{ demo.cancelled_at|datetimeformat }}</div>
+            {% endif %}
+        {% else %}
+            <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    {% endif %}
+
+    <td class="actions-cell">
+        <div class="d-flex align-items-center gap-2">
+            {% if can_view %}
+            {% if is_public %}
+            <a class="btn btn-sm btn-outline-primary"
+               href="{{ url_for('demonstration_detail', demo_id=(demo.slug or demo._id)) }}"
+               target="_blank" rel="noopener"
+               title="{{ _('Avaa julkinen sivu') }}"
+               aria-label="{{ _('Avaa julkinen sivu') }}: {{ demo.title }}">
+                <i class="fa-solid fa-eye" aria-hidden="true"></i>
+            </a>
+            {% else %}
+            <a class="btn btn-sm btn-outline-primary"
+               href="{{ url_for('admin_demo.preview_demo', demo_id=demo._id) }}"
+               target="_blank" rel="noopener"
+               title="{{ _('Esikatsele (ei julkinen)') }}"
+               aria-label="{{ _('Esikatsele (ei julkinen)') }}: {{ demo.title }}">
+                <i class="fa-solid fa-eye-low-vision" aria-hidden="true"></i>
+            </a>
+            {% endif %}
+            <a class="btn btn-sm btn-outline-primary command-center-btn"
+               href="{{ url_for('admin_demo.demo_command_center', demo_id=demo._id) }}"
+               title="{{ _('Hallintanäkymä') }}"
+               aria-label="{{ _('Hallintanäkymä') }}: {{ demo.title }}">
+                <i class="fa-solid fa-table-columns" aria-hidden="true"></i>
+            </a>
+            {% endif %}
+            {% if group != 'rejected' and 'GENERATE_EDIT_LINK' in grants %}
+            <button class="btn btn-sm btn-outline-secondary" type="button"
+                    data-bs-toggle="modal" data-bs-target="#dashboardEditLinkModal"
+                    data-demo-edit-link-trigger data-demo-id="{{ demo._id }}" data-demo-title="{{ demo.title }}"
+                    title="{{ _('Luo ja kopioi muokkauslinkki') }}"
+                    aria-label="{{ _('Luo ja kopioi muokkauslinkki') }}: {{ demo.title }}">
+                <i class="fa-solid fa-link" aria-hidden="true"></i>
+            </button>
+            {% endif %}
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                        id="actionsDropdown-{{ demo._id }}" data-bs-toggle="dropdown" aria-expanded="false"
+                        aria-label="{{ _('Toiminnot') }}: {{ demo.title }}">
+                    <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i> {{ _('Toiminnot') }}
+                </button>
+
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown-{{ demo._id }}">
+                    {# Decide: one place per admin, the case (or the review page for city admins). #}
+                    {% if group == 'pending' and not demo.cancelled and decision_urls.get(demo._id|string) %}
+                    <li><a class="dropdown-item" href="{{ decision_urls[demo._id|string] }}">
+                        <i class="fa-solid fa-scale-balanced me-2" aria-hidden="true"></i>{{ _('Käsittele') }}
+                    </a></li>
+                    {% endif %}
+
+                    {% if group != 'rejected' and 'EDIT_DEMO' in grants %}
+                    <li><a class="dropdown-item" href="{{ url_for('admin_demo.edit_demo', demo_id=demo._id) }}">
+                        <i class="fas fa-edit me-2" aria-hidden="true"></i>{{ _('Muokkaa tietoja') }}
+                    </a></li>
+                    {% endif %}
+
+                    {% if can_view %}
+                    <li><button class="dropdown-item" type="button"
+                                onclick="showSubmitterInfoModal('{{ demo._id }}', this)">
+                        <i class="fa-solid fa-user me-2" aria-hidden="true"></i>{{ _('Ilmoittaja') }}
+                    </button></li>
+                    {% endif %}
+
+                    {# Only a public demo can be recommended or get a share image. #}
+                    {% if is_public and not demo.cancelled and current_user.global_admin %}
+                    <li><button class="dropdown-item" type="button"
+                                onclick="toggleRecommendation('{{ demo._id }}', this, {{ 'true' if demo.is_recommended else 'false' }})">
+                        {% if demo.is_recommended %}
+                        <i class="fa-solid fa-star-half-stroke me-2" aria-hidden="true"></i>{{ _('Poista suositus') }}
+                        {% else %}
+                        <i class="fa-solid fa-star me-2" aria-hidden="true"></i>{{ _('Suosittele') }}
+                        {% endif %}
+                    </button></li>
+                    {% endif %}
+                    {% if is_public and 'CREATE_DEMO' in grants %}
+                    <li><button class="dropdown-item" type="button"
+                                onclick="triggerScreenshot('{{ demo._id }}', this)">
+                        <i class="fas fa-camera me-2" aria-hidden="true"></i>{{ _('Luo esikatselukuva') }}
+                    </button></li>
+                    {% endif %}
+
+                    {# Freezing skips one occurrence of a repeating series, so only those rows offer it. #}
+                    {% if demo.parent and group != 'rejected' and 'CREATE_DEMO' in grants %}
+                    <li><button class="dropdown-item" type="button"
+                                data-bs-toggle="modal" data-bs-target="#freezeModal"
+                                onclick="openFreezeModal('{{ demo._id }}')">
+                        <i class="fas fa-snowflake me-2" aria-hidden="true"></i>{{ _('Jäädytä tämä toistuva tapahtuma') }}
+                    </button></li>
+                    {% endif %}
+
+                    {% if can_view %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin_demo.demo_edit_history', demo_id=demo._id) }}">
+                        <i class="fa-solid fa-history me-2" aria-hidden="true"></i>{{ _('Muokkaushistoria') }}
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin_demo.view_demo_audit_log', demo_id=demo._id) }}">
+                        <i class="fa-solid fa-clipboard-list me-2" aria-hidden="true"></i>{{ _('Audit-loki') }}
+                    </a></li>
+                    {% endif %}
+
+                    {% if current_user.has_permission("DELETE_DEMO") %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item text-danger" type="button"
+                                data-demo-title="{{ demo.title }}" onclick="openModal(event, this.dataset.demoTitle, '{{ demo._id }}')">
+                        <i class="fas fa-trash-alt me-2" aria-hidden="true"></i>{{ _('Poista') }}
+                    </button></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </td>
+</tr>
+{% endmacro %}

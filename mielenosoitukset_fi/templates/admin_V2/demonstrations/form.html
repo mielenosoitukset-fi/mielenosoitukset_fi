@@ -75,6 +75,12 @@
     </section>
     {% endif %}
 
+    {% if copy_source %}
+    <div class="alert alert-info" role="status" data-copy-source="{{ copy_source.id }}">
+        <i class="fa-solid fa-copy me-2" aria-hidden="true"></i>
+        {{ _('Pohjana on mielenosoitus %(title)s. Mitään ei ole vielä tallennettu: valitse uusi päivämäärä, tarkista tiedot ja paina Luo.', title=copy_source.title) }}
+    </div>
+    {% endif %}
     <form id="demo-form" class="admin-editor-form" method="POST" action="{{ form_action }}" novalidate enctype="multipart/form-data">
         {% if edit_demo_with_token %}<input type="hidden" name="csrf_token" value="{{ edit_link_csrf_token }}">{% endif %}
 
@@ -591,7 +597,7 @@
 
         <!-- Submit Section -->
         <section class="editor-save-bar">
-            <span>{{ _('Tallentaminen päivittää tämän mielenosoituksen tiedot.') }}</span>
+            <span>{% if demo and demo._id %}{{ _('Tallentaminen päivittää tämän mielenosoituksen tiedot.') }}{% else %}{{ _('Luo-painike tallentaa uuden mielenosoituksen.') }}{% endif %}</span>
             <button type="submit" class="btn btn-primary">{{ submit_button_text }}</button>
         </section>
     </form>
@@ -669,7 +675,7 @@
 {% endif %}
 
 
-<!-- Edit-link lifecycle and duplicate controls -->
+<!-- Edit-link lifecycle and copy controls -->
 {% if current_user.is_authenticated and demo and demo._id %}
      
     <section class="admin-form-section">
@@ -684,7 +690,9 @@
                 <i class="fas fa-link me-1" aria-hidden="true"></i>{{ _('Luo muokkauslinkki') }}
             </button>
             {% endif %}
-            <button type="button" class="btn btn-warning" id="duplicate-demo-btn">{{ _('Luo kopio mielenosoituksesta') }}</button>
+            {% if current_user.has_permission("CREATE_DEMO") %}
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin_demo.create_demo', pohja=demo._id|string) }}">{{ _('Kopioi uuden pohjaksi') }}</a>
+            {% endif %}
         </div>
     </div>
 
@@ -731,26 +739,6 @@
     {% endif %}
 </section>
 
-<script>
-    document.addEventListener("DOMContentLoaded", (event) => {
-        const demoId = {{ (demo._id|string)|tojson }};
-        const duplicateButton = document.getElementById('duplicate-demo-btn');
-
-        duplicateButton?.addEventListener('click', async () => {
-            if (!confirm('{{ _('Haluatko varmasti luoda kopion tästä mielenosoituksesta?') }}')) return;
-            const response = await fetch(`/admin/demo/duplicate/${demoId}`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'}
-            });
-            const data = await response.json();
-            if (response.ok && data.status === 'OK' && data.new_demo_id) {
-                window.open(`/admin/demo/edit_demo/${data.new_demo_id}`, '_blank', 'width=1000,height=800,noopener');
-            } else {
-                alert(data.message || '{{ _("Kopion luominen epäonnistui.") }}');
-            }
-        });
-    });
-</script>
 {% endif %}
 
 <script>
