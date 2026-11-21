@@ -7,11 +7,13 @@ import {
 } from './org-request-route';
 import type { OrgRequestSummary } from './org-request-route';
 import { orgRequestBody, pickedLogo, requestPayload } from './org-request';
-import { cityCatalog, findCity } from './cities';
+import { cityCatalog } from './cities';
 import './information/information.css';
 import './contact/contact.css';
 import './city-admin/city-admin.css';
 import './org-request/org-request.css';
+
+const cityOptions = [...cityCatalog].sort((first, second) => first.name.localeCompare(second.name, 'fi'));
 
 type Result = { kind: 'success' | 'error'; message: string } | null;
 
@@ -56,11 +58,6 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
     const form = new FormData(event.currentTarget);
     const body = orgRequestBody(form, startedAt);
     if (!body.links.length) { setResult({ kind: 'error', message: 'Anna vähintään yksi linkki organisaation verkkosivuille tai someen.' }); return; }
-    if (body.city) {
-      const city = findCity(body.city);
-      if (!city) { setResult({ kind: 'error', message: 'Valitse paikkakunta listasta tai jätä kenttä tyhjäksi.' }); return; }
-      body.city = city.key;
-    }
     const logo = pickedLogo(form);
     if (logo.problem) { setResult({ kind: 'error', message: logo.problem }); return; }
     const payload = requestPayload(body, logo.file);
@@ -136,6 +133,7 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
 
           <fieldset className="city-admin-fieldset">
             <legend>Organisaatio</legend>
+            <p className="city-admin-hint">Kun hakemus hyväksytään, nimi, sähköpostiosoite, verkkosivut ja some, logo ja kuvaus näkyvät organisaation julkisella sivulla. Paikkakunta ja Y-tunnus näkyvät vain ylläpidolle.</p>
             <label htmlFor="org-request-name">Organisaation nimi</label>
             <input id="org-request-name" name="organization_name" required minLength={2} maxLength={120} autoComplete="organization" />
             <label htmlFor="org-request-email">Organisaation julkinen sähköpostiosoite{represents ? '' : ' (vapaaehtoinen)'}</label>
@@ -146,9 +144,11 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
             <textarea id="org-request-links" name="links" rows={3} required aria-describedby="org-request-links-hint"
               placeholder="https://esimerkki.fi" />
             <label htmlFor="org-request-city">Paikkakunta (vapaaehtoinen)</label>
-            <p className="city-admin-hint" id="org-request-city-hint">Täytä, jos kyse on paikallisosastosta tai organisaatio toimii vain yhdellä paikkakunnalla.</p>
-            <input id="org-request-city" name="city" list="org-request-city-options" autoComplete="off" aria-describedby="org-request-city-hint" />
-            <datalist id="org-request-city-options">{cityCatalog.map(city => <option key={city.key} value={city.name} />)}</datalist>
+            <p className="city-admin-hint" id="org-request-city-hint">Valitse, jos kyse on paikallisosastosta tai organisaatio toimii vain yhdellä paikkakunnalla.</p>
+            <select id="org-request-city" name="city" defaultValue="" aria-describedby="org-request-city-hint">
+              <option value="">Ei valittu</option>
+              {cityOptions.map(city => <option key={city.key} value={city.key}>{city.name}</option>)}
+            </select>
             <label htmlFor="org-request-logo">Logo (vapaaehtoinen)</label>
             <p className="city-admin-hint" id="org-request-logo-hint">PNG- tai JPEG-kuva, enintään 1 Mt.</p>
             <input id="org-request-logo" name="logo" type="file" accept="image/png,image/jpeg" aria-describedby="org-request-logo-hint" />
@@ -160,6 +160,7 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
 
           <fieldset className="city-admin-fieldset">
             <legend>Sinun tietosi</legend>
+            <p className="city-admin-hint">Nämä tiedot näkyvät vain hakemuksen käsittelijöille, eivät organisaation sivulla.</p>
             {signedIn ? <p className="city-admin-hint">Olet kirjautunut sisään. Käytämme tilisi sähköpostiosoitetta, ja näet hakemuksen tilan tällä sivulla.</p> : null}
             <label htmlFor="org-request-applicant">Nimi</label>
             <input id="org-request-applicant" name="applicant_name" required minLength={2} maxLength={120} autoComplete="name" />
