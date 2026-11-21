@@ -8049,25 +8049,18 @@
    ],
    "case_type": "organization_edit_suggestion",
    "case_demo_id": null,
-   "case_organization_id": null,
+   "case_organization_id": "{org}",
    "case_submitter_id": null,
-   "case_submitter": null,
+   "case_submitter": {
+    "submitter_email": " a@b.fi "
+   },
    "case_error_report": {},
    "case_meta": {
-    "urgency": "high"
+    "suggestion_id": "{suggestion}"
    },
    "case_action_logs": [],
    "case_case_history": [],
-   "case_suggestion_keys": [
-    "_id",
-    "audit_log",
-    "created_at",
-    "fields",
-    "meta",
-    "organization_id",
-    "status",
-    "timestamp"
-   ],
+   "case_suggestion_keys": [],
    "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
    "mail_recipients": [
     "tuki@mielenosoitukset.fi"
@@ -8122,25 +8115,16 @@
    ],
    "case_type": "organization_edit_suggestion",
    "case_demo_id": null,
-   "case_organization_id": null,
+   "case_organization_id": "{org}",
    "case_submitter_id": null,
    "case_submitter": null,
    "case_error_report": {},
    "case_meta": {
-    "urgency": "high"
+    "suggestion_id": "{suggestion}"
    },
    "case_action_logs": [],
    "case_case_history": [],
-   "case_suggestion_keys": [
-    "_id",
-    "audit_log",
-    "created_at",
-    "fields",
-    "meta",
-    "organization_id",
-    "status",
-    "timestamp"
-   ],
+   "case_suggestion_keys": [],
    "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
    "mail_recipients": [
     "tuki@mielenosoitukset.fi"
@@ -8212,25 +8196,16 @@
    ],
    "case_type": "organization_edit_suggestion",
    "case_demo_id": null,
-   "case_organization_id": null,
+   "case_organization_id": "{org}",
    "case_submitter_id": null,
    "case_submitter": null,
    "case_error_report": {},
    "case_meta": {
-    "urgency": "high"
+    "suggestion_id": "{suggestion}"
    },
    "case_action_logs": [],
    "case_case_history": [],
-   "case_suggestion_keys": [
-    "_id",
-    "audit_log",
-    "created_at",
-    "fields",
-    "meta",
-    "organization_id",
-    "status",
-    "timestamp"
-   ],
+   "case_suggestion_keys": [],
    "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
    "mail_recipients": [
     "tuki@mielenosoitukset.fi"
@@ -8313,25 +8288,16 @@
    ],
    "case_type": "organization_edit_suggestion",
    "case_demo_id": null,
-   "case_organization_id": null,
+   "case_organization_id": "{org}",
    "case_submitter_id": null,
    "case_submitter": null,
    "case_error_report": {},
    "case_meta": {
-    "urgency": "high"
+    "suggestion_id": "{suggestion}"
    },
    "case_action_logs": [],
    "case_case_history": [],
-   "case_suggestion_keys": [
-    "_id",
-    "audit_log",
-    "created_at",
-    "fields",
-    "meta",
-    "organization_id",
-    "status",
-    "timestamp"
-   ],
+   "case_suggestion_keys": [],
    "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
    "mail_recipients": [
     "tuki@mielenosoitukset.fi"
@@ -8410,25 +8376,16 @@
    ],
    "case_type": "organization_edit_suggestion",
    "case_demo_id": null,
-   "case_organization_id": null,
+   "case_organization_id": "{org}",
    "case_submitter_id": null,
    "case_submitter": null,
    "case_error_report": {},
    "case_meta": {
-    "urgency": "high"
+    "suggestion_id": "{suggestion}"
    },
    "case_action_logs": [],
    "case_case_history": [],
-   "case_suggestion_keys": [
-    "_id",
-    "audit_log",
-    "created_at",
-    "fields",
-    "meta",
-    "organization_id",
-    "status",
-    "timestamp"
-   ],
+   "case_suggestion_keys": [],
    "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
    "mail_recipients": [
     "tuki@mielenosoitukset.fi"
@@ -8505,25 +8462,18 @@
    ],
    "case_type": "organization_edit_suggestion",
    "case_demo_id": null,
-   "case_organization_id": null,
+   "case_organization_id": "{org}",
    "case_submitter_id": null,
-   "case_submitter": null,
+   "case_submitter": {
+    "submitter_email": "x@y.fi"
+   },
    "case_error_report": {},
    "case_meta": {
-    "urgency": "high"
+    "suggestion_id": "{suggestion}"
    },
    "case_action_logs": [],
    "case_case_history": [],
-   "case_suggestion_keys": [
-    "_id",
-    "audit_log",
-    "created_at",
-    "fields",
-    "meta",
-    "organization_id",
-    "status",
-    "timestamp"
-   ],
+   "case_suggestion_keys": [],
    "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Esimerkki Ry",
    "mail_recipients": [
     "tuki@mielenosoitukset.fi"
@@ -8610,25 +8560,16 @@
    ],
    "case_type": "organization_edit_suggestion",
    "case_demo_id": null,
-   "case_organization_id": null,
+   "case_organization_id": "{org}",
    "case_submitter_id": null,
    "case_submitter": null,
    "case_error_report": {},
    "case_meta": {
-    "urgency": "high"
+    "suggestion_id": "{suggestion}"
    },
    "case_action_logs": [],
    "case_case_history": [],
-   "case_suggestion_keys": [
-    "_id",
-    "audit_log",
-    "created_at",
-    "fields",
-    "meta",
-    "organization_id",
-    "status",
-    "timestamp"
-   ],
+   "case_suggestion_keys": [],
    "mail_subject": "Uusi organisaatiotietojen muokkauspyyntö: Ääkkönen & \"Pojat\" 'Ry'",
    "mail_recipients": [
     "tuki@mielenosoitukset.fi"
