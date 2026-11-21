@@ -340,3 +340,47 @@ def test_token_confirm_flags_follow_public_submissions_and_default_on(tmp_path):
         assert secret not in text
         if email:
             assert json.loads(values["EMAIL_CONFIRM_JWT_KEY"]) == derive_confirmation_key(secret)
+
+
+def test_org_invite_flag_needs_the_bridge_and_both_team_ids(tmp_path):
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment_org_invite", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    national, board = "a" * 24, "b" * 24
+    cases = (
+        ({"NATIONAL_ADMIN_ORG_ID": national, "BOARD_ORG_ID": board}, False),  # no bridge
+        ({"AUTH_BRIDGE_SCOPES": True}, False),  # no team ids
+        ({"AUTH_BRIDGE_SCOPES": True, "NATIONAL_ADMIN_ORG_ID": national}, False),  # one id only
+        ({"AUTH_BRIDGE_SCOPES": True, "NATIONAL_ADMIN_ORG_ID": national, "BOARD_ORG_ID": board}, True),
+        ({"AUTH_BRIDGE_SCOPES": True, "NATIONAL_ADMIN_ORG_ID": national, "BOARD_ORG_ID": board,
+          "ORG_INVITE_GO": False}, False),
+    )
+    for index, (extra, expected) in enumerate(cases):
+        source, target = tmp_path / f"o{index}.yaml", tmp_path / f"oe{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated", **extra}))
+        module.configure(source, target)
+        values = dict(line.split("=", 1) for line in target.read_text().splitlines())
+        assert ("ORG_INVITE_GO_ENABLED" in values) is expected
+        assert ("BOARD_ORG_ID" in values) is expected
+        if expected:
+            assert json.loads(values["NATIONAL_ADMIN_ORG_ID"]) == national
+            assert json.loads(values["BOARD_ORG_ID"]) == board
+    source = tmp_path / "bad.yaml"
+    source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated",
+                                      "AUTH_BRIDGE_SCOPES": True, "NATIONAL_ADMIN_ORG_ID": national, "BOARD_ORG_ID": "nothex"}))
+    with pytest.raises(ValueError):
+        module.configure(source, tmp_path / "bad-env")
+
+
+def test_org_invite_routing_is_guarded_by_the_release_check():
+    root = Path(__file__).resolve().parents[1]
+    routing = (root / "deploy/apache/react-ssr-routing.conf").read_text(encoding="utf-8")
+    release = (root / "deploy/release_routing.sh").read_text(encoding="utf-8")
+    lines = [line for line in routing.splitlines() if not line.lstrip().startswith("#")]
+    api = 'RewriteRule "^/api/organizations/[0-9a-f]{24}/invitation(/accept)?$" "http://127.0.0.1:8091$0" [P,L]'
+    page = 'RewriteRule "^/users/orgs/accept_invite$" "http://127.0.0.1:8090$0" [P,L]'
+    assert lines[lines.index(page) - 1] == 'RewriteCond %{REQUEST_METHOD} "^(GET|HEAD)$"'
+    assert api in lines
+    assert "000000000000000000000000/invitation/accept || true) == 405" in release
+    assert release.index("org_invite_ready") < release.index('install -d -m 0700 "$backup_root"')

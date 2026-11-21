@@ -108,23 +108,27 @@ admin role kept, rate limit, pass-through, off by default and an invalid system 
 `TestInvitationMongoStore` against a disposable MongoDB (`REMINDER_TEST_MONGO`: exact-array update
 with mixed entries, stale list loses, upsert never overwrites). `tests/test_org_invite_client.py`
 covers the page's request helpers; `scripts/verify_public_host.mjs` the rendered shell, headers and
-that Apache stays unrouted.
+the active Apache rules.
 
-## Activation (later maintainer go; separate steps)
+## Activation (21 November 2026, maintainer's go)
 
-1. Security SHIP; settle the open questions.
-2. In `/etc/mielenosoitukset-api/environment`: `ORG_INVITE_GO_ENABLED=true`, and `BOARD_ORG_ID` next to
-   the existing `NATIONAL_ADMIN_ORG_ID` (**both required**: without them Go logs "Organization
-   invitations disabled" and the route stays off). The auth bridge must be on.
-   Restart Go. Check: signed out `GET` answers 401; a signed-in `GET` for an uninvited account answers
-   `not-invited`.
-3. Uncomment the four Apache rules, `apachectl configtest`, reload.
-4. Invite a test account from an organization the maintainer owns, open the link, press the button.
+Switched on through a pull request and the normal deploy, not by hand on the server (the Go
+environment file is rewritten on every deploy):
+
+1. `deploy/go-api/configure_environment.py` writes `ORG_INVITE_GO_ENABLED=true` with the auth bridge on,
+   together with `NATIONAL_ADMIN_ORG_ID` and `BOARD_ORG_ID` from `config.yaml` (the maintainer confirmed
+   both are set). Without both ids the flag is not written; an id that is not 24 hex characters stops
+   the deploy. `ORG_INVITE_GO: false` in `config.yaml` opts out.
+2. The four Apache rules are active. `deploy/release_routing.sh` installs them only after Go answers
+   `GET /api/organizations/<id>/invitation/accept` with 405, so a Go API without the route keeps the
+   previous routing.
+3. After the deploy: invite a test account from an organization the maintainer owns, open the link,
+   press the button.
 
 ## Revert
 
-Re-comment the Apache rules and reload (Flask serves the old route at once); remove
-`ORG_INVITE_GO_ENABLED` and restart Go. Memberships created through this route are ordinary
+Re-comment the Apache rules and deploy (Flask serves the old route at once); set
+`ORG_INVITE_GO: false` in `config.yaml` to switch the Go route off at the next deploy. Memberships created through this route are ordinary
 `memberships` rows and can be removed in the usual way; no schema change.
 
 ## Reviews requested

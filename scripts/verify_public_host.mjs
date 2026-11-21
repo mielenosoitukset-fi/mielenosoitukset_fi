@@ -1009,9 +1009,11 @@ try {
   } finally {
     globalThis.fetch = inviteFetch;
   }
-  assert(!/^RewriteRule .*accept_invite/m.test(apacheRouting) && !/^RewriteRule .*\/invitation/m.test(apacheRouting), 'The invitation routes stay unrouted until the maintainer activates them');
-  assert(apacheRouting.includes('#RewriteRule "^/users/orgs/accept_invite$" "http://127.0.0.1:8090$0" [P,L]'));
-  console.log('PASS: invitation page renders a shell only, noindex, no referrer, and unrouted');
+  // Routed since 21 November 2026: GET/HEAD of the page to the app host; the invitation API to Go.
+  assert(/^RewriteCond %\{REQUEST_METHOD\} "\^\(GET\|HEAD\)\$"\nRewriteRule "\^\/users\/orgs\/accept_invite\$" "http:\/\/127\.0\.0\.1:8090\$0" \[P,L\]$/m.test(apacheRouting), 'The invitation page routes GET/HEAD to the app host');
+  assert(apacheRouting.includes('RewriteRule "^/api/organizations/[0-9a-f]{24}/invitation(/accept)?$" "http://127.0.0.1:8091$0" [P,L]'));
+  assert(!/^RewriteRule .*accept_invite\//m.test(apacheRouting), 'POST /users/orgs/accept_invite/<id> stays in Flask');
+  console.log('PASS: invitation page renders a shell only, noindex, no referrer, and routed');
 
   // Developer panel: the shell is server-rendered, the data is read in the browser from Go.
   const developerAppId = 'a'.repeat(24);
