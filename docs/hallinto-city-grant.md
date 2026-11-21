@@ -120,3 +120,17 @@ Receipt: `status: confirmed`, `account_id`, `effective: {role, global_admin, ful
 
 Both kinds return the usual `pending`, `reconciliation_required` and `rejected` receipts, replayed by key.
 
+
+## Role bundles (`translator_v1`, `api_access_v1`, `admin_v1`)
+
+An account gets one named bundle by an appointment decision: a role and an exact permission list that Flask owns (`admin/role_bundles.py`, `BUNDLES`). Hallinto confirms only that exact set. The contract text is Hallinto's `docs/role-bundles-contract.md`.
+
+`POST /internal/hallinto/v1/role-bundles`, Idempotency-Key = appointment id. Same workload identity, proof and attestation as city appointments, with proof action `role_bundle_v1` and attestation context `hallinto-role-bundle-v1-attestation\n`. Body: `account_id`, `template`, `decision_id`, `decision_revision`, `valid_until`, `expected_state`, `authority_attestation`. The signed digest is the canonical JSON of the body without the attestation plus the bundle's sorted `permissions`, which Flask adds itself. The approval page takes the same terms without `expected_state` and returns it in the fragment.
+
+- One bundle per account: a new bundle replaces the earlier one (sessions and tokens are revoked on replacement). Accounts with a global-admin flag, a super or city role, a system team, a live scoped grant, a protected account or an inactive one are refused (422). Rights from the old admin tools are taken over only when the bundle gives them anyway. Nobody can give themselves a bundle.
+- Flask writes `users.role`, exactly `users.global_permissions`, `governance_managed` and `users.role_bundle` (template, operation id, `valid_until`) through the guarded profile write, so the change is in the account history.
+- Expiry is on read: `User.from_db` ignores a bundle once `valid_until` has passed (`utils/role_bundle_expiry.py`). Code that reads `users` documents directly still sees the stored fields until the next write.
+- Receipt `effective`: `{role, city: "", permissions (sorted), valid_until}`, plus `resulted_in_city_enablement: false`.
+- The account and the national admin team's active members get an email after a confirmed write or end (best effort; a mail failure never changes the result).
+
+`POST /internal/hallinto/v1/role-bundles/{appointment_id}/end` ends the bundle that appointment wrote (revoke or freeze). Body: `appointment_id` (must equal the path), `kind`, `account_id`, `template`, `decision_id`, `decision_revision`, `authority_attestation`. Proof action `role_bundle_end_v1`, attestation context `hallinto-role-bundle-end-v1-attestation\n`. It removes exactly the bundle's role and permissions at once, is idempotent, and leaves a newer bundle alone. Receipt `effective`: `{role, permissions, global_admin, bundle}`; a plain user has `bundle: null`.

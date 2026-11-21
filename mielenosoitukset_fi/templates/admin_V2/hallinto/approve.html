@@ -9,7 +9,7 @@
     <div class="admin-form-section__header">
       <span class="admin-form-section__icon"><i class="fas fa-user-shield" aria-hidden="true"></i></span>
       <div>
-        <h2 id="approve-terms-heading">{{ 'Hallitustiimi' if fields.kind == 'board_roster' else 'Roolin pysyvä poisto' if is_order else 'Kaupunkiadmin' }}</h2>
+        <h2 id="approve-terms-heading">{{ 'Hallitustiimi' if fields.kind == 'board_roster' else 'Roolin pysyvä poisto' if is_order else ('Roolipaketti: ' ~ bundle_label) if is_bundle else 'Kaupunkiadmin' }}</h2>
         <p>{{ 'Hallinnossa hyväksytty päätös' if (is_end or is_order) else 'Hallinnossa hyväksytyt ehdot' }}</p>
       </div>
     </div>
@@ -32,13 +32,18 @@
     {% else %}
     <dl class="admin-message-meta">
       <div><dt>Käyttäjä</dt><dd>{{ account.displayname or account.username }}{% if account.displayname and account.username %} ({{ account.username }}){% endif %}</dd></div>
-      <div><dt>Kaupunki</dt><dd>{{ city_name }}</dd></div>
+      {% if is_bundle %}<div><dt>Paketti</dt><dd>{{ bundle_label }}</dd></div>{% else %}<div><dt>Kaupunki</dt><dd>{{ city_name }}</dd></div>{% endif %}
       <div>{% if is_end %}<dt>Toimenpide</dt><dd>{{ 'Nimityksen peruminen' if fields.kind == 'revoke' else 'Nimityksen jäädytys' }}</dd>{% else %}<dt>Voimassa</dt><dd>{{ last_day }} asti</dd>{% endif %}</div>
       <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
     </dl>
     {% endif %}
     {% if is_order %}
     <p class="mb-0">{% if fields.kind == 'role_removal' and fields.role == 'city_admin' %}Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% elif fields.kind == 'role_removal' %}Käyttäjä menettää roolin pysyvästi, ja hänen istuntonsa ja avaimensa mitätöidään.{% else %}Tiimistä poistetaan ne, jotka eivät ole listalla. Yksi vahvistus voi poistaa enintään puolet tiimistä.{% endif %}</p>
+    {% elif is_bundle and is_end %}
+    <p class="mb-0">Käyttäjän roolipaketin oikeudet poistetaan heti, ja hän palaa tavalliseksi käyttäjäksi.{% if fields.kind == 'freeze' %} Jäädytys päättyy vasta uudella nimityspäätöksellä.{% endif %}</p>
+    {% elif is_bundle %}
+    <p>Käyttäjä saa täsmälleen nämä oikeudet. Aiempi roolipaketti korvataan.</p>
+    <ul class="mb-0">{% for text in permission_copy %}<li>{{ text }}</li>{% endfor %}</ul>
     {% elif is_end %}
     <p class="mb-0">Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% if fields.kind == 'freeze' %} Jäädytys päättyy vasta uudella nimityspäätöksellä.{% endif %}</p>
     {% else %}

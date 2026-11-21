@@ -415,3 +415,5 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
 
 - **Flask carries out Hallinto orders (2026-11-21, H12, H17).** `POST /internal/hallinto/v1/orders` sets the board team to the roster Hallinto sends (never empty, never Olivia removed, at most half removed per order) and removes a Flask role permanently. It has its own attestation context and proof action, and Flask never changes the board team by itself.
 
+
+- **Role bundles written by Flask (2026-11-21, Hallinto role bundles).** `POST /internal/hallinto/v1/role-bundles` gives one account exactly one of `translator_v1`, `api_access_v1` or `admin_v1` (a role and an exact permission list that Flask owns), replacing any earlier bundle, with an exact-set receipt. A bundle expires on read at `valid_until`, and `.../{appointment_id}/end` revokes or freezes it at once. It has its own attestation contexts and proof actions, refuses elevated accounts and self-grants, and emails the account and the national admin team. The `ADMIN_RIGHTS_IN_HALLINTO` lock can go live once this route is.

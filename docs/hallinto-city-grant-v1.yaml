@@ -104,6 +104,66 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unsupported' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /internal/hallinto/v1/role-bundles:
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      operationId: applyRoleBundle
+      summary: Give one account exactly one role bundle (translator_v1, api_access_v1, admin_v1). Idempotency-Key is the appointment id.
+      security: [{ workload: [], actorProof: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [account_id, template, decision_id, decision_revision, valid_until, expected_state, authority_attestation]
+              properties:
+                account_id: { type: string }
+                template: { type: string, enum: [translator_v1, api_access_v1, admin_v1] }
+                decision_id: { type: string }
+                decision_revision: { type: integer, minimum: 1 }
+                valid_until: { type: string, description: RFC 3339 UTC with seconds }
+                expected_state: { type: string }
+                authority_attestation: { type: string, description: Ed25519 over the context hallinto-role-bundle-v1-attestation and the intent digest }
+      responses:
+        '200': { description: 'Confirmed receipt; effective holds role, city "", sorted permissions and valid_until' }
+        '202': { description: Durable pending result }
+        '403': { $ref: '#/components/responses/Denied' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unsupported' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /internal/hallinto/v1/role-bundles/{appointment_id}/end:
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - { name: appointment_id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: endRoleBundle
+      summary: Revoke or freeze the bundle an appointment wrote, at once. Idempotent.
+      security: [{ workload: [], actorProof: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [appointment_id, kind, account_id, template, decision_id, decision_revision, authority_attestation]
+              properties:
+                appointment_id: { type: string, description: Must equal the path }
+                kind: { type: string, enum: [revoke, freeze] }
+                account_id: { type: string }
+                template: { type: string, enum: [translator_v1, api_access_v1, admin_v1] }
+                decision_id: { type: string }
+                decision_revision: { type: integer, minimum: 1 }
+                authority_attestation: { type: string, description: Ed25519 over the context hallinto-role-bundle-end-v1-attestation and the intent digest }
+      responses:
+        '200': { description: 'Confirmed receipt; effective holds role, permissions, global_admin and bundle' }
+        '202': { description: Durable pending result }
+        '403': { $ref: '#/components/responses/Denied' }
+        '422': { $ref: '#/components/responses/Unsupported' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /internal/hallinto/v1/operations/by-key:
     parameters:
       - $ref: '#/components/parameters/IdempotencyKey'

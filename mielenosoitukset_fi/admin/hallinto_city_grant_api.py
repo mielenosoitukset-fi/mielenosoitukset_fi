@@ -33,7 +33,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Blueprint, current_app, g, jsonify, request, url_for
 
-from . import city_grants, flask_orders, grant_proofs
+from . import city_grants, flask_orders, grant_proofs, role_bundles
 
 HELSINKI = ZoneInfo("Europe/Helsinki")
 INTEGRATION = "hallinto"
@@ -41,6 +41,8 @@ AUDIENCE = "hallinto-city-grants"
 ATTESTATION_CONTEXT = b"hallinto-city-admin-v1-attestation\n"
 END_ATTESTATION_CONTEXT = b"hallinto-city-admin-end-v1-attestation\n"
 ORDER_ATTESTATION_CONTEXT = b"hallinto-flask-order-v1-attestation\n"
+BUNDLE_ATTESTATION_CONTEXT = b"hallinto-role-bundle-v1-attestation\n"
+BUNDLE_END_ATTESTATION_CONTEXT = b"hallinto-role-bundle-end-v1-attestation\n"
 
 
 def attestation_message(intent_digest: str) -> bytes:
@@ -56,6 +58,15 @@ def end_attestation_message(intent_digest: str) -> bytes:
 def order_attestation_message(intent_digest: str) -> bytes:
     """Orders sign yet another context, so no other signature can carry one out."""
     return ORDER_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def bundle_attestation_message(intent_digest: str) -> bytes:
+    return BUNDLE_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def bundle_end_attestation_message(intent_digest: str) -> bytes:
+    """Ending a bundle signs its own context, so an appointment signature never ends one."""
+    return BUNDLE_END_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def _b64url(value: str) -> bytes:
@@ -185,6 +196,41 @@ def build_blueprint(db) -> Blueprint:
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
         ))
 
+    @bp.post("/role-bundles")
+    def apply_role_bundle():
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = role_bundles.bundle_digest(body)
+        if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key):
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_ROLE_BUNDLE_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, bundle_attestation_message):
+            return _error("denied")
+        return _reply(role_bundles.apply_role_bundle_v1(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
+    @bp.post("/role-bundles/<appointment_id>/end")
+    def end_role_bundle(appointment_id):
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = role_bundles.end_digest(body)
+        if (digest is None or not city_grants.IDEMPOTENCY_KEY.match(key)
+                or body["appointment_id"] != appointment_id):
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_ROLE_BUNDLE_END_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, bundle_end_attestation_message):
+            return _error("denied")
+        return _reply(role_bundles.apply_role_bundle_end_v1(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
     @bp.get("/operations/by-key")
     def read_receipt():
         key = request.headers.get("Idempotency-Key", "")
@@ -216,6 +262,8 @@ ORDER_APPROVAL_FIELDS = {
     flask_orders.KIND_ROLE_REMOVAL: {"order_id", "kind", "decision_id", "decision_revision", "account_id", "role"},
     flask_orders.KIND_BOARD_ROSTER: {"order_id", "kind", "decision_id", "decision_revision", "roster"},
 }
+BUNDLE_APPROVAL_FIELDS = {"account_id", "template", "decision_id", "decision_revision", "valid_until"}
+BUNDLE_END_APPROVAL_FIELDS = {"appointment_id", "kind", "account_id", "template", "decision_id", "decision_revision"}
 STATE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 
 
@@ -230,9 +278,16 @@ def _decode_fields(raw: str):
         return None
     if "order_id" in fields:
         return fields if set(fields) == ORDER_APPROVAL_FIELDS.get(fields.get("kind")) else None
+    if fields.get("template") in role_bundles.BUNDLES and "city" not in fields:
+        wanted = BUNDLE_END_APPROVAL_FIELDS if "kind" in fields else BUNDLE_APPROVAL_FIELDS
+        return fields if set(fields) == wanted else None
     if "kind" in fields:
         return fields if set(fields) == END_APPROVAL_FIELDS else None
     return fields if not set(fields) - APPROVAL_FIELDS else None
+
+
+def _is_bundle(fields: dict) -> bool:
+    return fields.get("template") in role_bundles.BUNDLES and "city" not in fields
 
 
 def _same_origin() -> bool:
@@ -284,6 +339,20 @@ def build_approval_blueprint(db) -> Blueprint:
                     {"_id": ObjectId(fields["account_id"])}, {"_id": 1}) is None):
                 abort(400)
             return fields, state_param, {"eligible": True}, digest
+        if _is_bundle(fields):
+            state = role_bundles.read_bundle_state(db, str(fields.get("account_id", "")), fields["template"])
+            if state is None:
+                abort(400)
+            if "kind" in fields:
+                # Ending needs no owner-state check: it is idempotent and removes access.
+                digest = role_bundles.end_digest({**fields, "authority_attestation": "-"})
+                state = {**state, "eligible": True}
+            else:
+                digest = role_bundles.bundle_digest(
+                    {**fields, "expected_state": state["expected_state"], "authority_attestation": "-"})
+            if digest is None:
+                abort(400)
+            return fields, state_param, state, digest
         state = city_grants.read_city_grant_state(db, str(fields.get("account_id", "")))
         if state is None:
             abort(400)
@@ -317,8 +386,16 @@ def build_approval_blueprint(db) -> Blueprint:
                 {"_id": {"$in": [ObjectId(a) for a in leaving]}}, {"username": 1, "displayname": 1})]
             added_names = [names.get(a, "?") for a in fields["roster"] if a not in current]
         is_end = "kind" in fields and not is_order
+        is_bundle = _is_bundle(fields)
+        bundle = role_bundles.BUNDLES.get(fields.get("template")) if is_bundle else None
+        permission_copy = []
+        if bundle:
+            from mielenosoitukset_fi.admin.permission_copy import PERMISSION_DESCRIPTIONS
+            permission_copy = [str(PERMISSION_DESCRIPTIONS.get(p, p)) for p in bundle["permissions"]]
         page_title = ("Vahvista roolin poisto" if fields.get("kind") == flask_orders.KIND_ROLE_REMOVAL
                       else "Vahvista hallitustiimin päivitys" if is_order
+                      else "Vahvista roolipaketin päättäminen" if (is_end and is_bundle)
+                      else "Vahvista roolipaketti" if is_bundle
                       else "Vahvista nimityksen päättäminen" if is_end else "Vahvista nimitys")
         last_day = ""
         if not is_end and not is_order:
@@ -332,6 +409,7 @@ def build_approval_blueprint(db) -> Blueprint:
             fields=fields, state_param=state_param, raw=request.values.get("r", ""),
             account=account or {}, city_name=CITY_KEY_TO_NAME.get(fields.get("city"), fields.get("city")),
             last_day=last_day, is_end=is_end, is_order=is_order, roster_names=roster_names, removed_names=removed_names, added_names=added_names,
+            is_bundle=is_bundle, bundle_label=(bundle or {}).get("label", ""), permission_copy=permission_copy,
             page_title=page_title,
             eligible=state["eligible"],
             elevated=has_strong_elevation(APPROVAL_WINDOW_SECONDS),
@@ -351,7 +429,9 @@ def build_approval_blueprint(db) -> Blueprint:
         factor = "passkey" if elevation_method() == "webauthn" else "password_totp"
         is_order = "order_id" in fields
         is_end = "kind" in fields and not is_order
+        is_bundle = _is_bundle(fields)
         action = (grant_proofs.ACTION_FLASK_ORDER_V1 if is_order
+                  else (grant_proofs.ACTION_ROLE_BUNDLE_END_V1 if is_end else grant_proofs.ACTION_ROLE_BUNDLE_V1) if is_bundle
                   else grant_proofs.ACTION_CITY_ADMIN_END_V1 if is_end else grant_proofs.ACTION_CITY_ADMIN_V1)
         proof = grant_proofs.issue_proof(
             db, actor_id=current_user._id, audience=AUDIENCE, action=action,

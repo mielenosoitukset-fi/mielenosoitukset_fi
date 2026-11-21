@@ -1,0 +1,43 @@
+{% extends "admin_email_base.html" %}
+{% set eyebrow = "Oikeudet" %}
+{% set heading = "Roolipaketti myönnetty" if action == "applied" else "Roolipaketti peruttu" if action == "revoke" else "Roolipaketti jäädytetty" %}
+
+{% block subject %}{{ heading }}: {{ bundle_label }}{% endblock %}
+
+{% block body %}
+<p>
+    {% if action == "applied" %}
+    Hallinnon päätöksellä tilille on annettu roolipaketti. Oikeudet tulevat voimaan heti.
+    {% else %}
+    Hallinnon päätöksellä tilin roolipaketti on {{ "peruttu" if action == "revoke" else "jäädytetty" }}. Oikeudet poistuivat heti.
+    {% endif %}
+</p>
+
+<ul class="data-list">
+    <li>
+        <strong>Tili</strong>
+        {{ account_name }}
+    </li>
+    <li>
+        <strong>Paketti</strong>
+        {{ bundle_label }}
+    </li>
+    <li>
+        <strong>Päätös</strong>
+        {{ decision_id }}, versio {{ decision_revision }}
+    </li>
+    {% if action == "applied" and valid_until %}
+    <li>
+        <strong>Voimassa asti</strong>
+        {{ valid_until }}
+    </li>
+    {% endif %}
+</ul>
+
+<div class="meta">
+    <p>
+        Saat tämän viestin, koska olet tilin haltija tai kansallisen ylläpitotiimin jäsen.
+        {% if action == "applied" %}Pakettiin kuuluu {{ permissions|length }} oikeutta.{% endif %}
+    </p>
+</div>
+{% endblock %}
