@@ -390,6 +390,12 @@ def validate_appointment(request: Any) -> Optional[dict]:
     return intent
 
 
+def intent_digest(request: Any) -> Optional[str]:
+    """Canonical digest of a valid request's intent (attestation excluded)."""
+    intent = validate_appointment(request)
+    return _digest(intent) if intent is not None else None
+
+
 def _digest(value) -> str:
     canonical = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -486,6 +492,10 @@ def _load_user(doc):
     from mielenosoitukset_fi.users.models import User
 
     return User.from_db(doc)
+
+
+def authorized_actor(db, actor_id) -> Optional[Any]:
+    return _actor_authorized(db, actor_id)
 
 
 def _actor_authorized(db, actor_id) -> Optional[Any]:

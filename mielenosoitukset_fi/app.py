@@ -281,6 +281,8 @@ def create_app(config_overrides=None) -> Flask:
     app.register_blueprint(mcp_admin_bp)
     from mielenosoitukset_fi.users.hallinto_issuer_config import configure_hallinto_issuer
     configure_hallinto_issuer(app, mongo)
+    from mielenosoitukset_fi.admin.hallinto_city_grant_api import configure as configure_hallinto_city_grants
+    configure_hallinto_city_grants(app, mongo)
     app.register_blueprint(developer_bp, url_prefix="/developer")
     
     
