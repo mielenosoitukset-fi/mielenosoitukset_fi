@@ -1,0 +1,1 @@
+- Organisaatiotilihakemuslomake lukee kutsuviestin linkin `?kutsu=`-tunnisteen ja liittää hakemuksen kutsun asiaan. Tunniste on kertakäyttöinen eikä todista mitään organisaatiosta, joten varmennus tehdään silti Hallinnossa.

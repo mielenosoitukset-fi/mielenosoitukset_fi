@@ -712,6 +712,8 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             "need": row.get("need"), "person_email": row.get("person_email"), "person_role": row.get("person_role"),
             "target_organization": row.get("target_organization_id"),
             "duplicate_of": str(row["duplicate_of"]) if row.get("duplicate_of") else None,
+            # The outbound invitation (O6) this request answers, if it came from one.
+            "invitation_case": row.get("invitation_case"),
             "organization_id": str(row["organization_id"]) if row.get("organization_id") else None,
             "owner_state": row.get("owner_state"), "logo_state": row.get("logo_state"),
             "created_at": stamp(row.get("created_at")), "updated_at": stamp(row.get("updated_at")),

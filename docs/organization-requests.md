@@ -139,3 +139,13 @@ request uses the applicant's confirmed address. Hallinto reads them with
 `POST /organization-requests/list {"kind": "access_recovery"}`; the ordinary list leaves
 them out and `create-organization` refuses them, so no recovery request can create an
 organization.
+
+## Invitation link (O6)
+
+An outbound invitation mail links to `/organisaatiot/hae?kutsu=<token>`. The form reads
+the token from the address and sends it as `invitation`. Go claims it once: it finds the
+invitation by the token's hash (`org_invitations`, status `sent`, not expired, never used),
+marks it used and stores `invitation_id` and `invitation_case` on the request. Hallinto
+reads `invitation_case` from the request list and links the two cases. A wrong, expired or
+spent token changes nothing and says nothing, and the token proves nothing about the
+organization: the channel proof still happens in Hallinto.

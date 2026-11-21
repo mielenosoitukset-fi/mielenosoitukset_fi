@@ -330,6 +330,7 @@ class Config:
         cls.OVERRIDE_OLIVIA_USER_ID = config.get("OVERRIDE_OLIVIA_USER_ID")
         # Outbound organization invitations from Hallinto (O6). Off until OT and the maintainer switch it on.
         cls.ORG_OUTREACH_ENABLED = config.get("ORG_OUTREACH_ENABLED", False)
+        cls.ORG_RECOVERY_ENABLED = config.get("ORG_RECOVERY_ENABLED", False)
         cls.GOD_AUTH_ORIGIN = config.get("GOD_AUTH_ORIGIN", "https://mielenosoitukset.fi")
         cls.GOD_EMERGENCY_ENABLED = config.get("GOD_EMERGENCY_ENABLED", False)
         cls.GOD_EMERGENCY_PANEL_KEYS = config.get("GOD_EMERGENCY_PANEL_KEYS", {})

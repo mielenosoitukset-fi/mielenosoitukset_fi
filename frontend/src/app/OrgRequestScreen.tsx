@@ -6,7 +6,7 @@ import {
   orgRequestSubmitPath,
 } from './org-request-route';
 import type { OrgRequestSummary } from './org-request-route';
-import { orgRequestBody, pickedLogo, requestPayload } from './org-request';
+import { invitationToken, orgRequestBody, pickedLogo, requestPayload } from './org-request';
 import { cityCatalog } from './cities';
 import './information/information.css';
 import './contact/contact.css';
@@ -39,6 +39,7 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<Result>(null);
   const [startedAt, setStartedAt] = useState(0);
+  const [invitation, setInvitation] = useState('');
   // The form only works with JavaScript, so the server renders a fallback instead of an inert form.
   const [ready, setReady] = useState(false);
   const signedIn = session.authenticated;
@@ -46,6 +47,7 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
   useEffect(() => {
     setReady(true);
     setStartedAt(Date.now());
+    setInvitation(invitationToken(window.location.search));
     if (!signedIn) return;
     fetch(orgRequestMinePath, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
       .then(response => response.ok ? response.json() : null)
@@ -56,7 +58,7 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const body = orgRequestBody(form, startedAt);
+    const body = orgRequestBody(form, startedAt, invitation);
     if (!body.links.length) { setResult({ kind: 'error', message: 'Anna vähintään yksi linkki organisaation verkkosivuille tai someen.' }); return; }
     const logo = pickedLogo(form);
     if (logo.problem) { setResult({ kind: 'error', message: logo.problem }); return; }
@@ -107,6 +109,11 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
           <li>Kun hakemus hyväksytään, lähetämme kutsun tilin käyttöön ottamiseen.</li>
         </ol>
       </section>
+
+      {invitation ? <section className="public-prose-card" aria-labelledby="org-request-invited-title">
+        <h2 id="org-request-invited-title">Sait kutsun</h2>
+        <p>Lähetimme organisaatiolle kutsun hakea tiliä. Kutsu ei avaa tiliä: käsittelemme hakemuksen kuten muutkin, ja varmistamme silloinkin, että organisaatio on hakemuksen takana.</p>
+      </section> : null}
 
       <MyRequests requests={requests} />
 

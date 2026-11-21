@@ -1,0 +1,1 @@
+- Organisaation pääsyn palautus: Hallinnon päätöksellä organisaation uudelle omistajalle tai jäsenelle voidaan lähettää kertakäyttöinen kutsu. Toiminto on pois päältä, kunnes se otetaan käyttöön asetuksella.

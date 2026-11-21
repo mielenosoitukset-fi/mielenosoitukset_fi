@@ -8,7 +8,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = """
-import { splitLinks, orgRequestBody, statusToken, readStatus, orgRecoveryBody } from './frontend/src/app/org-request.ts';
+import { splitLinks, orgRequestBody, statusToken, readStatus, orgRecoveryBody, invitationToken } from './frontend/src/app/org-request.ts';
 const reply = (status, body) => async (url, init) => { calls.push([url, init]); return { ok: status < 300, status, json: async () => body }; };
 const calls = [];
 const form = entries => { const f = new FormData(); for (const [k, v] of entries) f.append(k, v); return f; };
@@ -20,6 +20,8 @@ const out = {
   ownAccess: orgRequestBody(form([['represents', 'yes'], ['access', 'own_account'], ['invite_email', 'x@a.fi']]), 0),
   lost: orgRecoveryBody(form([['need', 'lost_access'], ['person_email', 'x@a.fi'], ['person_role', 'admin'], ['links', 'a.fi'], ['consent', 'on']]), 7),
   member: orgRecoveryBody(form([['need', 'add_member'], ['person_email', 'x@a.fi'], ['person_role', 'admin']]), 0),
+  invited: orgRequestBody(form([['represents', 'yes']]), 0, 'abcdefghijklmnopqrstuv'),
+  kutsu: [invitationToken('?kutsu=abcdefghijklmnopqrstuv'), invitationToken('?kutsu=short'), invitationToken('?x=1'), invitationToken('?kutsu=abcdefghijklmnop/../x')],
   token: statusToken('#abcdefghijklmnopqrstuv'),
   noHash: statusToken(''),
   shortToken: statusToken('#abc'),
@@ -60,3 +62,6 @@ def test_org_request_helpers():
     assert out["lost"]["need"] == "lost_access" and out["lost"]["person_email"] == "" and out["lost"]["person_role"] == ""
     assert out["lost"]["links"] == ["a.fi"] and out["lost"]["consent"] is True and out["lost"]["started_at"] == 7
     assert out["member"]["person_email"] == "x@a.fi" and out["member"]["person_role"] == "admin"
+    # The ?kutsu= token travels with the form, and anything that is not shaped like one is dropped.
+    assert out["invited"]["invitation"] == "abcdefghijklmnopqrstuv" and out["represent"]["invitation"] == ""
+    assert out["kutsu"] == ["abcdefghijklmnopqrstuv", "", "", ""]

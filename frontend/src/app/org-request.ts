@@ -2,13 +2,19 @@
 import { orgRequestStatusReadPath } from './org-request-route.ts';
 import type { OrgRequestSummary } from './org-request-route.ts';
 
+/** The ?kutsu= token of an invitation mail, or '' when it does not look like one. */
+export function invitationToken(search: string): string {
+  const token = new URLSearchParams(search).get('kutsu') ?? '';
+  return /^[A-Za-z0-9_-]{16,64}$/.test(token) ? token : '';
+}
+
 /** Splits the links field: one address per line, or separated by spaces or commas. */
 export function splitLinks(value: string): string[] {
   return value.split(/[\s,]+/).map(item => item.trim()).filter(Boolean).slice(0, 5);
 }
 
 /** The JSON body Go reads (go-api/org_request.go, orgRequestInput). */
-export function orgRequestBody(form: FormData, startedAt: number) {
+export function orgRequestBody(form: FormData, startedAt: number, invitation = '') {
   const represents = form.get('represents') === 'yes';
   const access = represents ? String(form.get('access') ?? '') : '';
   return {
@@ -28,6 +34,7 @@ export function orgRequestBody(form: FormData, startedAt: number) {
     consent: form.get('consent') === 'on',
     homepage: String(form.get('homepage') ?? ''),
     started_at: startedAt,
+    invitation,
   };
 }
 
