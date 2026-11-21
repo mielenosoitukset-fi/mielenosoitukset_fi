@@ -29,6 +29,12 @@ CITY_ADMIN_ORGANIZATION_PERMISSIONS = {
     "VIEW_ORGANIZATION",
 }
 
+# Translation rights (and API_* access) alone never make a site-wide admin.
+TRANSLATION_ONLY_PERMISSIONS = frozenset({
+    "TRANSLATE_DEMO", "REVIEW_DEMO_TRANSLATIONS", "TRANSLATE_UI", "REVIEW_UI_TRANSLATIONS",
+})
+
+
 class User(UserMixin):
     @property
     def system_team_access(self):
@@ -53,12 +59,48 @@ class User(UserMixin):
         from mielenosoitukset_fi.utils.system_teams import BOARD_PERMISSIONS
         return permission in BOARD_PERMISSIONS and "board" in self.system_team_access
 
+    @property
+    def stored_global_permissions(self) -> List[str]:
+        """Global permissions as stored, without duty-shift rights."""
+        if self._stored_global_permissions is not None:
+            return list(self._stored_global_permissions)
+        return list(self.global_permissions)
+
+    @property
+    def is_national_moderator(self) -> bool:
+        """Holds a national moderator appointment (rights only on shift)."""
+        if self._is_national_moderator is None:
+            from mielenosoitukset_fi.utils.duty_shifts import is_moderator
+            self._is_national_moderator = bool(self.is_active) and is_moderator(_get_mongo(), self._id)
+        return self._is_national_moderator
+
+    def apply_active_duty(self, now=None) -> None:
+        """Add the moderation rights of a current duty shift for this request.
+
+        Called when the signed-in account is loaded, so the rights follow the
+        stored shift windows on every request and end without a scheduled job.
+        The stored permissions are kept apart and are what ``to_dict`` saves.
+        """
+        from mielenosoitukset_fi.utils.duty_shifts import active_duty
+
+        if self._stored_global_permissions is not None:
+            self.global_permissions = list(self._stored_global_permissions)
+        self._stored_global_permissions = list(self.global_permissions)
+        self.active_duty = active_duty(_get_mongo(), self._id, now) if self.is_active else None
+        if self.active_duty:
+            self.global_permissions = sorted(
+                set(self._stored_global_permissions) | set(self.active_duty["permissions"])
+            )
+
     def has_admin_access(self) -> bool:
         """Return whether this account may enter any admin workspace."""
         return (
-            self.has_full_permissions()
+            bool(self.active_duty)
+            or self.is_national_moderator
+            or self.has_full_permissions()
             or self.role == "admin"
             or self.role == "translator"
+            or self.manages_an_organization()
             or any(
                 self.has_permission(permission)
                 for permission in (
@@ -82,6 +124,30 @@ class User(UserMixin):
             "god",
             "superuser",
         }
+
+    def manages_an_organization(self) -> bool:
+        """Return whether the account is admin or owner in some organisation.
+
+        That opens the admin panel for the organisation's own work; it never
+        changes the account role.
+        """
+        return any(getattr(m, "role", None) in {"admin", "owner"} for m in self.memberships)
+
+    def has_site_wide_admin_reach(self) -> bool:
+        """Return whether this account's admin rights reach the whole site.
+
+        ``role == "admin"`` alone does not: promoting someone to organisation
+        admin sets it too. Full rights, a global permission beyond translation and API access,
+        or the board team do.
+        """
+        if self.has_full_permissions():
+            return True
+        if any(
+            perm not in TRANSLATION_ONLY_PERMISSIONS and not str(perm).startswith("API_")
+            for perm in (self.global_permissions or [])
+        ):
+            return True
+        return "board" in self.system_team_access
 
     def _perm_in(self, permission: str) -> List[Union[str, ObjectId]]:
         """
@@ -277,6 +343,11 @@ class User(UserMixin):
         # CACHED memberships (lazy)  --------------------------------------------
         self._memberships: Optional[List[MemberShip]] = None
         self._admin_scope_grants: Optional[List[dict]] = None
+        # National moderator duty (see utils/duty_shifts.py). Set only for the
+        # signed-in account by apply_active_duty; never stored.
+        self.active_duty: Optional[dict] = None
+        self._stored_global_permissions: Optional[List[str]] = None
+        self._is_national_moderator: Optional[bool] = None
 
     # ---------- CLASS HELPERS ----------------------------------------------------
 
@@ -663,7 +734,7 @@ class User(UserMixin):
             "global_admin": self._global_admin,
             "governance_managed": self._governance_managed,
             "confirmed": self.confirmed,
-            "global_permissions": self.global_permissions,
+            "global_permissions": self.stored_global_permissions,
             "role": self.role,
             "banned": self.banned,
             "mfa_enabled": self.mfa_enabled,
@@ -876,6 +947,10 @@ class AnonymousUser(AnonymousUserMixin):
 
     def has_admin_access(self) -> bool:
         """Anonymous visitors never have administration access."""
+        return False
+
+    def has_site_wide_admin_reach(self) -> bool:
+        """Anonymous visitors never have site-wide administration rights."""
         return False
 
     def has_city_admin_scope_grants(self) -> bool:

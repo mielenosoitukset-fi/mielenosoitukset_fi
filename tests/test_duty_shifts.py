@@ -1,0 +1,200 @@
+"""National moderators: rights only during a duty shift, checked per request."""
+
+from datetime import datetime, timedelta, timezone
+
+import pytest
+from bson import ObjectId
+
+from mielenosoitukset_fi.users.models import User
+from mielenosoitukset_fi.utils import duty_shifts
+from mielenosoitukset_fi.utils.duty_shifts import DutyError, NATIONAL_MODERATOR_V1
+from tests.conftest import _client_for_user
+
+SOURCE = {"decision": "OT 21.11.2026 §3", "hallinto_decision_id": "d-1"}
+
+
+def _actor(db):
+    actor_id = ObjectId()
+    return {"id": str(actor_id), "username": "ot-recorder", "via": "test"}
+
+
+def _moderator(db):
+    user_id = ObjectId()
+    suffix = str(user_id)[-8:]
+    doc = User.create_user(
+        username=f"moderator-{suffix}", password="ModPass1!",
+        email=f"moderator-{suffix}@example.test", displayname="Moderator",
+    )
+    doc.update({"_id": user_id, "confirmed": True, "active": True, "role": "user",
+                "global_admin": False, "global_permissions": []})
+    db.users.insert_one(doc)
+    return user_id
+
+
+def _appoint_with_shift(db, user_id, start, end, *, now):
+    actor = _actor(db)
+    grant = duty_shifts.appoint(
+        db, user_id=user_id, valid_from=now - timedelta(days=1),
+        valid_until=now + timedelta(days=30), source=SOURCE, actor=actor,
+        approvers=[actor["id"]], now=now,
+    )
+    shift = duty_shifts.add_shift(
+        db, grant_id=grant["_id"], starts_at=start, ends_at=end,
+        source=SOURCE, actor=actor, now=now - timedelta(days=1),
+    )
+    return grant, shift, actor
+
+
+def test_rights_exist_only_inside_the_shift_plus_grace(app, db):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    start, end = now + timedelta(hours=1), now + timedelta(hours=3)
+    _appoint_with_shift(db, user_id, start, end, now=now)
+
+    assert duty_shifts.active_duty(db, user_id, now) is None
+    during = duty_shifts.active_duty(db, user_id, start + timedelta(minutes=1))
+    assert set(during["permissions"]) == NATIONAL_MODERATOR_V1
+    assert during["in_grace"] is False
+    grace = duty_shifts.active_duty(db, user_id, end + timedelta(minutes=29))
+    assert grace and grace["in_grace"] is True
+    assert duty_shifts.active_duty(db, user_id, end + timedelta(minutes=30)) is None
+
+
+def test_cancel_freeze_and_revoke_end_rights_at_once(app, db):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    grant, shift, actor = _appoint_with_shift(
+        db, user_id, now - timedelta(hours=1), now + timedelta(hours=1), now=now)
+    assert duty_shifts.active_duty(db, user_id, now)
+
+    assert duty_shifts.set_frozen(db, grant_id=grant["_id"], frozen=True, reason="tutkinta", actor=actor)
+    assert duty_shifts.active_duty(db, user_id, now) is None
+    assert duty_shifts.set_frozen(db, grant_id=grant["_id"], frozen=False, reason="selvitetty", actor=actor)
+    assert duty_shifts.active_duty(db, user_id, now)
+
+    assert duty_shifts.cancel_shift(db, shift_id=shift["_id"], reason="sairastui", actor=actor)
+    # A cancelled shift gets no grace period either.
+    assert duty_shifts.active_duty(db, user_id, now) is None
+
+    duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=now - timedelta(minutes=5),
+                          ends_at=now + timedelta(hours=1), source=SOURCE, actor=actor, now=now)
+    assert duty_shifts.active_duty(db, user_id, now)
+    assert duty_shifts.revoke(db, grant_id=grant["_id"], reason="päättyi", actor=actor)
+    assert duty_shifts.active_duty(db, user_id, now) is None
+    with pytest.raises(DutyError):
+        duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=now, ends_at=now + timedelta(hours=1),
+                              source=SOURCE, actor=actor, now=now)
+
+
+def test_writes_are_refused_without_basis_or_by_the_moderator(app, db):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    actor = _actor(db)
+    kwargs = dict(user_id=user_id, valid_from=now, valid_until=now + timedelta(days=1),
+                  approvers=[actor["id"]], now=now)
+    with pytest.raises(DutyError, match="source_required"):
+        duty_shifts.appoint(db, source={}, actor=actor, **kwargs)
+    with pytest.raises(DutyError, match="self_appointment"):
+        duty_shifts.appoint(db, source=SOURCE, actor={"id": str(user_id)}, **kwargs)
+    with pytest.raises(DutyError, match="invalid_permissions"):
+        duty_shifts.appoint(db, source=SOURCE, actor=actor, permissions=["EDIT_USER"], **kwargs)
+    grant = duty_shifts.appoint(db, source=SOURCE, actor=actor, **kwargs)
+    with pytest.raises(DutyError, match="outside_appointment"):
+        duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=now, ends_at=now + timedelta(days=2),
+                              source=SOURCE, actor=actor, now=now)
+
+
+def test_stored_permissions_never_include_shift_rights(app, db):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    _appoint_with_shift(db, user_id, now - timedelta(hours=1), now + timedelta(hours=1), now=now)
+    user = User.from_db(db.users.find_one({"_id": user_id}))
+    with app.app_context():
+        user.apply_active_duty()
+        assert "ACCEPT_DEMO" in user.global_permissions
+        assert user.stored_global_permissions == []
+        assert user.to_dict()["global_permissions"] == []
+        assert user.has_admin_access()
+
+
+def test_request_time_enforcement_and_use_log(app, db, seeded_data):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    grant, shift, actor = _appoint_with_shift(
+        db, user_id, now - timedelta(hours=1), now + timedelta(hours=1), now=now)
+    client = _client_for_user(app, user_id)
+    pending = seeded_data["pending_demo_id"]
+
+    assert client.get(f"/admin/demo/review/{pending}").status_code == 200
+    client.post(f"/admin/demo/accept_demo/{pending}")
+    use = db.moderator_duty_uses.find_one({"user_id": user_id})
+    assert use and use["shift_id"] == shift["_id"] and use["method"] == "POST"
+
+    # No scheduled job: cancelling the stored shift ends access on the next request.
+    duty_shifts.cancel_shift(db, shift_id=shift["_id"], reason="vuoro loppui", actor=actor)
+    assert client.get(f"/admin/demo/review/{pending}").status_code in (302, 403)
+    assert db.users.find_one({"_id": user_id})["global_permissions"] == []
+
+
+def test_own_booking_waits_for_approval_unless_self_booking(app, db):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    me = {"id": str(user_id)}
+    actor = _actor(db)
+    window = dict(starts_at=now - timedelta(minutes=5), ends_at=now + timedelta(hours=1),
+                  source=SOURCE, now=now)
+    grant = duty_shifts.appoint(db, user_id=user_id, valid_from=now - timedelta(days=1),
+                                valid_until=now + timedelta(days=1), source=SOURCE, actor=actor,
+                                approvers=[actor["id"]], now=now)
+    booked = duty_shifts.add_shift(db, grant_id=grant["_id"], actor=me, **window)
+    assert duty_shifts.active_duty(db, user_id, now) is None
+    with pytest.raises(DutyError, match="self_approval"):
+        duty_shifts.approve_shift(db, shift_id=booked["_id"], actor=me)
+    with pytest.raises(DutyError, match="not_allowed"):
+        duty_shifts.approve_shift(db, shift_id=booked["_id"], actor=_actor(db))
+    assert duty_shifts.approve_shift(db, shift_id=booked["_id"], actor=actor, now=now)
+    assert duty_shifts.active_duty(db, user_id, now)
+
+    other = _moderator(db)
+    trusted = duty_shifts.appoint(db, user_id=other, valid_from=now - timedelta(days=1),
+                                  valid_until=now + timedelta(days=1), source=SOURCE, actor=actor,
+                                  self_booking=True, now=now)
+    duty_shifts.add_shift(db, grant_id=trusted["_id"], actor={"id": str(other)}, **window)
+    assert duty_shifts.active_duty(db, other, now)
+
+
+def test_schedule_page_books_approves_and_lists_states(app, db, seeded_data):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    approver_id = _moderator(db)
+    grant = duty_shifts.appoint(db, user_id=user_id, valid_from=now - timedelta(days=1),
+                                valid_until=now + timedelta(days=30), source=SOURCE,
+                                actor=_actor(db), approvers=[approver_id], now=now)
+    moderator = _client_for_user(app, user_id)
+    page = moderator.get("/admin/vuorot/")
+    assert page.status_code == 200
+    with moderator.session_transaction() as session:
+        token = session["governance_csrf_token"]
+    start = now + timedelta(hours=1)
+    from zoneinfo import ZoneInfo
+    local = lambda value: value.astimezone(ZoneInfo("Europe/Helsinki")).strftime("%Y-%m-%dT%H:%M")
+    response = moderator.post("/admin/vuorot/", data={
+        "csrf_token": token, "action": "book", "grant_id": str(grant["_id"]),
+        "starts_at": local(start), "ends_at": local(start + timedelta(hours=2))})
+    assert response.status_code == 303
+    shift = db.moderator_shifts.find_one({"user_id": user_id})
+    assert shift and not shift.get("approved_at")
+    assert "Odottaa hyväksyntää" in moderator.get("/admin/vuorot/").get_data(as_text=True)
+    # Without the session token nothing changes.
+    assert moderator.post("/admin/vuorot/", data={"action": "approve", "shift_id": str(shift["_id"])}).status_code == 403
+
+    approver = _client_for_user(app, approver_id)
+    assert approver.get("/admin/vuorot/").status_code == 200
+    with approver.session_transaction() as session:
+        token = session["governance_csrf_token"]
+    approver.post("/admin/vuorot/", data={"csrf_token": token, "action": "approve", "shift_id": str(shift["_id"])})
+    assert db.moderator_shifts.find_one({"_id": shift["_id"]})["approved_at"]
+    assert "Hyväksytty" in approver.get("/admin/vuorot/").get_data(as_text=True)
+
+    outsider = _client_for_user(app, _moderator(db))
+    assert outsider.get("/admin/vuorot/").status_code == 403

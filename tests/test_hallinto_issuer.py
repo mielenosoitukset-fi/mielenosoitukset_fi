@@ -281,6 +281,37 @@ def test_marker_insert_outage_does_not_break_owner_login(owner, db, monkeypatch)
     assert _authorize(browser, params).status_code == 403
 
 
+def test_lapsed_marker_signs_out_and_back_in_by_itself(owner, db, monkeypatch):
+    from pymongo.errors import AutoReconnect
+
+    app, _ = owner
+    collection = type(db.hallinto_login_markers)
+    original = collection.insert_one
+
+    def insert(self, *args, **kwargs):
+        if self.name == "hallinto_login_markers":
+            raise AutoReconnect("simulated marker outage")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(collection, "insert_one", insert)
+    browser = app.test_client()
+    _login(browser)
+    _, params = _params()
+    page = _authorize(browser, params)
+    body = page.get_data(as_text=True)
+    assert page.status_code == 403 and page.mimetype == "text/html"
+    assert 'name="logout_token"' in body and "relogin=1" in body
+    # A second failure shows the plain error instead of looping.
+    again = _authorize(browser, {**params, "relogin": "1"})
+    assert again.status_code == 403 and again.is_json
+    # The sign-out form returns to the sign-in with the authorization URL.
+    token = body.split('name="logout_token" value="')[1].split('"')[0]
+    nxt = body.split('name="next" value="')[1].split('"')[0].replace("&amp;", "&")
+    out = browser.post("/users/auth/logout", base_url=ORIGIN, data={"logout_token": token, "next": nxt})
+    assert out.status_code == 302 and urlsplit(out.location).path == "/users/auth/login"
+    assert "authorize" in out.location
+
+
 def test_linked_logout_can_retry_a_marker_revocation_outage(owner, db, monkeypatch):
     from pymongo.errors import AutoReconnect
 
@@ -399,7 +430,9 @@ def test_organization_requests_for_hallinto(owner, db):
     base = {"organization": {"name": "Rauha ry", "email": "info@rauha.example", "links": ["https://rauha.example"]},
             "applicant": {"name": "Hakija", "email": "hakija@example.test"}, "represents": True,
             "access": "organization_account", "status_token_hash": "secret", "created_at": now, "updated_at": now}
-    confirmed = db.organization_requests.insert_one({**base, "status": "received"}).inserted_id
+    confirmed = db.organization_requests.insert_one({**base, "status": "received",
+        "organization": {**base["organization"], "city": "tampere"},
+        "logo": {"content_type": "image/png", "data": b"\x89PNG", "size": 4}}).inserted_id
     hidden = db.organization_requests.insert_one({**base, "status": "unconfirmed"}).inserted_id
     suggestion = db.organization_requests.insert_one({**base, "status": "received", "represents": False}).inserted_id
     try:
@@ -411,6 +444,9 @@ def test_organization_requests_for_hallinto(owner, db):
         assert str(confirmed) in ids and str(hidden) not in ids
         assert all("status_token_hash" not in item for item in items)
         assert items[0]["applicant"]["email"] == "hakija@example.test"
+        listed = next(item for item in items if item["id"] == str(confirmed))
+        assert listed["organization"]["city"] == "Tampere" and listed["organization"]["has_logo"] is True
+        assert "logo" not in listed
         update = {"id": str(confirmed), "status": "verifying", "message": " Lähetimme viestin. ", "case": "case-1",
                   "access": "invite", "invite_email": "PJ@rauha.example"}
         item = _org_requests(app.test_client(), claims, "update", update).json["item"]
@@ -427,6 +463,56 @@ def test_organization_requests_for_hallinto(owner, db):
         assert _org_requests(app.test_client(), claims, "update", no_access).status_code == 200
     finally:
         db.organization_requests.delete_many({"_id": {"$in": [confirmed, hidden, suggestion]}})
+
+
+def _applications(owner_client, claims, path, body, auth=(CLIENT, SECRET)):
+    return owner_client.post(PREFIX + "/city-admin-applications/" + path, base_url=ORIGIN, auth=auth,
+                             json={"sub": claims["sub"], "sid": claims["sid"], **body})
+
+
+def test_city_admin_applications_for_hallinto(owner, db):
+    from mielenosoitukset_fi.utils.time_utils import utcnow
+    app, subject = owner
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    now = utcnow()
+    base = {"user_id": ObjectId(subject), "city_keys": ["tampere"], "about": "Haluan auttaa Tampereella.",
+            "activism": {"organizations": "Paikallinen ryhmä", "experience": "some", "experience_details": ""},
+            "references": "", "case_pending": True, "created_at": now, "updated_at": now}
+    open_id = db.city_admin_applications.insert_one({**base, "status": "received"}).inserted_id
+    withdrawn = db.city_admin_applications.insert_one({**base, "status": "withdrawn"}).inserted_id
+    try:
+        assert _applications(app.test_client(), claims, "list", {}).status_code == 403
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+        assert _applications(app.test_client(), claims, "list", {}, auth=(CLIENT, "wrong")).status_code == 401
+        items = _applications(app.test_client(), claims, "list", {}).json["items"]
+        ids = {item["id"] for item in items}
+        assert str(open_id) in ids and str(withdrawn) not in ids
+        item = next(i for i in items if i["id"] == str(open_id))
+        assert item["account"] == {"id": subject, "username": "hallinto-fixture-user", "name": "hallinto-fixture-user"}
+        assert item["cities"] == [{"key": "tampere", "name": "Tampere"}] and item["experience"] == "Jonkin verran"
+        assert "email" not in repr(item)
+
+        step = {"id": str(open_id), "status": "in_review", "case": "case-1"}
+        assert _applications(app.test_client(), claims, "update", step).json["item"]["case"] == "case-1"
+        stored = db.city_admin_applications.find_one({"_id": open_id})
+        assert stored["status"] == "in_review" and stored["case_pending"] is False
+        assert stored["history"][0]["by"] == subject and stored["history"][0]["via"] == "hallinto"
+        # Another case, an unknown status and a withdrawn application are refused.
+        assert _applications(app.test_client(), claims, "update", {**step, "case": "case-2"}).status_code == 409
+        assert _applications(app.test_client(), claims, "update", {**step, "status": "received"}).status_code == 400
+        assert _applications(app.test_client(), claims, "update", {**step, "id": str(withdrawn)}).status_code == 409
+        assert _applications(app.test_client(), claims, "update", {**step, "id": str(ObjectId())}).status_code == 404
+        # The decision sticks; replaying it is harmless.
+        declined = {**step, "status": "declined"}
+        assert _applications(app.test_client(), claims, "update", declined).status_code == 200
+        assert _applications(app.test_client(), claims, "update", declined).status_code == 200
+        assert _applications(app.test_client(), claims, "update", {**step, "status": "approved"}).status_code == 409
+        stored = db.city_admin_applications.find_one({"_id": open_id})
+        assert stored["status"] == "declined" and stored["decided_by"] == subject and len(stored["history"]) == 2
+    finally:
+        db.city_admin_applications.delete_many({"_id": {"$in": [open_id, withdrawn]}})
 
 
 def test_hallinto_sends_bans_and_precedents_to_flask(owner, db):
@@ -453,3 +539,4 @@ def test_hallinto_sends_bans_and_precedents_to_flask(owner, db):
     finally:
         db.moderation_blocks.delete_many({})
         db.users.update_one({"_id": ObjectId(subject)}, {"$unset": {"role": ""}})
+

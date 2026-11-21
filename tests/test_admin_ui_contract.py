@@ -1083,14 +1083,16 @@ def test_every_full_admin_v2_page_uses_canonical_hero_macro():
     # Account status, scoped history and approval-only review add three pages
     # to the 51-page baseline after the media workspace was retired, and the
     # security incident screen adds one more. The organization change history
-    # (built from audit_events) adds another.
+    # (built from audit_events) adds another, and the duty shift page
+    # (Vuorot) one more.
     assert Path('mielenosoitukset_fi/templates/admin_V2/user/account_status.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/user/history.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/demonstrations/review.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/cities/review_dashboard.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/governance/security.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/organizations/history.html') in pages
-    assert len(pages) == 55
+    assert Path('mielenosoitukset_fi/templates/admin_V2/shifts.html') in pages
+    assert len(pages) == 56
     for locale in ("en", "fi", "sv"):
         catalog = Path(
             f"mielenosoitukset_fi/translations/{locale}/LC_MESSAGES/messages.po"

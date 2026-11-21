@@ -657,7 +657,7 @@ def create_recu_demo():
 @admin_recu_demo_bp.route("/edit_recu_demo/<demo_id>", methods=["GET", "POST"])
 @login_required
 @admin_required
-@permission_required("EDIT_RECURRING_DEMO")
+@permission_required("EDIT_RECURRING_DEMO", _type="RECURRING_DEMONSTRATION")
 def edit_recu_demo(demo_id):
     """Edit recurring demonstration details.
 
@@ -988,7 +988,7 @@ def collect_demo_translations(request, default_language):
 @login_required
 @admin_required
 @permission_required("EDIT_RECURRING_DEMO")
-@permission_required("EDIT_DEMO")
+@permission_required("EDIT_DEMO", _type="RECURRING_DEMONSTRATION")
 def bulk_update_children(demo_id):
     """Copy selected recurring-parent fields to selected generated children."""
     try:
@@ -1114,7 +1114,7 @@ def bulk_update_children(demo_id):
 @login_required
 @admin_required
 @permission_required("EDIT_RECURRING_DEMO")
-@permission_required("EDIT_DEMO")
+@permission_required("EDIT_DEMO", _type="RECURRING_DEMONSTRATION")
 def bulk_cancel_children(demo_id):
     """Mark selected or all future generated children from a recurring parent cancelled."""
     try:
@@ -1185,7 +1185,7 @@ def parse_gallery_images_field(raw_value):
 @admin_recu_demo_bp.route("/delete_recu_demo/<demo_id>", methods=["POST"])
 @login_required
 @admin_required
-@permission_required("DELETE_RECURRING_DEMO")
+@permission_required("DELETE_RECURRING_DEMO", _type="RECURRING_DEMONSTRATION")
 def delete_recu_demo(demo_id):
     """Delete a recurring demonstration from the database.
 
@@ -1234,7 +1234,7 @@ def delete_recu_demo(demo_id):
 @admin_recu_demo_bp.route("/confirm_delete_recu_demo/<demo_id>", methods=["GET"])
 @login_required
 @admin_required
-@permission_required("DELETE_RECURRING_DEMO")
+@permission_required("DELETE_RECURRING_DEMO", _type="RECURRING_DEMONSTRATION")
 def confirm_delete_recu_demo(demo_id):
     """Render a confirmation page before deleting a recurring demonstration.
 

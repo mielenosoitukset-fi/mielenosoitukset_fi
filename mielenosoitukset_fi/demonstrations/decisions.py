@@ -1,7 +1,7 @@
 """Canonical, idempotent approval decisions for demonstrations."""
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import timedelta, timezone
 from uuid import uuid4
 
 from bson import ObjectId
@@ -283,6 +283,14 @@ def _queue_submitter_notification(
         context["url"] = public_url
     if decision == "taken_down":
         context["reason"] = decision_meta.get("reason") or ""
+    from mielenosoitukset_fi.utils.moderation_reviews import notices_enabled
+
+    if decision in ("rejected", "taken_down") and notices_enabled():
+        from mielenosoitukset_fi.utils.moderation_reviews import HELSINKI, MAX_WORKING_DAYS, add_working_days
+
+        review_by = add_working_days(decision_meta["at"], MAX_WORKING_DAYS)
+        local = review_by.replace(tzinfo=timezone.utc).astimezone(HELSINKI)
+        context["review_by"] = f"{local.day}.{local.month}.{local.year}"
 
     try:
         email_sender.queue_email(
@@ -452,6 +460,9 @@ def apply_demo_decision(
         db, demo_oid, decision_meta, used_token_id=used_token_id
     )
 
+    if status_changed:
+        _sync_moderation_reviews(db, current, decision_meta)
+
     notification_queued = False
     if status_changed:
         record_demo_change(
@@ -486,6 +497,18 @@ def apply_demo_decision(
         tokens_revoked=tokens_revoked,
         notification_queued=notification_queued,
     )
+
+
+def _sync_moderation_reviews(db, demo, decision_meta) -> None:
+    """A rejection or take-down waits for OT review; a newer decision ends the
+    earlier open review (moderation guide 18 Nov 2026, roadmap R03)."""
+    from mielenosoitukset_fi.utils import moderation_reviews
+
+    try:
+        moderation_reviews.supersede_reviews(db, demo["_id"], decision_meta)
+        moderation_reviews.open_review(db, demo, decision_meta)
+    except Exception:
+        logger.exception("Could not update the OT review for demo %s", demo.get("_id"))
 
 
 def preview_demo_decision(db, demo_id, decision: str) -> dict:

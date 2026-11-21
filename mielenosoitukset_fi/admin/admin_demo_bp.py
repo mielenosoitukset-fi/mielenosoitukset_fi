@@ -288,7 +288,7 @@ def _can_translate_demos(user):
         return False
     if getattr(user, "global_admin", False):
         return True
-    if getattr(user, "role", None) in {"admin", "translator"}:
+    if getattr(user, "role", None) == "translator" or user.has_site_wide_admin_reach():
         return True
     return user.has_permission("TRANSLATE_DEMO")
 
@@ -298,7 +298,7 @@ def _can_review_demo_translations(user):
         return False
     if getattr(user, "global_admin", False):
         return True
-    if getattr(user, "role", None) in {"admin", "global_admin"}:
+    if getattr(user, "role", None) == "global_admin" or user.has_site_wide_admin_reach():
         return True
     return user.has_permission("REVIEW_DEMO_TRANSLATIONS")
 

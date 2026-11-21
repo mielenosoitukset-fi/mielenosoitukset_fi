@@ -5,9 +5,11 @@ import json
 import logging
 import re
 import secrets
+from mielenosoitukset_fi.utils.cities import CITY_KEY_TO_NAME
 from dataclasses import dataclass
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 from hmac import compare_digest
+from html import escape
 from time import time
 from urllib.parse import unquote_plus, urlsplit
 
@@ -19,7 +21,7 @@ from authlib.oauth2.rfc7636 import CodeChallenge
 from authlib.oidc.core import UserInfo
 from authlib.oidc.core.grants import OpenIDCode
 from bson import ObjectId
-from flask import Blueprint, jsonify, redirect, request, session, url_for
+from flask import Blueprint, jsonify, make_response, redirect, request, session, url_for
 from flask_login import current_user, user_logged_in
 from joserfc.jwk import RSAKey
 from pymongo.errors import DuplicateKeyError, PyMongoError
@@ -381,8 +383,33 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             return redirect(url_for("users.auth.login", next=request.full_path))
         marker = session.get(SESSION_MARKER)
         if session.get("hallinto_owner_revocation_pending") or not marker or not _live_marker(db, markers, _digest(marker), subject):
-            return jsonify(error="access_denied", error_description="Sign out and sign in again"), 403
+            if request.args.get("relogin"):
+                return jsonify(error="access_denied", error_description="Sign out and sign in again"), 403
+            return _relogin_page(subject)
         return auth.create_authorization_response(oauth_request, grant_user=subject, grant=grant)
+
+    def _relogin_page(subject):
+        """Sign the visitor out and back in by themselves, then return here.
+
+        The sign-out form carries its own token, so only this signed-in
+        browser can submit it; the sign-in returns to the authorization URL
+        once. A second failure shows the plain error instead of looping.
+        """
+        from mielenosoitukset_fi.utils.logout_token import make_logout_token
+
+        back = request.full_path.rstrip("?") + ("&" if "?" in request.full_path.rstrip("?") else "?") + "relogin=1"
+        page = (
+            "<!doctype html><html lang=\"fi\"><meta charset=\"utf-8\"><title>Kirjaudutaan uudelleen</title>"
+            "<body><p>Kirjaudutaan uudelleen…</p>"
+            f"<form id=\"f\" method=\"post\" action=\"{url_for('users.auth.logout')}\">"
+            f"<input type=\"hidden\" name=\"logout_token\" value=\"{make_logout_token(subject)}\">"
+            f"<input type=\"hidden\" name=\"next\" value=\"{escape(back)}\">"
+            "<noscript><button type=\"submit\">Jatka</button></noscript></form>"
+            "<script src=\"" + url_for("static", filename="js/hallinto-relogin.js") + "\"></script></body></html>"
+        )
+        response = make_response(page, 403)
+        response.headers["Content-Type"] = "text/html; charset=utf-8"
+        return response
 
     @bp.post("/token")
     def token():
@@ -437,6 +464,40 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         except ValueError:
             return jsonify(error="invalid_request"), 400
         return jsonify(stored=stored)
+
+    @bp.post("/city-admin-applications/list")
+    def city_admin_applications_list():
+        """City admin applications for OT's handling in Hallinto. Hallinto
+        decides who may handle them; this only needs a signed-in admin."""
+        from mielenosoitukset_fi.utils import city_admin_applications
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        return jsonify(items=city_admin_applications.hallinto_list(db))
+
+    @bp.post("/city-admin-applications/update")
+    def city_admin_applications_update():
+        """Record a handling step from Hallinto: the status the applicant sees
+        and the Hallinto case. Nothing here grants a role."""
+        from mielenosoitukset_fi.utils import city_admin_applications
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        application_id, status, case = payload.get("id"), payload.get("status"), payload.get("case")
+        if (not isinstance(application_id, str) or not _ACCOUNT_ID.fullmatch(application_id)
+                or status not in city_admin_applications.HALLINTO_STATUSES
+                or not isinstance(case, str) or not 0 < len(case) <= 128):
+            return jsonify(error="invalid_request"), 400
+        try:
+            row = city_admin_applications.hallinto_update(db, ObjectId(application_id), status, case, payload["sub"])
+        except city_admin_applications.HallintoConflict:
+            return jsonify(error="conflict"), 409
+        if row is None:
+            return jsonify(error="not_found"), 404
+        users = {u["_id"]: u for u in db.users.find({"_id": row.get("user_id")}, {"username": 1, "displayname": 1})}
+        return jsonify(item=city_admin_applications.hallinto_view(row, users))
 
     @bp.post("/accounts/search")
     def account_search():
@@ -526,13 +587,83 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             sent = False
         return jsonify(account=_account_view(user_doc), invited=sent), 201
 
+    @bp.post("/moderation-reviews/list")
+    def moderation_reviews_list():
+        """Rejections and take-downs waiting for OT review, then recent closed
+        ones. Hallinto decides who may review; this needs a signed-in admin."""
+        from mielenosoitukset_fi.utils import moderation_reviews
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        base = f"{origin.scheme}://{origin.netloc}"
+        items = moderation_reviews.list_reviews(db)
+        for item in items:
+            item["link"] = base + url_for("admin_demo.open_demo_decision", demo_id=item["demo"]["id"])
+        return jsonify(items=items)
+
+    @bp.post("/moderation-reviews/update")
+    def moderation_reviews_update():
+        """Record one OT step: confirm, overturn (publishes the demonstration),
+        needs_info, or reconsider (a request that arrived on ``received_on``).
+        The signed-in account is recorded; the submitter is emailed."""
+        from mielenosoitukset_fi.demonstrations.decisions import apply_demo_decision
+        from mielenosoitukset_fi.utils import moderation_reviews
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        review_id, action, message = payload.get("id"), payload.get("action"), payload.get("message")
+        received = payload.get("received_on")
+        if (not isinstance(review_id, str) or not _ACCOUNT_ID.fullmatch(review_id)
+                or action not in ("confirm", "overturn", "needs_info", "reconsider")
+                or not isinstance(message or "", str) or not isinstance(received or "", str)):
+            return jsonify(error="invalid_request"), 400
+        received_on = None
+        if received:
+            try:
+                day = datetime.strptime(received, "%Y-%m-%d")
+            except ValueError:
+                return jsonify(error="invalid_request"), 400
+            received_on = (day.replace(tzinfo=moderation_reviews.HELSINKI)
+                           .astimezone(UTC).replace(tzinfo=None))
+        account = db.users.find_one({"_id": ObjectId(payload["sub"])}, {"username": 1}) or {}
+        actor = {"id": payload["sub"], "name": account.get("username") or payload["sub"]}
+        sender = invite_sender()
+
+        row = db[moderation_reviews.COLLECTION].find_one(
+            {"_id": ObjectId(review_id)}, {"demo_id": 1}) or {}
+        public_url = (f"{origin.scheme}://{origin.netloc}"
+                      + url_for("demonstration_detail", demo_id=str(row["demo_id"]))
+                      if row.get("demo_id") else None)
+
+        def publish(demo_id, by):
+            apply_demo_decision(
+                db, demo_id, "approved",
+                actor={"user_id": by["id"], "username": by["name"], "via": "hallinto_review"},
+                source="hallinto_review", email_sender=sender, notify_submitter=False,
+                public_url=public_url,
+            )
+
+        try:
+            item = moderation_reviews.record(
+                db, review_id, action, actor=actor, message=message, received_on=received_on,
+                email_sender=sender, public_url=public_url, apply_decision=publish,
+            )
+        except moderation_reviews.ReviewError as exc:
+            return jsonify(error=exc.code), exc.status
+        return jsonify(item=item)
+
     def _org_request_view(row):
         org = row.get("organization") or {}
         applicant = row.get("applicant") or {}
         stamp = lambda value: value.replace(tzinfo=UTC).isoformat() if value else None
         return {
             "id": str(row["_id"]), "status": row.get("status"),
-            "organization": {key: org.get(key) for key in ("name", "email", "links", "business_id", "description")},
+            "organization": {**{key: org.get(key) for key in ("name", "email", "links", "business_id", "description")},
+                             # The city's display name; the logo's bytes stay in Flask until O4 copies them.
+                             "city": CITY_KEY_TO_NAME.get(org.get("city"), org.get("city")) if org.get("city") else None,
+                             "has_logo": bool(row.get("logo"))},
             "applicant": {"name": applicant.get("name"), "email": applicant.get("email"), "role": applicant.get("role"),
                           "account": str(applicant["user_id"]) if applicant.get("user_id") else None},
             "represents": bool(row.get("represents")), "access": row.get("access"),
@@ -550,7 +681,7 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             return error
         rows = db.organization_requests.find(
             {"status": {"$in": list(_ORG_REQUEST_STATUSES)}},
-            {"status_token_hash": 0},
+            {"status_token_hash": 0, "logo.data": 0},
         ).sort("created_at", -1).limit(100)
         return jsonify(items=[_org_request_view(row) for row in rows])
 
@@ -588,7 +719,7 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
              **({"represents": True} if access else {})},
             {"$set": update, "$push": {"history": {"status": status, "at": update["updated_at"],
                                                    "by": payload["sub"], "access": access}}},
-            projection={"status_token_hash": 0}, return_document=True,
+            projection={"status_token_hash": 0, "logo.data": 0}, return_document=True,
         )
         if not row:
             return jsonify(error="not_found"), 404

@@ -27,6 +27,7 @@ ALLOWED = {
     ("utils/team_governance.py", "cast_vote"): "governance",
     ("utils/god_emergency.py", "open_request"): "governance",
     ("utils/god_appointments.py", "cast_appointment_vote"): "governance",
+    ("admin/elevated_grants.py", "_write_evidence"): "governance: Hallinto superadmin/god decision",
     ("utils/security_cases.py", "reconcile_case"): "revokes board clearances",
 }
 

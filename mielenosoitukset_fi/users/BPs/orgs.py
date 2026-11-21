@@ -39,13 +39,6 @@ def _get_invited_emails(org_inv):
     
     return emails
 
-def _grant_admin_panel(user, role):
-    """Org admins and owners need the admin panel, as in change_access_level."""
-    if role in ("admin", "owner") and getattr(user, "role", None) in ("user", "member"):
-        user.role = "admin"
-        user.save()
-
-
 @user_orgs_bp.route("/accept_invite", methods=["GET"])
 def accept_invite():
     """ """
@@ -81,10 +74,8 @@ def accept_invite():
 
         role = invited_role(invitation_for(organization.get("invitations", []), current_user.email))
         org = Organization.from_dict(organization)
-        joined = not org.is_member(user_id=current_user._id)
+        # Organisation roles live in the membership only; the account role is never raised.
         org.add_member(current_user, role=role, permissions=[])
-        if joined:
-            _grant_admin_panel(current_user, role)
         flash_message(f"Liityit organisaatioon {organization.get('name')}.", "success")
     else:
         flash_message("Kutsua ei löytynyt.", "warning")
@@ -126,10 +117,8 @@ def accept_invite_post(organization_id):
 
         role = invited_role(invitation_for(organization.get("invitations", []), current_user.email))
         org = Organization.from_dict(organization)
-        joined = not org.is_member(user_id=current_user._id)
+        # Organisation roles live in the membership only; the account role is never raised.
         org.add_member(current_user, role=role, permissions=[])
-        if joined:
-            _grant_admin_panel(current_user, role)
         flash_message(f"Liityit organisaatioon {organization.get('name')}.", "success")
 
     
