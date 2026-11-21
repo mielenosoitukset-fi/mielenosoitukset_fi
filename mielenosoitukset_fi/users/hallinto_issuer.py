@@ -102,6 +102,34 @@ _ACCOUNT_SEARCH_LIMIT = 10
 # "unconfirmed" stays hidden until the applicant has opened the mailed link.
 _ORG_REQUEST_STATUSES = ("received", "verifying", "in_review", "needs_info", "approved", "rejected", "withdrawn")
 _ACCOUNT_LOOKUP_LIMIT = 100
+_ORG_REQUEST_MAILS = {
+    "approved": "Organisaatiotilihakemuksesi on hyväksytty",
+    "rejected": "Organisaatiotilihakemuksesi on hylätty",
+    "needs_info": "Organisaatiotilihakemuksesi tarvitsee lisätietoja",
+}
+
+
+def _mail_org_request_status(db, row, status):
+    """Tell the applicant about a decision on their organization request. Best
+    effort: the status is already saved, so a failed mail is only logged."""
+    try:
+        applicant = row.get("applicant") or {}
+        email = applicant.get("email")
+        if not email and applicant.get("user_id"):
+            account = db.users.find_one({"_id": applicant["user_id"]}, {"email": 1})
+            email = (account or {}).get("email")
+        if not email:
+            return
+        invite_sender().queue_email(
+            template_name="org_request_status.html",
+            subject=_ORG_REQUEST_MAILS[status],
+            recipients=[email],
+            context={"applicant_name": applicant.get("name") or "", "status": status,
+                     "organization_name": (row.get("organization") or {}).get("name") or "",
+                     "message": row.get("status_message") or ""},
+        )
+    except Exception:
+        logging.getLogger(__name__).exception("Organization request status email failed")
 _invite_sender = None
 
 
@@ -799,15 +827,30 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
                     return jsonify(error="invalid_request"), 400
                 update["invite_email"] = invite_email
             update["access"] = access
+        flt = {"_id": ObjectId(request_id), "status": {"$in": list(_ORG_REQUEST_STATUSES)},
+               **({"represents": True} if access else {})}
+        projection = {"status_token_hash": 0, "logo.data": 0}
+        before = db.organization_requests.find_one(flt, projection)
+        if not before:
+            return jsonify(error="not_found"), 404
+        # A repeat of the same step changes nothing: no second history entry, no second mail.
+        unchanged = (before.get("status") == status
+                     and (message is None or before.get("status_message") == update["status_message"])
+                     and (not case or before.get("hallinto_case") == case)
+                     and (not access or (before.get("access") == access
+                                         and (access != "invite" or before.get("invite_email") == update["invite_email"]))))
+        if unchanged:
+            return jsonify(item=_org_request_view(before))
         row = db.organization_requests.find_one_and_update(
-            {"_id": ObjectId(request_id), "status": {"$in": list(_ORG_REQUEST_STATUSES)},
-             **({"represents": True} if access else {})},
+            {**flt, "status": before.get("status")},
             {"$set": update, "$push": {"history": {"status": status, "at": update["updated_at"],
                                                    "by": payload["sub"], "access": access}}},
-            projection={"status_token_hash": 0, "logo.data": 0}, return_document=True,
+            projection=projection, return_document=True,
         )
         if not row:
             return jsonify(error="not_found"), 404
+        if before.get("status") != status and status in _ORG_REQUEST_MAILS:
+            _mail_org_request_status(db, row, status)
         return jsonify(item=_org_request_view(row))
 
     @bp.post("/organization-requests/create-organization")

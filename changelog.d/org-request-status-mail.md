@@ -1,0 +1,1 @@
+- Organisaatiotilihakemuksen hakija saa nyt sähköpostin, kun hakemus hyväksytään, hylätään (perustelun kanssa) tai se tarvitsee lisätietoja. Saman vaiheen toisto ei enää lisää tapahtumahistoriaan ylimääräistä riviä eikä lähetä viestiä uudelleen.
