@@ -35,7 +35,8 @@ def test_a_rejection_waits_for_review_and_a_new_decision_ends_it(admin_client, d
     assert review["status"] == "open" and review["stage"] == "review" and review["decision"] == "rejected"
     assert review["decided_by"]["id"]
     assert review["due_target"] < review["due_max"]
-    assert queued[0]["context"]["review_by"]
+    # Review notices stay off until OT switches the procedure on.
+    assert "review_by" not in queued[0]["context"]
     assert admin_client.post(f"/api/admin/demo/{demo_id}/approve").status_code == 200
     assert db.moderation_reviews.find_one({"_id": review["_id"]})["status"] == "superseded"
 
@@ -136,11 +137,29 @@ def test_overturn_never_publishes_a_changed_decision(db):
     assert published == [] and db.moderation_reviews.find_one({"_id": review["_id"]})["status"] == "open"
 
 
-def test_delay_notice_is_sent_once(db):
+def test_delay_notice_is_sent_once_when_notices_are_on(db, monkeypatch):
+    from config import Config
+
     demo_id, review = _rejected_demo(db, str(ObjectId()))
     sender = _Sender()
     later = review["due_max"] + timedelta(minutes=1)
+    assert moderation_reviews.notify_overdue(db, sender, now=later) == 0
+    monkeypatch.setattr(Config, "MODERATION_REVIEW_NOTICES", True, raising=False)
     assert moderation_reviews.notify_overdue(db, sender, now=later) >= 1
     assert moderation_reviews.notify_overdue(db, sender, now=later) == 0
     assert [m["template_name"] for m in sender.queued if m["recipients"] == [f"{demo_id}@example.test"]] == [
         "demo_review_delayed.html"]
+
+
+def test_rejection_email_names_the_review_date_when_notices_are_on(admin_client, db, seeded_data, monkeypatch):
+    from config import Config
+
+    monkeypatch.setattr(Config, "MODERATION_REVIEW_NOTICES", True, raising=False)
+    queued = _capture_decision_email(monkeypatch)
+    with admin_client.application.app_context():
+        admin_client.application.config["MODERATION_REVIEW_NOTICES"] = True
+        try:
+            assert admin_client.post(f"/api/admin/demo/{seeded_data['pending_demo_id']}/deny").status_code == 200
+        finally:
+            admin_client.application.config.pop("MODERATION_REVIEW_NOTICES", None)
+    assert queued[0]["context"]["review_by"]

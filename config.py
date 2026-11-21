@@ -315,6 +315,10 @@ class Config:
         cls.TAKE_DOWN_SECOND_ADMIN = config.get("TAKE_DOWN_SECOND_ADMIN", True)
         cls.TAKE_DOWN_CONFIRM_HOURS = config.get("TAKE_DOWN_CONFIRM_HOURS", 48)
         cls.EXPIRE_UNDECIDED_DEMOS = config.get("EXPIRE_UNDECIDED_DEMOS", True)
+        # OT review of rejections (moderation guide 18 Nov 2026). Reviews are
+        # always recorded; submitter notices about the review start only when
+        # OT has switched the procedure on.
+        cls.MODERATION_REVIEW_NOTICES = config.get("MODERATION_REVIEW_NOTICES", False)
         cls.EXPIRED_DEMO_NOTIFY_DAYS = config.get("EXPIRED_DEMO_NOTIFY_DAYS", 14)
         cls.NATIONAL_ADMIN_ORG_ID = config.get("NATIONAL_ADMIN_ORG_ID")
         cls.BOARD_ORG_ID = config.get("BOARD_ORG_ID")

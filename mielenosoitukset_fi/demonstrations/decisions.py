@@ -275,7 +275,9 @@ def _queue_submitter_notification(
         context["url"] = public_url
     if decision == "taken_down":
         context["reason"] = decision_meta.get("reason") or ""
-    if decision in ("rejected", "taken_down"):
+    from mielenosoitukset_fi.utils.moderation_reviews import notices_enabled
+
+    if decision in ("rejected", "taken_down") and notices_enabled():
         from mielenosoitukset_fi.utils.moderation_reviews import HELSINKI, MAX_WORKING_DAYS, add_working_days
 
         review_by = add_working_days(decision_meta["at"], MAX_WORKING_DAYS)

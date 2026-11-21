@@ -55,6 +55,22 @@ class ReviewError(ValueError):
         self.status = status
 
 
+def notices_enabled() -> bool:
+    """Whether submitters are told about OT review (``MODERATION_REVIEW_NOTICES``).
+
+    The guide has OT make sure the queue, notices and independent
+    reconsideration work before the procedure starts, so it is off by default.
+    """
+    from flask import current_app, has_app_context
+
+    value = current_app.config.get("MODERATION_REVIEW_NOTICES") if has_app_context() else None
+    if value is None:
+        from config import Config
+
+        value = getattr(Config, "MODERATION_REVIEW_NOTICES", False)
+    return bool(value)
+
+
 def ensure_indexes(db) -> None:
     db[COLLECTION].create_index("decision_id", unique=True)
     db[COLLECTION].create_index([("status", 1), ("created_at", -1)])
@@ -292,6 +308,8 @@ def record(db, review_id: str, action: str, *, actor: dict, message: str | None,
 
 def notify_overdue(db, email_sender, now: datetime | None = None) -> int:
     """Tell the submitter once when the review passes its five working days."""
+    if not notices_enabled():
+        return 0
     now = now or utcnow()
     sent = 0
     for row in db[COLLECTION].find({"status": "open", "stage": "review", "due_max": {"$lt": now},
