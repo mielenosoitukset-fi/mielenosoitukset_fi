@@ -20,7 +20,7 @@
             <div class="admin-section-card__body">
                 <dl class="admin-data-list">
                     {% for header, _field in source.columns %}
-                    <dt>{{ header }}</dt><dd>{{ row.cells[loop.index0] or '-' }}</dd>
+                    <dt>{{ header }}</dt><dd class="text-break">{{ row.cells[loop.index0] or '-' }}</dd>
                     {% endfor %}
                     <dt>{{ _('Tila') }}</dt><dd>{{ status_labels[row.status] }}</dd>
                     <dt>{{ _('Ilmoittautunut') }}</dt><dd>{{ row.created_at.strftime('%-d.%-m.%Y') if row.created_at else '-' }}</dd>

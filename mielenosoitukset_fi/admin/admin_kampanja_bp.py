@@ -143,7 +143,7 @@ def signups():
         f"{_ADMIN_TEMPLATE_FOLDER}kampanja/signups.html",
         sources=registry.counts(mongo), source=source, status=status,
         rows=registry.rows(mongo, source, status), status_labels=registry.STATUS_LABELS,
-        recent_actions=registry.recent_actions(mongo), csrf_token=_csrf_token(),
+        recent_actions=registry.recent_actions(mongo, source.key), csrf_token=_csrf_token(),
         min_reason=registry.MIN_REASON, max_reason=registry.MAX_REASON,
     )
 

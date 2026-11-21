@@ -206,5 +206,5 @@ def delete_row(db, source: Source, row_id: str, actor_id: Any, reason: str) -> b
     return db[source.collection].delete_one({"_id": oid}).deleted_count == 1
 
 
-def recent_actions(db, limit: int = 20) -> List[Dict[str, Any]]:
-    return list(db[ACTIONS_COLLECTION].find({}).sort("at", -1).limit(limit))
+def recent_actions(db, source_key: str, limit: int = 20) -> List[Dict[str, Any]]:
+    return list(db[ACTIONS_COLLECTION].find({"source": source_key}).sort("at", -1).limit(limit))
