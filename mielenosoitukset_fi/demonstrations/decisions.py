@@ -67,6 +67,14 @@ DEFAULT_UNDO_APPROVAL_MINUTES = 30
 UNDO_APPROVAL_STATE = {"approved": False, "rejected": False, "taken_down": False}
 
 
+class PublishingBlocked(ValueError):
+    """A precedent from Johtoryhmä says this demonstration is not published."""
+
+    def __init__(self, reason: str):
+        super().__init__("Publishing is blocked by a precedent")
+        self.reason = reason
+
+
 class DemoNotPublished(ValueError):
     """Only an approved (public) demonstration can be taken down."""
 
@@ -336,6 +344,12 @@ def apply_demo_decision(
         raise ValueError("Unsupported demonstration decision")
 
     demo_oid = _object_id(demo_id)
+    if decision == "approved":
+        from mielenosoitukset_fi.utils.moderation_blocks import precedent_for
+
+        blocking = precedent_for(db, db.demonstrations.find_one({"_id": demo_oid}, {"organizers": 1}) or {"_id": demo_oid})
+        if blocking:
+            raise PublishingBlocked(blocking.get("reason") or "")
     target = DECISION_STATES[decision]
     now = utcnow()
     decision_meta = {

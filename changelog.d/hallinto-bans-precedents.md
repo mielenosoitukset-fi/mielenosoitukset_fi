@@ -1,0 +1,1 @@
+- Johtoryhmä's organizer bans and publishing precedents (ennakkopäätös) are enforced: a banned organizer cannot submit a demonstration, and a demonstration or organization named by a precedent cannot be published. Hallinto sends them to the site.

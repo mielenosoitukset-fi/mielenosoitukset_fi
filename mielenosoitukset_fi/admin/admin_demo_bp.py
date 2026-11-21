@@ -545,19 +545,25 @@ def _apply_demo_decision(demo_id, decision, source, used_token_id=None, reason=N
         if not actor.get("user_id"):
             actor["username"] = f"Linkki lähetetty: {recipient.get('username') or recipient.get('email')}" if recipient else "magic-link"
             actor["role"] = "token"
-    return apply_demo_decision(
-        mongo,
-        demo_id,
-        decision,
-        actor=actor,
-        source=source,
-        email_sender=email_sender,
-        public_url=url_for(
-            "demonstration_detail", demo_id=str(demo_id), _external=True
-        ),
-        used_token_id=used_token_id,
-        reason=reason,
-    )
+    from mielenosoitukset_fi.demonstrations.decisions import PublishingBlocked
+
+    try:
+        return apply_demo_decision(
+            mongo,
+            demo_id,
+            decision,
+            actor=actor,
+            source=source,
+            email_sender=email_sender,
+            public_url=url_for(
+                "demonstration_detail", demo_id=str(demo_id), _external=True
+            ),
+            used_token_id=used_token_id,
+            reason=reason,
+        )
+    except PublishingBlocked as blocked:
+        # Johtoryhmä decided in advance that this is not published.
+        abort(409, description=_("Johtoryhmän ennakkopäätös estää julkaisun.") + (f" {blocked.reason}" if blocked.reason else ""))
 
 
 def _split_demo_ids(raw_ids):
