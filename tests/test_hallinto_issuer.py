@@ -399,7 +399,9 @@ def test_organization_requests_for_hallinto(owner, db):
     base = {"organization": {"name": "Rauha ry", "email": "info@rauha.example", "links": ["https://rauha.example"]},
             "applicant": {"name": "Hakija", "email": "hakija@example.test"}, "represents": True,
             "access": "organization_account", "status_token_hash": "secret", "created_at": now, "updated_at": now}
-    confirmed = db.organization_requests.insert_one({**base, "status": "received"}).inserted_id
+    confirmed = db.organization_requests.insert_one({**base, "status": "received",
+        "organization": {**base["organization"], "city": "tampere"},
+        "logo": {"content_type": "image/png", "data": b"\x89PNG", "size": 4}}).inserted_id
     hidden = db.organization_requests.insert_one({**base, "status": "unconfirmed"}).inserted_id
     suggestion = db.organization_requests.insert_one({**base, "status": "received", "represents": False}).inserted_id
     try:
@@ -411,6 +413,9 @@ def test_organization_requests_for_hallinto(owner, db):
         assert str(confirmed) in ids and str(hidden) not in ids
         assert all("status_token_hash" not in item for item in items)
         assert items[0]["applicant"]["email"] == "hakija@example.test"
+        listed = next(item for item in items if item["id"] == str(confirmed))
+        assert listed["organization"]["city"] == "Tampere" and listed["organization"]["has_logo"] is True
+        assert "logo" not in listed
         update = {"id": str(confirmed), "status": "verifying", "message": " Lähetimme viestin. ", "case": "case-1",
                   "access": "invite", "invite_email": "PJ@rauha.example"}
         item = _org_requests(app.test_client(), claims, "update", update).json["item"]
