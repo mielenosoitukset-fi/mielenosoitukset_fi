@@ -181,7 +181,7 @@
             <div class="detail-item"><strong>{{ _('Päättymisaika') }}</strong><span>{{ demo.end_time or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Kaupunki') }}</strong><span>{{ demo.city or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Osoite') }}</strong><span>{{ demo.address or '-' }}</span></div>
-            <div class="detail-item"><strong>{{ _('Tapahtumatyyppi') }}</strong><span>{{ demo.event_type or demo.type or '-' }}</span></div>
+            <div class="detail-item"><strong>{{ _('Tapahtumatyyppi') }}</strong><span>{{ (demo.event_type or demo.type)|event_type_label if (demo.event_type or demo.type) else '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Facebook') }}</strong>{% if demo.facebook|safe_href %}<a href="{{ demo.facebook|safe_href }}" target="_blank" rel="noopener noreferrer">{{ demo.facebook }}</a>{% else %}<span>-</span>{% endif %}</div>
           </div>
 
@@ -242,7 +242,7 @@
               <div>{{ submitter.submitter_name or case_data.submitter_label }}</div>
               {% if submitter.submitter_email %}<div class="muted">{{ submitter.submitter_email }}</div>{% endif %}
               {% if submitter.submitter_role %}<div class="muted">{{ submitter.submitter_role }}</div>{% endif %}
-              {% if submitter.submitted_at %}<div class="muted">{{ _('Lähetetty') }}: {{ submitter.submitted_at }}</div>{% endif %}
+              {% if submitter.submitted_at %}<div class="muted">{{ _('Lähetetty') }}: {{ submitter.submitted_at|datetimeformat }}</div>{% endif %}
             </div>
           </div>
 
@@ -354,7 +354,7 @@
             <div class="detail-item"><strong>{{ _('Liittyvä mielenosoitus') }}</strong><span>{{ demo.title or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Raportoija') }}</strong><span>{{ error_report.user or _('Anonyymi') }}</span></div>
             <div class="detail-item"><strong>{{ _('IP') }}</strong><span>{{ error_report.ip or '-' }}</span></div>
-            <div class="detail-item"><strong>{{ _('Aikaleima') }}</strong><span>{% if error_report.date %}{{ error_report.date }}{% else %}-{% endif %}</span></div>
+            <div class="detail-item"><strong>{{ _('Aikaleima') }}</strong><span>{% if error_report.date %}{{ error_report.date|datetimeformat }}{% else %}-{% endif %}</span></div>
           </div>
           <div class="detail-item">
             <strong>{{ _('Virheilmoituksen sisältö') }}</strong>
@@ -526,7 +526,7 @@
               <select name="action_type">
                 <option value="note">{{ _('Muistiinpano') }}</option>
                 <option value="follow_up">{{ _('Seurantatoimi') }}</option>
-                <option value="contacted">{{ _('Oltu yhteydessa') }}</option>
+                <option value="contacted">{{ _('Oltu yhteydessä') }}</option>
               </select>
             </label>
             <label>
@@ -619,7 +619,7 @@
                 <strong>{{ log.user or log.admin or _('Järjestelmä') }}</strong>
                 <span class="muted">{{ log.timestamp|datetimeformat("%d.%m.%Y %H:%M") if log.timestamp else '-' }}</span>
               </div>
-              {% if log.action_type %}<div class="muted">{{ log.action_type }}</div>{% endif %}
+              {% if log.action_type %}<div class="muted">{{ log.action_type|case_action_label }}</div>{% endif %}
               <div>{{ log.reason or log.note or _('Ei lisätietoja') }}</div>
             </div>
             {% endfor %}
@@ -640,7 +640,7 @@
             {% for event in case.case_history|reverse %}
             <div class="timeline-entry">
               <div class="timeline-entry-header">
-                <strong>{{ event.action or _('Tapahtuma') }}</strong>
+                <strong>{{ event.action|case_action_label if event.action else _('Tapahtuma') }}</strong>
                 <span class="muted">{{ event.timestamp|datetimeformat("%d.%m.%Y %H:%M") if event.timestamp else '-' }}</span>
               </div>
               <div class="muted">{{ event.user or _('Järjestelmä') }}</div>
