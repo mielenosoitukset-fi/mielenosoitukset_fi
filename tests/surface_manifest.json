@@ -135,12 +135,13 @@
   },
   "routes": {
     "mielenosoitukset_fi/admin/admin_bp.py": {
-      "count": 34,
+      "count": 35,
       "coverage": [
         "integration",
-        "e2e-admin"
+        "e2e-admin",
+        "tests/test_admin_nav_fixes.py"
       ],
-      "sha256": "0dfb8f5d9deaa4a7dd9554635c8c5418e2af122dea7f954faf2a472d29e344bf"
+      "sha256": "17666f6c69589d762b8a67fe8e7de91362fd0d3511a103b13d939dde0438ed95"
     },
     "mielenosoitukset_fi/admin/admin_case_bp.py": {
       "count": 24,

@@ -2147,7 +2147,7 @@ def demo_control():
     approval_filter = (request.args.get("approved") or "all").lower()
     if approval_filter == "true":
         approval_filter = "approved"
-    elif approval_filter == "false" or approval_filter not in {"all", "approved", "pending"}:
+    elif approval_filter == "false" or approval_filter not in {"all", "approved", "pending", "rejected"}:
         approval_filter = "all"
     recurring_filter = (request.args.get("recurring") or "all").lower()
     if recurring_filter not in {"all", "true", "false"}:
@@ -2175,9 +2175,9 @@ def demo_control():
         show_past_filter = show_past_param
 
     # --- Build filter clauses ---
-    scope_clauses = [
-        {"$or": [{"rejected": {"$exists": False}}, {"rejected": False}]},
-    ]
+    # Rejected demos are part of the scope; the approval filter decides
+    # whether they show ("Kaikki" includes them, "Hylätty" shows only them).
+    scope_clauses = []
 
     # Permission scope is part of the base query. Counts and result rows always
     # derive from this exact query so scoped users never see global totals.
@@ -2225,10 +2225,13 @@ def demo_control():
     if show_past_filter == "false":
         filter_clauses.append({"$or": [{"in_past": {"$exists": False}}, {"in_past": False}]})
 
+    not_rejected = {"rejected": {"$ne": True}}
     if approval_filter == "approved":
         filter_clauses.append({"approved": True})
     elif approval_filter == "pending":
-        filter_clauses.append({"approved": False})
+        filter_clauses.append({"approved": False, **not_rejected})
+    elif approval_filter == "rejected":
+        filter_clauses.append({"rejected": True, "approved": {"$ne": True}})
 
     if recurring_filter != "all":
         filter_clauses.append({"recurs": True} if recurring_filter == "true" else {"recurs": {"$ne": True}})
@@ -2270,7 +2273,7 @@ def demo_control():
                     "$group": {
                         "_id": None,
                         "filtered": {"$sum": 1},
-                        "pending": {"$sum": {"$cond": [{"$eq": ["$approved", False]}, 1, 0]}},
+                        "pending": {"$sum": {"$cond": [{"$and": [{"$eq": ["$approved", False]}, {"$ne": ["$rejected", True]}]}, 1, 0]}},
                         "approved": {"$sum": {"$cond": [{"$eq": ["$approved", True]}, 1, 0]}},
                         "recurring": {"$sum": {"$cond": [{"$eq": ["$recurs", True]}, 1, 0]}},
                     }
@@ -2302,7 +2305,7 @@ def demo_control():
         demos = []
         if skip_count < pending_count:
             demos = list(
-                mongo.demonstrations.find(query_from(filter_clauses + [{"approved": False}]))
+                mongo.demonstrations.find(query_from(filter_clauses + [{"approved": False, **not_rejected}]))
                 .sort(order)
                 .skip(skip_count)
                 .limit(per_page)
@@ -2310,7 +2313,7 @@ def demo_control():
         remaining = per_page - len(demos)
         if remaining > 0:
             demos += list(
-                mongo.demonstrations.find(query_from(filter_clauses + [{"approved": {"$ne": False}}]))
+                mongo.demonstrations.find(query_from(filter_clauses + [{"$or": [{"approved": {"$ne": False}}, {"rejected": True}]}]))
                 .sort(order)
                 .skip(max(0, skip_count - pending_count))
                 .limit(remaining)
@@ -2366,6 +2369,7 @@ def demo_control():
     approval_label = {
         "approved": _("Hyväksytty"),
         "pending": _("Odottaa hyväksyntää"),
+        "rejected": _("Hylätty"),
     }.get(approval_filter, "")
     recurring_label = {
         "true": _("Vain toistuvat"),

@@ -155,9 +155,9 @@ JOB_DEFINITIONS: List[JobDefinition] = [
     JobDefinition(
         key="auto_close_cases",
         name="Case autoclose (demos/orgs)",
-        description="Closes cases whose linked demos were accepted/rejected/cancelled or org edits are applied.",
+        description="Closes cases whose linked demo, suggestion or org edit was already handled. The case list itself never closes cases.",
         func=auto_close_cases,
-        default_trigger=_interval(hours=1),
+        default_trigger=_interval(minutes=10),
         allow_interval_override=True,
     ),
     JobDefinition(
