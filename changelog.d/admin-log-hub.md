@@ -1,0 +1,1 @@
+- Admin log pages form one hub under "Lokit ja tapahtumat": the same breadcrumb, tabs and back link on admin actions, demo history and the technical audit log, with a link from the clearance log. A demo's edit history and audit log link to each other and back to the demo.
