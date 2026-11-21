@@ -84,19 +84,21 @@ verified decision approves an organization's own request (see
 organization document only gets fields `Organization.from_dict` accepts, because any other
 key breaks every loader: the organization has no city field, so the city stays on the request.
 
-## Open before activation
+## Activation (21 November 2026)
 
-- A TTL index or job removing unconfirmed requests after `expires_at`, and rejected
-  ones after the reconsideration period.
-- A privacy statement entry for the new register.
-- Hallinto intake (O3).
-- Replace the "05 Järjestöt ja ryhmät / Organisaatiotilit" section of `/ohjeet` (maintainer, 21 November 2026). It
-  now says to email the details to support. When the form opens, it points to
-  `/organisaatiot/hae` instead. The copy is in two places that change together:
-  `frontend/src/app/information/GuidesContent.tsx` (`#org-help`) and
-  `mielenosoitukset_fi/templates/ohjeet/index.html`. Ship the copy change with the
-  Apache rules and `ORG_REQUESTS_GO_ENABLED`, not before: until then the form is
-  dark and the email instructions are still correct.
+The maintainer asked to turn every ready feature on. The Apache rules shipped in
+d5858c2; the deploy now writes `ORG_REQUESTS_GO_ENABLED=true` whenever public
+submissions are on (`ORG_REQUESTS_GO: false` in `config.yaml` opts out), and
+`release_routing.sh` keeps the old routing unless Go answers 405 on
+`GET /api/organization-requests`.
+
+- Unconfirmed requests: the `organization_requests_unconfirmed_ttl` TTL index on
+  `expires_at` (`scripts/provision_public_indexes.py`, every deploy) removes them
+  once the link expires. Confirming unsets `expires_at`.
+- The privacy notice (`frontend/src/app/information/PrivacyContent.tsx`) lists
+  the register.
+- Still open: deleting rejected requests after the reconsideration period
+  (Hallinto owns rejections), and the full Hallinto intake (O3).
 
 ## Status updates from Hallinto
 

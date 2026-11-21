@@ -171,6 +171,20 @@ if grep -q '^RewriteRule "\^/api/organizations/\[0-9a-f\]{24}/invitation(/accept
   fi
 fi
 
+# Organization account requests: with the flag Go answers a GET to the submit
+# path with 405 (Allow: POST) before the session or any database work; without
+# it the path is unknown (404).
+if grep -q '^RewriteRule "\^/organisaatiot/hae\$" "http://127.0.0.1:8091' "$reviewed"; then
+  org_requests_ready() {
+    [[ $(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' \
+      http://127.0.0.1:8091/api/organization-requests || true) == 405 ]]
+  }
+  if ! retry 5 2 org_requests_ready; then
+    log "Go organization requests are not enabled/ready; keeping the current routing"
+    exit 1
+  fi
+fi
+
 install -d -m 0700 "$backup_root"
 backup="$backup_root/mielenosoitukset-react-ssr.conf.$(date -u +%Y%m%dT%H%M%SZ)"
 cp -a "$include" "$backup"
