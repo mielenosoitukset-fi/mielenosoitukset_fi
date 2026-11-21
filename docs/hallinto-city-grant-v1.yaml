@@ -470,13 +470,25 @@ components:
         account_id: { $ref: '#/components/schemas/AccountID' }
         role: { enum: [city_admin, admin, global_admin, superuser, god] }
         authority_attestation: { type: string, minLength: 1, maxLength: 16384 }
+    SiteLockdownOrder:
+      type: object
+      description: Close or reopen the public site. Answers 404 unless HALLINTO_LOCKDOWN_ORDERS_ENABLED.
+      additionalProperties: false
+      required: [order_id, kind, decision_id, decision_revision, action, authority_attestation]
+      properties:
+        order_id: { $ref: '#/components/schemas/NonEmptyID' }
+        kind: { const: site_lockdown }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        action: { enum: [close, reopen] }
+        authority_attestation: { type: string, minLength: 1, maxLength: 16384 }
     OrderPendingReceipt:
       type: object
       required: [operation_id, order_id, kind, decision_id, decision_revision, status]
       properties:
         operation_id: { $ref: '#/components/schemas/NonEmptyID' }
         order_id: { $ref: '#/components/schemas/NonEmptyID' }
-        kind: { enum: [board_roster, role_removal] }
+        kind: { enum: [board_roster, role_removal, site_lockdown] }
         account_id: { $ref: '#/components/schemas/AccountID' }
         decision_id: { $ref: '#/components/schemas/NonEmptyID' }
         decision_revision: { type: integer, minimum: 1 }
@@ -487,7 +499,7 @@ components:
       properties:
         operation_id: { $ref: '#/components/schemas/NonEmptyID' }
         order_id: { $ref: '#/components/schemas/NonEmptyID' }
-        kind: { enum: [board_roster, role_removal] }
+        kind: { enum: [board_roster, role_removal, site_lockdown] }
         account_id: { $ref: '#/components/schemas/AccountID' }
         decision_id: { $ref: '#/components/schemas/NonEmptyID' }
         decision_revision: { type: integer, minimum: 1 }
@@ -495,10 +507,11 @@ components:
         checked_at: { type: string, format: date-time }
         effective:
           type: object
-          description: "board_roster: {roster}. role_removal: {role, global_admin, full_permissions, system_team_access}."
+          description: "board_roster: {roster}. role_removal: {role, global_admin, full_permissions, system_team_access}. site_lockdown: {lockdown: closed | open}."
           properties:
             roster: { type: array, items: { $ref: '#/components/schemas/AccountID' } }
             role: { type: [string, 'null'] }
             global_admin: { type: boolean }
             full_permissions: { type: boolean }
             system_team_access: { type: array, items: { enum: [national, board] } }
+            lockdown: { enum: [closed, open] }

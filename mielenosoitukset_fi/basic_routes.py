@@ -10,6 +10,7 @@ import time
 import uuid
 import hashlib
 from mielenosoitukset_fi.utils.public_gate import PublicGate
+from mielenosoitukset_fi.utils.site_lock import site_locked
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from mielenosoitukset_fi.utils.logout_token import make_logout_token
 from mielenosoitukset_fi.utils.demo_seo import _parse_clock
@@ -4946,8 +4947,7 @@ def init_routes(app):
         )
         return render_template("upcoming/translations.html", translation_join_csrf_token=token)
     
-    _public_gate = PublicGate(lambda: bool(
-        mongo.panic.find_one({"name": {"$in": ["global", "security"]}, "panic": True}, {"_id": 1})))
+    _public_gate = PublicGate(lambda: site_locked(mongo))
 
     @app.before_request
     def _check_panic_mode():

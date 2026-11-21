@@ -1,0 +1,3 @@
+- Hätäsulku (aiemmin "Panic Mode") on selitetty selkeästi hallintapaneelissa, turvatoimisivulla ja ohjeessa: mitä se tekee, kuka voi päättää, mikä toimii yhä ja miten sen purkaa. Turvatoimisivulla sivuston sulkeminen ja käyttäjätilin keskeytys ovat omat lomakkeensa.
+- Etusivun hätäsulkukortti näytti "pois päältä" myös silloin, kun turvatapauksella suljettu sivusto oli kiinni. Kortti, tilastot ja organisaatiokutsujen tauko lukevat nyt saman sulkutilan kuin julkinen portti.
+- Hallinto voi käskeä sivuston sulkemisen tai avaamisen (`site_lockdown`-määräys). Pois päältä oletuksena (`HALLINTO_LOCKDOWN_ORDERS_ENABLED`). Flaskin oma turvatoimisivu toimii edelleen varakeinona ilman Hallintoa.

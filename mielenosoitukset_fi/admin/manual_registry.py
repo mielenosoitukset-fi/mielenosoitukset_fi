@@ -102,11 +102,11 @@ PAGES = {
         "group": "start",
         "access": "dashboard",
         "endpoint": "admin.admin_dashboard",
-        "summary": "Etusivu, tilannekuva, kaupunkiadminin käsittelyjono ja hätäkatkaisin.",
+        "summary": "Etusivu, tilannekuva, kaupunkiadminin käsittelyjono ja hätäsulku.",
         "topics": [
             ("etusivu", "Etusivun näkymä", "tilastokortit kirjautumispäiväkirja pikalinkit"),
             ("kaupunkiadmin", "Kaupunkiadminin käsittelyjono", "kaupunki määräaika jono kansallinen tiimi"),
-            ("hatakatkaisin", "Hätäkatkaisin (panic mode)", "panic lukitus kriisi sulje sivusto"),
+            ("hatakatkaisin", "Hätäsulku", "hätäkatkaisin panic lukitus kriisi sulje sivusto avaa"),
             ("navigointi", "Valikko, teema ja uloskirjautuminen", "sivupalkki tumma vaalea teema kirjaudu ulos"),
         ],
     },

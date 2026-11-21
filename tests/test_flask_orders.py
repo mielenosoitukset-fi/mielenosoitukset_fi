@@ -328,3 +328,78 @@ def test_the_page_lists_who_is_added_and_removed(orders):
         "/admin/hallinto/approve", query_string={"r": _terms(fields), "state": STATE})
     text = page.get_data(as_text=True)
     assert "Lisätään: Tulija" in text and "Poistetaan tiimistä: Lähtijä" in text
+
+
+def _lockdown(action, order_id=ORDER, **extra):
+    return _order("site_lockdown", order_id=order_id, action=action, **extra)
+
+
+def test_site_lockdown_closes_and_reopens_through_the_flask_page_case(orders):
+    from mielenosoitukset_fi.utils.site_lock import site_locked
+    env = orders
+    app, client, db = env[:3]
+    app.config["HALLINTO_LOCKDOWN_ORDERS_ENABLED"] = True
+    body, digest = _lockdown("close")
+    response = _send(env, body, digest)[0]
+    assert response.status_code == 200, response.get_json()
+    assert response.get_json()["effective"] == {"lockdown": "closed"}
+    assert site_locked(db)
+    # The same lock and a security case the Flask page can reopen, with Hallinto down.
+    lock = db.panic.find_one({"_id": "security-lockdown"})
+    case = db.security_cases.find_one({"_id": lock["case_id"]})
+    assert lock["panic"] is True and lock["name"] == "security"
+    assert case["kind"] == "lockdown" and case["status"] == "locked"
+    assert case["events"][0]["method"] == "hallinto_order" and case["events"][0]["action"] == "lockdown"
+    # A replay is not a second change.
+    assert _send(env, body, digest)[0].status_code == 200
+    reopen, digest = _lockdown("reopen", order_id="hallinto-order-0000000000002")
+    response = _send(env, reopen, digest, key="hallinto-order-0000000000002")[0]
+    assert response.status_code == 200 and response.get_json()["effective"] == {"lockdown": "open"}
+    assert not site_locked(db)
+    assert db.security_cases.find_one({"_id": case["_id"]})["status"] == "restored"
+    assert db.security_cases.find_one({"_id": case["_id"]})["events"][-1]["action"] == "reopen"
+
+
+def test_site_lockdown_that_changes_nothing_is_stale(orders):
+    env = orders
+    app, db = env[0], env[2]
+    app.config["HALLINTO_LOCKDOWN_ORDERS_ENABLED"] = True
+    body, digest = _lockdown("reopen")
+    response = _send(env, body, digest)[0]
+    assert response.status_code == 409
+    db.panic.insert_one({"name": "global", "panic": True})
+    body, digest = _lockdown("close", order_id="hallinto-order-0000000000002")
+    assert _send(env, body, digest, key="hallinto-order-0000000000002")[0].status_code == 409
+    # A lock set the older way is reopened too.
+    body, digest = _lockdown("reopen", order_id="hallinto-order-0000000000003")
+    assert _send(env, body, digest, key="hallinto-order-0000000000003")[0].status_code == 200
+    assert db.panic.find_one({"name": "global"})["panic"] is False
+
+
+def test_site_lockdown_is_off_unless_the_flag_is_on(orders):
+    env = orders
+    app, db = env[0], env[2]
+    body, digest = _lockdown("close")
+    assert _send(env, body, digest)[0].status_code == 404
+    app.config["HALLINTO_LOCKDOWN_ORDERS_ENABLED"] = "true"  # a string never turns it on
+    assert _send(env, body, digest)[0].status_code == 404
+    assert db.panic.count_documents({}) == 0
+    verifier = _verifier(app, env[3]["admin_id"], strong=True, age=60)
+    fields = {"order_id": ORDER, "kind": "site_lockdown", "decision_id": "d", "decision_revision": 1, "action": "close"}
+    assert verifier.get("/admin/hallinto/approve", query_string={"r": _terms(fields), "state": STATE}).status_code == 400
+
+
+def test_site_lockdown_shape_and_approval_page(orders):
+    env = orders
+    app = env[0]
+    app.config["HALLINTO_LOCKDOWN_ORDERS_ENABLED"] = True
+    for bad in ({"action": "open"}, {"action": "close", "account_id": str(ObjectId())}, {}):
+        body = {"order_id": ORDER, "kind": "site_lockdown", "decision_id": "d", "decision_revision": 1,
+                "authority_attestation": "x", **bad}
+        assert flask_orders.order_digest(body) is None
+    verifier = _verifier(app, env[3]["admin_id"], strong=True, age=60)
+    fields = {"order_id": ORDER, "kind": "site_lockdown", "decision_id": "d", "decision_revision": 1, "action": "close"}
+    page = verifier.get("/admin/hallinto/approve", query_string={"r": _terms(fields), "state": STATE})
+    assert page.status_code == 200 and "Vahvista hätäsulku" in page.get_data(as_text=True)
+    page = verifier.get("/admin/hallinto/approve", query_string={"r": _terms({**fields, "action": "reopen"}), "state": STATE})
+    assert "Vahvista sivuston avaaminen" in page.get_data(as_text=True)

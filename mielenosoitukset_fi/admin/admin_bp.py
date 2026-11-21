@@ -5,6 +5,7 @@ import pytz
 from collections import defaultdict
 from typing import Any, Dict
 from mielenosoitukset_fi.utils.time_utils import utcnow
+from mielenosoitukset_fi.utils.site_lock import site_locked
 from datetime import datetime, timedelta, timezone, date
 import requests
 from flask_babel import _
@@ -1012,8 +1013,7 @@ def admin_dashboard():
             can_list_demos=bool(current_user.scoped_city_keys_for("LIST_DEMOS")),
         )
     # Load current panic mode
-    panic = mongo.panic.find_one({"name": "global"})
-    panic_mode = panic.get("panic", False) if panic else False
+    panic_mode = site_locked(mongo)
     is_admin_user = has_admin_access(current_user)
     if is_admin_user:
         _log_admin_event("dashboard_view", panic_mode=panic_mode)
@@ -1078,8 +1078,7 @@ def deactivate_panic():
 def panic_status():
     """Return current panic mode status as JSON."""
     _require_global_admin_surface()
-    panic = mongo.panic.find_one({"name": "global"})
-    panic_mode = panic.get("panic", False) if panic else False
+    panic_mode = site_locked(mongo)
     _log_admin_event("panic_status_requested", panic_mode=panic_mode)
     return jsonify({"panic_mode": panic_mode})
 
@@ -1174,8 +1173,6 @@ def _calculate_dashboard_snapshot() -> dict:
     failed_logins_last_hour = login_coll.count_documents({"timestamp": {"$gte": last_hour}, "success": False})
     logins_last_day = login_coll.count_documents({"timestamp": {"$gte": last_day}})
 
-    panic = mongo.panic.find_one({"name": "global"}) or {}
-
     success_rate = 0
     if logins_last_hour:
         success_rate = round(((logins_last_hour - failed_logins_last_hour) / logins_last_hour) * 100)
@@ -1203,7 +1200,7 @@ def _calculate_dashboard_snapshot() -> dict:
             "last_day": logins_last_day,
             "success_rate": success_rate,
         },
-        "panic_mode": panic.get("panic", False),
+        "panic_mode": site_locked(mongo),
         "generated_at": now.replace(tzinfo=timezone.utc).isoformat(),
     }
 

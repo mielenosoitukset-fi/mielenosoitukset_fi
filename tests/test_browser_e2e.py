@@ -230,7 +230,7 @@ def test_admin_dashboard_redirects_through_login_in_real_browser(
     _submit_login_form(browser_page, "admin", "AdminPass1!")
     _wait_for_url(browser_page, re.compile(r".*/admin/dashboard$"))
     _wait_for_body_text(browser_page, "Reaaliaikainen tilannekuva")
-    _wait_for_body_text(browser_page, "Panic Mode")
+    _wait_for_body_text(browser_page, "Hätäsulku")
 
 
 @pytest.mark.e2e
