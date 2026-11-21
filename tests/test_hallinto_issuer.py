@@ -675,3 +675,30 @@ def test_city_admin_applications_for_hallinto(owner, db):
         assert stored["status"] == "declined" and stored["decided_by"] == subject and len(stored["history"]) == 2
     finally:
         db.city_admin_applications.delete_many({"_id": {"$in": [open_id, withdrawn]}})
+
+
+def test_hallinto_sends_bans_and_precedents_to_flask(owner, db):
+    app, subject = owner
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    items = [{"id": "ban-1", "kind": "organizer", "organizer": "Esimerkki ry", "reason": "R", "from": "2026-11-01", "until": ""},
+             {"id": "pre-1", "kind": "demo", "organizer": "Mielenosoitus X", "organization_id": "0123456789abcdef01234567",
+              "reason": "R", "from": "2026-11-01", "until": ""}]
+
+    def send(body, auth=(CLIENT, SECRET)):
+        return app.test_client().post(PREFIX + "/moderation-blocks/sync", base_url=ORIGIN, auth=auth,
+                                      json={"sub": claims["sub"], "sid": claims["sid"], **body})
+
+    try:
+        assert send({"items": items}).status_code == 403  # Not an admin.
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+        assert send({"items": items}, auth=(CLIENT, "x" * 40)).status_code == 401
+        assert send({"items": "no"}).status_code == 400
+        assert send({"items": items}).json == {"stored": 2}
+        assert send({"items": items}).json == {"stored": 2}
+        assert db.moderation_blocks.count_documents({}) == 2
+    finally:
+        db.moderation_blocks.delete_many({})
+        db.users.update_one({"_id": ObjectId(subject)}, {"$unset": {"role": ""}})
+

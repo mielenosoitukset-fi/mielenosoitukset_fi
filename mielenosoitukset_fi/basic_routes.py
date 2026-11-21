@@ -2301,6 +2301,16 @@ def init_routes(app):
             # --- Collect organizers ---
             organizers = _collect_submission_organizers(request.form)
 
+            # A party Johtoryhmä has banned may not submit demonstrations.
+            from mielenosoitukset_fi.utils.moderation_blocks import banned_organizer
+
+            if banned_organizer(mongo, [getattr(o, "name", "") for o in organizers]):
+                return _submit_error(
+                    _("Tämän järjestäjän ilmoituksia ei oteta vastaan. Lisätietoja saat osoitteesta info@mielenosoitukset.fi."),
+                    "organizer_banned",
+                    status=403,
+                )
+
             
 
             # --- Check for similar demonstrations on same date/city to avoid duplicates ---
