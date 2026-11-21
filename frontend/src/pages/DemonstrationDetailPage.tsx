@@ -146,8 +146,8 @@ function EventContent({ event, props }: { event: DetailEvent; props: DetailProps
       {externalEvent && <LinkButton href={externalEvent}>{text.facebook}</LinkButton>}
     </div><aside className="detail-aside">
       <section className="detail-section detail-location"><h2>{text.location}</h2><p>{location}</p><a href={directions} target="_blank" rel="noopener noreferrer">{text.directions}<Icon name="arrow-up-right-from-square" /></a>
-        {event.latitude !== null && event.longitude !== null && (mapVisible
-          ? <MapBoundary fallback={<p>{text.error}</p>}><Suspense fallback={<p role="status">{text.mapLoading}</p>}><DetailMap latitude={event.latitude} longitude={event.longitude} messages={text} /></Suspense></MapBoundary>
+        {((event.latitude !== null && event.longitude !== null) || location) && (mapVisible
+          ? <MapBoundary fallback={<p>{text.mapError ?? text.error}</p>}><Suspense fallback={<p role="status">{text.mapLoading}</p>}><DetailMap key={event._id} latitude={event.latitude} longitude={event.longitude} query={location} messages={text} /></Suspense></MapBoundary>
           : <button className="detail-button" type="button" onClick={() => showMap(true)}><Icon name="map" />{text.showMap}</button>)}
       </section>
       {event.cancelled

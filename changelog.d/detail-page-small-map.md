@@ -1,0 +1,1 @@
+- The event page's location box shows the "Näytä kartta" button again for every event with an address. Pressing it opens a small map in the box. Events without stored coordinates look up the address only when the map is opened, so the page makes no map requests until then.
