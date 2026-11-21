@@ -2026,10 +2026,15 @@ def _case_link_page(token, *, status=200, error=None, result=None, allow_bind=Fa
         response.headers["X-Robots-Tag"] = "noindex"
         return response
     case_doc = mongo.cases.find_one(
-        {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}, {"meta.superior_needed": 1}
+        {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}, {"meta": 1}
     ) or {}
     pending = not demo.get("approved") and not demo.get("rejected")
-    escalated = bool((case_doc.get("meta") or {}).get("superior_needed")) and not getattr(user, "global_admin", False)
+    from mielenosoitukset_fi.utils import case_escalation as esc
+
+    case_meta = case_doc.get("meta") or {}
+    level = esc.current_level(case_meta)
+    escalated = level >= 1 and not getattr(user, "global_admin", False)
+    can_escalate = pending and esc.can_escalate(case_meta, user)
     factor = case_links.second_factor(mongo, user)
     csrf = session.setdefault("case_link_csrf", secrets.token_urlsafe(24))
     page = render_template(
@@ -2040,6 +2045,9 @@ def _case_link_page(token, *, status=200, error=None, result=None, allow_bind=Fa
         csrf=csrf,
         pending=pending,
         escalated=escalated,
+        can_escalate=can_escalate,
+        escalate_label=esc.ask_label(mongo, case_meta),
+        level_name=esc.LEVEL_NAMES[level] if level else None,
         factor=factor,
         effects={d: preview_demo_decision(mongo, demo["_id"], d) for d in ("approved", "rejected")} if pending else {},
         reject_reasons=case_reasons.choices(case_reasons.REJECT_KEYS),
@@ -2083,15 +2091,17 @@ def case_link_decide(token):
     except case_links.CaseLinkError:
         return _case_link_page(token)
     decision = request.form.get("decision")
+    if decision == "escalate":
+        return _case_link_escalate(token, doc, demo, user)
     if decision not in {"approved", "rejected"}:
-        return _case_link_page(token, status=400, error=_("Valitse hyväksy tai hylkää."))
+        return _case_link_page(token, status=400, error=_("Valitse hyväksy, hylkää tai eskaloi."))
     if demo.get("approved") or demo.get("rejected"):
         return _case_link_page(token, status=409, error=_("Mielenosoituksesta on jo tehty päätös."))
     case_doc = mongo.cases.find_one(
         {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}
     ) or {}
     if (case_doc.get("meta") or {}).get("superior_needed") and not getattr(user, "global_admin", False):
-        return _case_link_page(token, status=403, error=_("Tapaus on eskaloitu. Päätöksen tekee esihenkilö."))
+        return _case_link_page(token, status=403, error=_("Tapaus on eskaloitu. Päätöksen tekee ylempi taso."))
     factor = case_links.second_factor(mongo, user)
     if factor == "passkey_only":
         return _case_link_page(token, status=403, error=_("Tilisi käyttää pääsyavainta. Kirjaudu sisään tehdäksesi päätöksen."))
@@ -2129,6 +2139,55 @@ def case_link_decide(token):
         })
     label = _("Hyväksytty ja julkaistu.") if decision == "approved" else _("Hylätty.")
     page = render_template("case_link.html", result=label, login_url=url_for("users.auth.login"))
+    response = make_response(page, 200)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+def _case_link_escalate(token, doc, demo, user):
+    """Raise the case one level (second reviewer, then Johtoryhmä) through a scoped link.
+
+    Same rules as a decision (second factor, no passkey-only bypass) but the
+    demonstration stays pending and the link stays usable, so that a person
+    who cannot decide still has a recorded way out instead of leaving the case
+    unprocessed. A short reason is required.
+    """
+    from mielenosoitukset_fi.utils import case_escalation as esc, case_links
+
+    if demo.get("approved") or demo.get("rejected"):
+        return _case_link_page(token, status=409, error=_("Mielenosoituksesta on jo tehty päätös."))
+    case_doc = mongo.cases.find_one(
+        {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}
+    )
+    if not case_doc:
+        return _case_link_page(token, status=404, error=_("Tapausta ei löytynyt. Avaa mielenosoitus kirjautumalla."))
+    meta = case_doc.get("meta") or {}
+    if esc.current_level(meta) >= esc.MAX_LEVEL:
+        return _case_link_page(token, status=409, error=_("Tapaus on jo Johtoryhmän arvioitavana. Ylempää tasoa ei ole."))
+    if not esc.can_escalate(meta, user):
+        return _case_link_page(token, status=403, error=_("Tapaus on jo siirretty ylemmälle tasolle."))
+    factor = case_links.second_factor(mongo, user)
+    if factor == "passkey_only":
+        return _case_link_page(token, status=403, error=_("Tilisi käyttää pääsyavainta. Kirjaudu sisään tehdäksesi päätöksen."))
+    try:
+        reason = esc.clean_reason(request.form.get("escalate_reason"))
+    except esc.EscalationError:
+        return _case_link_page(token, status=400, error=_("Kirjoita lyhyt syy (5–500 merkkiä)."))
+    if factor == "totp":
+        try:
+            case_links.check_code(mongo, doc, user, request.form.get("code"))
+        except case_links.CaseLinkError as exc:
+            code, message = _CASE_LINK_ERRORS.get(exc.code, (400, "Vahvistus epäonnistui."))
+            return _case_link_page(token, status=code, error=_(message))
+    try:
+        level = esc.escalate(mongo, case_doc, user, reason, authentication="case_link", second_factor=factor or "none")
+    except esc.EscalationError:
+        return _case_link_page(token, status=409, error=_("Tapauksen taso ehti muuttua. Lataa sivu uudelleen."))
+    page = render_template(
+        "case_link.html",
+        result=_("Tapaus siirretty eteenpäin: %(name)s. Se ei jää odottamaan sinua.", name=esc.LEVEL_NAMES[level]),
+        login_url=url_for("users.auth.login"),
+    )
     response = make_response(page, 200)
     response.headers["Cache-Control"] = "no-store"
     return response

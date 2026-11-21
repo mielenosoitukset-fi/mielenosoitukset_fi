@@ -29,7 +29,7 @@
       {{ _('Suljettu') if case.meta.closed else _('Avoin') }}
     </span>
     {% if case.meta.superior_needed %}
-    <span class="admin-status-badge admin-status-badge--danger"><i class="fa-solid fa-arrow-up-right-dots"></i>{{ _('Eskaloitu') }}</span>
+    <span class="admin-status-badge admin-status-badge--danger"><i class="fa-solid fa-arrow-up-right-dots"></i>{{ _('Eskaloitu') }}: {{ escalation_name }}</span>
     {% endif %}
     {% if demo and demo.status %}
     <span class="admin-status-badge admin-status-badge--{{ demo.status.tone }}"><i class="fa-solid fa-bullhorn"></i>{{ demo.status.label }}</span>
@@ -313,10 +313,10 @@
             {% endif %}
             {% endif %}
 {% endif %}
-            {% if not case.meta.superior_needed and not demo.approved and not demo.rejected %}
+            {% if can_escalate_case and not demo.approved and not demo.rejected %}
 {% if global_case_controls %}
             <button class="btn btn-secondary" type="button" onclick="escalateDemo()">
-              <i class="fa-solid fa-arrow-up-right-dots me-1"></i>{{ _('Eskaloi esihenkilölle') }}
+              <i class="fa-solid fa-arrow-up-right-dots me-1"></i>{{ escalate_label }}
             </button>
 {% endif %}
             {% endif %}
@@ -979,19 +979,32 @@
   }
 
   function escalateDemo() {
-    fetch(`/admin/case/${caseId}/demo_escalate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          location.reload();
-          return;
-        }
-        Swal.fire("{{ _('Virhe') }}", data.error || "{{ _('Eskalointi ei onnistunut.') }}", "error");
+    Swal.fire({
+      title: "{{ escalate_label or _('Siirrä eteenpäin') }}",
+      input: "textarea",
+      inputLabel: "{{ _('Syy (pakollinen, 5–500 merkkiä)') }}",
+      inputAttributes: { maxlength: 500 },
+      showCancelButton: true,
+      confirmButtonText: "{{ _('Siirrä eteenpäin') }}",
+      cancelButtonText: "{{ _('Peruuta') }}",
+      inputValidator: (value) => ((value || "").trim().length < 5 ? "{{ _('Kirjoita lyhyt syy.') }}" : null),
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+      fetch(`/admin/case/${caseId}/demo_escalate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: result.value || "" }),
       })
-      .catch(() => Swal.fire("{{ _('Virhe') }}", "{{ _('Tapahtui odottamaton virhe.') }}", "error"));
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            location.reload();
+            return;
+          }
+          Swal.fire("{{ _('Virhe') }}", data.error || "{{ _('Eskalointi ei onnistunut.') }}", "error");
+        })
+        .catch(() => Swal.fire("{{ _('Virhe') }}", "{{ _('Tapahtui odottamaton virhe.') }}", "error"));
+    });
   }
 
   function deescalateCase() {

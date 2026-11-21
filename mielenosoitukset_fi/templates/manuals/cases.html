@@ -58,7 +58,7 @@
     {% call m.step() %}<p>{{ _('Tarkista tiedot: otsikko, aika, paikka, järjestäjät ja kuvaus. Avaa tarvittaessa') }} {{ m.ui(_('Avaa julkinen sivu')) }} {{ _('tai') }} {{ m.ui(_('Avaa hallintapaneelissa')) }}.</p>{% endcall %}
     {% call m.step() %}<p>{{ _('Jos kaikki on kunnossa, valitse') }} {{ m.ui(_('Hyväksy mielenosoitus')) }}. {{ _('Mielenosoitus julkaistaan ja tapaus sulkeutuu itsestään.') }}</p>{% endcall %}
     {% call m.step() %}<p>{{ _('Jos ilmoitusta ei voi julkaista, valitse') }} {{ m.ui(_('Hylkää mielenosoitus')) }} {{ _('ja valitse syy listasta. Katso') }} <a href="#syyt">{{ _('syyt') }}</a>.</p>{% endcall %}
-    {% call m.step() %}<p>{{ _('Jos et ole varma, valitse') }} {{ m.ui(_('Eskaloi esihenkilölle')) }}. {{ _('Eskaloidun tapauksen hyväksyy tai hylkää superkäyttäjä.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Jos et ole varma, valitse') }} {{ m.ui(_('Siirrä eteenpäin')) }}. {{ _('Eskaloidun tapauksen hyväksyy tai hylkää superkäyttäjä.') }}</p>{% endcall %}
   {% endcall %}
 </section>
 

@@ -39,6 +39,7 @@
     </dl>
   </div>
 
+  {% if level_name %}<p class="case-link__muted">{{ _('Tapauksen taso nyt') }}: {{ level_name }}</p>{% endif %}
   {% if error %}<p class="case-link__alert" role="alert">{{ error }}</p>{% endif %}
 
   {% if not pending %}
@@ -48,7 +49,7 @@
   </div>
   {% elif escalated %}
   <div class="case-link__card">
-    <p>{{ _('Tapaus on eskaloitu esihenkilölle, joten sitä ei voi päättää tällä linkillä.') }}</p>
+    <p>{{ _('Tapaus on siirretty ylemmälle tasolle, joten sitä ei voi päättää tällä linkillä.') }}</p>
     <a href="{{ login_url }}">{{ _('Avaa tapaus kirjautumalla') }}</a>
   </div>
   {% elif factor == 'passkey_only' %}
@@ -97,7 +98,22 @@
       <button class="case-link__btn case-link__btn--reject" type="submit">{{ _('Hylkää') }}</button>
     </form>
   </div>
-  <p class="case-link__muted">{{ _('Kaksoiskappaleet, eskalointi ja muut toiminnot ovat ylläpidossa.') }} <a href="{{ login_url }}">{{ _('Avaa tapaus kirjautumalla') }}</a></p>
+  {% if can_escalate %}
+  <form method="post" class="case-link__card">
+    <h2 class="h5">{{ _('En voi päättää') }}</h2>
+    <p class="case-link__muted">{{ _('Jos et voi tai halua päättää, siirrä tapaus eteenpäin: ensin päivystävälle moderaattorille (jos päivystäjä on), sitten kansalliselle moderaattoritiimille, OT:lle ja viimeisenä Johtoryhmälle. Mielenosoitus pysyy odottamassa.') }}</p>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="decision" value="escalate">
+    <label for="escalate-reason">{{ _('Syy (pakollinen)') }}</label>
+    <textarea id="escalate-reason" name="escalate_reason" rows="2" minlength="5" maxlength="500" required></textarea>
+    {% if factor == 'totp' %}
+    <label for="code-escalate">{{ _('Vahvistuskoodi todennussovelluksesta') }}</label>
+    <input id="code-escalate" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+    {% endif %}
+    <button class="case-link__btn case-link__btn--escalate" type="submit">{{ escalate_label }}</button>
+  </form>
+  {% endif %}
+  <p class="case-link__muted">{{ _('Kaksoiskappaleet ja muut toiminnot ovat ylläpidossa.') }} <a href="{{ login_url }}">{{ _('Avaa tapaus kirjautumalla') }}</a></p>
   {% endif %}
   {% endif %}
 </div>

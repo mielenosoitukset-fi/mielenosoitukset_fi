@@ -128,7 +128,7 @@ PAGES = {
             ("peruutus", "Hyväksy peruutuspyyntö", "peruutus peru peruttu cancel"),
             ("vastaa", "Vastaa ilmoittajalle", "vastaa sähköposti viesti markdown"),
             ("sulje", "Sulje tai avaa tapaus uudelleen", "sulje avaa uudelleen automaattisesti suljettu"),
-            ("eskaloi", "Eskaloi tapaus", "eskaloi esihenkilö senior"),
+            ("eskaloi", "Eskaloi tapaus", "eskaloi esihenkilö senior tarkistaja"),
             ("merkinnat", "Merkinnät ja liitokset", "muistiinpano seurantatoimi oltu yhteydessä liitä mielenosoitus organisaatio"),
             ("estolista", "Tukipyyntöjen estolista", "estä roskaposti estolista blocklist"),
         ],

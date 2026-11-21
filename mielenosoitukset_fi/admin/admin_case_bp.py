@@ -342,6 +342,9 @@ def _and(*clauses):
     return parts[0] if len(parts) == 1 else {"$and": parts}
 
 
+from mielenosoitukset_fi.utils import case_escalation as _esc  # noqa: E402
+
+
 @admin_case_bp.route("/")
 @login_required
 @case_permission("LIST_CASES", allow_city=True)
@@ -716,6 +719,10 @@ def single_case(case_id):
         case_data=case_data,
         can_edit_case=can_access_case(current_user, "EDIT_CASE", case._id),
         global_case_controls=global_case_permission(current_user, "EDIT_CASE"),
+        escalation_level=_esc.current_level(case.meta),
+        escalation_name=_esc.LEVEL_NAMES[_esc.current_level(case.meta)],
+        escalate_label=_esc.ask_label(mongo, case.meta),
+        can_escalate_case=_esc.can_escalate(case.meta, current_user),
         can_take_down=_can_take_down(case_data.get("demo")),
         undo_deadline=_undo_deadline(case_data.get("demo")),
         take_down_review=_take_down_review(case_data.get("demo")),
@@ -1337,38 +1344,34 @@ def demo_escalate(case_id):
     if not demo:
         return jsonify({"error": _("Mielenosoitusta ei löytynyt.")}), 404
 
-    # Escalation only asks a superior to decide. It must not change the
-    # demo's status: approve and reject go through the decision service, and
-    # an already decided demo is not silently returned to the pending queue.
+    # Escalation only asks the next level to decide (second reviewer, then
+    # Johtoryhmä). It must not change the demo's status: approve and reject go
+    # through the decision service, and an already decided demo is not
+    # silently returned to the pending queue.
     if demo.get("approved") or demo.get("rejected"):
         return jsonify({
             "error": _("Mielenosoituksesta on jo tehty päätös, joten sitä ei voi eskaloida."),
         }), 409
 
-    # Set meta flag
-    timestamp = utcnow()
-    mongo.cases.update_one(
-        {"_id": ObjectId(case_id)},
-        {
-            "$set": {"meta.superior_needed": True, "updated_at": timestamp},
-            "$push": {
-                "case_history": {
-                    "timestamp": timestamp,
-                    "action": "Eskaloitu esihenkilolle",
-                    "user": current_user.username,
-                    "metadata": {},
-                },
-                "action_logs": {
-                    "user": current_user.username,
-                    "action_type": "escalate_demo",
-                    "reason": "Demo status needs superior review",
-                    "timestamp": timestamp,
-                },
-            },
-        },
-    )
+    from mielenosoitukset_fi.utils import case_escalation as esc
 
-    flash_message(_("Ylemmän tason käsittelijän on tarkistettava mielenosoitus."), "warning")
+    payload = request.get_json(silent=True) or {}
+    try:
+        reason = esc.clean_reason(payload.get("reason"))
+    except esc.EscalationError:
+        return jsonify({"error": _("Kirjoita lyhyt syy (5–500 merkkiä).")}), 400
+    case_doc = mongo.cases.find_one({"_id": ObjectId(case_id)})
+    try:
+        level = esc.escalate(mongo, case_doc, current_user, reason, authentication="login")
+    except esc.EscalationError as exc:
+        messages = {
+            "top_level": _("Tapaus on jo Johtoryhmän arvioitavana. Ylempää tasoa ei ole."),
+            "not_allowed": _("Vain täysi ylläpitäjä voi siirtää tapausta ylemmälle tasolle."),
+            "changed": _("Tapauksen taso ehti muuttua. Lataa sivu uudelleen."),
+        }
+        return jsonify({"error": messages.get(exc.code, _("Eskalointi ei onnistunut."))}), 409
+
+    flash_message(_("Tapaus siirretty eteenpäin: %(name)s.", name=esc.LEVEL_NAMES[level]), "warning")
     return jsonify({"success": True})
 
 @admin_case_bp.route("/<case_id>/deescalate", methods=["POST"])
@@ -1389,7 +1392,7 @@ def deescalate_case(case_id):
         mongo.cases.update_one(
             {"_id": ObjectId(case_id)},
             {
-                "$set": {"meta.superior_needed": False, "updated_at": timestamp},
+                "$set": {"meta.superior_needed": False, "meta.escalation_level": 0, "updated_at": timestamp},
                 "$push": {
                     "case_history": {
                         "timestamp": timestamp,
