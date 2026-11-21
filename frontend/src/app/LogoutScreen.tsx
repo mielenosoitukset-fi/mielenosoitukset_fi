@@ -22,13 +22,14 @@ export default function LogoutScreen({ config, session }: { config: AppConfig; s
   return <article className="public-page-shell information-page auth-page" aria-labelledby="logout-title">
     <header className="public-page-header"><div className="public-page-header__content">
       <h1 className="public-page-header__title" id="logout-title">{copy.title}</h1>
-      <p className="public-page-header__description">{copy.lead}</p>
     </div></header>
     <form className="public-prose-card auth-card logout-form" action={logoutPath} method="post" onSubmit={() => setBusy(true)}>
       {session.logoutToken && <input type="hidden" name="logout_token" value={session.logoutToken} />}
-      <div className="detail-actions register-actions">
-        <a className="detail-button" href={config.urls.home}>{copy.cancel}</a>
+      <p>{copy.lead}</p>
+      {/* Sign out comes first for keyboard and mobile; on wide screens it sits on the right. */}
+      <div className="detail-actions logout-actions">
         <button type="submit" className="detail-button detail-button--primary" disabled={busy} aria-busy={busy}>{copy.submit}</button>
+        <a className="detail-button logout-cancel" href={config.urls.home}>{copy.cancel}</a>
       </div>
     </form>
   </article>;
