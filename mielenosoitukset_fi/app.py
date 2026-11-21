@@ -288,6 +288,13 @@ def create_app(config_overrides=None) -> Flask:
     configure_hallinto_issuer(app, mongo)
     from mielenosoitukset_fi.admin.hallinto_city_grant_api import configure as configure_hallinto_city_grants
     configure_hallinto_city_grants(app, mongo)
+    from mielenosoitukset_fi.org_outreach_bp import build_blueprint as build_org_outreach_blueprint
+    from mielenosoitukset_fi.admin import org_outreach
+    try:
+        org_outreach.ensure_indexes(mongo)
+    except Exception:  # noqa: BLE001 - an optional page must never stop the site from starting
+        app.logger.error("Outbound invitation indexes could not be created; opt-out may be slow.")
+    app.register_blueprint(build_org_outreach_blueprint(mongo))
     app.register_blueprint(developer_bp, url_prefix="/developer")
     
     

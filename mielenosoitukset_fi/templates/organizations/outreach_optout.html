@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Kutsut organisaatioille – Mielenosoitukset.fi{% endblock %}
+{% block robots %}<meta name="robots" content="noindex, nofollow" />{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/org_outreach.css') }}">
+{% endblock %}
+{% block content %}
+<section class="optout-card" aria-labelledby="optout-title">
+  {% if state == 'confirm' %}
+  <h1 id="optout-title">Haluatko lopettaa kutsut?</h1>
+  <p>Olet saanut kutsun käyttää Mielenosoitukset.fi-palvelua. Jos et halua enempää kutsuja tähän sähköpostiosoitteeseen, vahvista tässä. Emme lähetä osoitteeseen enää kutsuja. Vahvistus koskee vain kutsuja, ei tilejä tai hakemuksia.</p>
+  <form method="post" action="{{ url_for('org_outreach.optout_confirm') }}">
+    <input type="hidden" name="t" value="{{ token }}">
+    <button type="submit">Lopeta kutsut</button>
+  </form>
+  {% elif state == 'done' %}
+  <h1 id="optout-title">Kutsut on lopetettu</h1>
+  <p>Emme lähetä tähän osoitteeseen enää kutsuja. Jos haluat myöhemmin hakea organisaatiolle tiliä, voit tehdä sen milloin vain <a href="/organisaatiot/hae">hakulomakkeella</a>.</p>
+  {% else %}
+  <h1 id="optout-title">Linkki ei toimi</h1>
+  <p>Linkki on virheellinen tai käytetty. Jos haluat lopettaa kutsut, kirjoita meille osoitteeseen, johon viesti tuli, ja kerro sähköpostiosoite.</p>
+  {% endif %}
+</section>
+{% endblock %}

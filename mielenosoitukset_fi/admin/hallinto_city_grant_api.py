@@ -33,7 +33,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Blueprint, current_app, g, jsonify, request, url_for
 
-from . import city_grants, flask_orders, grant_proofs, role_bundles
+from . import city_grants, flask_orders, grant_proofs, org_outreach, role_bundles
 
 HELSINKI = ZoneInfo("Europe/Helsinki")
 INTEGRATION = "hallinto"
@@ -43,6 +43,7 @@ END_ATTESTATION_CONTEXT = b"hallinto-city-admin-end-v1-attestation\n"
 ORDER_ATTESTATION_CONTEXT = b"hallinto-flask-order-v1-attestation\n"
 BUNDLE_ATTESTATION_CONTEXT = b"hallinto-role-bundle-v1-attestation\n"
 BUNDLE_END_ATTESTATION_CONTEXT = b"hallinto-role-bundle-end-v1-attestation\n"
+INVITATION_ATTESTATION_CONTEXT = b"hallinto-org-invitation-v1-attestation\n"
 
 
 def attestation_message(intent_digest: str) -> bytes:
@@ -58,6 +59,10 @@ def end_attestation_message(intent_digest: str) -> bytes:
 def order_attestation_message(intent_digest: str) -> bytes:
     """Orders sign yet another context, so no other signature can carry one out."""
     return ORDER_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def invitation_attestation_message(intent_digest: str) -> bytes:
+    return INVITATION_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def bundle_attestation_message(intent_digest: str) -> bytes:
@@ -231,6 +236,37 @@ def build_blueprint(db) -> Blueprint:
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
         ))
 
+    def _outreach_on() -> bool:
+        return current_app.config.get("ORG_OUTREACH_ENABLED") is True
+
+    @bp.post("/org-invitations")
+    def send_org_invitation():
+        if not _outreach_on():
+            return "", 404
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = org_outreach.invitation_digest(body)
+        if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key):
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_ORG_INVITATION_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, invitation_attestation_message):
+            return _error("denied")
+        return _reply(org_outreach.apply_invitation(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
+    @bp.post("/org-invitations/check")
+    def check_org_invitation():
+        if not _outreach_on():
+            return "", 404
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict) or set(body) != {"address"}:
+            return _error("unsupported_scope")
+        return jsonify(org_outreach.read_check(db, body["address"]))
+
     @bp.get("/operations/by-key")
     def read_receipt():
         key = request.headers.get("Idempotency-Key", "")
@@ -264,6 +300,8 @@ ORDER_APPROVAL_FIELDS = {
 }
 BUNDLE_APPROVAL_FIELDS = {"account_id", "template", "decision_id", "decision_revision", "valid_until"}
 BUNDLE_END_APPROVAL_FIELDS = {"appointment_id", "kind", "account_id", "template", "decision_id", "decision_revision"}
+INVITATION_APPROVAL_FIELDS = {"invitation_id", "case_id", "decision_id", "decision_revision",
+                              "organization_name", "address", "source_url"}
 STATE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 
 
@@ -278,6 +316,9 @@ def _decode_fields(raw: str):
         return None
     if "order_id" in fields:
         return fields if set(fields) == ORDER_APPROVAL_FIELDS.get(fields.get("kind")) else None
+    if "invitation_id" in fields:
+        allowed = INVITATION_APPROVAL_FIELDS
+        return fields if INVITATION_APPROVAL_FIELDS <= set(fields) <= allowed | {"note"} else None
     if fields.get("template") in role_bundles.BUNDLES and "city" not in fields:
         wanted = BUNDLE_END_APPROVAL_FIELDS if "kind" in fields else BUNDLE_APPROVAL_FIELDS
         return fields if set(fields) == wanted else None
@@ -332,6 +373,14 @@ def build_approval_blueprint(db) -> Blueprint:
         state_param = request.values.get("state", "")
         if fields is None or not STATE.match(state_param):
             abort(400)
+        if "invitation_id" in fields:
+            if current_app.config.get("ORG_OUTREACH_ENABLED") is not True:
+                abort(404)
+            digest = org_outreach.invitation_digest({**fields, "authority_attestation": "-"})
+            if digest is None:
+                abort(400)
+            # Eligible unless the address is already known to be off limits (opt-out or role box).
+            return fields, state_param, {"eligible": org_outreach.check_address(db, fields["address"]) is None}, digest
         if "order_id" in fields:
             # An order names no appointment: it is idempotent and checked at apply.
             digest = flask_orders.order_digest({**fields, "authority_attestation": "-"})
@@ -371,7 +420,12 @@ def build_approval_blueprint(db) -> Blueprint:
     @login_required
     def approve_page():
         fields, state_param, state, digest = prepare()
+        is_invite = "invitation_id" in fields
         is_order = "order_id" in fields
+        masked = ""
+        if is_invite:
+            local, _, domain = fields["address"].partition("@")
+            masked = f"{local[:1]}***@{domain}"
         account = (db.users.find_one({"_id": ObjectId(fields["account_id"])}, {"username": 1, "displayname": 1})
                    if fields.get("account_id") else None)
         roster_names, removed_names, added_names = [], [], []
@@ -385,20 +439,20 @@ def build_approval_blueprint(db) -> Blueprint:
             removed_names = [u.get("displayname") or u.get("username") or "?" for u in db.users.find(
                 {"_id": {"$in": [ObjectId(a) for a in leaving]}}, {"username": 1, "displayname": 1})]
             added_names = [names.get(a, "?") for a in fields["roster"] if a not in current]
-        is_end = "kind" in fields and not is_order
+        is_end = "kind" in fields and not is_order and not is_invite
         is_bundle = _is_bundle(fields)
         bundle = role_bundles.BUNDLES.get(fields.get("template")) if is_bundle else None
         permission_copy = []
         if bundle:
             from mielenosoitukset_fi.admin.permission_copy import PERMISSION_DESCRIPTIONS
             permission_copy = [str(PERMISSION_DESCRIPTIONS.get(p, p)) for p in bundle["permissions"]]
-        page_title = ("Vahvista roolin poisto" if fields.get("kind") == flask_orders.KIND_ROLE_REMOVAL
+        page_title = ("Vahvista kutsun lähetys" if is_invite else "Vahvista roolin poisto" if fields.get("kind") == flask_orders.KIND_ROLE_REMOVAL
                       else "Vahvista hallitustiimin päivitys" if is_order
                       else "Vahvista roolipaketin päättäminen" if (is_end and is_bundle)
                       else "Vahvista roolipaketti" if is_bundle
                       else "Vahvista nimityksen päättäminen" if is_end else "Vahvista nimitys")
         last_day = ""
-        if not is_end and not is_order:
+        if not is_end and not is_order and not is_invite:
             end = city_grants.parse_valid_until(fields["valid_until"])
             last_day = (end.replace(tzinfo=timezone.utc).astimezone(HELSINKI)
                         - timedelta(seconds=1)).strftime("%-d.%-m.%Y")
@@ -409,6 +463,7 @@ def build_approval_blueprint(db) -> Blueprint:
             fields=fields, state_param=state_param, raw=request.values.get("r", ""),
             account=account or {}, city_name=CITY_KEY_TO_NAME.get(fields.get("city"), fields.get("city")),
             last_day=last_day, is_end=is_end, is_order=is_order, roster_names=roster_names, removed_names=removed_names, added_names=added_names,
+            is_invite=is_invite, masked_address=masked,
             is_bundle=is_bundle, bundle_label=(bundle or {}).get("label", ""), permission_copy=permission_copy,
             page_title=page_title,
             eligible=state["eligible"],
@@ -428,9 +483,11 @@ def build_approval_blueprint(db) -> Blueprint:
             return redirect(url_for(".approve_page", r=request.values.get("r"), state=state_param), code=303)
         factor = "passkey" if elevation_method() == "webauthn" else "password_totp"
         is_order = "order_id" in fields
-        is_end = "kind" in fields and not is_order
+        is_invite = "invitation_id" in fields
+        is_end = "kind" in fields and not is_order and not is_invite
         is_bundle = _is_bundle(fields)
-        action = (grant_proofs.ACTION_FLASK_ORDER_V1 if is_order
+        action = (grant_proofs.ACTION_ORG_INVITATION_V1 if is_invite
+                  else grant_proofs.ACTION_FLASK_ORDER_V1 if is_order
                   else (grant_proofs.ACTION_ROLE_BUNDLE_END_V1 if is_end else grant_proofs.ACTION_ROLE_BUNDLE_V1) if is_bundle
                   else grant_proofs.ACTION_CITY_ADMIN_END_V1 if is_end else grant_proofs.ACTION_CITY_ADMIN_V1)
         proof = grant_proofs.issue_proof(
@@ -438,7 +495,7 @@ def build_approval_blueprint(db) -> Blueprint:
             intent_digest=digest, factor=factor, subject=fields.get("account_id"),
         )
         returned = {"state": state_param, "proof": proof}
-        if not is_end and not is_order:
+        if not is_end and not is_order and not is_invite:
             returned["expected_state"] = state["expected_state"]
         fragment = urlencode(returned)
         response = _no_framing(redirect(_settings()["return_url"] + "#" + fragment, code=303))

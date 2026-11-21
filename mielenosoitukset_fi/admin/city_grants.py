@@ -530,6 +530,9 @@ def _receipt_identity(operation: dict) -> dict:
         "decision_id": intent["decision_id"],
         "decision_revision": intent["decision_revision"],
     }
+    if "invitation_id" in intent:
+        # An outbound organization invitation (org_outreach.py); it names no account.
+        return {**identity, "invitation_id": intent["invitation_id"], "case_id": intent["case_id"]}
     if "order_id" in intent:
         # A Flask order (flask_orders.py); a board roster names no account.
         identity.update(order_id=intent["order_id"], kind=intent["kind"])
