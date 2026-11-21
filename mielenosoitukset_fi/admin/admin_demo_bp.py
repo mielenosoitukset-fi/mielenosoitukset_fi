@@ -3900,7 +3900,7 @@ def demo_command_center(demo_id):
         "edit": url_for("admin_demo.edit_demo", demo_id=demo_id_str),
         "history": url_for("admin_demo.demo_edit_history", demo_id=demo_id_str),
         "audit": url_for("admin_demo.view_demo_audit_log", demo_id=demo_id_str),
-        "analytics": url_for("admin.demo_analytics", demo_id=demo_id_str),
+        "analytics": url_for("admin_site_analytics.site_demo_analytics", demo_id=demo_id_str),
     }
 
     permissions = {

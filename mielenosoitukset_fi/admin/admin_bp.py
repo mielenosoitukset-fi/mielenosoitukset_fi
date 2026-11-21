@@ -1855,52 +1855,37 @@ def _build_analytics_summary(
     *,
     scope_query=None,
 ):
-    visible_ids = {
-        doc["_id"]
-        for doc in mongo.demonstrations.find(scope_query or {}, {"_id": 1})
-    }
-    future_ids = _future_demo_ids(scope_query)
-    selected_ids = visible_ids if include_past else future_ids
-    match_stage = {"demo_id": {"$in": list(selected_ids)}}
+    # Views come from the same counters as each demo's analytics page, so
+    # the list and the page agree.
+    from mielenosoitukset_fi.utils.site_analytics import get_demonstration_view_totals
 
-    base_pipeline = [{"$match": match_stage}] if match_stage else []
-    count_pipeline = base_pipeline + [
-        {"$group": {"_id": "$demo_id"}},
-        {"$count": "total"},
-    ]
-    total_count_doc = list(mongo.analytics.aggregate(count_pipeline))
-    total_count = total_count_doc[0]["total"] if total_count_doc else 0
-    total_views_pipeline = base_pipeline + [{"$count": "total_views"}]
-    total_views_doc = list(mongo.analytics.aggregate(total_views_pipeline))
-    total_views = total_views_doc[0]["total_views"] if total_views_doc else 0
+    visible = {
+        doc["_id"]: doc
+        for doc in mongo.demonstrations.find(
+            scope_query or {}, {"_id": 1, "slug": 1, "running_number": 1, "title": 1, "date": 1}
+        )
+    }
+    visible_ids = set(visible)
+    future_ids = _future_demo_ids(scope_query)
+    selected_ids = visible_ids if include_past else (future_ids & visible_ids)
+    totals = get_demonstration_view_totals(visible[did] for did in selected_ids)
+    ranked = sorted(
+        ((did, views) for did, views in totals.items() if views > 0),
+        key=lambda item: (-item[1], str(item[0])),
+    )
+    total_count = len(ranked)
+    total_views = sum(views for _, views in ranked)
 
     total_pages = max(1, (total_count + per_page - 1) // per_page)
     page = min(max(page, 1), total_pages)
     skip = (page - 1) * per_page
-    data_pipeline = base_pipeline + [
-        {"$group": {"_id": "$demo_id", "views": {"$sum": 1}}},
-        {"$sort": {"views": -1, "_id": 1}},
-        {"$skip": skip},
-        {"$limit": per_page},
-    ]
-    grouped = list(mongo.analytics.aggregate(data_pipeline))
-    demo_ids = [doc["_id"] for doc in grouped]
-    demo_map = {}
-    if demo_ids:
-        for doc in mongo.demonstrations.find(
-            {"_id": {"$in": demo_ids}}, {"title": 1, "date": 1}
-        ):
-            demo_map[doc["_id"]] = doc
-
     rows = []
-    for doc in grouped:
-        did = doc["_id"]
-        views = int(doc.get("views", 0))
-        info = demo_map.get(did, {})
+    for did, views in ranked[skip:skip + per_page]:
+        info = visible.get(did, {})
         rows.append(
             {
                 "id": str(did),
-                "views": views,
+                "views": int(views),
                 "title": info.get("title"),
                 "date": info.get("date"),
             }
@@ -2368,182 +2353,37 @@ def get_user_role_counts():
     )
     return {role["_id"]: role["count"] for role in user_roles}
 
+# Analytics live in one place: "Tilastot" lists the demos the admin may see,
+# "Palvelun analytiikka" covers the whole site and each demo has one analytics
+# page (admin_site_analytics.site_demo_analytics). The old pages redirect so
+# bookmarks keep working.
 @admin_bp.route("/demo_analytics")
 @login_required
 @admin_required
 @permission_required("VIEW_ANALYTICS")
 def admin_analytics():
-    """ """
-    _log_admin_event("analytics_overview_view")
-    return render_analytics_overview()
+    """Old "most viewed" list: the same list is on the Tilastot page."""
+    return redirect(url_for("admin.stats", include_past=1), code=302)
 
 
-ANALYTICS_OVERVIEW_PER_PAGE = 50
-
-
-def render_analytics_overview():
-    """Render the most viewed demonstrations, one page at a time.
-
-    Reads the per-demo counts the ``prep`` job keeps in ``prepped_analytics``
-    (every 15 minutes) instead of grouping every raw view event per request,
-    and renders one page instead of every demonstration that was ever viewed.
-    """
-    try:
-        page = max(1, int(request.args.get("page", 1)))
-    except (TypeError, ValueError):
-        page = 1
-    per_page = ANALYTICS_OVERVIEW_PER_PAGE
-    total = mongo.prepped_analytics.count_documents({})
-    total_pages = max(1, (total + per_page - 1) // per_page)
-    page = min(page, total_pages)
-    rows = list(
-        mongo.prepped_analytics.find({}, {"demo_id": 1, "views": 1})
-        .sort([("views", -1), ("demo_id", 1)])
-        .skip((page - 1) * per_page)
-        .limit(per_page)
-    )
-    titles = {
-        doc["_id"]: doc.get("title")
-        for doc in mongo.demonstrations.find(
-            {"_id": {"$in": [row.get("demo_id") for row in rows]}}, {"title": 1}
-        )
-    }
-    data = []
-    for row in rows:
-        entry = DemoViewCount(row.get("demo_id"), row.get("views", 0))
-        entry.title = titles.get(row.get("demo_id")) or _("Poistettu mielenosoitus")
-        data.append(entry)
-
-    def page_url(number):
-        return url_for("admin.admin_analytics", page=number)
-
-    window = range(max(1, page - 2), min(total_pages, page + 2) + 1)
-    return render_template(
-        f"{_ADMIN_TEMPLATE_FOLDER}analytics.html",
-        data=data,
-        total=total,
-        page=page,
-        total_pages=total_pages,
-        rank_offset=(page - 1) * per_page,
-        prev_page_url=page_url(page - 1) if page > 1 else None,
-        next_page_url=page_url(page + 1) if page < total_pages else None,
-        first_page_url=page_url(1),
-        last_page_url=page_url(total_pages),
-        visible_pages=[{"number": number, "url": page_url(number)} for number in window],
-    )
-
-
-
-from datetime import timedelta
 @admin_bp.route("/per_demo_analytics/<demo_id>")
 @login_required
 @admin_required
 @permission_required("VIEW_ANALYTICS", _type="DEMONSTRATION")
 def demo_analytics(demo_id):
-    from mielenosoitukset_fi.utils.classes import Demonstration
+    """Old per-demo page: one analytics page per demo now."""
+    if not ObjectId.is_valid(str(demo_id)):
+        abort(404)
+    return redirect(url_for("admin_site_analytics.site_demo_analytics", demo_id=str(demo_id)), code=302)
+
+
+@admin_bp.app_template_global("analytics_has_global_scope")
+def analytics_has_global_scope():
+    """True when the admin may see site-wide analytics (not only own demos)."""
     try:
-        demo_oid = ObjectId(demo_id)
+        return _analytics_demo_scope(current_user)[1]
     except Exception:
-        _log_admin_event("demo_analytics_detail_error", demo_id=demo_id, reason="invalid_id")
-        abort(404, "Invalid demo ID")
-
-    demo_data = mongo["demonstrations"].find_one({"_id": demo_oid})
-    if not demo_data:
-        _log_admin_event("demo_analytics_detail_error", demo_id=demo_id, reason="missing_demo")
-        abort(404, "Demonstration not found")
-
-    # A demonstration nobody has opened yet has no analytics document. Show
-    # the page with zero views instead of a 404 that looks like a broken link.
-    anal = get_per_demo_anal(demo_oid) or {"_id": demo_oid, "analytics": {}}
-
-    analytics = anal.get("analytics", {})
-    demo = Demonstration.from_dict(demo_data)
-
-    now_utc = datetime.now(timezone.utc)
-    today_str = now_utc.strftime("%Y-%m-%d")
-
-    # --- Initialize variables ---
-    total_views = 0
-    views_today = 0
-    labels = []
-    data = []
-
-    # --- Per minute today ---
-    day_data = analytics.get(today_str, {})
-    for hour in range(24):
-        hour_key = f"{hour:02d}"
-        hour_data = day_data.get(hour_key) or day_data.get(str(hour)) or {}
-        for minute in range(60):
-            minute_key = f"{minute:02d}"
-            count = hour_data.get(minute_key)
-            if count is None:
-                count = hour_data.get(str(minute), 0)
-            total_views += count  # will sum all-time later
-            views_today += count
-            labels.append(f"{hour:02d}:{minute:02d}")
-            data.append(count)
-
-    # --- Add total views from all previous days ---
-    for day_str, day_hours in analytics.items():
-        if day_str != today_str:
-            for hour_data in day_hours.values():
-                total_views += sum(hour_data.values())
-
-    avg_views_per_minute = (views_today / 1440) if views_today else 0
-
-    # --- Views per day last 30 days ---
-    daily_labels = []
-    daily_data = []
-    for i in range(29, -1, -1):  # 30 days ago -> today
-        day = now_utc - timedelta(days=i)
-        day_str = day.strftime("%Y-%m-%d")
-        day_views = 0
-        day_hours = analytics.get(day_str, {})
-        for hour_data in day_hours.values():
-            day_views += sum(hour_data.values())
-        daily_labels.append(day.strftime("%d.%m"))
-        daily_data.append(day_views)
-
-    # --- Views per week last 52 weeks ---
-    weekly_labels = []
-    weekly_data = []
-
-    def get_monday(date):
-        return date - timedelta(days=date.weekday())
-
-    monday_today = get_monday(now_utc)
-
-    for i in range(51, -1, -1):  # 52 weeks ago -> this week
-        week_start = monday_today - timedelta(weeks=i)
-        week_end = week_start + timedelta(days=6)
-        week_label = f"{week_start.strftime('%d.%m')} - {week_end.strftime('%d.%m')}"
-        weekly_labels.append(week_label)
-
-        week_views = 0
-        for d in range(7):
-            day = week_start + timedelta(days=d)
-            day_str = day.strftime("%Y-%m-%d")
-            day_hours = analytics.get(day_str, {})
-            for hour_data in day_hours.values():
-                week_views += sum(hour_data.values())
-        weekly_data.append(week_views)
-
-    # --- Render template ---
-    _log_admin_event("demo_analytics_detail_view", demo_id=demo_id)
-    return render_template(
-        f"{_ADMIN_TEMPLATE_FOLDER}per_demo_analytics.html",
-        analytics=anal,
-        total_views=total_views,
-        views_today=views_today,
-        avg_views_per_minute=round(avg_views_per_minute, 2),
-        chart_labels=labels,
-        chart_data=data,
-        daily_labels=daily_labels,
-        daily_data=daily_data,
-        weekly_labels=weekly_labels,
-        weekly_data=weekly_data,
-        demo=demo
-    )
+        return False
 
 
 from datetime import datetime, timedelta, timezone

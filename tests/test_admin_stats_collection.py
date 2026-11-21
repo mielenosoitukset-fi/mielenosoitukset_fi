@@ -46,23 +46,43 @@ def _analytics_demo(index, *, editor_id=None):
     return demo_id, demo
 
 
+def _pageview(demo_id, count=1, resource_id=None):
+    """One server-side page view counter row, as record_site_analytics writes."""
+    return {
+        "_id": ObjectId(),
+        "date": utcnow().date().isoformat(),
+        "hour": 12,
+        "page_type": "demonstration",
+        "resource_id": resource_id or str(demo_id),
+        "count": count,
+    }
+
+
+def test_list_and_demo_page_count_views_the_same_way(admin_client, db):
+    db.site_analytics.delete_many({})
+    demo_id, demo = _analytics_demo(70)
+    demo.update(slug="sama-luku", start_time="12:00", city="Helsinki", address="Kauppatori")
+    db.demonstrations.insert_one(demo)
+    # Views under the id and under the slug both belong to the demo.
+    db.site_analytics.insert_many(
+        [_pageview(demo_id, 2), _pageview(demo_id, 3, resource_id="sama-luku")]
+    )
+    db.analytics.insert_one({"_id": ObjectId(), "demo_id": demo_id, "timestamp": utcnow()})
+
+    payload = admin_client.get("/admin/api/stats/summary?include_past=1").get_json()
+    row = next(row for row in payload["analytics"]["rows"] if row["id"] == str(demo_id))
+    assert row["views"] == 5
+    page = admin_client.get(f"/admin/analytics/demonstration/{demo_id}").get_data(as_text=True)
+    assert ">5<" in page.replace(" ", "")
+
+
 def test_stats_collection_uses_deterministic_server_pagination(
     admin_client, db
 ):
-    db.analytics.delete_many({})
+    db.site_analytics.delete_many({})
     demos = [_analytics_demo(index) for index in range(45)]
     db.demonstrations.insert_many([demo for _, demo in demos])
-    db.analytics.insert_many(
-        [
-            {
-                "_id": ObjectId(),
-                "demo_id": demo_id,
-                "timestamp": utcnow(),
-                "session_id": f"stats-{index:02d}",
-            }
-            for index, (demo_id, _) in enumerate(demos)
-        ]
-    )
+    db.site_analytics.insert_many([_pageview(demo_id) for demo_id, _ in demos])
 
     first = admin_client.get("/admin/stats?include_past=1&page=1&per_page=20")
     second = admin_client.get("/admin/stats?include_past=1&page=2&per_page=20")
@@ -105,12 +125,7 @@ def test_scoped_analytics_viewer_only_sees_allowed_demo_counts(
     allowed_id, allowed = _analytics_demo(90, editor_id=seeded_data["user_id"])
     hidden_id, hidden = _analytics_demo(91)
     db.demonstrations.insert_many([allowed, hidden])
-    db.analytics.insert_many(
-        [
-            {"_id": ObjectId(), "demo_id": allowed_id, "timestamp": utcnow()},
-            {"_id": ObjectId(), "demo_id": hidden_id, "timestamp": utcnow()},
-        ]
-    )
+    db.site_analytics.insert_many([_pageview(allowed_id), _pageview(hidden_id)])
 
     client = _client_for_user(app, seeded_data["user_id"])
     response = client.get("/admin/stats?include_past=1")
@@ -168,11 +183,10 @@ def test_demo_analytics_detail_shows_zero_views_for_unvisited_demo(
     db.d_analytics.delete_many({"_id": demo_id})
     db.analytics.delete_many({"demo_id": demo_id})
 
-    response = admin_client.get(f"/admin/per_demo_analytics/{demo_id}")
+    # One analytics page per demo: an unvisited demo shows zero, not a 404.
+    response = admin_client.get(f"/admin/analytics/demonstration/{demo_id}")
 
     assert response.status_code == 200
-    assert b"data-analytics-empty" in response.data
-    assert b"viewsPerMinuteChart" not in response.data
     assert admin_client.get(
-        "/admin/per_demo_analytics/6b00a7a3655dc1bdc40fffff"
+        "/admin/analytics/demonstration/6b00a7a3655dc1bdc40fffff"
     ).status_code == 404
