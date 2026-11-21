@@ -166,6 +166,24 @@ chown -R www-data:www-data "$repo_dir"
 # idempotent provisioning step while old workers still serve traffic.
 "$production_python" -m mielenosoitukset_fi.scripts.provision_public_indexes
 
+# Backup timers and alerts (OPS-01) follow the repository. They never touch a
+# public service, so a failure here is reported loudly but does not block the
+# release. They run before the reload so that any host directory they create or
+# tighten is in place when the config check below and the new workers run.
+if ! "$repo_dir/deploy/backup/install_units.sh"; then
+  echo "::warning::backup units were not updated for ${expected_sha}; see the deploy log and docs/backups.md"
+  echo "production_deploy.sh: backup unit install failed; the release continues" >&2
+fi
+
+# Every new worker opens the unit's *_CONFIG_FILE secrets while booting. If the
+# service user cannot read one, gunicorn halts after the reload and takes the
+# old workers down with it (21 November 2026 outage). Stop here instead, while
+# the old workers still serve.
+if ! "$production_python" "$repo_dir/deploy/check_service_config_files.py" "$service_name"; then
+  echo "production_deploy.sh: refusing to reload ${service_name}; old workers keep serving" >&2
+  exit 1
+fi
+
 # New workers capture this value while creating their Flask application. Write
 # it atomically so an existing worker can never observe a partial SHA. Existing
 # workers retain the value they captured at their own startup.
@@ -187,14 +205,6 @@ if ! systemctl is-active --quiet "$service_name" || \
 fi
 
 echo "Deployed ${expected_sha} to Flask with a verified graceful worker reload."
-
-# Backup timers and alerts (OPS-01) follow the repository. They never touch a
-# public service, so a failure here is reported loudly but does not undo a
-# release that already serves traffic.
-if ! "$repo_dir/deploy/backup/install_units.sh"; then
-  echo "::warning::backup units were not updated for ${expected_sha}; see the deploy log and docs/backups.md"
-  echo "production_deploy.sh: backup unit install failed; the release continues" >&2
-fi
 
 if [[ "$skip_public" == true ]]; then
   echo "production_deploy.sh: skipping the public host and API (--skip-public)" >&2

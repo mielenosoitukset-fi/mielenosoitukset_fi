@@ -483,7 +483,7 @@ def configure(app, db) -> None:
     if test_settings:
         register(app, db, test_settings)
         return
-    from mielenosoitukset_fi.users.hallinto_issuer_config import _read_settings
+    from mielenosoitukset_fi.users.hallinto_issuer_config import _read_settings, config_error_reason
     from mielenosoitukset_fi.utils.logger import logger
 
     try:
@@ -495,9 +495,10 @@ def configure(app, db) -> None:
         # routes stay off, nothing is registered, and the error is loud. The
         # message names no path or value: they may be secrets.
         app.extensions.pop("hallinto_city_grants", None)
-        app.extensions["hallinto_city_grants_disabled"] = type(error).__name__
+        reason = config_error_reason(error)
+        app.extensions["hallinto_city_grants_disabled"] = reason
         logger.error(
             "HALLINTO_CITY_GRANT_CONFIG_FILE is set but unusable (%s): the Hallinto grant, "
             "end, order and role-bundle routes are DISABLED. Fix the file (readable by the "
-            "service user, mode 0600, valid JSON) and restart.", type(error).__name__,
+            "service user, mode 0600, valid JSON) and restart.", reason,
         )

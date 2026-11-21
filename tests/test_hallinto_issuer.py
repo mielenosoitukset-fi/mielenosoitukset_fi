@@ -238,7 +238,7 @@ def test_issuer_refuses_unprotected_config(app_factory, tmp_path, monkeypatch, f
         link.symlink_to(path)
         path = link
     monkeypatch.setenv("HALLINTO_ISSUER_CONFIG_FILE", str(path))
-    with pytest.raises(RuntimeError, match=r"^Hallinto issuer needs a readable, restricted JSON file$"):
+    with pytest.raises(RuntimeError, match=r"^Hallinto issuer needs a readable, restricted JSON file \((ValueError|OSError|JSONDecodeError)\)$"):
         app_factory()
 
 
@@ -258,7 +258,7 @@ def test_issuer_refuses_invalid_state_database(app_factory, tmp_path, monkeypatc
     path.write_text(json.dumps(_production_settings(name, uri)))
     path.chmod(0o600)
     monkeypatch.setenv("HALLINTO_ISSUER_CONFIG_FILE", str(path))
-    with pytest.raises(RuntimeError, match=r"^Hallinto issuer configuration is invalid$"):
+    with pytest.raises(RuntimeError, match=r"^Hallinto issuer configuration is invalid \(ValueError\)$"):
         app_factory()
 
 
