@@ -44,18 +44,22 @@
           {% endif %}
         </td>
         <td>
-          {% if user.role == 'admin' %}
-            {% if user.admin_city_only %}
-            <span class="user-role city-admin"><i class="fas fa-location-dot" aria-hidden="true"></i>{{ _('Admin, vain paikkakunnat') }}</span>
-            {% else %}
+          {% if user.admin_scope == 'super' %}
+            <span class="user-role global-admin"><i class="fas fa-shield-halved" aria-hidden="true"></i>{{ _('Superkäyttäjä') }}</span>
+          {% elif user.admin_scope == 'site' %}
             <span class="user-role admin"><i class="fas fa-shield" aria-hidden="true"></i>{{ _('Admin, koko sivusto') }}</span>
-            {% endif %}
+          {% elif user.admin_scope == 'city' %}
+            <span class="user-role city-admin"><i class="fas fa-location-dot" aria-hidden="true"></i>{{ _('Admin, vain paikkakunnat') }}</span>
+          {% elif user.admin_scope == 'org' %}
+            <span class="user-role city-admin"><i class="fas fa-people-group" aria-hidden="true"></i>{{ _('Admin, vain organisaatiot') }}</span>
+          {% elif user.admin_scope == 'city_org' %}
+            <span class="user-role city-admin"><i class="fas fa-location-dot" aria-hidden="true"></i>{{ _('Admin, paikkakunnat ja organisaatiot') }}</span>
+          {% elif user.admin_scope == 'none' %}
+            <span class="user-role"><i class="fas fa-user-shield" aria-hidden="true"></i>{{ _('Admin-rooli, ei oikeuksia') }}</span>
           {% elif user.role == 'city_admin' %}
             <span class="user-role city-admin"><i class="fas fa-location-dot" aria-hidden="true"></i>{{ _('Kaupunkiadmin') }}</span>
           {% elif user.role == 'translator' %}
             <span class="user-role translator"><i class="fas fa-language" aria-hidden="true"></i>{{ _('Kääntäjä') }}</span>
-          {% elif user.role in ['global_admin', 'god'] %}
-            <span class="user-role global-admin"><i class="fas fa-shield-halved" aria-hidden="true"></i>{{ _('Superkäyttäjä') }}</span>
           {% else %}
             <span class="user-role"><i class="fas fa-user" aria-hidden="true"></i>{{ _('Käyttäjä') }}</span>
           {% endif %}

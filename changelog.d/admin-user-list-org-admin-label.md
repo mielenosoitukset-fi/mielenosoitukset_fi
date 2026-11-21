@@ -1,0 +1,1 @@
+- Admin user list no longer calls organisation-only admins "Admin, koko sivusto". The role badge now says whether an admin has site-wide rights, only cities, only organisations, both, or no rights yet, and superusers set by flag or role are shown as "Superkäyttäjä".
