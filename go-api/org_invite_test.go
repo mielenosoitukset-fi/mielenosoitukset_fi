@@ -53,14 +53,14 @@ func (f *fakeInviteStore) ReplaceInvitations(_ context.Context, _ bson.ObjectID,
 	f.org.Invitations = next
 	return true, nil
 }
-func (f *fakeInviteStore) AddMember(_ context.Context, user, _ bson.ObjectID) error {
+func (f *fakeInviteStore) AddMember(_ context.Context, user, _ bson.ObjectID, role string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.memberErr != nil {
 		return f.memberErr
 	}
 	if _, ok := f.members[user.Hex()]; !ok {
-		f.members[user.Hex()] = "member"
+		f.members[user.Hex()] = role
 	}
 	return nil
 }
@@ -518,13 +518,13 @@ func TestInvitationMongoStore(t *testing.T) {
 		t.Fatalf("after=%v", after.Invitations)
 	}
 	// Membership: inserted once with the member permissions, never overwritten.
-	if err := store.AddMember(ctx, user, org); err != nil {
+	if err := store.AddMember(ctx, user, org, "member"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Collection("memberships").UpdateOne(ctx, bson.M{"user_id": user, "organization_id": org}, bson.M{"$set": bson.M{"role": "admin"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.AddMember(ctx, user, org); err != nil {
+	if err := store.AddMember(ctx, user, org, "member"); err != nil {
 		t.Fatal(err)
 	}
 	var rows []bson.M
@@ -534,6 +534,24 @@ func TestInvitationMongoStore(t *testing.T) {
 	}
 	if perms, _ := rows[0]["permissions"].(bson.A); len(perms) != 3 || perms[0] != "INVITE_TO_ORGANIZATION" {
 		t.Fatalf("permissions=%v", rows[0]["permissions"])
+	}
+	// An owner gets the owner permissions; the account role is never raised.
+	owner := bson.NewObjectID()
+	if _, err := db.Collection("users").InsertOne(ctx, bson.M{"_id": owner, "role": "user"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AddMember(ctx, owner, org, "owner"); err != nil {
+		t.Fatal(err)
+	}
+	var ownerRow, ownerUser bson.M
+	if err := db.Collection("memberships").FindOne(ctx, bson.M{"user_id": owner}).Decode(&ownerRow); err != nil || ownerRow["role"] != "owner" {
+		t.Fatalf("owner row=%v err=%v", ownerRow, err)
+	}
+	if perms, _ := ownerRow["permissions"].(bson.A); len(perms) != len(orgRolePermissions["owner"]) {
+		t.Fatalf("owner permissions=%v", ownerRow["permissions"])
+	}
+	if err := db.Collection("users").FindOne(ctx, bson.M{"_id": owner}).Decode(&ownerUser); err != nil || ownerUser["role"] != "user" {
+		t.Fatalf("owner user=%v err=%v", ownerUser, err)
 	}
 	// The governance marker.
 	if managed, err := store.GovernanceManaged(ctx, org); err != nil || managed {
@@ -554,5 +572,35 @@ func TestInvitationMongoStore(t *testing.T) {
 	}
 	if _, found, _ := store.AccountEmail(ctx, bson.NewObjectID()); found {
 		t.Fatal("unknown account found")
+	}
+}
+
+func TestInvitationAcceptGivesCheckedRole(t *testing.T) {
+	granter := bson.NewObjectID()
+	cases := []struct {
+		name  string
+		entry any
+		want  string
+	}{
+		{"checked owner", bson.M{"email": "member@example.com", "role": "owner", "role_granted_by": granter}, "owner"},
+		{"checked admin", bson.D{{Key: "email", Value: "member@example.com"}, {Key: "role", Value: "admin"}, {Key: "role_granted_by", Value: granter}}, "admin"},
+		{"unchecked owner", bson.M{"email": "member@example.com", "role": "owner"}, "member"},
+		{"unknown role", bson.M{"email": "member@example.com", "role": "god", "role_granted_by": granter}, "member"},
+		{"plain string", "member@example.com", "member"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := newInviteRig(t, bson.A{c.entry}, nil)
+			token := g.csrf(t)
+			if r := g.call("POST", invitePathAccept, "{}", developerCSRFHeader, token); r.Code != 200 {
+				t.Fatalf("%d %s", r.Code, r.Body.String())
+			}
+			if g.store.members[testActor] != c.want {
+				t.Fatalf("members=%v", g.store.members)
+			}
+			if g.store.audits[0]["role"] != c.want {
+				t.Fatalf("audit=%v", g.store.audits[0])
+			}
+		})
 	}
 }

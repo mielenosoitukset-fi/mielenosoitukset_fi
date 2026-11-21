@@ -292,6 +292,9 @@ def _context() -> Dict[str, Any]:
             user = getattr(g, "_login_user", None)
             if user is not None and getattr(user, "is_authenticated", False) and actor.get("kind") == "anonymous":
                 actor = {"kind": "user", "user_id": str(getattr(user, "id", "") or "")}
+                duty = getattr(user, "active_duty", None)
+                if duty:
+                    actor["duty_shift_id"] = duty["shift_id"]
             if request.endpoint and ("token" in request.endpoint or "magic" in request.endpoint) and actor["kind"] == "anonymous":
                 actor = {"kind": "link"}
         else:

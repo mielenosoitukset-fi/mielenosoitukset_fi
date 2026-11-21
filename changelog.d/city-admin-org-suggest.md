@@ -1,0 +1,1 @@
+- City admins can no longer create or edit organizations or invite people to them. They can still see organizations, and suggest a new one through the organization request form, which is decided in Hallinto.

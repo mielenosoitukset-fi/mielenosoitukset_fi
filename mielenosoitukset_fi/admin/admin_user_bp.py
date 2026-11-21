@@ -36,6 +36,7 @@ from .city_grants import (
     city_scope_grant_for_user, commit_profile_change, history_actor, sync_city_scope_grant,
 )
 from .user_erasure import erase_user
+from mielenosoitukset_fi.utils.system_teams import SUPER_ROLES, team_ids, user_team_access
 from .user_history import (
     PENDING_HISTORY, MAX_PENDING_HISTORY,
     flush_user_history, history_event, history_query, present_history,
@@ -86,6 +87,29 @@ def protect_user_history_response(response):
         response.cache_control.private = True
         response.cache_control.no_store = True
     return response
+
+
+def _admin_scope_label_key(user: dict, *, has_city_grants: bool, is_org_admin: bool) -> str | None:
+    """Say where an account's admin rights reach, for the user list role badge.
+
+    Organisation admins get ``role == "admin"`` too, so the role alone does not
+    mean site-wide rights; only global permissions or superuser access do.
+    """
+    if user.get("global_admin") is True or user.get("role") in SUPER_ROLES:
+        return "super"
+    if user.get("role") != "admin":
+        return None
+    if "national" in user_team_access(mongo, user["_id"]):
+        return "super"
+    if user.get("global_permissions"):
+        return "site"
+    if has_city_grants and is_org_admin:
+        return "city_org"
+    if has_city_grants:
+        return "city"
+    if is_org_admin:
+        return "org"
+    return "none"
 
 
 @admin_user_bp.route("/")
@@ -172,12 +196,28 @@ def user_control():
             {"user_id": 1},
         )
     }
+    try:
+        system_team_org_ids = {str(value) for value in team_ids().values()}
+    except ValueError:
+        system_team_org_ids = set()
+    org_admin_user_ids = {
+        str(membership["user_id"])
+        for membership in mongo.memberships.find(
+            {
+                "user_id": {"$in": page_user_ids + [str(user_id) for user_id in page_user_ids]},
+                "role": {"$in": ["admin", "owner"]},
+            },
+            {"user_id": 1, "organization_id": 1},
+        )
+        if str(membership.get("organization_id")) not in system_team_org_ids
+    }
     for user in users:
         if user.get("role") in {None, "user"} and str(user["_id"]) in scoped_user_ids:
             user["role"] = "city_admin"
-        # An admin without site-wide rights only works in granted cities.
-        user["admin_city_only"] = (
-            user.get("role") == "admin" and not user.get("global_permissions") and str(user["_id"]) in scoped_user_ids
+        user["admin_scope"] = _admin_scope_label_key(
+            user,
+            has_city_grants=str(user["_id"]) in scoped_user_ids,
+            is_org_admin=str(user["_id"]) in org_admin_user_ids,
         )
         user["can_change_status"] = can_change_account_status(
             current_user, SimpleNamespace(_id=user["_id"], role=user.get("role") or "user",
@@ -281,7 +321,7 @@ def _check_user_assignment(actor, role, permissions, target=None):
         abort(403)
     if target and actor._id == target._id and role != target.role:
         abort(403)
-    if not actor.has_full_permissions() and not added <= set(actor.global_permissions):
+    if not actor.has_full_permissions() and not added <= set(actor.stored_global_permissions):
         abort(403)
 
 def safe_redirect(target):

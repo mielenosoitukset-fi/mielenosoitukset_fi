@@ -62,7 +62,12 @@ def _notify_national_team(db, application, case_id):
 
 
 def deliver_pending(db, limit=50):
-    """Create the review case for stored applications. Safe to rerun after a crash."""
+    """Create the review case for stored applications. Safe to rerun after a crash.
+
+    Does nothing while applications are handled in Hallinto: Hallinto reads them
+    straight from ``city_admin_applications``."""
+    if handled_in_hallinto():
+        return 0
     delivered = 0
     for application in db.city_admin_applications.find({"case_pending": True}).limit(limit):
         case_id = application["_id"]
@@ -96,7 +101,8 @@ def set_status(db, application_id, status, actor):
         raise ValueError("unknown status")
     now = utcnow()
     result = db.city_admin_applications.update_one(
-        {"_id": application_id, "status": {"$nin": ["withdrawn"]}},
+        # One place decides: an application opened in Hallinto is decided there.
+        {"_id": application_id, "status": {"$nin": ["withdrawn"]}, "hallinto_case": None},
         {"$set": {"status": status, "updated_at": now, "decided_by": actor if status != "in_review" else None}},
     )
     if not result.matched_count:
@@ -119,10 +125,14 @@ RETENTION_ENV_FLAG = "CITY_ADMIN_APPLICATION_RETENTION_ENABLED"
 _FREE_TEXT_FIELDS = {"about": "", "activism": "", "references": "", "consent_at": ""}
 
 
-def retention_enabled(environ=None):
+def _flag(name, environ=None):
     import os
-    value = (environ if environ is not None else os.environ).get(RETENTION_ENV_FLAG, "")
+    value = (environ if environ is not None else os.environ).get(name, "")
     return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
+def retention_enabled(environ=None):
+    return _flag(RETENTION_ENV_FLAG, environ)
 
 
 def purge_expired(db, now=None, dry_run=False):
@@ -145,3 +155,91 @@ def purge_expired(db, now=None, dry_run=False):
             query, {"$unset": _FREE_TEXT_FIELDS, "$set": {"purged_at": now}})
         purged += result.modified_count
     return purged
+
+
+# --- Hallinto handles applications (hallinto issue #39) ---------------------
+#
+# With CITY_ADMIN_APPLICATIONS_IN_HALLINTO on, the delivery job makes no Flask
+# case: OT handles the application in Hallinto, which reads it and records each
+# step through the issuer (``/hallinto-oidc/city-admin-applications/*``). Off
+# (the default), the existing Flask case flow is unchanged.
+HALLINTO_ENV_FLAG = "CITY_ADMIN_APPLICATIONS_IN_HALLINTO"
+HALLINTO_STATUSES = ("in_review", "approved", "declined")
+_HALLINTO_LIST_STATUSES = ("received", "in_review", "approved", "declined")
+_HALLINTO_CASE_MAX = 128
+
+
+def handled_in_hallinto(environ=None):
+    return _flag(HALLINTO_ENV_FLAG, environ)
+
+
+def hallinto_view(row, users):
+    """What a Hallinto handler sees: the account, the cities and the answers.
+    No email address; the account is identified by its id and username."""
+    stamp = lambda value: value.isoformat() + ("" if value.tzinfo else "Z") if value else None
+    user = users.get(row.get("user_id")) or {}
+    activism = row.get("activism") or {}
+    return {
+        "id": str(row["_id"]), "status": row.get("status"),
+        "account": {"id": str(row["user_id"]) if row.get("user_id") else None, "username": user.get("username"),
+                    "name": user.get("displayname") or user.get("username")},
+        "cities": [{"key": key, "name": CITY_KEY_TO_NAME.get(key, key)} for key in row.get("city_keys") or []],
+        "about": row.get("about"), "references": row.get("references"),
+        "organizations": activism.get("organizations") if isinstance(activism, dict) else None,
+        "experience": EXPERIENCE_LABELS.get(activism.get("experience")) if isinstance(activism, dict) else None,
+        "experience_details": activism.get("experience_details") if isinstance(activism, dict) else None,
+        "case": row.get("hallinto_case"), "created_at": stamp(row.get("created_at")),
+        "updated_at": stamp(row.get("updated_at")),
+    }
+
+
+def hallinto_list(db, limit=100):
+    """Open and decided applications, newest first. Withdrawn ones are left out."""
+    rows = list(db.city_admin_applications.find({"status": {"$in": list(_HALLINTO_LIST_STATUSES)}})
+                .sort("created_at", -1).limit(limit))
+    ids = [row["user_id"] for row in rows if row.get("user_id")]
+    users = {u["_id"]: u for u in db.users.find({"_id": {"$in": ids}}, {"username": 1, "displayname": 1})}
+    return [hallinto_view(row, users) for row in rows]
+
+
+class HallintoConflict(Exception):
+    """The application is decided, withdrawn or handled in another case."""
+
+
+def hallinto_update(db, application_id, status, case, actor):
+    """Record a step from Hallinto. The first step links the Hallinto case;
+    later steps must name the same case. A decided application keeps its
+    decision, so a replay of the same status is the only change allowed.
+    Returns the updated row, None when it does not exist."""
+    if status not in HALLINTO_STATUSES:
+        raise ValueError("unknown status")
+    if not isinstance(case, str) or not 0 < len(case) <= _HALLINTO_CASE_MAX:
+        raise ValueError("case required")
+    row = db.city_admin_applications.find_one({"_id": application_id})
+    if not row:
+        return None
+    decided = row.get("status") in ("approved", "declined")
+    if (row.get("status") == "withdrawn" or (row.get("hallinto_case") not in (None, case))
+            or (decided and row.get("status") != status)):
+        raise HallintoConflict()
+    now = utcnow()
+    if row.get("status") == status and row.get("hallinto_case") == case:
+        return row
+    result = db.city_admin_applications.find_one_and_update(
+        {"_id": application_id, "status": row.get("status"), "hallinto_case": row.get("hallinto_case")},
+        {"$set": {"status": status, "hallinto_case": case, "case_pending": False, "updated_at": now,
+                  "decided_by": actor if status != "in_review" else None},
+         "$push": {"history": {"status": status, "at": now, "by": actor, "via": "hallinto", "case": case}}},
+        return_document=True,
+    )
+    if result is None:
+        raise HallintoConflict()  # Changed meanwhile; Hallinto retries with fresh state.
+    if status != "in_review" and db.cases.find_one({"_id": application_id}, {"_id": 1}):
+        # A case made before the switch closes with the Hallinto decision.
+        db.cases.update_one({"_id": application_id}, {"$set": {
+            "meta.closed": True, "meta.closed_reason": STATUS_LABELS[status], "meta.closed_at": now, "updated_at": now},
+            "$push": {"case_history": {"timestamp": now, "action": f"Hakemuksen tila Hallinnossa: {STATUS_LABELS[status]}",
+                                       "user": "hallinto", "mech_action": "application_status",
+                                       "metadata": {"status": status, "hallinto_case": case},
+                                       "meta_schema": {"status": "string", "hallinto_case": "string"}}}})
+    return result

@@ -19,3 +19,35 @@ def invitation_expired(invitation, now=None) -> bool:
     if invited_at.tzinfo is None:
         invited_at = invited_at.replace(tzinfo=timezone.utc)
     return (now or datetime.now(timezone.utc)) - invited_at > INVITE_LIFETIME
+
+
+INVITE_ROLES = ("member", "admin", "owner")
+
+
+def invited_role(invitation) -> str:
+    """Role an accepted invitation grants.
+
+    Only a dict invitation whose role was recorded with ``role_granted_by`` (set by
+    the role check in ``set_invite_role``) grants ``admin`` or ``owner``. Older
+    invitations carry roles that any member could set, so they join as ``member``.
+    """
+    if not isinstance(invitation, dict):
+        return "member"
+    role = invitation.get("role")
+    if role in INVITE_ROLES and invitation.get("role_granted_by"):
+        return role
+    return "member"
+
+
+def invitation_for(invitations, email):
+    """The live invitation for ``email``, or None."""
+    for invitation in invitations or []:
+        if isinstance(invitation, str) and invitation == email:
+            return invitation
+        if (
+            isinstance(invitation, dict)
+            and invitation.get("email") == email
+            and not invitation_expired(invitation)
+        ):
+            return invitation
+    return None

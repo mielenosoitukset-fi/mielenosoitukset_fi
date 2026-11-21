@@ -4,7 +4,7 @@ from bson.objectid import ObjectId
 from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.utils.flashing import flash_message
 from mielenosoitukset_fi.utils.classes import Organization
-from mielenosoitukset_fi.utils.invitations import invitation_expired
+from mielenosoitukset_fi.utils.invitations import invitation_expired, invitation_for, invited_role
 
 mongo = DatabaseManager().get_instance().get_db()
 
@@ -72,8 +72,10 @@ def accept_invite():
             {"$set": {"invitations": new_invitations}},
         )
 
+        role = invited_role(invitation_for(organization.get("invitations", []), current_user.email))
         org = Organization.from_dict(organization)
-        org.add_member(current_user, role="member", permissions=[])
+        # Organisation roles live in the membership only; the account role is never raised.
+        org.add_member(current_user, role=role, permissions=[])
         flash_message(f"Liityit organisaatioon {organization.get('name')}.", "success")
     else:
         flash_message("Kutsua ei löytynyt.", "warning")
@@ -113,8 +115,10 @@ def accept_invite_post(organization_id):
             {"$set": {"invitations": new_invitations}},
         )
 
+        role = invited_role(invitation_for(organization.get("invitations", []), current_user.email))
         org = Organization.from_dict(organization)
-        org.add_member(current_user, role="member", permissions=[])
+        # Organisation roles live in the membership only; the account role is never raised.
+        org.add_member(current_user, role=role, permissions=[])
         flash_message(f"Liityit organisaatioon {organization.get('name')}.", "success")
 
     

@@ -155,7 +155,7 @@ def _has_explicit_organization_permission(user, permission: str, org_id=None) ->
 
 
 def _is_limited_city_admin(user) -> bool:
-    if user.has_full_permissions() or getattr(user, "role", None) == "admin":
+    if user.has_full_permissions() or user.has_site_wide_admin_reach():
         return False
     return user.has_city_admin_scope_grants()
 
@@ -230,6 +230,25 @@ def _can_invite_to_organization(user, organization) -> bool:
         "INVITE_TO_ORGANIZATION",
         org_id,
     )
+
+
+def _can_grant_organization_role(user, organization, role) -> bool:
+    """Who may put a role on an invitation.
+
+    The route needs EDIT_ORGANIZATION, which organization admins hold too, so the
+    role needs its own check: ``admin`` needs explicit EDIT_ORGANIZATION outside the
+    city-admin implied grants, and ``owner`` needs full permissions or ownership.
+    """
+    org_id = organization.get("_id") if isinstance(organization, dict) else getattr(organization, "_id", None)
+    if role == "member":
+        return True
+    if role not in ("admin", "owner") or org_id is None or _is_limited_city_admin(user):
+        return False
+    if user.has_full_permissions():
+        return True
+    if role == "admin":
+        return _has_explicit_organization_permission(user, "EDIT_ORGANIZATION", org_id)
+    return user.role_in(org_id) == "owner"
 
 
 
@@ -523,8 +542,9 @@ def update_organization(org_id):
     description = request.form.get("description")
     website = request.form.get("website")
     social_media_links = get_social_media_links()
-    current_logo_doc = mongo.organizations.find_one({"_id": ObjectId(org_id)}, {"logo": 1})
+    current_logo_doc = mongo.organizations.find_one({"_id": ObjectId(org_id)}, {"logo": 1, "verified": 1})
     current_logo = current_logo_doc.get("logo") if current_logo_doc else None
+    previous_verified = bool((current_logo_doc or {}).get("verified", False))
     logo_value, logo_changed = resolve_logo_value(current_logo)
 
     update_payload = {
@@ -545,6 +565,15 @@ def update_organization(org_id):
             "$set": update_payload
         },
     )
+    # The checkbox stays until Hallinto handles organization decisions (O3), but
+    # every change of the flag leaves an explicit admin-log entry with who, old and new value.
+    if "verified" in update_payload and update_payload["verified"] != previous_verified:
+        _log_org_event(
+            "organization_verified_changed",
+            organization_id=str(org_id),
+            previous=previous_verified,
+            new=update_payload["verified"],
+        )
     return True
 
 
@@ -1475,13 +1504,7 @@ def force_accept_invite() -> Tuple[Response, int]:
     # --- Add member ---
     org_obj.add_member(user, role=role)
 
-    # --- Elevate role if needed ---
-    if (
-        role in ["admin", "owner"]
-        and user.role not in ["admin", "owner", "global_admin", "superuser"]
-    ):
-        user.role = "admin"
-        user.save()
+    # Organisation roles live in the membership only; the account role is never raised.
 
     # --- Update organization ---
     mongo.organizations.update_one(
@@ -1646,6 +1669,9 @@ def set_invite_role() -> Tuple[Response, int]:
     if not _can_invite_to_organization(current_user, org):
         _log_org_event("organization_invite_role_error", reason="forbidden", organization_id=org_id, email=email)
         return jsonify({"status": "error", "error": _("Sinulla ei ole oikeutta tähän toimintoon.")}), 403
+    if not _can_grant_organization_role(current_user, org, role):
+        _log_org_event("organization_invite_role_error", reason="role_forbidden", organization_id=org_id, email=email, role=role)
+        return jsonify({"status": "error", "error": _("Sinulla ei ole oikeutta antaa tätä roolia.")}), 403
 
     # --- Process invitations ---
     invitations = org.get("invitations", [])
@@ -1654,18 +1680,19 @@ def set_invite_role() -> Tuple[Response, int]:
     for invite in invitations:
         if isinstance(invite, dict) and _invite_matches_email(invite, email):
             invite["role"] = role
+            invite["role_granted_by"] = current_user._id
             updated = True
             break
 
         # Legacy format: invite stored as just email string
         if isinstance(invite, str) and _invite_matches_email(invite, email):
-            invitations[invitations.index(invite)] = {"email": email, "role": role, "invited_at": utcnow()}
+            invitations[invitations.index(invite)] = {"email": email, "role": role, "role_granted_by": current_user._id, "invited_at": utcnow()}
             updated = True
             break
 
     if not updated:
         # No existing invite → add a new one
-        invitations.append({"email": email, "role": role, "invited_at": utcnow()})
+        invitations.append({"email": email, "role": role, "role_granted_by": current_user._id, "invited_at": utcnow()})
 
     # --- Update organization ---
     mongo.organizations.update_one(
@@ -1775,19 +1802,7 @@ def change_access_level() -> Tuple[Response, int]:
     if organization.is_member(None, user_id):
         organization.update_member(user_id, role)
 
-        # --- Update global role if elevated ---
-        if role in ["admin", "owner"]:
-            try:
-                from mielenosoitukset_fi.users.models import User
-
-                user = User.from_OID(user_id)
-                if user.role in ["user", "member"]:
-                    user.role = "admin"
-                    user.save()
-                    
-            except Exception:
-                # Silently ignore errors; org update is more important
-                pass
+        # Organisation roles live in the membership only; the account role is never raised.
         _log_org_event(
             "organization_access_changed",
             organization_id=organization_id,

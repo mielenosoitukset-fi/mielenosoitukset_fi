@@ -234,6 +234,9 @@ def create_app(config_overrides=None) -> Flask:
             user = User.from_db(user_doc)
             if not user.is_active:
                 return None
+            # National moderator rights exist only during a duty shift; they
+            # are recomputed from the stored windows on every request.
+            user.apply_active_duty()
             logger.info(f"User loaded: {user_doc.get('username')}")
             return user
         logger.warning(f"User not found with id: {user_id}")
@@ -273,6 +276,8 @@ def create_app(config_overrides=None) -> Flask:
     app.register_blueprint(admin_dev_bp)
     app.register_blueprint(admin_city_bp)
     app.register_blueprint(admin_governance_bp)
+    from mielenosoitukset_fi.admin.admin_shifts_bp import admin_shifts_bp
+    app.register_blueprint(admin_shifts_bp)
     app.register_blueprint(admin_site_analytics_bp)
     #app.register_blueprint(admin_case_bp)
     
@@ -336,6 +341,23 @@ def create_app(config_overrides=None) -> Flask:
                 site_analytics.record_pageview_from_request(request, response)
         except Exception:
             logger.exception("Site analytics recording failed")
+        return response
+
+    from mielenosoitukset_fi.utils import duty_shifts
+
+    @app.after_request
+    def _record_duty_use(response):
+        # Every state-changing request made with duty-shift rights is logged,
+        # whether or not it was allowed or wrote anything.
+        try:
+            user = g.get("_login_user")
+            if user is not None and getattr(user, "active_duty", None):
+                duty_shifts.record_use(
+                    mongo, user, method=request.method, endpoint=request.endpoint,
+                    path=request.path, status=response.status_code,
+                )
+        except Exception:
+            logger.exception("Duty shift use recording failed")
         return response
 
     logger.info("Flask application created successfully.")

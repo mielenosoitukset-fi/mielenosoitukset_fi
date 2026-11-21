@@ -1795,6 +1795,10 @@ def logout():
     logout_user()
     clear_elevation()  # step-up state never outlives the session
     flash_message("Kirjauduit onnistuneesti ulos", "success")
+    target = request.form.get("next")
+    if target:
+        # Sign back in and return, e.g. when Hallinto needs a fresh sign-in.
+        return redirect(url_for("users.auth.login", next=_normalize_post_login_target(target)))
     return redirect(url_for("users.auth.login"))
 
 

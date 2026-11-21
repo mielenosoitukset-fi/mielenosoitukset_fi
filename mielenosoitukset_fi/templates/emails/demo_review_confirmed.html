@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <title>Hylkäys on tarkistettu</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; background-color: #f8f8f8; color: #333; padding: 20px; }
+        .container { max-width: 700px; margin: 0 auto; background-color: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .message { background-color: #f1f1f1; padding: 15px; border-radius: 6px; margin: 20px 0; white-space: pre-line; }
+        .details p { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Hylkäys on tarkistettu</h2>
+        <p>Ylläpidon toimintaryhmä tarkisti ilmoituksesi hylkäyksen ja vahvisti sen. Perustelu:</p>
+        <div class="message">{{ message }}</div>
+{% if final %}        <p>Tämä oli uudelleenarvioinnin ratkaisu, ja se on lopullinen.</p>
+{% else %}        <p>Jos olet eri mieltä, voit pyytää uudelleenarviointia osoitteesta <a href="mailto:hallinto@mielenosoitukset.fi">hallinto@mielenosoitukset.fi</a>. Pyynnön ratkaisee joku muu kuin alkuperäisen päätöksen tekijä, viimeistään 30 päivän kuluessa.</p>
+{% endif %}
+        <div class="details">
+            <p><strong>Otsikko:</strong> {{ title }}</p>
+            <p><strong>Päivämäärä:</strong> {{ date }}</p>
+            <p><strong>Kaupunki:</strong> {{ city }}</p>
+        </div>
+        <p>Ystävällisin terveisin<br>Mielenosoitukset.fi-tiimi</p>
+    </div>
+</body>
+</html>

@@ -150,6 +150,14 @@ if (container) {
       void import('./CityAdminApplyScreen').then(({ default: CityAdminApplyScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<CityAdminApplyScreen session={props.session} apiBase={props.config.apiBase} />} />);
       }).catch(error => console.error('Could not start the city admin application page', error));
+    } else if (route?.name === 'org-request') {
+      void import('./OrgRequestScreen').then(({ default: OrgRequestScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<OrgRequestScreen session={props.session} />} />);
+      }).catch(error => console.error('Could not start the organization request page', error));
+    } else if (route?.name === 'org-request-status') {
+      void import('./OrgRequestStatusScreen').then(({ default: OrgRequestStatusScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<OrgRequestStatusScreen />} />);
+      }).catch(error => console.error('Could not start the organization request status page', error));
     } else if (route?.name === 'contact') {
       void import('./ContactScreen').then(({ default: ContactScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<ContactScreen session={props.session} />} />);

@@ -51,6 +51,13 @@ def has_admin_access(user) -> bool:
     return False
 
 
+# permission_required(_type=...) checks the named resource, not any organisation.
+_RESOURCE_COLLECTIONS = {
+    "DEMONSTRATION": "demonstrations",
+    "RECURRING_DEMONSTRATION": "recu_demos",
+}
+
+
 def admin_required(f):
     """Decorator to enforce that a user has global admin privileges to access a specific route.
 
@@ -149,7 +156,7 @@ def _normalize_object_id(value):
     return None
 
 
-def has_demo_permission(user, _id, permission_name):
+def has_demo_permission(user, _id, permission_name, collection="demonstrations"):
     """
     Determine whether a user has permission for a specific demonstration.
 
@@ -213,14 +220,14 @@ def has_demo_permission(user, _id, permission_name):
         return False
 
     # Per-request cache for demo documents (avoids N+1 DB lookups)
-    cache_key = f"demo_perm_{demo_id}"
+    cache_key = f"demo_perm_{collection}_{demo_id}"
     demo_doc = None
     try:
         demo_doc = getattr(g, "_demo_perm_cache", {}).get(cache_key)
     except Exception:
         pass
     if demo_doc is None:
-        demo_doc = mongo.demonstrations.find_one({"_id": demo_id})
+        demo_doc = getattr(mongo, collection).find_one({"_id": demo_id})
         if demo_doc is not None:
             try:
                 if not hasattr(g, "_demo_perm_cache"):
@@ -442,14 +449,18 @@ def permission_required(permission_name: str, _id: str | None = None, _type: str
                 logger.info("Global admin access granted.")
                 return f(*args, **kwargs)
 
-            if _type == "DEMONSTRATION":
+            if _type in _RESOURCE_COLLECTIONS:
                 resource_id = (
                     _id
                     or kwargs.get("demo_id")
                     or kwargs.get("demonstration_id")
                     or kwargs.get("id")
                 )
-                has = has_demo_permission(current_user, resource_id, permission_name)
+                collection = _RESOURCE_COLLECTIONS[_type]
+                has = has_demo_permission(
+                    current_user, resource_id, permission_name,
+                    **({} if collection == "demonstrations" else {"collection": collection}),
+                )
                 if has:
                     return f(*args, **kwargs)
                 logger.warning(
@@ -476,9 +487,12 @@ def permission_required(permission_name: str, _id: str | None = None, _type: str
                 return abort(403)  # Forbidden
                                 
             # Check if the user has the specified permission via user role permissions
+            # A route about one organisation is checked against that organisation:
+            # membership rights in some other organisation must not count.
+            org_scope = _id or kwargs.get("org_id") or kwargs.get("organization_id")
             if current_user.has_permission(
                 permission_name,
-                _id
+                org_scope
             ):  # DEPRACED: Use has_permission instead
                 logger.info(
                     f"User {current_user.username} has permission '{permission_name}' via role."

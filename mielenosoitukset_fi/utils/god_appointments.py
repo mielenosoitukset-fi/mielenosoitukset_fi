@@ -69,6 +69,11 @@ def appointment_approved(db, candidate_id):
     advance_appointment(db, candidate_id)
     record = db.board_clearances.find_one({"user_id": str(candidate_id)}) or {}
     state = (record.get("team_requests") or {}).get("god") or {}
+    if state.get("method") == "hallinto_decision":
+        # Johtoryhmä and OT decided in Hallinto (roadmap phase F); the legacy
+        # electorate does not apply. The decision counts only until its end.
+        from mielenosoitukset_fi.admin.elevated_grants import hallinto_evidence_valid
+        return record.get("approved") is True and hallinto_evidence_valid(state)
     # Activation rechecks the live roster. Completed grants retain the roster
     # that approved them, since activation itself changes the god roster.
     if consent_approved(state, appointment_roster(db, candidate_id)):
@@ -154,6 +159,11 @@ def cast_appointment_vote(db, candidate_id, user, approve):
     target = db.users.find_one({"_id": candidate, "god_candidate": True, "active": False})
     if not target:
         raise GovernanceConflict("Tili ei ole käyttöönottoa odottava god-tiliehdokas.")
+    clearance = db.board_clearances.find_one({"user_id": str(candidate)}) or {}
+    if ((clearance.get("team_requests") or {}).get("god") or {}).get("method") == "hallinto_decision":
+        # Johtoryhmä and OT decided in Hallinto; a legacy vote must not
+        # replace that decision or its end date.
+        raise GovernanceConflict("God-nimitys on päätetty Hallinnossa.")
     if not can_vote(db, user, candidate):
         raise PermissionError("God-tilin hyväksyntä vaatii nykyisen hyväksyjän. God-tililtä vaaditaan tuore täysi kirjautuminen.")
     roster = appointment_roster(db, candidate)

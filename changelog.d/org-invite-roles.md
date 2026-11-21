@@ -1,0 +1,1 @@
+- Accepting an organization invitation now gives the role set on it (admin or owner), when that role was set by someone allowed to give it. Organization admins can no longer invite owners; only owners and full admins can. Older invitations still join as members.
