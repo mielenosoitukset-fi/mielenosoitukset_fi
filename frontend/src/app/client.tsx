@@ -19,7 +19,8 @@ function Root(props: Bootstrap) {
       const name = routeForPath(path)?.name;
       // Pages whose address carries a secret token never load the third-party tracker,
       // which would send the full URL off-site.
-      const secretPath = name === 'password-reset' || name === 'cancel-link';
+      const secretPath = name === 'password-reset' || name === 'cancel-link' || name === 'volunteer-confirm'
+        || name === 'email-confirm' || name === 'org-invite';
       if (session.matomoEnabled && !secretPath && !document.getElementById('public-app-matomo')) {
         const script = document.createElement('script');
         script.id = 'public-app-matomo'; script.src = '/static/js/matomo.js'; script.async = true;
@@ -73,6 +74,21 @@ if (container) {
       void import('./CancelLinkScreen').then(({ default: CancelLinkScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<CancelLinkScreen link={link} token={token} />} />);
       }).catch(error => console.error('Could not start the cancellation page', error));
+    } else if (route?.name === 'volunteer-confirm') {
+      const token = route.token;
+      void import('./VolunteerConfirmScreen').then(({ default: VolunteerConfirmScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<VolunteerConfirmScreen token={token} />} />);
+      }).catch(error => console.error('Could not start the volunteer confirmation page', error));
+    } else if (route?.name === 'email-confirm') {
+      const token = route.token;
+      void import('./EmailConfirmScreen').then(({ default: EmailConfirmScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<EmailConfirmScreen token={token} loginUrl={props.config.urls.login} />} />);
+      }).catch(error => console.error('Could not start the e-mail confirmation page', error));
+    } else if (route?.name === 'org-invite') {
+      const organizationId = props.orgInvite?.organizationId ?? null;
+      void import('./OrgInviteScreen').then(({ default: OrgInviteScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<OrgInviteScreen organizationId={organizationId} loginUrl={props.config.urls.login} logoutUrl={props.config.urls.logout} />} />);
+      }).catch(error => console.error('Could not start the invitation page', error));
     } else if (route?.name === 'developer') {
       const appId = route.appId;
       void import('./DeveloperScreen').then(({ default: DeveloperScreen }) => {

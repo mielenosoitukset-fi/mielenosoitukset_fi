@@ -1,0 +1,42 @@
+{
+ "key": "test-key-test-key-test-key-test-key-0123",
+ "now": 1795168800,
+ "tokens": {
+  "valid": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Ik1haWphQEV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.mIgz1qggK2i28lWtuoG8sSS994C0-JSWCXL24sprRvE",
+  "legacy_no_purpose": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1haWphQGV4YW1wbGUuY29tIiwiaWF0IjoxNzY3MjI1NjAwLCJleHAiOjQxMDI0NDQ4MDB9.kgvC3ptJyzFTkF-xytRd85yJ2_7sa8TDCIT3DupKmBg",
+  "password_reset_purpose": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Ik1haWphQEV4YW1wbGUuY29tIiwicHVycG9zZSI6InBhc3N3b3JkX3Jlc2V0IiwiaWF0IjoxNzY3MjI1NjAwLCJleHAiOjQxMDI0NDQ4MDB9.FWFil0YbX3XLmujgcZc0LiSh42U7lAj2f_tTl8wsrA4",
+  "expired": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Ik1haWphQEV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjoxNzk1MTY1MjAwfQ.wQ82Vjq_o2zKZPKqv8f3o4ww1LlLh5Y5Modo8p1gluk",
+  "inside_leeway": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Ik1haWphQEV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjoxNzk1MTY4Nzk1fQ.0WH5_eUZskUxfzJsWevCoMAcCzWj0KrvirbhjuHx5P0",
+  "outside_leeway": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Ik1haWphQEV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjoxNzk1MTY4Nzg5fQ.DHbO8axN_A75D92MW28i_BYP1QWzp2Cidkla4ighgW0",
+  "future_iat": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Ik1haWphQEV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc5NTE3MjQwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.M1T25ay9KQp-2cx6r3Bgv67_3QXQtXa_kbV5tra0G1U",
+  "not_before_future": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Ik1haWphQEV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjo0MTAyNDQ0ODAwLCJuYmYiOjE3OTUxNzI0MDB9.p43xlxCS61Ve91pSljz8ccWvmxVI0KnHf52Py10hwVA",
+  "wrong_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Ik1haWphQEV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.wxV59EaWKhDoOuIXc_0SAcJCEyHVobDjsQPgqvgOqCM",
+  "hs512": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Ik1haWphQEV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.L7Nyjy-eJfVBygg3gIR5-BBc3Z3B9KuUxEJlpwH8bpSm9gpa2bl4Qg4d4MglIBNlUuHot-cMfuzYQXICWuUlBg",
+  "no_exp": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1haWphQGV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMH0.l6-uyZwHTH-DVJOQzBZ5fboDg3myiEtRV3N41mAOtU4",
+  "no_email": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwdXJwb3NlIjoiZW1haWxfY29uZmlybWF0aW9uIiwiaWF0IjoxNzY3MjI1NjAwLCJleHAiOjQxMDI0NDQ4MDB9.orU9f_P-1yRl5tZzKFO354jn3x26JQj5e-L85ea_354",
+  "email_not_string": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6NSwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.iGaAatHNtedpsCtS69NvqvFEyZDI2qDPZKvU92bVZ44",
+  "whitespace_email": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IiAgICIsInB1cnBvc2UiOiJlbWFpbF9jb25maXJtYXRpb24iLCJpYXQiOjE3NjcyMjU2MDAsImV4cCI6NDEwMjQ0NDgwMH0.RCuDXmiB-mPIpNpykxNnR5Z1GXMWLk_KSwY2GkgLFlA",
+  "unknown_user": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im5vYm9keUBleGFtcGxlLmNvbSIsInB1cnBvc2UiOiJlbWFpbF9jb25maXJtYXRpb24iLCJpYXQiOjE3NjcyMjU2MDAsImV4cCI6NDEwMjQ0NDgwMH0.vPG5wICdiJyNpXS8pKt8ZuL1zmRiJ9AZ2pUpU26owDM",
+  "tampered_payload": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im5vYm9keUBleGFtcGxlLmNvbSIsInB1cnBvc2UiOiJlbWFpbF9jb25maXJtYXRpb24iLCJpYXQiOjE3NjcyMjU2MDAsImV4cCI6NDEwMjQ0NDgwMH0.mIgz1qggK2i28lWtuoG8sSS994C0-JSWCXL24sprRvE",
+  "alg_none": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJlbWFpbCI6Ik1haWphQEV4YW1wbGUuY29tIiwicHVycG9zZSI6ImVtYWlsX2NvbmZpcm1hdGlvbiIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjo0MTAyNDQ0ODAwfQ."
+ },
+ "flask_email": {
+  "valid": "Maija@Example.com",
+  "legacy_no_purpose": "maija@example.com",
+  "password_reset_purpose": null,
+  "expired": null,
+  "inside_leeway": "Maija@Example.com",
+  "outside_leeway": null,
+  "future_iat": null,
+  "not_before_future": null,
+  "wrong_key": null,
+  "hs512": null,
+  "no_exp": "maija@example.com",
+  "no_email": null,
+  "email_not_string": 5,
+  "whitespace_email": "   ",
+  "unknown_user": "nobody@example.com",
+  "tampered_payload": null,
+  "alg_none": null
+ }
+}

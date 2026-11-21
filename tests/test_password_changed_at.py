@@ -84,3 +84,23 @@ def test_token_age_helper_dates_legacy_tokens_from_expiry(app):
         legacy = jwt.encode({"email": "a@x.test", "exp": exp}, app.config["SECRET_KEY"], algorithm="HS256")
         assert token_issued_before(legacy, datetime.now(timezone.utc)) is True
         assert token_issued_before(legacy, datetime.now(timezone.utc) - timedelta(hours=2)) is False
+
+
+def test_flag_on_signs_out_a_session_opened_before_the_reset(app, client, user_client, db, seeded_data):
+    assert user_client.get("/api/session").get_json()["authenticated"] is True
+    app.config["INVALIDATE_ON_PASSWORD_RESET"] = True
+    try:
+        before = _user(db)["password_hash"]
+        _reset(client, seeded_data["reset_token"])
+        assert _user(db)["password_hash"] != before  # the reset itself went through
+        assert user_client.get("/api/session").get_json()["authenticated"] is False
+    finally:
+        app.config.pop("INVALIDATE_ON_PASSWORD_RESET", None)
+
+
+def test_flag_off_leaves_a_session_opened_before_the_reset_signed_in(client, user_client, db, seeded_data):
+    assert user_client.get("/api/session").get_json()["authenticated"] is True
+    before = _user(db)["password_hash"]
+    _reset(client, seeded_data["reset_token"])
+    assert _user(db)["password_hash"] != before
+    assert user_client.get("/api/session").get_json()["authenticated"] is True

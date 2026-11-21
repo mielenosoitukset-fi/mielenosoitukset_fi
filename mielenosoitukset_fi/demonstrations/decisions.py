@@ -357,16 +357,20 @@ def apply_demo_decision(
         already = (existing.get("moderation_decision") or {}).get("status") == "taken_down"
         if not existing.get("approved") and not already:
             raise DemoNotPublished("Only an approved demonstration can be taken down")
+    update = {
+        "$set": {
+            **target,
+            **extra_fields,
+            "last_modified": now,
+            "moderation_decision": decision_meta,
+        }
+    }
+    if decision == "approved":
+        # Republishing ends any take-down request or pending confirmation.
+        update["$unset"] = {"take_down_review": ""}
     before = db.demonstrations.find_one_and_update(
         transition_filter,
-        {
-            "$set": {
-                **target,
-                **extra_fields,
-                "last_modified": now,
-                "moderation_decision": decision_meta,
-            }
-        },
+        update,
         return_document=ReturnDocument.BEFORE,
     )
     if before is None:

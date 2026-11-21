@@ -19,7 +19,8 @@ def _approve(admin_client, demo_id):
 
 
 def _take_down(client, demo_id, reason="Ilmoitus sisälsi henkilötietoja."):
-    return client.post(f"/api/admin/demo/{demo_id}/take_down", json={"reason": reason})
+    # Urgent: hidden at once; the second-admin flow is in test_demo_take_down_review.
+    return client.post(f"/api/admin/demo/{demo_id}/take_down", json={"reason": reason, "urgent": True})
 
 
 def test_take_down_hides_records_and_emails_reason(admin_client, client, db, seeded_data, monkeypatch):
@@ -101,7 +102,7 @@ def test_case_page_action_takes_down_with_reason(admin_client, db, seeded_data):
     url = f"/admin/case/{case['_id']}/demo_action"
 
     assert admin_client.post(url, json={"action": "take_down"}).status_code == 400
-    response = admin_client.post(url, json={"action": "take_down", "reason": "Vaarallinen kokoontumispaikka."})
+    response = admin_client.post(url, json={"action": "take_down", "reason": "Vaarallinen kokoontumispaikka.", "urgent": True})
 
     assert response.status_code == 200, response.get_json()
     demo = db.demonstrations.find_one({"_id": demo_id})

@@ -60,5 +60,8 @@ def test_page_posts_to_the_flask_handler_and_keeps_the_token_private():
 
 def test_token_pages_never_load_the_third_party_tracker():
     client_source = (ROOT / "frontend/src/app/client.tsx").read_text(encoding="utf-8")
-    assert "const secretPath = name === 'password-reset' || name === 'cancel-link';" in client_source
+    secret_start = client_source.index("const secretPath = ")
+    secret_line = client_source[secret_start:client_source.index(";", secret_start)]
+    for name in ("password-reset", "cancel-link", "volunteer-confirm", "email-confirm", "org-invite"):
+        assert f"name === '{name}'" in secret_line
     assert "session.matomoEnabled && !secretPath" in client_source

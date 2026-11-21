@@ -36,6 +36,9 @@ import ApiDocsScreen from './ApiDocsScreen';
 import apiDocs from 'virtual:api-docs';
 import StatusScreen from './StatusScreen';
 import CancelLinkScreen from './CancelLinkScreen';
+import VolunteerConfirmScreen from './VolunteerConfirmScreen';
+import EmailConfirmScreen from './EmailConfirmScreen';
+import OrgInviteScreen from './OrgInviteScreen';
 import DeveloperScreen from './DeveloperScreen';
 import ProfileScreen from './ProfileScreen';
 import AccountSettingsScreen from './AccountSettingsScreen';
@@ -49,6 +52,9 @@ import { accountCopy } from './account-settings-route';
 import { notificationsCopy } from './notifications-route';
 import { loadProfile, profileTitle } from './profile-route';
 import type { ProfileInitial } from './profile-route';
+import { volunteerConfirmCopy } from './volunteer-confirm';
+import { emailConfirmCopy } from './email-confirm';
+import { orgInviteCopy, orgInviteIdPattern } from './org-invite';
 import { loadCancelLink, cancelLinkTitle, type CancelLinkState } from './cancel-link';
 import { loadStatus, statusTitle, type ServiceStatus } from './status';
 import { loadSuggestion, suggestionTitle, suggestionLead, type SuggestionDemo } from './suggest-change';
@@ -94,7 +100,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -230,7 +236,7 @@ ${options.jsonLd ? `<script type="application/ld+json">${serialize(options.jsonL
 <noscript><link rel="stylesheet" href="https://cdn2.mielenosoitukset.fi/vendor/bootstrap/5.3.0/bootstrap.min.css" crossorigin></noscript>
 <link rel="stylesheet" href="/static/css/home.css?v=20261112-quick-picks">
 <link rel="stylesheet" href="/static/css/product-tokens.css?v=20261110-pride-contrast-1">
-<link rel="stylesheet" href="/static/css/user-workspace.css?v=20261110-user-workspace-8">
+<link rel="stylesheet" href="/static/css/user-workspace.css?v=20261120-user-workspace-9">
 <link rel="stylesheet" href="/static/css/public-header.css?v=20261027-react-header-1">
 <link rel="stylesheet" href="/static/css/flash.css?v=20261110-inline-spacing-1">
 <link rel="stylesheet" href="/static/css/public_hero.css?v=20261015-hero-width-1">
@@ -342,7 +348,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
   let fundraisingData: Record<string, unknown> | null | undefined;
   let campaignVisible: boolean | undefined;
   if (route.name === 'api-docs') {
-    extraHead = '<link rel="stylesheet" href="/static/css/public-api-docs.css?v=20261110-2">';
+    extraHead = '<link rel="stylesheet" href="/static/css/public-api-docs.css?v=20261120-plain-headers-1">';
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<div id="api-docs-page" dangerouslySetInnerHTML={{ __html: renderToStaticMarkup(<ApiDocsScreen {...apiDocs} />) }} />} />);
@@ -497,6 +503,45 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<DeveloperScreen config={config} session={session} appId={route.appId} />} />);
+  }
+
+  if (route.name === 'volunteer-confirm') {
+    // The link is a bearer secret and the page reads nothing: it only shows the button.
+    // Never cached, never indexed, no referrer to other sites.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.volunteerConfirm ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${volunteerConfirmCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<VolunteerConfirmScreen token={route.token} />} />);
+  }
+
+  if (route.name === 'email-confirm') {
+    // The link is a bearer secret (a signed token naming the address) and the page reads
+    // nothing: it only shows the button. Never cached, never indexed, no referrer.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.emailConfirm ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${emailConfirmCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<EmailConfirmScreen token={route.token} loginUrl={config.urls.login} />} />);
+  }
+
+  let orgInvite: { organizationId: string | null } | undefined;
+  if (route.name === 'org-invite') {
+    // Per-account page: never cached or indexed. The invitation is read in the browser from Go,
+    // with the visitor's own session, so the server renders only the shell and the id from the link.
+    const raw = new URLSearchParams(input.search ?? '').get('organization_id');
+    orgInvite = { organizationId: raw && orgInviteIdPattern.test(raw) ? raw : raw ? 'invalid' : null };
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.orgInvite ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${orgInviteCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<OrgInviteScreen organizationId={orgInvite.organizationId} loginUrl={config.urls.login} logoutUrl={config.urls.logout} />} />);
   }
 
   if (route.name === 'account-settings') {
@@ -882,6 +927,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     ...(organizationFill ? { organizationFill } : {}),
     ...(suggestionDemo ? { suggestionDemo } : {}),
     ...(cancelLink ? { cancelLink } : {}),
+    ...(orgInvite ? { orgInvite } : {}),
     ...(profile ? { profile } : {}),
     ...(route.name === 'status' ? { serviceStatus } : {}),
     ...(detail ? { detail } : {}), ...(series ? { series } : {}), ...(home ? { home } : {}),

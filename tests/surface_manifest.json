@@ -194,12 +194,12 @@
       "sha256": "be65f026e9bbcd3d4b5054b9d450bfae5233bdbfb7c3d1e0bcfc9127b73a0906"
     },
     "mielenosoitukset_fi/admin/admin_org_bp.py": {
-      "count": 15,
+      "count": 16,
       "coverage": [
         "integration",
         "e2e-admin"
       ],
-      "sha256": "19d8fb701e0b1374257cc98c696e089b2b39d30ebe9bce789692e51de406c0ad"
+      "sha256": "ef1d20938bc8b80882041c4ef9e4ee41030cb232153f42bdf0a4058b8402518c"
     },
     "mielenosoitukset_fi/admin/admin_recu_demo_bp.py": {
       "count": 8,

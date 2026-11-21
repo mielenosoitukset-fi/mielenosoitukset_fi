@@ -1,0 +1,1 @@
+- Admin guide: describes taking an approved demonstration off the site ("Poista julkaisusta") and the edit form's read-only publication status.
