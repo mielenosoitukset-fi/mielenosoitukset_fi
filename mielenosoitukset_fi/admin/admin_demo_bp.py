@@ -2026,10 +2026,15 @@ def _case_link_page(token, *, status=200, error=None, result=None, allow_bind=Fa
         response.headers["X-Robots-Tag"] = "noindex"
         return response
     case_doc = mongo.cases.find_one(
-        {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}, {"meta.superior_needed": 1}
+        {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}, {"meta": 1}
     ) or {}
     pending = not demo.get("approved") and not demo.get("rejected")
-    escalated = bool((case_doc.get("meta") or {}).get("superior_needed")) and not getattr(user, "global_admin", False)
+    from mielenosoitukset_fi.utils import case_escalation as esc
+
+    case_meta = case_doc.get("meta") or {}
+    level = esc.current_level(case_meta)
+    escalated = level >= 1 and not getattr(user, "global_admin", False)
+    can_escalate = pending and esc.can_escalate(case_meta, user)
     factor = case_links.second_factor(mongo, user)
     csrf = session.setdefault("case_link_csrf", secrets.token_urlsafe(24))
     page = render_template(
@@ -2040,6 +2045,9 @@ def _case_link_page(token, *, status=200, error=None, result=None, allow_bind=Fa
         csrf=csrf,
         pending=pending,
         escalated=escalated,
+        can_escalate=can_escalate,
+        escalate_label=esc.ASK_LABELS.get(level),
+        level_name=esc.LEVEL_NAMES[level] if level else None,
         factor=factor,
         effects={d: preview_demo_decision(mongo, demo["_id"], d) for d in ("approved", "rejected")} if pending else {},
         reject_reasons=case_reasons.choices(case_reasons.REJECT_KEYS),
@@ -2137,14 +2145,14 @@ def case_link_decide(token):
 
 
 def _case_link_escalate(token, doc, demo, user):
-    """Ask a superior to decide, through a scoped case link.
+    """Raise the case one level (second reviewer, then Johtoryhmä) through a scoped link.
 
     Same rules as a decision (second factor, no passkey-only bypass) but the
     demonstration stays pending and the link stays usable, so that a person
     who cannot decide still has a recorded way out instead of leaving the case
     unprocessed. A short reason is required.
     """
-    from mielenosoitukset_fi.utils import case_links
+    from mielenosoitukset_fi.utils import case_escalation as esc, case_links
 
     if demo.get("approved") or demo.get("rejected"):
         return _case_link_page(token, status=409, error=_("Mielenosoituksesta on jo tehty päätös."))
@@ -2153,51 +2161,31 @@ def _case_link_escalate(token, doc, demo, user):
     )
     if not case_doc:
         return _case_link_page(token, status=404, error=_("Tapausta ei löytynyt. Avaa mielenosoitus kirjautumalla."))
-    if (case_doc.get("meta") or {}).get("superior_needed"):
-        return _case_link_page(token, status=409, error=_("Tapaus on jo siirretty toisen tarkistajan arvioitavaksi."))
+    meta = case_doc.get("meta") or {}
+    if esc.current_level(meta) >= esc.MAX_LEVEL:
+        return _case_link_page(token, status=409, error=_("Tapaus on jo Johtoryhmän arvioitavana. Ylempää tasoa ei ole."))
+    if not esc.can_escalate(meta, user):
+        return _case_link_page(token, status=403, error=_("Tapaus on jo siirretty toisen tarkistajan arvioitavaksi."))
     factor = case_links.second_factor(mongo, user)
     if factor == "passkey_only":
         return _case_link_page(token, status=403, error=_("Tilisi käyttää pääsyavainta. Kirjaudu sisään tehdäksesi päätöksen."))
-    reason = " ".join((request.form.get("escalate_reason") or "").split())
-    if len(reason) < 5:
-        return _case_link_page(token, status=400, error=_("Kirjoita lyhyt syy (vähintään 5 merkkiä)."))
-    if len(reason) > 500:
-        return _case_link_page(token, status=400, error=_("Syy on liian pitkä (enintään 500 merkkiä)."))
+    try:
+        reason = esc.clean_reason(request.form.get("escalate_reason"))
+    except esc.EscalationError:
+        return _case_link_page(token, status=400, error=_("Kirjoita lyhyt syy (5–500 merkkiä)."))
     if factor == "totp":
         try:
             case_links.check_code(mongo, doc, user, request.form.get("code"))
         except case_links.CaseLinkError as exc:
             code, message = _CASE_LINK_ERRORS.get(exc.code, (400, "Vahvistus epäonnistui."))
             return _case_link_page(token, status=code, error=_(message))
-    now = _now_utc()
-    updated = mongo.cases.update_one(
-        {"_id": case_doc["_id"], "meta.superior_needed": {"$ne": True}},
-        {
-            "$set": {"meta.superior_needed": True, "updated_at": now},
-            "$push": {
-                "case_history": {
-                    "timestamp": now,
-                    "action": "Eskaloitu toisen tarkistajan arvioitavaksi",
-                    "user": user.username,
-                    "mech_action": "escalate_demo",
-                    "metadata": {"reason": reason, "authentication": "case_link", "second_factor": factor or "none"},
-                    "meta_schema": {"reason": "string", "authentication": "string", "second_factor": "string"},
-                },
-                "action_logs": {
-                    "user": user.username,
-                    "action_type": "escalate_demo",
-                    "reason": reason,
-                    "source": "case_link",
-                    "timestamp": now,
-                },
-            },
-        },
-    )
-    if not updated.modified_count:
-        return _case_link_page(token, status=409, error=_("Tapaus on jo siirretty toisen tarkistajan arvioitavaksi."))
+    try:
+        level = esc.escalate(mongo, case_doc, user, reason, authentication="case_link", second_factor=factor or "none")
+    except esc.EscalationError:
+        return _case_link_page(token, status=409, error=_("Tapauksen taso ehti muuttua. Lataa sivu uudelleen."))
     page = render_template(
         "case_link.html",
-        result=_("Tapaus siirretty toisen tarkistajan arvioitavaksi. Se ei jää odottamaan sinua."),
+        result=_("Tapaus siirretty eteenpäin: %(name)s. Se ei jää odottamaan sinua.", name=esc.LEVEL_NAMES[level]),
         login_url=url_for("users.auth.login"),
     )
     response = make_response(page, 200)

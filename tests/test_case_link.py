@@ -184,10 +184,30 @@ def test_escalate_through_link_needs_reason_and_keeps_demo_pending(app, db, seed
     assert entry["metadata"]["authentication"] == "case_link" and entry["metadata"]["reason"] == "En tunne järjestäjää"
     demo = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
     assert not demo.get("approved") and not demo.get("rejected")
-    # Twice is refused, not duplicated.
-    again = browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": "Toinen kerta"})
-    assert again.status_code == 409
-    assert len(_case(db, seeded_data)["case_history"]) == len(case["case_history"])
+    assert case["meta"]["escalation_level"] == 1
+    # The second reviewer (a full admin) can raise it once more, to Johtoryhmä.
+    second = browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": "Päätös kuuluu Johtoryhmälle"})
+    assert second.status_code == 200, second.get_data(as_text=True)[:500]
+    assert _case(db, seeded_data)["meta"]["escalation_level"] == 2
+    # Johtoryhmä is the last level: nothing above it, nothing duplicated.
+    history = len(_case(db, seeded_data)["case_history"])
+    third = browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": "Vielä ylemmäs"})
+    assert third.status_code == 409
+    assert len(_case(db, seeded_data)["case_history"]) == history
+
+
+def test_escalation_levels_and_who_may_raise_them():
+    from types import SimpleNamespace as U
+
+    from mielenosoitukset_fi.utils import case_escalation as esc
+
+    handler, reviewer = U(global_admin=False), U(global_admin=True)
+    assert esc.current_level({}) == 0 and esc.current_level({"superior_needed": True}) == 1
+    assert esc.current_level({"superior_needed": True, "escalation_level": 2}) == 2
+    assert esc.can_escalate({}, handler)
+    assert not esc.can_escalate({"superior_needed": True}, handler)
+    assert esc.can_escalate({"superior_needed": True}, reviewer)
+    assert not esc.can_escalate({"superior_needed": True, "escalation_level": 2}, reviewer)
 
 
 def test_escalate_through_link_needs_code_and_refuses_passkey_only(app, db, seeded_data):
