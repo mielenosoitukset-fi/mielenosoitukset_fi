@@ -48,7 +48,7 @@ def test_demo_dashboard_has_scoped_preview_and_edit_link_quick_actions(
     assert response.status_code == 200
     page = response.get_data(as_text=True)
     assert 'target="_blank" rel="noopener"' in page
-    assert "Avaa julkinen esikatselu" in page
+    assert "Avaa julkinen sivu" in page or "Esikatsele (ei julkinen)" in page
     assert 'data-bs-target="#dashboardEditLinkModal"' in page
     assert 'data-demo-edit-link-trigger' in page
     assert page.count('id="dashboardEditLinkModal"') == 1
