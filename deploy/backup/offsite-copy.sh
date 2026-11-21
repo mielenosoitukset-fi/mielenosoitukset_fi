@@ -25,6 +25,15 @@
 #   BACKUP_DIR          local archives                      (default /var/backups/mielenosoitukset)
 #   STATE_DIR           ledger and stamps                   (default $STATE_DIRECTORY or /var/lib/mielenosoitukset-backup)
 #   AGE, RSYNC          binaries                            (default age, rsync)
+#
+# Outbox mode (production since 21 November 2026): when OFFSITE_OUTBOX is set,
+# nothing is uploaded. Each encrypted archive and its checksum are placed in that
+# directory instead, and the off-site machine PULLS them over a read-only rsync
+# key (docs/backups.md). OFFSITE_TARGET, the SSH key and known_hosts are then not
+# used. Outbox files older than OFFSITE_OUTBOX_DAYS (default 14) are removed.
+#   OFFSITE_OUTBOX       directory the puller reads             (optional)
+#   OFFSITE_OUTBOX_GROUP group that may read it                 (default moso-offsite)
+#   OFFSITE_OUTBOX_DAYS  keep encrypted files this many days    (default 14)
 set -euo pipefail
 umask 077
 
@@ -39,15 +48,27 @@ send_days="${OFFSITE_SEND_DAYS:-3}"
 bwlimit="${OFFSITE_BWLIMIT:-2048}"
 age="${AGE:-age}"
 rsync="${RSYNC:-rsync}"
+outbox="${OFFSITE_OUTBOX:-}"
+outbox_group="${OFFSITE_OUTBOX_GROUP:-moso-offsite}"
+outbox_days="${OFFSITE_OUTBOX_DAYS:-14}"
 
 die() { echo "offsite-copy: $*" >&2; exit 2; }
 
-[[ -n "$target" ]] || die "OFFSITE_TARGET is not set (see docs/backups.md)"
-[[ "$target" =~ ^[A-Za-z0-9][A-Za-z0-9._@-]*:[A-Za-z0-9._/~-]*$ ]] || die "OFFSITE_TARGET must look like user@host:directory"
-[[ "$port" =~ ^[0-9]+$ ]] || die "OFFSITE_PORT must be a number"
-[[ "$bwlimit" =~ ^[0-9]+$ ]] || die "OFFSITE_BWLIMIT must be a number (KiB/s)"
 [[ "$send_days" =~ ^[0-9]+$ && "$send_days" -ge 1 ]] || die "OFFSITE_SEND_DAYS must be a positive integer"
-for path in "$ssh_key" "$known_hosts" "$recipients"; do
+if [[ -n "$outbox" ]]; then
+  [[ "$outbox" =~ ^/[A-Za-z0-9_./-]+$ ]] || die "unsafe OFFSITE_OUTBOX path: $outbox"
+  [[ -d "$outbox" ]] || die "OFFSITE_OUTBOX $outbox does not exist"
+  [[ "$outbox_group" =~ ^[a-z_][a-z0-9_-]*$ ]] || die "unsafe OFFSITE_OUTBOX_GROUP"
+  [[ "$outbox_days" =~ ^[0-9]+$ && "$outbox_days" -ge 1 ]] || die "OFFSITE_OUTBOX_DAYS must be a positive integer"
+  required_paths=("$recipients")
+else
+  [[ -n "$target" ]] || die "OFFSITE_TARGET is not set (see docs/backups.md)"
+  [[ "$target" =~ ^[A-Za-z0-9][A-Za-z0-9._@-]*:[A-Za-z0-9._/~-]*$ ]] || die "OFFSITE_TARGET must look like user@host:directory"
+  [[ "$port" =~ ^[0-9]+$ ]] || die "OFFSITE_PORT must be a number"
+  [[ "$bwlimit" =~ ^[0-9]+$ ]] || die "OFFSITE_BWLIMIT must be a number (KiB/s)"
+  required_paths=("$ssh_key" "$known_hosts" "$recipients")
+fi
+for path in "${required_paths[@]}"; do
   [[ "$path" =~ ^/[A-Za-z0-9_./-]+$ ]] || die "unsafe path in settings: $path"
   [[ -r "$path" ]] || die "cannot read $path"
 done
@@ -96,18 +117,32 @@ while IFS= read -r name; do
   mv "$enc.tmp" "$enc"
   (cd "$staging" && sha256 "$name.age" > "$name.age.sha256")
 
-  # The checksum file goes last in the same call; the receiving side only
-  # accepts an archive once its checksum file is there and matches.
-  "$rsync" --times --chmod=F0600 --timeout=900 --bwlimit="$bwlimit" -e "$ssh_cmd" -- "$enc" "$enc.sha256" "$target" \
-    || { echo "offsite-copy: upload of $name failed" >&2; exit 1; }
+  if [[ -n "$outbox" ]]; then
+    # Archive first, checksum last: the puller only accepts an archive once its
+    # checksum file is there and matches. Readable by the pull group only.
+    for file in "$enc" "$enc.sha256"; do
+      chgrp "$outbox_group" "$file" && chmod 0640 "$file"
+      mv -f "$file" "$outbox/"
+    done
+  else
+    # The checksum file goes last in the same call; the receiving side only
+    # accepts an archive once its checksum file is there and matches.
+    "$rsync" --times --chmod=F0600 --timeout=900 --bwlimit="$bwlimit" -e "$ssh_cmd" -- "$enc" "$enc.sha256" "$target" \
+      || { echo "offsite-copy: upload of $name failed" >&2; exit 1; }
+  fi
 
   echo "$name" >> "$ledger"
   printf '%s %s\n' "$(date +%s)" "$name" > "$state_dir/last-$mode.tmp"
   mv "$state_dir/last-$mode.tmp" "$state_dir/last-$mode"
   rm -f "$enc" "$enc.sha256"
-  echo "offsite-copy: sent $name"
+  echo "offsite-copy: ${outbox:+placed in outbox: }sent $name"
   sent=$((sent + 1))
 done < <(find "$backup_dir" -maxdepth 1 -type f -name '*.archive.gz' -mtime "-$send_days" | sort)
+
+if [[ -n "$outbox" ]]; then
+  find "$outbox" -maxdepth 1 -type f \( -name '*.archive.gz.age' -o -name '*.archive.gz.age.sha256' \) \
+    -mtime "+$outbox_days" -print -delete
+fi
 
 # Keep the ledger short; names older than the send window can never match again.
 if [[ "$(wc -l < "$ledger")" -gt 500 ]]; then

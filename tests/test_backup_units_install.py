@@ -18,7 +18,9 @@ def _install(tmp_path, **env):
     fake.chmod(0o755)
     full_env = {**os.environ, "PRODUCTION_REPO_DIR": str(REPO), "BACKUP_UNIT_DIR": str(units),
                 "SYSTEMCTL": str(fake), "LOG": str(log),
-                "OFFSITE_RECIPIENTS": str(tmp_path / "missing-recipients"), **env}
+                "OFFSITE_RECIPIENTS": str(tmp_path / "etc/backup-recipients.txt"),
+                "OFFSITE_OUTBOX": str(tmp_path / "outbox"), "OFFSITE_PULL_HOME": str(tmp_path / "pull"),
+                "BACKUP_SKIP_ACCOUNTS": "1", **env}
     result = subprocess.run(["bash", str(BACKUP / "install_units.sh")], env=full_env,
                             capture_output=True, text=True)
     calls = log.read_text().splitlines() if log.exists() else []
@@ -41,17 +43,39 @@ def test_install_copies_units_reloads_and_enables_timers(tmp_path):
     assert "mielenosoitukset-backup-age-check.timer" in enable
     # Services are never started by the install.
     assert not any(call.startswith(("start", "restart")) for call in calls)
-    assert "off-site copy NOT configured" in result.stdout
     assert not list(units.glob(".*.tmp"))
+    recipients = tmp_path / "etc/backup-recipients.txt"
+    assert recipients.read_bytes() == (BACKUP / "offsite-recipients.txt").read_bytes()
+    assert recipients.stat().st_mode & 0o777 == 0o600
+    keys = tmp_path / "pull/.ssh/authorized_keys"
+    assert keys.read_bytes() == (BACKUP / "offsite-pull.authorized_keys").read_bytes()
+    assert keys.stat().st_mode & 0o777 == 0o644
+    assert (tmp_path / "outbox").stat().st_mode & 0o777 == 0o750
+    assert "off-site outbox ready" in result.stdout
 
 
-def test_second_install_skips_daemon_reload_and_reports_offsite(tmp_path):
+def test_second_install_skips_daemon_reload_and_rewrites_nothing(tmp_path):
     _install(tmp_path)
-    (tmp_path / "recipients").write_text("age1" + "q" * 58 + "\n")
-    result, _, calls = _install(tmp_path, OFFSITE_RECIPIENTS=str(tmp_path / "recipients"))
+    result, _, calls = _install(tmp_path)
     assert result.returncode == 0, result.stderr
     assert "daemon-reload" not in calls
-    assert "unchanged" in result.stdout and "off-site copy configured" in result.stdout
+    assert "unchanged" in result.stdout
+    assert "installed" not in result.stdout
+
+
+def test_shipped_offsite_material_is_public_and_read_only():
+    lines = [l for l in (BACKUP / "offsite-recipients.txt").read_text().splitlines()
+             if l.strip() and not l.startswith("#")]
+    assert lines and all(l.startswith("age1") for l in lines)
+    for path in (BACKUP / "offsite-recipients.txt", BACKUP / "offsite-pull.authorized_keys"):
+        text = path.read_text()
+        assert "AGE-SECRET-KEY" not in text and "PRIVATE KEY" not in text
+    keys = (BACKUP / "offsite-pull.authorized_keys").read_text().splitlines()
+    assert keys and all(k.startswith('restrict,command="rrsync -ro /var/backups/mielenosoitukset-outbox" ssh-ed25519 ')
+                        for k in keys)
+    unit = (BACKUP / "mielenosoitukset-offsite-copy.service").read_text()
+    assert "Environment=OFFSITE_OUTBOX=/var/backups/mielenosoitukset-outbox" in unit
+    assert "/var/backups/mielenosoitukset-outbox" in unit.split("ReadWritePaths=")[1].splitlines()[0]
 
 
 def test_changed_unit_is_replaced(tmp_path):

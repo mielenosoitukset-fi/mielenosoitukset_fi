@@ -13,8 +13,13 @@
 #   PRODUCTION_REPO_DIR  checkout (default /var/www/mielenosoitukset_fi)
 #   BACKUP_UNIT_DIR      systemd unit directory (default /etc/systemd/system)
 #   SYSTEMCTL            systemctl binary (default systemctl; tests use a fake)
-#   OFFSITE_RECIPIENTS   off-site key file, only reported
+#   OFFSITE_RECIPIENTS   where the public age recipients are installed
 #                        (default /etc/mielenosoitukset/backup-recipients.txt)
+#   OFFSITE_OUTBOX       encrypted outbox the off-site machine pulls from
+#                        (default /var/backups/mielenosoitukset-outbox)
+#   OFFSITE_PULL_HOME    home of the read-only pull user moso-offsite
+#                        (default /var/lib/moso-offsite)
+#   BACKUP_SKIP_ACCOUNTS 1 skips user, package and ownership steps (tests only)
 set -euo pipefail
 umask 022
 
@@ -55,8 +60,50 @@ fi
 "$systemctl" enable --now --quiet "${timers[@]}"
 log "timers enabled: ${timers[*]}"
 
-if [[ -s $recipients ]]; then
-  log "off-site copy configured"
-else
-  log "off-site copy NOT configured yet: no $recipients (see docs/backups.md)"
+# Off-site outbox (pull model). Everything here is public material: the age
+# recipients and the puller's public key with a read-only rrsync command.
+outbox=${OFFSITE_OUTBOX:-/var/backups/mielenosoitukset-outbox}
+pull_home=${OFFSITE_PULL_HOME:-/var/lib/moso-offsite}
+pull_user=moso-offsite
+skip_accounts=${BACKUP_SKIP_ACCOUNTS:-0}
+
+if [[ $skip_accounts != 1 ]]; then
+  for tool in age rrsync; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      package=$tool; [[ $tool == rrsync ]] && package=rsync
+      log "installing missing $tool (package $package)"
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$package" >/dev/null \
+        || echo "backup units: could not install $package" >&2
+    fi
+  done
+  if ! getent passwd "$pull_user" >/dev/null; then
+    useradd --system --home-dir "$pull_home" --no-create-home --shell /bin/sh --user-group "$pull_user"
+    passwd -l "$pull_user" >/dev/null
+    log "created read-only pull user $pull_user"
+  fi
 fi
+
+install -d -m 0700 "$(dirname "$recipients")"
+if ! cmp -s "$source_dir/offsite-recipients.txt" "$recipients"; then
+  install -m 0600 "$source_dir/offsite-recipients.txt" "$recipients"
+  log "installed off-site recipients"
+fi
+
+# The home and its keys belong to root, so the pull user cannot change them.
+install -d -m 0755 "$pull_home" "$pull_home/.ssh"
+if ! cmp -s "$source_dir/offsite-pull.authorized_keys" "$pull_home/.ssh/authorized_keys"; then
+  install -m 0644 "$source_dir/offsite-pull.authorized_keys" "$pull_home/.ssh/authorized_keys"
+  log "installed the read-only pull key"
+fi
+install -d -m 0750 "$outbox"
+if [[ $skip_accounts != 1 ]]; then
+  chown "root:$pull_user" "$outbox"
+fi
+
+if [[ $skip_accounts != 1 ]] && command -v sshd >/dev/null 2>&1; then
+  allow=$(sshd -T 2>/dev/null | grep -iE '^(allowusers|allowgroups) ' || true)
+  if [[ -n $allow ]] && ! grep -qw -- "$pull_user" <<<"$allow"; then
+    log "WARNING: sshd restricts logins ($(tr '\n' ' ' <<<"$allow")) and $pull_user is not listed; the pull will be refused"
+  fi
+fi
+log "off-site outbox ready at $outbox"
