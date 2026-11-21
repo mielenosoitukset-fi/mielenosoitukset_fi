@@ -931,12 +931,13 @@ def test_case_views_use_shared_workspace_components_without_inline_css():
     assert "<style" not in case_list
     assert "<style" not in case_detail
     assert "admin-workspace-summary" in case_list
-    assert case_list.count("<div><span>") == 4
-    assert "admin-filter-chip" in case_list
+    assert case_list.count("<div><span>") == 1
     assert 'href="{{ url_for(\'admin_case.single_case\'' in case_list
     assert "onclick=\"window.location" not in case_list
-    assert "aria-pressed" in case_list
-    assert "card.hidden = !visible" in case_list
+    # State filters are links served by the server, not hidden client-side.
+    assert 'aria-current="page"' in case_list
+    assert "card.hidden" not in case_list
+    assert 'role="search"' in case_list
     assert "admin-detail-layout" in case_detail
     assert case_detail.count("admin-section-card") >= 5
     card_count = case_detail.count('<section class="admin-section-card"')
