@@ -80,7 +80,7 @@ def test_escalation_does_not_change_a_decided_demo(admin_client, db, seeded_data
     db.cases.update_one({"_id": seeded_data["case_id"]}, {"$set": {"demo_id": demo_id, "type": "new_demo"}})
     db.demonstrations.update_one({"_id": demo_id}, {"$set": {"approved": True, "rejected": False}})
 
-    response = admin_client.post(f"/admin/case/{seeded_data['case_id']}/demo_escalate", json={"reason": "Tarvitsen apua päätökseen"})
+    response = admin_client.post(f"/admin/case/{seeded_data['case_id']}/demo_escalate")
 
     assert response.status_code == 409
     assert db.demonstrations.find_one({"_id": demo_id})["approved"] is True
@@ -92,7 +92,10 @@ def test_escalation_keeps_a_pending_demo_pending(admin_client, db, seeded_data):
     demo_id = seeded_data["pending_demo_id"]
     db.cases.update_one({"_id": seeded_data["case_id"]}, {"$set": {"demo_id": demo_id, "type": "new_demo"}})
 
-    response = admin_client.post(f"/admin/case/{seeded_data['case_id']}/demo_escalate", json={"reason": "Tarvitsen apua päätökseen"})
+    url = f"/admin/case/{seeded_data['case_id']}/demo_escalate"
+    # Escalation needs a short reason since 21 Nov 2026.
+    assert admin_client.post(url).status_code == 400
+    response = admin_client.post(url, json={"reason": "En voi päättää tätä"})
 
     assert response.status_code == 200
     demo = db.demonstrations.find_one({"_id": demo_id})
