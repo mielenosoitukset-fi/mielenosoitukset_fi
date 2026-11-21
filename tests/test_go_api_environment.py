@@ -64,14 +64,14 @@ def test_auth_bridge_flag_is_written_from_config_and_off_by_default(tmp_path):
             assert json.loads(values["AUTH_BRIDGE_ORIGIN"]).startswith("https://")
 
 
-def test_developer_writes_flag_needs_the_bridge_and_is_off_by_default(tmp_path):
+def test_developer_writes_flag_needs_the_bridge_and_is_on_by_default(tmp_path):
     path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
     spec = importlib.util.spec_from_file_location("go_environment", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     cases = (
         ({}, False),
-        ({"AUTH_BRIDGE_SCOPES": True}, False),
+        ({"AUTH_BRIDGE_SCOPES": True}, True),  # on by default with the bridge
         ({"DEVELOPER_WRITES": True}, False),  # no bridge, no writes
         ({"AUTH_BRIDGE_SCOPES": True, "DEVELOPER_WRITES": False}, False),
         ({"AUTH_BRIDGE_SCOPES": True, "DEVELOPER_WRITES": True}, True),

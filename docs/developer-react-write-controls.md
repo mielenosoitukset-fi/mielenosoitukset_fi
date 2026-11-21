@@ -1,8 +1,8 @@
 # `/developer` write controls in Go and React
 
-Status: implemented behind `DEVELOPER_WRITES` (off by default), 13 November 2026. Builds on
+Status: implemented behind `DEVELOPER_WRITES`, 13 November 2026; on by default since 21 November 2026
+(maintainer's go, independent security review SHIP; `DEVELOPER_WRITES: false` opts out). Builds on
 [auth-bridge.md](auth-bridge.md) and [developer-react-proposal.md](developer-react-proposal.md).
-Not active in production; activation needs a backup, an independent reviewer SHIP and the user's go.
 
 ## What moved
 

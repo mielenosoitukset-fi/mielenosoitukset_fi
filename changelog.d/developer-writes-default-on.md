@@ -1,0 +1,1 @@
+- Developer panel write controls (create app, rotate secret, create and revoke tokens) are on by default with the auth bridge; `DEVELOPER_WRITES: false` opts out.
