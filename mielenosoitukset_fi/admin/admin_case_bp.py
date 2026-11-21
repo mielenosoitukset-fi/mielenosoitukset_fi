@@ -596,24 +596,44 @@ def single_case(case_id):
             }.get(status, _("Odottaa käsittelyä")),
         }
 
-    elif case.case_type == "organization_edit_suggestion" and case.organization_id:
-        org = mongo.organizations.find_one({"_id": _safe_objectid(case.organization_id)})
-        suggestion = case.suggestion or {}
-        organization = stringify_object_ids(org) if org else {}
+    elif case.case_type == "organization_edit_suggestion":
+        from mielenosoitukset_fi.admin.admin_org_bp import _can_edit_organization
+        from mielenosoitukset_fi.utils.content_formatting import safe_href
+        from mielenosoitukset_fi.utils import org_suggestion_cases
+
+        suggestion = org_suggestion_cases.suggestion_for_case(mongo, case) or {}
+        org_id = case.organization_id or suggestion.get("organization_id")
+        org = mongo.organizations.find_one({"_id": _safe_objectid(org_id)}) if org_id else None
+        labels = {"name": _("Nimi"), "description": _("Kuvaus"), "website": _("Verkkosivusto"),
+                  "email": _("Sähköposti"), "logo": _("Logo"), "social_media_links": _("Sosiaalinen media")}
+
+        def _shown(value):
+            if isinstance(value, dict):
+                return ", ".join(f"{key}: {safe_href(url) or '-'}" for key, url in value.items())
+            return value
+
         changes = []
-        for key, new_val in suggestion.items():
-            old_val = organization.get(key)
+        for key, new_val in (suggestion.get("fields") or {}).items():
+            old_val = (org or {}).get(key)
             if new_val != old_val:
-                changes.append(
-                    {
-                        "field": key.replace("_", " ").capitalize(),
-                        "old": old_val,
-                        "new": new_val,
-                    }
-                )
-        case_data["organization"] = organization
-        case_data["suggestion"] = suggestion
+                changes.append({"field": labels.get(key, key), "old": _shown(old_val), "new": _shown(new_val)})
+        state = (suggestion.get("status") or {}).get("state") or "pending"
+        case_data["organization"] = stringify_object_ids(org) if org else {}
         case_data["changes"] = changes
+        case_data["org_suggestion"] = {
+            "found": bool(suggestion),
+            "id": str(suggestion.get("_id") or ""),
+            "org_id": str(org_id or ""),
+            "state": state,
+            "state_label": {
+                "applied": _("Hyväksytty"),
+                "partially_applied": _("Osittain hyväksytty"),
+                "rejected": _("Hylätty"),
+                "in_review": _("Käsittelyssä"),
+            }.get(state, _("Odottaa käsittelyä")),
+            "decided": state in org_suggestion_cases.DECIDED_STATES,
+            "can_review": bool(org) and _can_edit_organization(current_user, org),
+        }
 
     elif case.case_type in {"demo_cancellation_request", "demo_cancelled"} and case.demo_id:
         demo = mongo.demonstrations.find_one({"_id": _safe_objectid(case.demo_id)})
@@ -1242,6 +1262,56 @@ def approve_cancellation(case_id):
 
     flash_message(_("Peruutus hyväksytty ja mielenosoitus merkitty perutuksi."), "success")
     return jsonify({"success": True, "status": "cancelled"})
+
+@admin_case_bp.route("/<case_id>/decline_cancellation", methods=["POST"])
+@login_required
+@admin_required
+@case_permission("EDIT_CASE")
+def decline_cancellation(case_id):
+    """Keep the demo and close the cancellation request with the admin's reason."""
+    case = Case.get(case_id)
+    if not case or case.case_type != "demo_cancellation_request":
+        abort(404)
+    reason = (request.form.get("reason") or "").strip()[:1000]
+    if not reason:
+        flash_message(_("Kirjoita syy, miksi peruutuspyyntö hylätään."), "warning")
+        return redirect(url_for("admin_case.single_case", case_id=case_id))
+    timestamp = utcnow()
+    result = mongo.cases.update_one(
+        {"_id": case._id, "meta.closed": {"$ne": True}},
+        {
+            "$set": {
+                "meta.closed": True,
+                "meta.closed_reason": "Peruutuspyyntö hylätty",
+                "meta.closed_at": timestamp,
+                "meta.cancellation_status": "declined",
+                "meta.resolved_by": current_user.username,
+                "updated_at": timestamp,
+            },
+            "$push": {
+                "case_history": {
+                    "timestamp": timestamp,
+                    "action": "Peruutuspyyntö hylätty",
+                    "mech_action": "decline_cancellation",
+                    "user": current_user.username,
+                    "metadata": {"reason": reason},
+                    "meta_schema": {"reason": "string"},
+                },
+                "action_logs": {
+                    "timestamp": timestamp,
+                    "admin": current_user.username,
+                    "action_type": "decline_cancellation",
+                    "note": reason,
+                },
+            },
+        },
+    )
+    if result.modified_count:
+        flash_message(_("Peruutuspyyntö hylätty. Mielenosoitus pysyy julkaistuna."), "success")
+    else:
+        flash_message(_("Tapaus on jo suljettu."), "info")
+    return redirect(url_for("admin_case.single_case", case_id=case_id))
+
 
 @admin_case_bp.route("/<case_id>/demo_escalate", methods=["POST"])
 @login_required

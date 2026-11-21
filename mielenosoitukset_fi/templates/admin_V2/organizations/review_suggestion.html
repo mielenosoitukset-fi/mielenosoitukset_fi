@@ -31,9 +31,9 @@
                 <div class="admin-data-value {% if not org.to_dict().get(key) %}admin-data-value--empty{% endif %}">
                   {% if org.to_dict().get(key) %}
                     {% if key == "logo" %}
-                      <div class="admin-data-media"><img src="{{ org.to_dict().get(key) }}" alt="{{ _('Nykyinen logo') }}" loading="lazy" referrerpolicy="no-referrer"><a href="{{ org.to_dict().get(key) }}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ org.to_dict().get(key) }}</a></div>
+                      <div class="admin-data-media">{% if org.to_dict().get(key)|safe_href %}<img src="{{ org.to_dict().get(key)|safe_href }}" alt="{{ _('Nykyinen logo') }}" loading="lazy" referrerpolicy="no-referrer"><a href="{{ org.to_dict().get(key)|safe_href }}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ org.to_dict().get(key) }}</a>{% else %}<span>{{ org.to_dict().get(key) }}</span>{% endif %}</div>
                     {% elif key == "social_media_links" and org.to_dict().get(key) is mapping %}
-                      <div class="admin-data-list">{% for platform, url in org.to_dict().get(key).items() %}<span><strong>{{ platform }}:</strong> <a href="{{ url }}" target="_blank" rel="noopener noreferrer">{{ url }}</a></span>{% endfor %}</div>
+                      <div class="admin-data-list">{% for platform, url in org.to_dict().get(key).items() %}<span><strong>{{ platform }}:</strong> {% if url|safe_href %}<a href="{{ url|safe_href }}" target="_blank" rel="noopener noreferrer">{{ url }}</a>{% else %}{{ url }}{% endif %}</span>{% endfor %}</div>
                     {% else %}<span class="admin-value-badge">{{ org.to_dict().get(key) }}</span>{% endif %}
                   {% else %}<span class="admin-value-badge admin-value-badge--muted">{{ _('Ei asetettu') }}</span>{% endif %}
                 </div>
@@ -41,9 +41,9 @@
               <td>
                 <div class="admin-data-value admin-data-value--success">
                   {% if key == "logo" %}
-                    <div class="admin-data-media"><img src="{{ new_value }}" alt="{{ _('Ehdotettu logo') }}" loading="lazy" referrerpolicy="no-referrer"><a href="{{ new_value }}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ new_value }}</a></div>
+                    <div class="admin-data-media">{% if new_value|safe_href %}<img src="{{ new_value|safe_href }}" alt="{{ _('Ehdotettu logo') }}" loading="lazy" referrerpolicy="no-referrer"><a href="{{ new_value|safe_href }}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ new_value }}</a>{% else %}<span>{{ new_value }} ({{ _('ei kelpaa osoitteeksi') }})</span>{% endif %}</div>
                   {% elif key == "social_media_links" and new_value is mapping %}
-                    <div class="admin-data-list">{% for platform, url in new_value.items() %}<span><strong>{{ platform }}:</strong> <a href="{{ url }}" target="_blank" rel="noopener noreferrer">{{ url }}</a></span>{% endfor %}</div>
+                    <div class="admin-data-list">{% for platform, url in new_value.items() %}<span><strong>{{ platform }}:</strong> {% if url|safe_href %}<a href="{{ url|safe_href }}" target="_blank" rel="noopener noreferrer">{{ url }}</a>{% else %}{{ url }} ({{ _('ei kelpaa osoitteeksi, ohitetaan') }}){% endif %}</span>{% endfor %}</div>
                   {% else %}<span class="admin-value-badge admin-value-badge--success">{{ new_value }}</span>{% endif %}
                 </div>
               </td>
@@ -58,11 +58,13 @@
       <div class="admin-sticky-actions__copy"><strong>{{ _('Tarkista valinnat ennen päivittämistä') }}</strong><span>{{ _('Vain valitut kentät korvaavat organisaation nykyiset tiedot.') }}</span></div>
       <div class="admin-sticky-actions__buttons">
         <button type="button" class="btn btn-outline-primary" id="select-all-btn" aria-pressed="false"><i class="fa-solid fa-check-double" aria-hidden="true"></i><span id="select-all-label">{{ _('Valitse kaikki') }}</span></button>
-        <a href="{{ request.referrer or url_for('index') }}" class="btn btn-outline-secondary"><i class="fa-solid fa-xmark" aria-hidden="true"></i>{{ _('Peruuta') }}</a>
+        <button type="submit" form="reject-suggestion-form" class="btn btn-outline-danger"><i class="fa-solid fa-xmark" aria-hidden="true"></i>{{ _('Hylkää ehdotus') }}</button>
         <button type="submit" class="btn btn-primary" id="apply-btn"><i class="fa-solid fa-check-circle" aria-hidden="true"></i><span id="apply-label">{{ _('Päivitä valitut kentät') }}</span></button>
       </div>
     </div>
   </form>
+  <form method="post" id="reject-suggestion-form" action="{{ url_for('admin_org.reject_suggestion', org_id=org._id, suggestion_id=suggestion._id) }}"
+        onsubmit="return confirm({{ _('Hylätäänkö ehdotus? Organisaation tiedot eivät muutu, ja tapaus sulkeutuu.')|tojson }});"></form>
 </div>
 {% endblock %}
 

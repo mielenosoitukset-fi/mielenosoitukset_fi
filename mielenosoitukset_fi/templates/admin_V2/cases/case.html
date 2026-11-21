@@ -42,9 +42,16 @@
         <div class="admin-section-card__header">
           <div class="admin-section-card__title"><h2>{{ _('Tapauksen tiedot') }}</h2></div>
           {% if demo and demo._id %}
+          {% if demo.approved and not demo.taken_down %}
           <a class="btn btn-outline-primary btn-sm" href="{{ url_for('demonstration_detail', demo_id=demo._id) }}">
             <i class="fa-solid fa-eye me-1"></i>{{ _('Avaa julkinen sivu') }}
           </a>
+          {% else %}
+          {# Not public yet: the public page would not show it, so open the admin preview. #}
+          <a class="btn btn-outline-primary btn-sm" href="{{ url_for('admin_demo.preview_demo', demo_id=demo._id) }}">
+            <i class="fa-solid fa-eye me-1"></i>{{ _('Esikatsele') }}
+          </a>
+          {% endif %}
           {% endif %}
         </div>
         <div class="admin-section-card__body admin-stack">
@@ -327,14 +334,20 @@
             <strong>{{ _('Peruutuksen syy') }}</strong>
             <div class="note-box">{{ cancellation.reason or _('Ei syytä annettu') }}</div>
           </div>
-          {% if not cancellation.cancelled %}
-          <div class="admin-row-actions">
+          {% if not cancellation.cancelled and not case.meta.closed %}
 {% if global_case_controls %}
+          <div class="admin-row-actions">
             <button class="btn btn-danger" type="button" onclick="approveCancellation()">
               <i class="fa-solid fa-ban me-1"></i>{{ _('Hyväksy peruutus') }}
             </button>
-{% endif %}
           </div>
+          <form method="POST" action="{{ url_for('admin_case.decline_cancellation', case_id=case._id) }}" class="admin-stack admin-decline-form">
+            <label for="decline_reason" class="form-label mb-0"><strong>{{ _('Hylkää peruutuspyyntö') }}</strong></label>
+            <textarea id="decline_reason" name="reason" class="form-control" rows="2" maxlength="1000" required aria-describedby="decline_reason_help"></textarea>
+            <p id="decline_reason_help" class="admin-field__help">{{ _('Mielenosoitus pysyy julkaistuna, ja tapaus sulkeutuu tällä syyllä. Pyytäjälle ei lähetetä viestiä automaattisesti.') }}</p>
+            <div><button type="submit" class="btn btn-outline-secondary"><i class="fa-solid fa-xmark me-1" aria-hidden="true"></i>{{ _('Hylkää pyyntö') }}</button></div>
+          </form>
+{% endif %}
           {% endif %}
           {% elif case.case_type == "demo_error_report" %}
           <div class="detail-grid">
@@ -347,6 +360,13 @@
             <strong>{{ _('Virheilmoituksen sisältö') }}</strong>
             <div class="note-box">{{ error_report.error or _('Ei sisältöä') }}</div>
           </div>
+          {% if demo._id %}
+          <div class="admin-row-actions">
+            <a class="btn btn-primary" href="{{ url_for('admin_demo.edit_demo', demo_id=demo._id) }}"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i>{{ _('Korjaa mielenosoitusta') }}</a>
+            <a class="btn btn-outline-primary" href="{{ url_for('admin_demo.demo_command_center', demo_id=demo._id) }}"><i class="fa-solid fa-gauge me-1" aria-hidden="true"></i>{{ _('Avaa hallintapaneelissa') }}</a>
+          </div>
+          <p class="admin-field__help">{{ _('Kun virhe on korjattu, sulje tapaus syyllä "Käsitelty".') }}</p>
+          {% endif %}
           {% elif case.case_type == "demo_edit_suggestion" %}
           {% set demo_suggestion = case_data.demo_suggestion if case_data.demo_suggestion is defined else {} %}
           {% if demo_suggestion.found %}
@@ -379,10 +399,13 @@
           <div class="empty-state">{{ _('Ehdotusta ei löytynyt. Se on ehkä poistettu.') }}</div>
           {% endif %}
           {% elif case.case_type == "organization_edit_suggestion" %}
+          {% set org_suggestion = case_data.org_suggestion if case_data.org_suggestion is defined else {} %}
           <div class="detail-grid">
-            <div class="detail-item"><strong>{{ _('Organisaatio') }}</strong><span>{{ organization.name or '-' }}</span></div>
+            <div class="detail-item"><strong>{{ _('Organisaatio') }}</strong><span>{% if organization._id %}<a href="{{ url_for('admin_org.view_organization', org_id=organization._id) }}">{{ organization.name or '-' }}</a>{% else %}-{% endif %}</span></div>
             <div class="detail-item"><strong>{{ _('Ilmoittaja') }}</strong><span>{{ case_data.submitter_label }}</span></div>
+            <div class="detail-item"><strong>{{ _('Ehdotuksen tila') }}</strong><span>{{ org_suggestion.state_label or '-' }}</span></div>
           </div>
+          {% if org_suggestion.found %}
           <div class="detail-item">
             <strong>{{ _('Ehdotetut muutokset') }}</strong>
             {% if changes %}
@@ -399,6 +422,17 @@
             <div class="empty-state">{{ _('Ei muutoksia vertailtavaksi.') }}</div>
             {% endif %}
           </div>
+          {% if org_suggestion.can_review and not org_suggestion.decided %}
+          <div class="admin-row-actions">
+            <a class="btn btn-primary" href="{{ url_for('admin_org.review_suggestion', org_id=org_suggestion.org_id, suggestion_id=org_suggestion.id) }}"><i class="fa-solid fa-code-compare me-1" aria-hidden="true"></i>{{ _('Käsittele ehdotus') }}</a>
+          </div>
+          <p class="admin-field__help">{{ _('Valitse hyväksyttävät kentät tai hylkää ehdotus. Tapaus sulkeutuu päätöksen jälkeen.') }}</p>
+          {% elif not org_suggestion.can_review %}
+          <div class="muted">{{ _('Ehdotuksen käsittely vaatii oikeuden muokata tätä organisaatiota.') }}</div>
+          {% endif %}
+          {% else %}
+          <div class="empty-state">{{ _('Ehdotusta ei löytynyt. Se on ehkä poistettu.') }}</div>
+          {% endif %}
           {% elif case.case_type == "city_admin_application" %}
           {% set application = case_data.application if case_data.application is defined else none %}
           {% if application %}
