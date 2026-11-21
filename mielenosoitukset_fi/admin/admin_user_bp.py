@@ -9,6 +9,7 @@ from markupsafe import Markup
 import math
 import re
 
+from mielenosoitukset_fi.utils.scope_grants import live_grant_filter
 from mielenosoitukset_fi.admin.permission_copy import PERMISSION_CATEGORY_LABELS, PERMISSION_DESCRIPTIONS
 from mielenosoitukset_fi.users.models import User
 from mielenosoitukset_fi.emailer.EmailSender import EmailSender
@@ -16,11 +17,7 @@ from mielenosoitukset_fi.utils.wrappers import admin_required, permission_requir
 from mielenosoitukset_fi.utils.step_up import require_fresh_step_up
 from mielenosoitukset_fi.utils.variables import CITY_LIST, PERMISSIONS_GROUPS
 from mielenosoitukset_fi.utils.cities import CITY_KEY_TO_NAME, CITY_NAME_TO_KEY, normalize_city_key
-from mielenosoitukset_fi.utils.city_settings import (
-    enabled_city_keys,
-    enabled_city_names,
-    upsert_city_setting,
-)
+from mielenosoitukset_fi.utils.city_settings import enabled_city_names
 from mielenosoitukset_fi.utils.validators import (
     is_reserved_identity_name,
     normalize_email,
@@ -33,13 +30,17 @@ from mielenosoitukset_fi.utils.flashing import flash_message
 
 from .utils import get_org_name, mongo, _ADMIN_TEMPLATE_FOLDER
 from .board_compliance import has_board_clearance
+from .city_grants import (
+    CITY_ADMIN_AVAILABLE_PERMISSIONS, CITY_ADMIN_PERMISSIONS, CityGrantConflict,
+    _profile_snapshot, can_manage_scope_grants,
+    city_scope_grant_for_user, commit_profile_change, history_actor, sync_city_scope_grant,
+)
 from .user_erasure import erase_user
 from .user_history import (
-    FIELDS, PENDING_HISTORY, MAX_PENDING_HISTORY, commit_history_change,
-    flush_user_history, history_event, history_query, present_history, user_snapshot,
+    PENDING_HISTORY, MAX_PENDING_HISTORY,
+    flush_user_history, history_event, history_query, present_history,
 )
 from flask_babel import _, get_locale
-from mielenosoitukset_fi.utils.time_utils import utcnow
 from datetime import datetime
 
 
@@ -129,7 +130,7 @@ def user_control():
             {
                 "scope_type": "city",
                 "scope_keys": city_filter_key,
-                "$or": [{"revoked_at": {"$exists": False}}, {"revoked_at": None}],
+                **live_grant_filter(),
             },
             {"user_id": 1},
         ):
@@ -166,7 +167,7 @@ def user_control():
             {
                 "user_id": {"$in": page_user_ids + [str(user_id) for user_id in page_user_ids]},
                 "scope_type": "city",
-                "$or": [{"revoked_at": {"$exists": False}}, {"revoked_at": None}],
+                **live_grant_filter(),
             },
             {"user_id": 1},
         )
@@ -223,131 +224,20 @@ def _normalize_role_permissions(role, selected_permissions):
     permissions.update(ROLE_IMPLIED_GLOBAL_PERMISSIONS.get(role, set()))
     return sorted(permissions)
 
-CITY_ADMIN_PERMISSIONS = [
-    "LIST_DEMOS",
-    "VIEW_DEMO",
-    "EDIT_DEMO",
-    "ACCEPT_DEMO",
-    "CREATE_DEMO",
-    "GENERATE_EDIT_LINK",
-]
-CITY_ADMIN_AVAILABLE_PERMISSIONS = CITY_ADMIN_PERMISSIONS + [
-    "LIST_CASES", "VIEW_CASE", "EDIT_CASE",
-]
-
-
 def _can_manage_scope_grants(actor) -> bool:
-    return bool(getattr(actor, "global_admin", False)) or getattr(actor, "role", None) in {
-        "global_admin",
-        "god",
-    }
+    return can_manage_scope_grants(actor)
 
 
 def _city_scope_grant_for_user(user_id: ObjectId) -> dict:
-    grant = mongo.admin_scope_grants.find_one(
-        {
-            "user_id": {"$in": [user_id, str(user_id)]},
-            "scope_type": "city",
-            "$or": [{"revoked_at": {"$exists": False}}, {"revoked_at": None}],
-        }
-    )
-    if not grant:
-        return {"scope_keys": [], "permissions": []}
-
-    scope_keys = grant.get("scope_keys")
-    if scope_keys is None and grant.get("scope_key"):
-        scope_keys = [grant.get("scope_key")]
-    grant["scope_keys"] = [normalize_city_key(key) for key in scope_keys or [] if normalize_city_key(key)]
-    grant["permissions"] = [
-        permission for permission in grant.get("permissions", []) if permission in CITY_ADMIN_AVAILABLE_PERMISSIONS
-    ]
-    return grant
-
-
-def _auto_activate_granted_cities(city_keys: list[str]) -> None:
-    """Activate city_settings for granted cities that are currently inactive.
-
-    Granting a city admin for an inactive city would otherwise hand over
-    moderation of a city that is invisible on the site, so the city is
-    enabled automatically.
-    """
-    active_keys = enabled_city_keys(mongo)
-    for city_key in city_keys:
-        if city_key not in active_keys:
-            upsert_city_setting(
-                mongo,
-                city_key,
-                True,
-                actor_id=str(current_user._id),
-            )
+    return city_scope_grant_for_user(mongo, user_id)
 
 
 def _sync_city_scope_grant(user_id: ObjectId, city_keys: list[str], permissions: list[str]) -> None:
-    """Audit each scope mutation in its own document's atomic outbox."""
-    city_keys = sorted({normalize_city_key(key) for key in city_keys if normalize_city_key(key) in CITY_KEY_TO_NAME})
-    permissions = sorted({permission for permission in permissions if permission in CITY_ADMIN_AVAILABLE_PERMISSIONS})
-    if city_keys and permissions:
-        permissions = sorted(set(permissions) | {"LIST_DEMOS", "VIEW_DEMO"})
-        _auto_activate_granted_cities(city_keys)
-
-    query = {
-        "user_id": {"$in": [user_id, str(user_id)]},
-        "scope_type": "city",
-        "$or": [{"revoked_at": {"$exists": False}}, {"revoked_at": None}],
-    }
-
-    flush_user_history(mongo, user_id)
-
-    def snapshot(grant):
-        keys = grant.get("scope_keys")
-        if keys is None:
-            keys = [grant["scope_key"]] if grant.get("scope_key") else []
-        return {"city_scope_keys": sorted(set(keys)),
-                "city_scope_permissions": sorted(set(grant.get("permissions", [])))}
-
-    def update_grant(grant, payload, after):
-        entry = history_event(user_id, snapshot(grant), after, _history_actor())
-        if commit_history_change(mongo.admin_scope_grants, grant, payload, entry, {
-            "user_id", "scope_type", "scope_keys", "scope_key", "permissions", "revoked_at",
-        }) is None:
-            abort(409)
-
-    if not city_keys or not permissions:
-        for grant in mongo.admin_scope_grants.find(query):
-            update_grant(grant, {"revoked_at": utcnow(), "revoked_by": str(current_user._id)},
-                         {"city_scope_keys": [], "city_scope_permissions": []})
-        document = mongo.users.find_one({"_id": user_id})
-        if document and document.get("role") == "city_admin":
-            _commit_profile_change(document, {"role": "user"})
-        flush_user_history(mongo, user_id)
-        return
-
-    existing = mongo.admin_scope_grants.find_one(query)
-    payload = {
-        "user_id": user_id,
-        "scope_type": "city",
-        "scope_keys": city_keys,
-        "role": "city_reviewer",
-        "permissions": permissions,
-        "updated_at": utcnow(),
-        "updated_by": str(current_user._id),
-        "revoked_at": None,
-    }
-    after = {"city_scope_keys": city_keys, "city_scope_permissions": permissions}
-    if existing:
-        update_grant(existing, payload, after)
-    else:
-        payload["_id"] = ObjectId()
-        payload["created_at"] = utcnow()
-        payload["granted_by"] = str(current_user._id)
-        payload[PENDING_HISTORY] = [history_event(
-            user_id, {"city_scope_keys": [], "city_scope_permissions": []}, after, _history_actor(),
-        )]
-        mongo.admin_scope_grants.insert_one(payload)
-    document = mongo.users.find_one({"_id": user_id})
-    if document and document.get("role") not in {"admin", "global_admin", "god", "city_admin"}:
-        _commit_profile_change(document, {"role": "city_admin"})
-    flush_user_history(mongo, user_id)
+    """The shared city writer, attributed to the signed-in administrator."""
+    try:
+        sync_city_scope_grant(mongo, user_id, city_keys, permissions, current_user)
+    except CityGrantConflict:
+        abort(409)
 
 
 def compare_user_levels(user1, user2):
@@ -417,31 +307,17 @@ def can_change_account_status(actor, target):
 
 def _history_actor():
     """Capture attribution now, never from a later projection request."""
-    return {"id": str(current_user._id), "username": current_user.username,
-            "role": current_user.role}
-
-
-def _profile_snapshot(document):
-    """User fields only; scope grants have their own atomic mutation events."""
-    return {key: value for key, value in user_snapshot(document, {}).items()
-            if not key.startswith("city_scope_")}
+    return history_actor(current_user)
 
 
 def _commit_profile_change(document, updates, event="user_details_changed", *, always_record=False):
     """CAS profile state and its outbox together, then try audit projection."""
-    user_id = document["_id"]
-    flush_user_history(mongo, user_id)
-    entry = history_event(user_id, _profile_snapshot(document),
-                          _profile_snapshot({**document, **updates}),
-                          _history_actor(), event, always_record=always_record)
-    guard_fields = (set(FIELDS) - {"city_scope_keys", "city_scope_permissions"}) | {
-        "global_admin", "username_canonical", "email_canonical",
-    } | set(updates)
-    result = commit_history_change(mongo.users, document, updates, entry, guard_fields)
-    if result is None:
+    try:
+        # Pass this module's flush so tests patching it here keep working.
+        return commit_profile_change(mongo, document, updates, current_user, event,
+                                     always_record=always_record, flush=flush_user_history)
+    except CityGrantConflict:
         abort(409)
-    flush_user_history(mongo, user_id)
-    return result
 
 
 @admin_user_bp.route("/history/<user_id>")

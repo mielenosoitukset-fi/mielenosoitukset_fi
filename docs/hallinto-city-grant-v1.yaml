@@ -109,6 +109,10 @@ components:
     AccountID: { type: string, pattern: '^[a-f0-9]{24}$' }
     NonEmptyID: { type: string, minLength: 1, maxLength: 128 }
     CityKey: { type: string, minLength: 1, maxLength: 128 }
+    ValidUntil:
+      type: string
+      pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$'
+      description: Exclusive end instant of the grant in UTC (Hallinto sends the Helsinki midnight after the last valid day). Must be ahead and at most about five years out. Flask stops honouring the grant at this instant when permissions are checked; no job is needed.
     Error:
       type: object
       additionalProperties: false
@@ -138,10 +142,11 @@ components:
           minItems: 1
           uniqueItems: true
           items: { $ref: '#/components/schemas/NonEmptyID' }
+        valid_until: { $ref: '#/components/schemas/ValidUntil' }
     Appointment:
       type: object
       additionalProperties: false
-      required: [account_id, city, template, expected_state, allow_city_enablement, decision_id, decision_revision, authority_attestation]
+      required: [account_id, city, template, expected_state, allow_city_enablement, decision_id, decision_revision, authority_attestation, valid_until]
       properties:
         account_id: { $ref: '#/components/schemas/AccountID' }
         city: { $ref: '#/components/schemas/CityKey' }
@@ -152,14 +157,16 @@ components:
         decision_revision: { type: integer, minimum: 1 }
         application_id: { $ref: '#/components/schemas/NonEmptyID' }
         authority_attestation: { type: string, minLength: 1, maxLength: 16384 }
+        valid_until: { $ref: '#/components/schemas/ValidUntil' }
     ReceiptIdentity:
       type: object
-      required: [operation_id, account_id, decision_id, decision_revision]
+      required: [operation_id, account_id, decision_id, decision_revision, valid_until]
       properties:
         operation_id: { $ref: '#/components/schemas/NonEmptyID' }
         account_id: { $ref: '#/components/schemas/AccountID' }
         decision_id: { $ref: '#/components/schemas/NonEmptyID' }
         decision_revision: { type: integer, minimum: 1 }
+        valid_until: { $ref: '#/components/schemas/ValidUntil' }
     PendingReceipt:
       allOf:
         - $ref: '#/components/schemas/ReceiptIdentity'

@@ -7,14 +7,16 @@
     "allow_city_enablement": false,
     "decision_id": "synthetic-decision",
     "decision_revision": 2,
-    "authority_attestation": "synthetic-fixture-only"
+    "authority_attestation": "synthetic-fixture-only",
+    "valid_until": "2027-01-01T22:00:00Z"
   },
   "pending": {
     "operation_id": "synthetic-operation",
     "account_id": "000000000000000000000001",
     "decision_id": "synthetic-decision",
     "decision_revision": 2,
-    "status": "reconciliation_required"
+    "status": "reconciliation_required",
+    "valid_until": "2027-01-01T22:00:00Z"
   },
   "confirmed": {
     "operation_id": "synthetic-operation",
@@ -25,8 +27,14 @@
     "checked_at": "2026-01-01T12:00:00Z",
     "effective": {
       "city": "tampere",
-      "permissions": ["LIST_DEMOS", "VIEW_DEMO", "ACCEPT_DEMO"]
+      "permissions": [
+        "LIST_DEMOS",
+        "VIEW_DEMO",
+        "ACCEPT_DEMO"
+      ],
+      "valid_until": "2027-01-01T22:00:00Z"
     },
-    "resulted_in_city_enablement": false
+    "resulted_in_city_enablement": false,
+    "valid_until": "2027-01-01T22:00:00Z"
   }
 }

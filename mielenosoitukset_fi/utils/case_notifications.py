@@ -28,6 +28,7 @@ from datetime import timedelta
 
 from bson import ObjectId
 
+from mielenosoitukset_fi.utils.scope_grants import live_grant_filter
 from mielenosoitukset_fi.utils.case_access import case_scope_query, global_case_permission
 from mielenosoitukset_fi.utils.logger import logger
 from mielenosoitukset_fi.utils.system_teams import SUPER_ROLES, active_account
@@ -112,7 +113,7 @@ def _candidate_users(db):
     ):
         ids.add(doc["_id"])
     for grant in db.admin_scope_grants.find(
-        {"permissions": "VIEW_CASE", "$or": [{"revoked_at": {"$exists": False}}, {"revoked_at": None}]},
+        {"permissions": "VIEW_CASE", **live_grant_filter()},
         {"user_id": 1},
     ):
         if ObjectId.is_valid(str(grant.get("user_id", ""))):

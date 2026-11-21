@@ -33,6 +33,7 @@ from typing import Any, Dict, List, Optional
 from bson import ObjectId
 from flask import current_app, has_app_context
 
+from mielenosoitukset_fi.utils.scope_grants import live_grant_filter
 from mielenosoitukset_fi.utils.cities import normalize_city_key
 from mielenosoitukset_fi.utils.logger import logger
 from mielenosoitukset_fi.utils.time_utils import utcnow
@@ -109,15 +110,9 @@ def active_city_admins_for_city(db, city_key: str) -> List[Dict[str, Any]]:
         db.admin_scope_grants.find(
             {
                 "scope_type": "city",
-                "$or": [
-                    {"scope_keys": city_key},
-                    {"scope_key": city_key},
-                ],
                 "permissions": ESCALATION_PERMISSION,
-                "$or": [
-                    {"revoked_at": {"$exists": False}},
-                    {"revoked_at": None},
-                ],
+                # One $and: the old dict repeated "$or", which dropped the city clause.
+                **live_grant_filter(None, {"$or": [{"scope_keys": city_key}, {"scope_key": city_key}]}),
             }
         )
     )

@@ -9,6 +9,22 @@ C01 defines the proposed v1 owner contract before adding writes. Flask owns the 
 - `User.admin_scope_grants` accepts BSON IDs and legacy strings, and city permissions can have additional effective behavior through wrapper/role logic. Confirm a fresh user and permission check rather than reporting the saved grant payload as the outcome.
 - `admin_case_bp.py:set_application_status` controls city application status separately. The pilot links a case and decision. Changing application status or sending applicant mail requires a separately approved effect. Helsinki's recruitment exception remains.
 
+## Implementation status (C02)
+
+`mielenosoitukset_fi/admin/city_grants.py` is the shared writer. `sync_city_scope_grant` takes the acting account explicitly; the create, edit and save views call it with the signed-in administrator. `apply_city_admin_v1` implements the appointment, `read_city_grant_state` the state read, and `read_operation_receipt` the receipt lookup. The operation journal is the `city_grant_operations` collection, unique on (integration, actor, `Idempotency-Key`). No route calls them yet. The internal route needs workload mTLS and the action-bound fresh proof from I02, and ships disabled by default.
+
+Behaviour of the pilot operation:
+
+- The actor is reloaded and must be an active account that may manage scope grants. Self-appointment is denied. A missing target is reported as `denied`.
+- Eligible targets are active, confirmed, unprotected `user` accounts with no global permissions and no active scope grant of any kind.
+- `expected_state` is a SHA-256 digest over the target's role, global admin and governance flags, global permissions, activity, protection, active grants and the set of enabled cities. Profile text does not affect it.
+- Every city grant write, legacy or appointment, takes a per-account fence (`city_grant_fences`, keyed by account id, ten-minute lease). An appointment checks state, writes and rereads under one fence, and reports `reconciliation_required` if it no longer holds the fence before confirming. A competing writer gets 409 before writing anything.
+- The writer refuses, before any write, to replace an existing city grant or to enable a city the request did not allow.
+- After the write, a freshly loaded user must have the role `city_admin`, the city enabled, exactly one city scope and exactly the nine permissions through `User.has_scoped_permission`. Anything else is `reconciliation_required`.
+- A `pending` operation whose last update is older than five minutes is reported as `reconciliation_required` on replay or lookup. It is never retried automatically.
+- `valid_until` (required) is the exclusive end instant in UTC; Hallinto sends the Helsinki midnight after the last valid day. It must be ahead and at most about five years out. It is stored as the grant's `expires_at`. Every grant read (`utils/scope_grants.py`, and `liveGrantClauses` in the Go API) ignores a grant from that instant, so no job revokes it. A legacy admin save keeps an existing expiry. A legacy save after the end revokes the ended grant (`revoked_reason: expired`) and answers 409 if the form re-submits the same scope, so a stale form cannot recreate it without an end date. Receipts and the state read echo `valid_until`. Justification and meeting records stay in Hallinto.
+- The existing city-admin implication of organization permissions (`CITY_ADMIN_ORGANIZATION_PERMISSIONS`) still follows from any city grant. The receipt reports the city scope only.
+
 ## Pilot scope and security
 
 The first write is one additive city-admin appointment for an eligible active account without an existing city grant. This limits replacement behavior and prevents a city-key union from broadening a permission across cities. A3 must approve the exact `city_admin_v1` preset, expected implicit permissions, role effects and eligible accounts. No arbitrary capability list, expiry, multi-city replacement, or protected-role changes through this contract.

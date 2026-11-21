@@ -3,6 +3,7 @@ from flask import Blueprint, redirect, render_template, request, url_for
 from flask_babel import _
 from flask_login import current_user, login_required
 
+from mielenosoitukset_fi.utils.scope_grants import live_grant_filter
 from mielenosoitukset_fi.utils.cities import CITY_KEY_TO_NAME, normalize_city_key
 from mielenosoitukset_fi.utils.city_assignment import ESCALATION_PERMISSION
 from mielenosoitukset_fi.utils.city_settings import enabled_city_keys, upsert_city_setting
@@ -42,10 +43,7 @@ def _grant_counts_by_city():
         {
             "$match": {
                 "scope_type": "city",
-                "$or": [
-                    {"revoked_at": {"$exists": False}},
-                    {"revoked_at": None},
-                ],
+                **live_grant_filter(),
             }
         },
         {"$unwind": "$scope_keys"},
@@ -76,8 +74,7 @@ def _active_admin_counts_by_city():
     case-only grants are not moderation coverage.
     """
     grants = list(mongo.admin_scope_grants.find(
-        {"scope_type": "city", "permissions": ESCALATION_PERMISSION,
-         "$or": [{"revoked_at": {"$exists": False}}, {"revoked_at": None}]},
+        {"scope_type": "city", "permissions": ESCALATION_PERMISSION, **live_grant_filter()},
         {"user_id": 1, "scope_keys": 1, "scope_key": 1},
     ))
     user_ids = {grant.get("user_id") for grant in grants if grant.get("user_id")}
