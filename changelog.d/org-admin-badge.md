@@ -1,0 +1,1 @@
+- Admin user list shows "Organisaatioadmin" for anyone who is admin or owner of an organisation without site-wide or city rights. It is read from the organisation membership; the account role is not changed.

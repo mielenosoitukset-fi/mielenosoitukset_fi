@@ -51,7 +51,7 @@
           {% elif user.admin_scope == 'city' %}
             <span class="user-role city-admin"><i class="fas fa-location-dot" aria-hidden="true"></i>{{ _('Admin, vain paikkakunnat') }}</span>
           {% elif user.admin_scope == 'org' %}
-            <span class="user-role city-admin"><i class="fas fa-people-group" aria-hidden="true"></i>{{ _('Admin, vain organisaatiot') }}</span>
+            <span class="user-role city-admin"><i class="fas fa-people-group" aria-hidden="true"></i>{{ _('Organisaatioadmin') }}</span>
           {% elif user.admin_scope == 'city_org' %}
             <span class="user-role city-admin"><i class="fas fa-location-dot" aria-hidden="true"></i>{{ _('Admin, paikkakunnat ja organisaatiot') }}</span>
           {% elif user.admin_scope == 'none' %}

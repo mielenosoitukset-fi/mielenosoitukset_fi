@@ -35,7 +35,7 @@ def test_user_list_does_not_call_org_admins_site_wide(admin_client, db, seeded_d
     db.memberships.insert_one({"user_id": user_id, "organization_id": ObjectId(), "role": "admin",
                                "permissions": []})
     page = admin_client.get("/admin/user/?search=aaa-org-only").get_data(as_text=True)
-    assert "Admin, vain organisaatiot" in _role_badge(page, "aaa-org-only")
+    assert "Organisaatioadmin" in _role_badge(page, "aaa-org-only")
     assert "Admin, koko sivusto" not in page
 
 
@@ -61,3 +61,13 @@ def test_user_list_admin_role_badges(admin_client, db, seeded_data):
     assert "Superkäyttäjä" in _role_badge(page, "aaa-flag-super")
     assert "Superkäyttäjä" in _role_badge(page, "aaa-role-super")
     assert "Admin, paikkakunnat ja organisaatiot" in _role_badge(page, "aaa-both")
+
+
+def test_user_list_shows_org_admin_from_membership(admin_client, db, seeded_data):
+    user_id = ObjectId()
+    db.users.insert_one({"_id": user_id, "username": "aaa-plain-owner", "email": "plainowner@example.test",
+                         "role": "user", "global_permissions": [], "confirmed": True})
+    db.memberships.insert_one({"user_id": user_id, "organization_id": ObjectId(), "role": "owner"})
+    page = admin_client.get("/admin/user/?search=aaa-plain-owner").get_data(as_text=True)
+    assert "Organisaatioadmin" in _role_badge(page, "aaa-plain-owner")
+    assert db.users.find_one({"_id": user_id})["role"] == "user"

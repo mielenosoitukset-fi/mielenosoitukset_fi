@@ -92,12 +92,15 @@ def protect_user_history_response(response):
 def _admin_scope_label_key(user: dict, *, has_city_grants: bool, is_org_admin: bool) -> str | None:
     """Say where an account's admin rights reach, for the user list role badge.
 
-    Organisation admins get ``role == "admin"`` too, so the role alone does not
-    mean site-wide rights; only global permissions or superuser access do.
+    Older organisation admins have ``role == "admin"`` too, so the role alone does
+    not mean site-wide rights; only global permissions or superuser access do.
     """
     if user.get("global_admin") is True or user.get("role") in SUPER_ROLES:
         return "super"
     if user.get("role") != "admin":
+        # Organisation admin is shown from the membership, never stored on the account.
+        if user.get("role") in {None, "user", "member"} and is_org_admin and not has_city_grants:
+            return "org"
         return None
     if "national" in user_team_access(mongo, user["_id"]):
         return "super"
