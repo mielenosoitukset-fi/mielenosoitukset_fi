@@ -1019,7 +1019,33 @@ def admin_dashboard():
         f"{_ADMIN_TEMPLATE_FOLDER}dashboard.html",
         panic_mode=panic_mode,
         is_admin_user=is_admin_user,
+        can_open_security=_can_open_security_cases(),
     )
+
+
+def _can_open_security_cases() -> bool:
+    """Whether the lockdown page (governance security cases) would open for this user.
+
+    Panic mode is changed only there, with a second admin; the dashboard links
+    to it only for users the page lets in, so nobody is sent to a 403.
+    """
+    from mielenosoitukset_fi.utils.security_cases import actor_access
+
+    try:
+        actor_access(mongo, current_user)
+    except PermissionError:
+        return False
+    except Exception:
+        logger.exception("Could not check security case access for the dashboard")
+        return False
+    return True
+
+
+@admin_bp.route("/")
+@login_required
+def admin_root():
+    """``/admin/`` opens the dashboard instead of a 404."""
+    return redirect(url_for("admin.admin_dashboard"))
 
 
 # Route to activate panic mode
