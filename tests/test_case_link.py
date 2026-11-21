@@ -184,11 +184,12 @@ def test_escalate_through_link_needs_reason_and_keeps_demo_pending(app, db, seed
     assert entry["metadata"]["authentication"] == "case_link" and entry["metadata"]["reason"] == "En tunne järjestäjää"
     demo = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
     assert not demo.get("approved") and not demo.get("rejected")
-    assert case["meta"]["escalation_level"] == 1
-    # The second reviewer (a full admin) can raise it once more, to Johtoryhmä.
+    # Nobody is on duty, so level 1 is skipped: straight to the national team.
+    assert case["meta"]["escalation_level"] == 2
+    # A full admin can raise it again. No OT member is known, so OT is skipped: Johtoryhmä.
     second = browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": "Päätös kuuluu Johtoryhmälle"})
     assert second.status_code == 200, second.get_data(as_text=True)[:500]
-    assert _case(db, seeded_data)["meta"]["escalation_level"] == 2
+    assert _case(db, seeded_data)["meta"]["escalation_level"] == 4
     # Johtoryhmä is the last level: nothing above it, nothing duplicated.
     history = len(_case(db, seeded_data)["case_history"])
     third = browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": "Vielä ylemmäs"})
@@ -202,12 +203,43 @@ def test_escalation_levels_and_who_may_raise_them():
     from mielenosoitukset_fi.utils import case_escalation as esc
 
     handler, reviewer = U(global_admin=False), U(global_admin=True)
-    assert esc.current_level({}) == 0 and esc.current_level({"superior_needed": True}) == 1
-    assert esc.current_level({"superior_needed": True, "escalation_level": 2}) == 2
+    assert esc.current_level({}) == 0 and esc.current_level({"superior_needed": True}) == 2
+    assert esc.current_level({"superior_needed": True, "escalation_level": 4}) == 4
     assert esc.can_escalate({}, handler)
     assert not esc.can_escalate({"superior_needed": True}, handler)
     assert esc.can_escalate({"superior_needed": True}, reviewer)
-    assert not esc.can_escalate({"superior_needed": True, "escalation_level": 2}, reviewer)
+    assert not esc.can_escalate({"superior_needed": True, "escalation_level": 4}, reviewer)
+
+
+def test_levels_skip_empty_duty_and_ot_then_include_them(app, db, seeded_data):
+    from datetime import timedelta
+
+    from mielenosoitukset_fi.utils import case_escalation as esc
+    from mielenosoitukset_fi.utils import duty_shifts
+    from datetime import datetime, timezone
+
+    with app.app_context():
+        assert esc.next_target(db, 0)[0] == 2 and esc.next_target(db, 2)[0] == 4
+        now = datetime.now(timezone.utc)
+        duty_id, ot_id = ObjectId(), ObjectId()
+        db.users.insert_many([
+            {"_id": duty_id, "username": "vuoro", "email": "v@example.test", "active": True, "confirmed": True},
+            {"_id": ot_id, "username": "ot", "email": "ot@example.test", "active": True, "confirmed": True},
+        ])
+        grant = db[duty_shifts.GRANTS].insert_one({
+            "user_id": duty_id, "revoked_at": None, "approvers": [ot_id],
+            "valid_from": now - timedelta(days=1), "valid_until": now + timedelta(days=1),
+            "permissions": sorted(duty_shifts.NATIONAL_MODERATOR_V1),
+        }).inserted_id
+        db[duty_shifts.SHIFTS].insert_one({
+            "grant_id": grant, "user_id": duty_id, "starts_at": duty_shifts._naive(now - timedelta(hours=1)),
+            "ends_at": duty_shifts._naive(now + timedelta(hours=1)), "approved_at": now, "cancelled_at": None,
+        })
+        level, users = esc.next_target(db, 0)
+        assert level == 1 and [u["username"] for u in users] == ["vuoro"]
+        assert esc.next_target(db, 2)[0] == 3
+        assert [u["username"] for u in esc.next_target(db, 2)[1]] == ["ot"]
+        assert esc.next_target(db, 3)[0] == 4
 
 
 def test_escalate_through_link_needs_code_and_refuses_passkey_only(app, db, seeded_data):

@@ -721,7 +721,7 @@ def single_case(case_id):
         global_case_controls=global_case_permission(current_user, "EDIT_CASE"),
         escalation_level=_esc.current_level(case.meta),
         escalation_name=_esc.LEVEL_NAMES[_esc.current_level(case.meta)],
-        escalate_label=_esc.ASK_LABELS.get(_esc.current_level(case.meta)),
+        escalate_label=_esc.ask_label(mongo, case.meta),
         can_escalate_case=_esc.can_escalate(case.meta, current_user),
         can_take_down=_can_take_down(case_data.get("demo")),
         undo_deadline=_undo_deadline(case_data.get("demo")),
@@ -1366,7 +1366,7 @@ def demo_escalate(case_id):
     except esc.EscalationError as exc:
         messages = {
             "top_level": _("Tapaus on jo Johtoryhmän arvioitavana. Ylempää tasoa ei ole."),
-            "not_allowed": _("Vain toinen tarkistaja voi siirtää tapauksen Johtoryhmälle."),
+            "not_allowed": _("Vain täysi ylläpitäjä voi siirtää tapausta ylemmälle tasolle."),
             "changed": _("Tapauksen taso ehti muuttua. Lataa sivu uudelleen."),
         }
         return jsonify({"error": messages.get(exc.code, _("Eskalointi ei onnistunut."))}), 409

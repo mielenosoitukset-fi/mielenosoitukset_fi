@@ -49,7 +49,7 @@
   </div>
   {% elif escalated %}
   <div class="case-link__card">
-    <p>{{ _('Tapaus on siirretty toisen tarkistajan arvioitavaksi, joten sitä ei voi päättää tällä linkillä.') }}</p>
+    <p>{{ _('Tapaus on siirretty ylemmälle tasolle, joten sitä ei voi päättää tällä linkillä.') }}</p>
     <a href="{{ login_url }}">{{ _('Avaa tapaus kirjautumalla') }}</a>
   </div>
   {% elif factor == 'passkey_only' %}
@@ -101,7 +101,7 @@
   {% if can_escalate %}
   <form method="post" class="case-link__card">
     <h2 class="h5">{{ _('En voi päättää') }}</h2>
-    <p class="case-link__muted">{{ _('Jos et voi tai halua päättää, siirrä tapaus eteenpäin: ensin toiselle tarkistajalle, sieltä tarvittaessa Johtoryhmälle. Mielenosoitus pysyy odottamassa.') }}</p>
+    <p class="case-link__muted">{{ _('Jos et voi tai halua päättää, siirrä tapaus eteenpäin: ensin päivystävälle moderaattorille (jos päivystäjä on), sitten kansalliselle moderaattoritiimille, OT:lle ja viimeisenä Johtoryhmälle. Mielenosoitus pysyy odottamassa.') }}</p>
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <input type="hidden" name="decision" value="escalate">
     <label for="escalate-reason">{{ _('Syy (pakollinen)') }}</label>

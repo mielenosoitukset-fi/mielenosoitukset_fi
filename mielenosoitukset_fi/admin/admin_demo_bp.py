@@ -2046,7 +2046,7 @@ def _case_link_page(token, *, status=200, error=None, result=None, allow_bind=Fa
         pending=pending,
         escalated=escalated,
         can_escalate=can_escalate,
-        escalate_label=esc.ASK_LABELS.get(level),
+        escalate_label=esc.ask_label(mongo, case_meta),
         level_name=esc.LEVEL_NAMES[level] if level else None,
         factor=factor,
         effects={d: preview_demo_decision(mongo, demo["_id"], d) for d in ("approved", "rejected")} if pending else {},
@@ -2101,7 +2101,7 @@ def case_link_decide(token):
         {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}
     ) or {}
     if (case_doc.get("meta") or {}).get("superior_needed") and not getattr(user, "global_admin", False):
-        return _case_link_page(token, status=403, error=_("Tapaus on eskaloitu. Päätöksen tekee toinen tarkistaja."))
+        return _case_link_page(token, status=403, error=_("Tapaus on eskaloitu. Päätöksen tekee ylempi taso."))
     factor = case_links.second_factor(mongo, user)
     if factor == "passkey_only":
         return _case_link_page(token, status=403, error=_("Tilisi käyttää pääsyavainta. Kirjaudu sisään tehdäksesi päätöksen."))
@@ -2165,7 +2165,7 @@ def _case_link_escalate(token, doc, demo, user):
     if esc.current_level(meta) >= esc.MAX_LEVEL:
         return _case_link_page(token, status=409, error=_("Tapaus on jo Johtoryhmän arvioitavana. Ylempää tasoa ei ole."))
     if not esc.can_escalate(meta, user):
-        return _case_link_page(token, status=403, error=_("Tapaus on jo siirretty toisen tarkistajan arvioitavaksi."))
+        return _case_link_page(token, status=403, error=_("Tapaus on jo siirretty ylemmälle tasolle."))
     factor = case_links.second_factor(mongo, user)
     if factor == "passkey_only":
         return _case_link_page(token, status=403, error=_("Tilisi käyttää pääsyavainta. Kirjaudu sisään tehdäksesi päätöksen."))
