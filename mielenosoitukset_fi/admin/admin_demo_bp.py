@@ -3860,7 +3860,16 @@ def demo_command_center(demo_id):
         "recommended": bool(recommended_doc),
         "needs_review": not demo_data.get("approved") and not demo_data.get("rejected"),
         "cancellation_requested": bool(demo_data.get("cancellation_requested")),
+        "taken_down": bool(demo_data.get("taken_down")),
     }
+    # Offer only the actions that make sense in the demo's current state.
+    status_flags["public"] = status_flags["approved"] and not status_flags["taken_down"]
+    status_flags["can_recommend"] = (
+        status_flags["public"] and not status_flags["cancelled"] and not status_flags["hidden"]
+    )
+    status_flags["can_cancel"] = not (
+        status_flags["cancelled"] or status_flags["rejected"] or status_flags["taken_down"]
+    )
 
     location_query = " ".join(
         part for part in [demo.address, demo.city if getattr(demo, "city", None) else None] if part
