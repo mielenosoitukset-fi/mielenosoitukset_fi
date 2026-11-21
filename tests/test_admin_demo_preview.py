@@ -46,7 +46,8 @@ def test_preview_leaks_no_private_fields(admin_client, db, seeded_data):
     assert "hidden@example.test" not in response.text
 
 
-@pytest.mark.parametrize("client_name", ["client", "user_client"])
+# user_client (alice) edits this demo and admins its organisation, so she may preview it.
+@pytest.mark.parametrize("client_name", ["client", "friend_client"])
 def test_preview_requires_staff(request, seeded_data, client_name):
     response = request.getfixturevalue(client_name).get(f"/admin/demo/{seeded_data['pending_demo_id']}/preview")
     assert response.status_code in {302, 401, 403}

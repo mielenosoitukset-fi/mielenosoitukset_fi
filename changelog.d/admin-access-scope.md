@@ -1,0 +1,1 @@
+- Organisation admins and owners now work only on their own organisation in the admin panel; accepting an organisation invitation or changing an organisation role no longer changes the account role.

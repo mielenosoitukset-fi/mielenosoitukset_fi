@@ -2568,7 +2568,10 @@ def init_routes(app):
             user_role = getattr(current_user, 'role', None)
         except Exception:
             user_role = None
-        test_mode_allowed = bool(current_user.is_authenticated and user_role in ("admin", "global_admin"))
+        test_mode_allowed = bool(
+            current_user.is_authenticated
+            and (user_role == "global_admin" or current_user.has_site_wide_admin_reach())
+        )
         # Determine whether current user can edit demonstrations
         try:
             can_edit_demo = bool(current_user.is_authenticated and current_user.has_permission("EDIT_DEMO"))

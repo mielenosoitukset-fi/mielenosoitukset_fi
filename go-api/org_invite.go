@@ -105,7 +105,8 @@ type orgInviteStore interface {
 	// ReplaceInvitations sets invitations to next only while they still equal expected.
 	ReplaceInvitations(ctx context.Context, id bson.ObjectID, expected, next bson.A) (bool, error)
 	// AddMember inserts a membership with the role's default permissions unless one
-	// exists. A new admin or owner gets the admin panel (users.role "admin").
+	// exists. It never changes the account role: the organisation role lives in the
+	// membership, and Flask opens the admin panel from it.
 	AddMember(ctx context.Context, user, org bson.ObjectID, role string) error
 	Audit(ctx context.Context, doc bson.M) error
 }
@@ -158,19 +159,13 @@ func (s mongoOrgInviteStore) AddMember(ctx context.Context, user, org bson.Objec
 	if !ok {
 		role, permissions = "member", orgMemberPermissions
 	}
-	result, err := s.db.Collection("memberships").UpdateOne(ctx,
+	_, err := s.db.Collection("memberships").UpdateOne(ctx,
 		bson.M{"user_id": user, "organization_id": org},
 		bson.M{"$setOnInsert": bson.M{"role": role, "permissions": permissions}},
 		options.UpdateOne().SetUpsert(true))
 	if mongo.IsDuplicateKeyError(err) {
 		return nil
 	}
-	if err != nil || result.UpsertedCount == 0 || role == "member" {
-		return err
-	}
-	// change_access_level and Flask's accept give org admins and owners the admin panel.
-	_, err = s.db.Collection("users").UpdateOne(ctx,
-		bson.M{"_id": user, "role": bson.M{"$in": bson.A{"user", "member"}}}, bson.M{"$set": bson.M{"role": "admin"}})
 	return err
 }
 

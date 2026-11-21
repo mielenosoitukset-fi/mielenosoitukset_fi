@@ -535,7 +535,7 @@ func TestInvitationMongoStore(t *testing.T) {
 	if perms, _ := rows[0]["permissions"].(bson.A); len(perms) != 3 || perms[0] != "INVITE_TO_ORGANIZATION" {
 		t.Fatalf("permissions=%v", rows[0]["permissions"])
 	}
-	// An owner gets the owner permissions and the admin panel; an admin account keeps its role.
+	// An owner gets the owner permissions; the account role is never raised.
 	owner := bson.NewObjectID()
 	if _, err := db.Collection("users").InsertOne(ctx, bson.M{"_id": owner, "role": "user"}); err != nil {
 		t.Fatal(err)
@@ -550,7 +550,7 @@ func TestInvitationMongoStore(t *testing.T) {
 	if perms, _ := ownerRow["permissions"].(bson.A); len(perms) != len(orgRolePermissions["owner"]) {
 		t.Fatalf("owner permissions=%v", ownerRow["permissions"])
 	}
-	if err := db.Collection("users").FindOne(ctx, bson.M{"_id": owner}).Decode(&ownerUser); err != nil || ownerUser["role"] != "admin" {
+	if err := db.Collection("users").FindOne(ctx, bson.M{"_id": owner}).Decode(&ownerUser); err != nil || ownerUser["role"] != "user" {
 		t.Fatalf("owner user=%v err=%v", ownerUser, err)
 	}
 	// The governance marker.

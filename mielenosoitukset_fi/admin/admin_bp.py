@@ -93,7 +93,9 @@ def _get_job_manager_or_abort():
 
 def _is_limited_city_admin(user) -> bool:
     """Return whether the actor must stay in city-scoped admin surfaces."""
-    if getattr(user, "role", None) in {"admin", "global_admin", "god"}:
+    if getattr(user, "role", None) in {"global_admin", "god"} or (
+        hasattr(user, "has_site_wide_admin_reach") and user.has_site_wide_admin_reach()
+    ):
         return False
     return bool(
         hasattr(user, "has_city_admin_scope_grants")
@@ -205,7 +207,7 @@ def inject_admin_actor_context():
 
 
 def _require_global_admin_surface() -> None:
-    if _is_limited_city_admin(current_user):
+    if _is_limited_city_admin(current_user) or not current_user.has_site_wide_admin_reach():
         abort(403)
 
 
@@ -270,7 +272,7 @@ def _can_translate_ui(user) -> bool:
         return False
     if getattr(user, "global_admin", False):
         return True
-    if getattr(user, "role", None) in {"admin", "translator"}:
+    if getattr(user, "role", None) == "translator" or user.has_site_wide_admin_reach():
         return True
     return user.has_permission("TRANSLATE_UI")
 
@@ -280,7 +282,7 @@ def _can_review_ui_translations(user) -> bool:
         return False
     if getattr(user, "global_admin", False):
         return True
-    if getattr(user, "role", None) in {"admin", "global_admin"}:
+    if getattr(user, "role", None) == "global_admin" or user.has_site_wide_admin_reach():
         return True
     return user.has_permission("REVIEW_UI_TRANSLATIONS")
 
@@ -2155,6 +2157,7 @@ def _collect_recent_errors() -> list:
 @admin_required
 def admin_status():
     """Admin system status dashboard."""
+    _require_global_admin_surface()
     from mielenosoitukset_fi.utils.time_utils import utcnow as _utcnow
     import time as _time
 
