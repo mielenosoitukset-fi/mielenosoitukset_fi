@@ -101,7 +101,7 @@
           {% endif %}
           {{ next_task.title }}
         </a>
-        <span class="badge bg-secondary text-uppercase">{{ next_task.status }}</span>
+        <span class="badge bg-secondary">{{ next_task.status|task_status_label }}</span>
       </div>
     </div>
 
@@ -118,7 +118,7 @@
             {% endif %}
             {{ task.title }}
           </a>
-          <span class="badge bg-secondary">{{ task.status }}</span>
+          <span class="badge bg-secondary">{{ task.status|task_status_label }}</span>
         </li>
         {% endfor %}
       </ul>

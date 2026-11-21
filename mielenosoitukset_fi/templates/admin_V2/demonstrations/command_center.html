@@ -262,7 +262,7 @@
               <li><strong>{{ _('Sähköposti') }}:</strong> {{ submitter.submitter_email or '-' }}</li>
               <li><strong>{{ _('Rooli') }}:</strong> {{ submitter.submitter_role or '-' }}</li>
               <li><strong>{{ _('Hyväksyi ehdot') }}:</strong> {{ _('Kyllä') if submitter.accept_terms else _('Ei') }}</li>
-              <li><strong>{{ _('Lähetetty') }}:</strong> {{ submitter.submitted_at or '-' }}</li>
+              <li><strong>{{ _('Lähetetty') }}:</strong> {{ submitter.submitted_at|datetimeformat if submitter.submitted_at else '-' }}</li>
             </ul>
             {% else %}
             <p class="text-muted mb-0">{{ _('Ei ilmoittajatietoja.') }}</p>
@@ -360,7 +360,7 @@
               <div class="case-card">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                   <strong>#{{ case.running_num }}</strong>
-                  <span class="badge bg-secondary text-uppercase">{{ case.type }}</span>
+                  <span class="badge bg-secondary">{{ case.type|case_type_label }}</span>
                 </div>
                 <div class="text-muted small mb-1">
                   {{ case.created_at|datetimeformat("%d.%m.%Y %H:%M") if case.created_at else '-' }}
@@ -372,12 +372,12 @@
                     <span class="badge bg-warning text-dark">{{ _('Avoin') }}</span>
                   {% endif %}
                   {% if case.urgency %}
-                  <span class="badge bg-info ms-1">{{ _(case.urgency|capitalize) }}</span>
+                  <span class="badge bg-info ms-1">{{ case.urgency|urgency_label }}</span>
                   {% endif %}
                 </div>
                 {% if case.latest_action %}
                 <div class="small text-muted mb-2">
-                  {{ case.latest_action.timestamp|datetimeformat("%d.%m.%Y %H:%M") if case.latest_action.timestamp else '' }} · {{ case.latest_action.action_type }}
+                  {{ case.latest_action.timestamp|datetimeformat("%d.%m.%Y %H:%M") if case.latest_action.timestamp else '' }} · {{ case.latest_action.action_type|case_action_label }}
                 </div>
                 {% endif %}
                 <a class="btn btn-sm btn-outline-primary w-100" href="{{ case.url }}">
@@ -402,7 +402,7 @@
                 </div>
                 <div class="small text-muted">
                   {{ suggestion.created_at|datetimeformat("%d.%m.%Y %H:%M") if suggestion.created_at else '-' }}
-                  · {{ suggestion.status or 'open' }}
+                  · {{ {'applied': _('Hyväksytty'), 'rejected': _('Hylätty'), 'closed': _('Suljettu')}.get(suggestion.status, _('Avoin')) }}
                 </div>
                 <a href="{{ url_for('admin_demo.suggestion_view', suggestion_id=suggestion._id) }}">
                   {{ _('Avaa') }}
@@ -515,7 +515,7 @@
               — <a href="{{ demo.facebook_import.get('url')|safe_href }}" target="_blank" rel="noopener noreferrer">{{ demo.facebook_import.get('url') }}</a>
               {% endif %}
               {% if demo.facebook_import.get('imported_at') %}
-              <small>({{ demo.facebook_import.get('imported_at') }})</small>
+              <small>({{ demo.facebook_import.get('imported_at')|datetimeformat }})</small>
               {% endif %}
             </p>
           </div>

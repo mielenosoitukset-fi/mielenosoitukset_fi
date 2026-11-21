@@ -65,7 +65,7 @@
             <div class="case-meta">
               <span class="admin-status-badge">{{ case.type_label }}</span>
               {% if case.urgency %}
-                <span class="admin-status-badge admin-status-badge--{% if case.urgency == 'high' %}danger{% elif case.urgency == 'medium' %}warning{% else %}info{% endif %}">{{ _(case.urgency|capitalize) }}</span>
+                <span class="admin-status-badge admin-status-badge--{% if case.urgency == 'high' %}danger{% elif case.urgency == 'medium' %}warning{% else %}info{% endif %}">{{ case.urgency|urgency_label }}</span>
               {% endif %}
               {% if case.closed %}
                 <span class="admin-status-badge admin-status-badge--success">{{ _('Suljettu') }}</span>

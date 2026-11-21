@@ -298,6 +298,8 @@ def create_app(config_overrides=None) -> Flask:
     app.jinja_env.filters["stored_html"] = lambda value: Markup(sanitize_stored_html(value))
     from mielenosoitukset_fi.utils.content_formatting import safe_href
     app.jinja_env.filters["safe_href"] = safe_href
+    from mielenosoitukset_fi.utils import admin_labels
+    admin_labels.register(app)
     app.register_blueprint(board_bp)
 
     if app.config.get("ENABLE_CHAT", True):
@@ -365,8 +367,28 @@ def create_app(config_overrides=None) -> Flask:
     # utils/jinja_filters.py (or similar)
     @app.template_filter('datetimeformat')
     def datetimeformat(value, fmt="%d.%m.%Y %H:%M"):
-        if isinstance(value, (datetime,)):
-            return value.strftime(fmt)
+        """Format a stored time for people in Finland.
+
+        Stored datetimes are UTC (naive ones too), so they are shown in
+        Helsinki time. ISO 8601 strings are parsed the same way; any other
+        value is returned unchanged.
+        """
+        from datetime import timezone as _tz
+        from zoneinfo import ZoneInfo
+
+        if isinstance(value, str) and value[:4].isdigit() and "-" in value[:8]:
+            text = value.strip()
+            try:
+                parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            except ValueError:
+                return value
+            if len(text) <= 10:  # a plain date has no time zone to convert
+                return parsed.strftime(fmt)
+            value = parsed
+        if isinstance(value, datetime):
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=_tz.utc)
+            return value.astimezone(ZoneInfo("Europe/Helsinki")).strftime(fmt)
         return value  # fallback
 
         
@@ -460,6 +482,10 @@ def create_app(config_overrides=None) -> Flask:
 
         tasks = []
 
+        def _decision_link(demo_id):
+            from mielenosoitukset_fi.admin.admin_demo_bp import _decision_urls
+            return _decision_urls([demo_id]).get(str(demo_id)) or url_for("admin_demo.review_demo", demo_id=demo_id)
+
         # --- DEMONSTRATION approval tasks ---
         waiting_demos = list(
             mongo.demonstrations.find({
@@ -484,7 +510,8 @@ def create_app(config_overrides=None) -> Flask:
                 "title": demo.get("title", "Nimetön mielenosoitus"),
                 "created_at": demo.get("created_datetime", datetime.now()) or datetime.now(),
                 "status": "waiting_approval",
-                "link": url_for("admin_demo.edit_demo", demo_id=demo["_id"]),
+                # Decisions happen in the case (or the review page for city admins).
+                "link": _decision_link(demo["_id"]),
             })
 
         # --- ORG SUGGESTIONS tasks ---

@@ -174,6 +174,34 @@ class RepeatSchedule:
         base = f"every {self.interval} {frequency_map.get(self.frequency, 'unknown')}{'s' if self.interval > 1 else ''}"
         return base + weekday_str + monthly_str
 
+    def as_finnish(self) -> str:
+        """Finnish description for the admin UI, e.g. "Joka 2. viikko, perjantaisin"."""
+        weekdays = {
+            "monday": "maanantaisin", "tuesday": "tiistaisin", "wednesday": "keskiviikkoisin",
+            "thursday": "torstaisin", "friday": "perjantaisin", "saturday": "lauantaisin",
+            "sunday": "sunnuntaisin",
+        }
+        weekday_names = {
+            "monday": "maanantai", "tuesday": "tiistai", "wednesday": "keskiviikko",
+            "thursday": "torstai", "friday": "perjantai", "saturday": "lauantai", "sunday": "sunnuntai",
+        }
+        nth = {"first": "ensimmäinen", "second": "toinen", "third": "kolmas", "fourth": "neljäs", "last": "viimeinen"}
+        units = {"daily": ("päivä", "päivä"), "weekly": ("viikko", "viikko"),
+                 "monthly": ("kuukausi", "kuukausi"), "yearly": ("vuosi", "vuosi")}
+        if self.frequency not in units:
+            return "Ei toistu"
+        unit = units[self.frequency][0]
+        interval = int(self.interval or 1)
+        text = f"Joka {unit}" if interval <= 1 else f"Joka {interval}. {unit}"
+        if self.frequency == "weekly" and self.weekday in weekdays:
+            text += f", {weekdays[self.weekday]}"
+        if self.frequency == "monthly":
+            if self.monthly_option == "day_of_month" and self.day_of_month:
+                text += f", {self.day_of_month}. päivä"
+            elif self.monthly_option == "nth_weekday" and self.nth_weekday in nth and self.weekday_of_month in weekday_names:
+                text += f", kuun {nth[self.nth_weekday]} {weekday_names[self.weekday_of_month]}"
+        return text
+
     def __str__(self) -> str:
         return self.as_string()
 

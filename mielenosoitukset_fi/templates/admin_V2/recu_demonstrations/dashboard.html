@@ -79,7 +79,7 @@
         {% for demo in recurring_demos %}
         <tr id="recu-demo-{{ demo._id }}" {% if not demo.approved %}class="needs-attention"{% endif %}>
           <td>{{ demo.title }}</td>
-          <td>{{ demo.repeat_schedule.as_string() }}</td>
+          <td>{{ demo.repeat_schedule.as_finnish() }}</td>
           <td>{{ demo.start_time }} - {{ demo.end_time }}</td>
           <td>{{ demo.city }}</td>
           <td data-col="approved">
