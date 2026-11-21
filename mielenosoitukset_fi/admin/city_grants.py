@@ -530,6 +530,10 @@ def _receipt_identity(operation: dict) -> dict:
         "decision_id": intent["decision_id"],
         "decision_revision": intent["decision_revision"],
     }
+    if "request_id" in intent:
+        # An organization access recovery (org_recovery.py); it names an organization, not an account.
+        return {**identity, "request_id": intent["request_id"], "case_id": intent["case_id"],
+                "organization_id": intent["organization_id"], "need": intent["need"]}
     if "invitation_id" in intent:
         # An outbound organization invitation (org_outreach.py); it names no account.
         return {**identity, "invitation_id": intent["invitation_id"], "case_id": intent["case_id"]}

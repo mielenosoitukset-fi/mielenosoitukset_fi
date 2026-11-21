@@ -1575,6 +1575,11 @@ def cancel_invite() -> Tuple[Response, int]:
         )
         return jsonify({"status": "error", "error": _("Sinulla ei ole oikeutta tähän toimintoon.")}), 403
 
+    if any(isinstance(i, dict) and i.get("recovery_request_id") and _invite_matches_email(i, email)
+           for i in org.get("invitations", [])):
+        # A decided access recovery changes only through Hallinto; it expires by itself.
+        return jsonify({"status": "error", "error": _("Tämä kutsu on tehty Hallinnon päätöksellä, eikä sitä voi muuttaa täällä.")}), 403
+
     # --- Process invitations ---
     invitations = org.get("invitations", [])
     new_invitations = []
@@ -1672,6 +1677,11 @@ def set_invite_role() -> Tuple[Response, int]:
     if not _can_grant_organization_role(current_user, org, role):
         _log_org_event("organization_invite_role_error", reason="role_forbidden", organization_id=org_id, email=email, role=role)
         return jsonify({"status": "error", "error": _("Sinulla ei ole oikeutta antaa tätä roolia.")}), 403
+
+    if any(isinstance(i, dict) and i.get("recovery_request_id") and _invite_matches_email(i, email)
+           for i in org.get("invitations", [])):
+        # A decided access recovery changes only through Hallinto; it expires by itself.
+        return jsonify({"status": "error", "error": _("Tämä kutsu on tehty Hallinnon päätöksellä, eikä sitä voi muuttaa täällä.")}), 403
 
     # --- Process invitations ---
     invitations = org.get("invitations", [])

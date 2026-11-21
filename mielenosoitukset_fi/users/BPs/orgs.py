@@ -5,6 +5,7 @@ from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.utils.flashing import flash_message
 from mielenosoitukset_fi.utils.classes import Organization
 from mielenosoitukset_fi.utils.invitations import invitation_expired, invitation_for, invited_role
+from mielenosoitukset_fi.admin import org_recovery
 
 mongo = DatabaseManager().get_instance().get_db()
 
@@ -72,10 +73,13 @@ def accept_invite():
             {"$set": {"invitations": new_invitations}},
         )
 
-        role = invited_role(invitation_for(organization.get("invitations", []), current_user.email))
+        invitation = invitation_for(organization.get("invitations", []), current_user.email)
+        role = invited_role(invitation)
         org = Organization.from_dict(organization)
         # Organisation roles live in the membership only; the account role is never raised.
         org.add_member(current_user, role=role, permissions=[])
+        # An access recovery decided in Hallinto finishes here (no-op for ordinary invitations).
+        org_recovery.on_accept(mongo, organization_id, invitation, current_user._id)
         flash_message(f"Liityit organisaatioon {organization.get('name')}.", "success")
     else:
         flash_message("Kutsua ei löytynyt.", "warning")
@@ -115,10 +119,13 @@ def accept_invite_post(organization_id):
             {"$set": {"invitations": new_invitations}},
         )
 
-        role = invited_role(invitation_for(organization.get("invitations", []), current_user.email))
+        invitation = invitation_for(organization.get("invitations", []), current_user.email)
+        role = invited_role(invitation)
         org = Organization.from_dict(organization)
         # Organisation roles live in the membership only; the account role is never raised.
         org.add_member(current_user, role=role, permissions=[])
+        # An access recovery decided in Hallinto finishes here (no-op for ordinary invitations).
+        org_recovery.on_accept(mongo, organization_id, invitation, current_user._id)
         flash_message(f"Liityit organisaatioon {organization.get('name')}.", "success")
 
     

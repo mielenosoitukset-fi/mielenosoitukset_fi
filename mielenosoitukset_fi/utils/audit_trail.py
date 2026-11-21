@@ -120,6 +120,22 @@ _SECRET_VALUE = re.compile(
 _ID_KEY = re.compile(r"(^_?id$|_ids?$|^slug$|^status$|^type$|^kind$|^job_key$|^key$)")
 
 REDACTED = "[redacted]"
+
+
+def _scrub_invitation_emails(value, collection):
+    """Organization invitations carry the invitee's address: keep it out of the trail."""
+    if collection != "organizations":
+        return value
+
+    def walk(node, inside=False):
+        if isinstance(node, dict):
+            return {k: (REDACTED if inside and k == "email" else walk(v, inside or k == "invitations"))
+                    for k, v in node.items()}
+        if isinstance(node, list):
+            return [walk(v, inside) for v in node]
+        return node
+
+    return walk(value)
 MAX_STRING = 300
 MAX_LIST = 50
 MAX_DEPTH = 8
@@ -387,7 +403,8 @@ def describe_command(command_name: str, command: Dict[str, Any]) -> Optional[Dic
             "collection": collection,
             "doc_ids": [i for u in updates for i in _filter_ids(u.get("q"))][:MAX_LIST],
             "filter": [redact(u.get("q"), filter_mode=True) for u in updates[:20]],
-            "change": [redact(u.get("u"), secret_collection=secret) for u in updates[:20]],
+            "change": [_scrub_invitation_emails(redact(u.get("u"), secret_collection=secret), collection)
+                       for u in updates[:20]],
             "multi": any(u.get("multi") for u in updates),
             "upsert": any(u.get("upsert") for u in updates),
             "count": len(updates),
