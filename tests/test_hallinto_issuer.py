@@ -382,3 +382,48 @@ def test_account_invite_creates_an_ordinary_account_for_an_admin(owner, db, monk
         assert taken.status_code == 409 and taken.json["error"] == "username_in_use"
     finally:
         db.users.delete_many({"email": {"$in": ["uusi.admin@example.test", "other@example.test"]}})
+
+
+def _org_requests(owner_client, claims, path, body, auth=(CLIENT, SECRET)):
+    return owner_client.post(PREFIX + "/organization-requests/" + path, base_url=ORIGIN, auth=auth,
+                             json={"sub": claims["sub"], "sid": claims["sid"], **body})
+
+
+def test_organization_requests_for_hallinto(owner, db):
+    from datetime import datetime, timezone
+    app, subject = owner
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    now = datetime.now(timezone.utc)
+    base = {"organization": {"name": "Rauha ry", "email": "info@rauha.example", "links": ["https://rauha.example"]},
+            "applicant": {"name": "Hakija", "email": "hakija@example.test"}, "represents": True,
+            "access": "organization_account", "status_token_hash": "secret", "created_at": now, "updated_at": now}
+    confirmed = db.organization_requests.insert_one({**base, "status": "received"}).inserted_id
+    hidden = db.organization_requests.insert_one({**base, "status": "unconfirmed"}).inserted_id
+    suggestion = db.organization_requests.insert_one({**base, "status": "received", "represents": False}).inserted_id
+    try:
+        assert _org_requests(app.test_client(), claims, "list", {}).status_code == 403
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+        items = _org_requests(app.test_client(), claims, "list", {}).json["items"]
+        ids = {item["id"] for item in items}
+        # Unconfirmed requests stay hidden and the status token never leaves Flask.
+        assert str(confirmed) in ids and str(hidden) not in ids
+        assert all("status_token_hash" not in item for item in items)
+        assert items[0]["applicant"]["email"] == "hakija@example.test"
+        update = {"id": str(confirmed), "status": "verifying", "message": " Lähetimme viestin. ", "case": "case-1",
+                  "access": "invite", "invite_email": "PJ@rauha.example"}
+        item = _org_requests(app.test_client(), claims, "update", update).json["item"]
+        assert item["status"] == "verifying" and item["status_message"] == "Lähetimme viestin."
+        assert item["case"] == "case-1" and item["access"] == "invite" and item["invite_email"] == "pj@rauha.example"
+        stored = db.organization_requests.find_one({"_id": confirmed})
+        assert stored["case_pending"] is False and stored["history"][0]["by"] == subject
+        # Refused: back to received, an unconfirmed request, a bad invite address, access on a suggestion.
+        assert _org_requests(app.test_client(), claims, "update", {**update, "status": "received"}).status_code == 400
+        assert _org_requests(app.test_client(), claims, "update", {**update, "id": str(hidden)}).status_code == 404
+        assert _org_requests(app.test_client(), claims, "update", {**update, "invite_email": "nope"}).status_code == 400
+        assert _org_requests(app.test_client(), claims, "update", {**update, "id": str(suggestion)}).status_code == 404
+        no_access = {"id": str(suggestion), "status": "in_review"}
+        assert _org_requests(app.test_client(), claims, "update", no_access).status_code == 200
+    finally:
+        db.organization_requests.delete_many({"_id": {"$in": [confirmed, hidden, suggestion]}})

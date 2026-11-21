@@ -75,6 +75,8 @@ function assetTags(manifest) {
     fundraising: routeAssets('src/app/FundraisingScreen.tsx'),
     contact: routeAssets('src/app/ContactScreen.tsx'),
     cityAdmin: routeAssets('src/app/CityAdminApplyScreen.tsx'),
+    orgRequest: routeAssets('src/app/OrgRequestScreen.tsx'),
+    orgRequestStatus: routeAssets('src/app/OrgRequestStatusScreen.tsx'),
     organizationFill: routeAssets('src/app/OrganizationFillScreen.tsx'),
     suggestChange: routeAssets('src/app/SuggestChangeScreen.tsx'),
     status: routeAssets('src/app/StatusScreen.tsx'),

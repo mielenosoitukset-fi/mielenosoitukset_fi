@@ -7,6 +7,7 @@ import { informationPageForPath, informationPages } from './information';
 import { contactCopy, contactPath } from './contact-route';
 import { campaignCopy, campaignPath } from './campaign-route';
 import { cityAdminCopy, cityAdminPath } from './city-admin-route';
+import { orgRequestCopy, orgRequestPath, orgRequestStatusPath } from './org-request-route';
 import { developerCopy, developerPath } from './developer-route';
 import { volunteerConfirmCopy } from './volunteer-confirm';
 import { emailConfirmCopy } from './email-confirm';
@@ -39,6 +40,8 @@ export type AppRoute =
   | { name: 'information'; page: InformationPage }
   | { name: 'contact' }
   | { name: 'city-admin' }
+  | { name: 'org-request' }
+  | { name: 'org-request-status' }
   | { name: 'api-docs' }
   | { name: 'campaign' }
   | { name: 'fundraising' }
@@ -102,6 +105,8 @@ export function routeForPath(path: string): AppRoute | null {
   if (path === '/auth/god') return { name: 'god-auth' };
   if (path === contactPath) return { name: 'contact' };
   if (path === cityAdminPath) return { name: 'city-admin' };
+  if (path === orgRequestPath) return { name: 'org-request' };
+  if (path === orgRequestStatusPath) return { name: 'org-request-status' };
   if (path === '/api-docs/') return { name: 'api-docs' };
   if (path === campaignPath) return { name: 'campaign' };
   if (path === '/keräys' || path === '/ker%C3%A4ys' || path === '/ker%c3%a4ys') return { name: 'fundraising' };
@@ -241,6 +246,14 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
     // The server replaces the title with the account's name once the profile is read.
     return { title: 'Profiili | Mielenosoitukset.fi', description: 'Mielenosoitukset.fi-käyttäjän profiili.',
       robots: 'noindex, follow', canonical: null };
+  }
+  if (route.name === 'org-request') {
+    return { title: `${orgRequestCopy.title} | Mielenosoitukset.fi`, description: orgRequestCopy.description,
+      robots: 'index, follow', canonical: config.origin + orgRequestPath };
+  }
+  if (route.name === 'org-request-status') {
+    return { title: `${orgRequestCopy.statusTitle} | Mielenosoitukset.fi`, description: orgRequestCopy.statusTitle,
+      robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'city-admin') {
     return { title: `${cityAdminCopy.title} | Mielenosoitukset.fi`, description: cityAdminCopy.description,
