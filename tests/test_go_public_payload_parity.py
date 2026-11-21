@@ -34,6 +34,7 @@ BASE = {
 CASES = [
     ({}, ""),
     ({}, "fi"),
+    ({"end_date": "2026-12-03"}, ""),
     ({"default_language": "en", "translations": {"fi": {"title": " Suomeksi ", "tags": ["a"]},
                                                  "sv": {"description": "  "}, "en": {"title": "English"}}}, ""),
     ({"default_language": "xx", "translations": {"en": {"title": "English", "description": "Body"}}}, "en"),

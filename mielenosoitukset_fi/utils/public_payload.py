@@ -20,7 +20,7 @@ from bson import ObjectId
 
 LANGUAGES = ("fi", "en", "sv")
 TEXT_FIELDS = (
-    "date", "start_time", "end_time", "city", "address", "slug", "event_type",
+    "date", "end_date", "start_time", "end_time", "city", "address", "slug", "event_type",
     "facebook", "img", "cover_picture", "cover_source", "preview_image",
 )
 MAX_INT32 = 2**31 - 1
