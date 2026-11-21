@@ -116,7 +116,7 @@
     const platforms = [
       ['facebook', 'Facebook'], ['twitter', 'Twitter'], ['mastodon', 'Mastodon'],
       ['instagram', 'Instagram'], ['linkedin', 'LinkedIn'], ['tiktok', 'TikTok'],
-      ['youtube', 'YouTube'], ['snapchat', 'Snapchat']
+      ['youtube', 'YouTube'], ['snapchat', 'Snapchat'], ['muu', {{ _('Muu')|tojson }}]
     ];
 
     function updateEmptyState() {
@@ -139,7 +139,13 @@
       select.className = 'form-select';
       select.name = 'social_media_platform[]';
       select.setAttribute('aria-label', '{{ _("Sosiaalisen median alusta") }}');
-      platforms.forEach(([value, label]) => {
+      // A stored platform outside the list keeps its own value instead of
+      // turning into the first option (Facebook) on the next save.
+      const options = platforms.slice();
+      if (platform && !options.some(([value]) => value === platform)) {
+        options.push([platform, platform]);
+      }
+      options.forEach(([value, label]) => {
         const option = document.createElement('option');
         option.value = value;
         option.textContent = label;

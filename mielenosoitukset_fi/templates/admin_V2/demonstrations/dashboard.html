@@ -1,7 +1,7 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
 {% from 'admin_V2/demonstrations/_edit_link_modal.html' import demo_edit_link_modal %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/demonstrations.css', v='20260914-admin-ui-51') }}">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/demonstrations.css', v='20261121-command-center') }}">{% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/admin_demo_edit_links.js') }}"></script>
 
@@ -91,10 +91,12 @@
             <option value="all" {% if approval_filter == 'all' %}selected{% endif %}>{{ _('Kaikki') }}</option>
             <option value="pending" {% if approval_filter == 'pending' %}selected{% endif %}>{{ _('Odottaa hyväksyntää') }}</option>
             <option value="approved" {% if approval_filter == 'approved' %}selected{% endif %}>{{ _('Hyväksytty') }}</option>
+            <option value="rejected" {% if approval_filter == 'rejected' %}selected{% endif %}>{{ _('Hylätty') }}</option>
           </select>
         </div>
         <button type="submit" class="btn btn-primary"><i class="fas fa-filter" aria-hidden="true"></i>{{ _('Suodata') }}</button>
       </div>
+      {% if not show_hidden or not show_cancelled %}<p class="admin-field__help mb-2">{{ _('Kaikki sisältää myös hylätyt. Piilotetut ja perutut valitaan lisäsuodattimista.') }}</p>{% endif %}
 
       <details class="admin-advanced-filters" {% if tag_filter or missing_tag_filter or show_hidden or show_cancelled or recurring_filter != 'all' or show_past_filter != 'all' or sort_filter != 'priority' %}open{% endif %}>
         <summary>{{ _('Lisäsuodattimet') }}</summary>
@@ -174,8 +176,9 @@
       <tbody>
 
 {# Split demos into clean groups #}
-{% set pending = demonstrations|selectattr('approved', 'equalto', False)|list %}
+{% set pending = demonstrations|selectattr('approved', 'equalto', False)|rejectattr('rejected')|list %}
 {% set approved = demonstrations|selectattr('approved', 'equalto', True)|list %}
+{% set rejected = demonstrations|selectattr('rejected')|rejectattr('approved')|list %}
 
 {# ----------------------------- #
    PENDING SECTION
@@ -510,6 +513,46 @@
         </div>
     </td>
 
+</tr>
+{% endfor %}
+{% endif %}
+
+{# ----------------------------- #
+   REJECTED SECTION (only when the filter shows them)
+   ----------------------------- #}
+{% if rejected %}
+<tr class="admin-data-group-header">
+    <td colspan="{{ column_count }}"><strong>{{ _('Hylätyt mielenosoitukset') }}</strong></td>
+</tr>
+{% for demo in rejected %}
+<tr class="admin-data-row">
+    <td class="select-col">
+        <input type="checkbox" class="demo-select form-check-input admin-selection-checkbox" value="{{ demo._id }}" disabled aria-label="{{ _('Valitse mielenosoitus') }} {{ demo.title }}">
+    </td>
+    <td>{{ demo.title }}</td>
+    <td>{{ demo.city }}</td>
+    <td>{{ demo.date }}</td>
+    <td>
+        {% if demo.recurs %}
+            <i class="fa-solid fa-check-circle admin-status-icon admin-status-icon--success"></i> {{ _('Kyllä') }}
+        {% else %}
+            <i class="fa-solid fa-times-circle admin-status-icon admin-status-icon--danger"></i> {{ _('Ei') }}
+        {% endif %}
+    </td>
+    <td data-col="approved"><span class="badge bg-secondary">{{ _('Hylätty') }}</span></td>
+    {% if show_cancelled %}
+    <td>{% if demo.cancelled %}<span class="badge bg-danger">{{ _('Peruttu') }}</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
+    {% endif %}
+    <td class="actions-cell">
+        {% if 'VIEW_DEMO' in demo_actions.get(demo._id|string, []) %}
+        <a class="btn btn-sm btn-outline-primary command-center-btn"
+           href="{{ url_for('admin_demo.demo_command_center', demo_id=demo._id) }}"
+           title="{{ _('Hallintanäkymä') }}">
+            <i class="fa-solid fa-table-columns" aria-hidden="true"></i>
+            <span class="visually-hidden">{{ _('Hallintanäkymä') }}: {{ demo.title }}</span>
+        </a>
+        {% endif %}
+    </td>
 </tr>
 {% endfor %}
 {% endif %}

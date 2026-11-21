@@ -109,21 +109,12 @@
               {{ _('AKTIIVINEN') if panic_mode else _('POIS PÄÄLTÄ') }}
             </div>
             <p class="text-muted mb-2">{{ _('Panic Mode lukitsee käyttäjille näkyvät palvelut kriisitilanteissa.') }}</p>
-            {% if current_user.role == "global_admin" %}
+            {% if can_open_security %}
             <div class="panic-actions">
-              {% if panic_mode %}
-                <form method="POST" action="{{ url_for('admin.deactivate_panic') }}">
-                  <button type="submit" class="btn btn-outline-success btn-sm">
-                    <i class="fa-solid fa-unlock me-1"></i>{{ _('Poista tila') }}
-                  </button>
-                </form>
-              {% else %}
-                <form method="POST" action="{{ url_for('admin.activate_panic') }}">
-                  <button type="submit" class="btn btn-outline-danger btn-sm">
-                    <i class="fa-solid fa-bolt me-1"></i>{{ _('Kytke päälle') }}
-                  </button>
-                </form>
-              {% endif %}
+              <a class="btn btn-outline-{{ 'success' if panic_mode else 'danger' }} btn-sm" href="{{ url_for('admin_governance.security') }}">
+                <i class="fa-solid fa-{{ 'unlock' if panic_mode else 'bolt' }} me-1" aria-hidden="true"></i>{{ _('Avaa turvatilanteet') }}
+              </a>
+              <p class="text-muted small mb-0 mt-1">{{ _('Tilan kytkeminen vaatii toisen ylläpitäjän hyväksynnän.') }}</p>
             </div>
             {% endif %}
           </div>
