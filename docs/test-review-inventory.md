@@ -1279,10 +1279,10 @@ CITY-01a/P2/#957 · Codex · 2026-10-22. Actual anonymous Flask submission and M
 - [ ] `test_city_scoped_permission_does_not_satisfy_unscoped_route_gate`
 - [ ] `test_city_admin_gets_limited_organization_permissions`
 - [ ] `test_legacy_scoped_user_is_displayed_as_city_admin`
-- [ ] `test_city_admin_can_create_and_edit_but_cannot_verify_organization`
+- [ ] `test_city_admin_sees_but_cannot_create_or_edit_organizations`
 - [ ] `test_city_admin_cannot_edit_verified_organization`
 - [ ] `test_city_admin_cannot_invite_to_verified_organization`
-- [ ] `test_city_admin_can_invite_to_unverified_organization`
+- [ ] `test_city_admin_cannot_invite_to_unverified_organization`
 - [x] `test_city_admin_dashboard_uses_scoped_review_queue`
 - [ ] `test_edit_user_revokes_object_id_backed_city_scope_grant`
 

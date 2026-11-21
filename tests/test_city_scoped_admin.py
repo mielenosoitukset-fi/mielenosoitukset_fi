@@ -480,9 +480,9 @@ def test_city_admin_gets_limited_organization_permissions(db):
     assert user.role == "city_admin"
     assert user.has_permission("LIST_ORGANIZATIONS")
     assert user.has_permission("VIEW_ORGANIZATION", ObjectId())
-    assert user.has_permission("CREATE_ORGANIZATION")
-    assert user.has_permission("EDIT_ORGANIZATION", ObjectId())
-    assert user.has_permission("INVITE_TO_ORGANIZATION", ObjectId())
+    assert not user.has_permission("CREATE_ORGANIZATION")
+    assert not user.has_permission("EDIT_ORGANIZATION", ObjectId())
+    assert not user.has_permission("INVITE_TO_ORGANIZATION", ObjectId())
     assert not user.has_permission("DELETE_ORGANIZATION", ObjectId())
 
 
@@ -505,9 +505,10 @@ def test_legacy_scoped_user_is_displayed_as_city_admin(
     assert 'value="city_admin" selected' in edit_page.get_data(as_text=True)
 
 
-def test_city_admin_can_create_and_edit_but_cannot_verify_organization(
+def test_city_admin_sees_but_cannot_create_or_edit_organizations(
     app, db, seeded_data
 ):
+    """New organizations come from the request form and a Hallinto decision."""
     scoped_user_id = _create_scoped_admin(
         db,
         ["helsinki"],
@@ -529,30 +530,22 @@ def test_city_admin_can_create_and_edit_but_cannot_verify_organization(
         },
         headers={"Referer": "/admin/organization/"},
     )
-    assert create_response.status_code == 302
-    created = db.organizations.find_one({"name": "City Admin Organization"})
-    assert created is not None
-    assert created.get("verified", False) is False
+    assert create_response.status_code in (302, 403)
+    assert db.organizations.find_one({"name": "City Admin Organization"}) is None
 
+    unverified_org = db.organizations.find_one({"verified": False})
     edit_response = client.post(
-        f"/admin/organization/edit/{created['_id']}",
+        f"/admin/organization/edit/{unverified_org['_id']}",
         data={
-            "name": "City Admin Organization Updated",
+            "name": "Renamed by city admin",
             "description": "Updated by a city admin.",
             "email": "city-org@example.test",
             "website": "https://city-org.example.test",
-            "verified": "on",
         },
-        headers={"Referer": f"/admin/organization/edit/{created['_id']}"},
+        headers={"Referer": f"/admin/organization/edit/{unverified_org['_id']}"},
     )
-    assert edit_response.status_code == 302
-    updated = db.organizations.find_one({"_id": created["_id"]})
-    assert updated["name"] == "City Admin Organization Updated"
-    assert updated.get("verified", False) is False
-
-    edit_page = client.get(f"/admin/organization/edit/{created['_id']}")
-    assert edit_page.status_code == 200
-    assert 'name="verified"' not in edit_page.get_data(as_text=True)
+    assert edit_response.status_code in (302, 403)
+    assert db.organizations.find_one({"_id": unverified_org["_id"]})["name"] == unverified_org["name"]
 
 
 def test_city_admin_cannot_edit_verified_organization(app, db, seeded_data):
@@ -622,7 +615,7 @@ def test_city_admin_cannot_invite_to_verified_organization(app, db, seeded_data)
     )
 
 
-def test_city_admin_can_invite_to_unverified_organization(
+def test_city_admin_cannot_invite_to_unverified_organization(
     app, db, seeded_data, monkeypatch
 ):
     from importlib import import_module
@@ -646,9 +639,9 @@ def test_city_admin_can_invite_to_unverified_organization(
         headers={"Referer": f"/admin/organization/view/{unverified_org['_id']}"},
     )
 
-    assert response.status_code == 302
+    assert response.status_code in (302, 403)
     refreshed = db.organizations.find_one({"_id": unverified_org["_id"]})
-    assert "allowed-invite@example.test" in refreshed.get("invitations", [])
+    assert "allowed-invite@example.test" not in refreshed.get("invitations", [])
 
 
 def test_city_admin_dashboard_uses_scoped_review_queue(app, db):
