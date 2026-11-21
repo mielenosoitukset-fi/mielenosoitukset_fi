@@ -29,6 +29,12 @@ CITY_ADMIN_ORGANIZATION_PERMISSIONS = {
     "VIEW_ORGANIZATION",
 }
 
+# Translation rights (and API_* access) alone never make a site-wide admin.
+TRANSLATION_ONLY_PERMISSIONS = frozenset({
+    "TRANSLATE_DEMO", "REVIEW_DEMO_TRANSLATIONS", "TRANSLATE_UI", "REVIEW_UI_TRANSLATIONS",
+})
+
+
 class User(UserMixin):
     @property
     def system_team_access(self):
@@ -94,6 +100,7 @@ class User(UserMixin):
             or self.has_full_permissions()
             or self.role == "admin"
             or self.role == "translator"
+            or self.manages_an_organization()
             or any(
                 self.has_permission(permission)
                 for permission in (
@@ -117,6 +124,30 @@ class User(UserMixin):
             "god",
             "superuser",
         }
+
+    def manages_an_organization(self) -> bool:
+        """Return whether the account is admin or owner in some organisation.
+
+        That opens the admin panel for the organisation's own work; it never
+        changes the account role.
+        """
+        return any(getattr(m, "role", None) in {"admin", "owner"} for m in self.memberships)
+
+    def has_site_wide_admin_reach(self) -> bool:
+        """Return whether this account's admin rights reach the whole site.
+
+        ``role == "admin"`` alone does not: promoting someone to organisation
+        admin sets it too. Full rights, a global permission beyond translation and API access,
+        or the board team do.
+        """
+        if self.has_full_permissions():
+            return True
+        if any(
+            perm not in TRANSLATION_ONLY_PERMISSIONS and not str(perm).startswith("API_")
+            for perm in (self.global_permissions or [])
+        ):
+            return True
+        return "board" in self.system_team_access
 
     def _perm_in(self, permission: str) -> List[Union[str, ObjectId]]:
         """
@@ -916,6 +947,10 @@ class AnonymousUser(AnonymousUserMixin):
 
     def has_admin_access(self) -> bool:
         """Anonymous visitors never have administration access."""
+        return False
+
+    def has_site_wide_admin_reach(self) -> bool:
+        """Anonymous visitors never have site-wide administration rights."""
         return False
 
     def has_city_admin_scope_grants(self) -> bool:

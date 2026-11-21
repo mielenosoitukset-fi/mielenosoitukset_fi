@@ -155,7 +155,7 @@ def _has_explicit_organization_permission(user, permission: str, org_id=None) ->
 
 
 def _is_limited_city_admin(user) -> bool:
-    if user.has_full_permissions() or getattr(user, "role", None) == "admin":
+    if user.has_full_permissions() or user.has_site_wide_admin_reach():
         return False
     return user.has_city_admin_scope_grants()
 
@@ -1504,13 +1504,7 @@ def force_accept_invite() -> Tuple[Response, int]:
     # --- Add member ---
     org_obj.add_member(user, role=role)
 
-    # --- Elevate role if needed ---
-    if (
-        role in ["admin", "owner"]
-        and user.role not in ["admin", "owner", "global_admin", "superuser"]
-    ):
-        user.role = "admin"
-        user.save()
+    # Organisation roles live in the membership only; the account role is never raised.
 
     # --- Update organization ---
     mongo.organizations.update_one(
@@ -1808,19 +1802,7 @@ def change_access_level() -> Tuple[Response, int]:
     if organization.is_member(None, user_id):
         organization.update_member(user_id, role)
 
-        # --- Update global role if elevated ---
-        if role in ["admin", "owner"]:
-            try:
-                from mielenosoitukset_fi.users.models import User
-
-                user = User.from_OID(user_id)
-                if user.role in ["user", "member"]:
-                    user.role = "admin"
-                    user.save()
-                    
-            except Exception:
-                # Silently ignore errors; org update is more important
-                pass
+        # Organisation roles live in the membership only; the account role is never raised.
         _log_org_event(
             "organization_access_changed",
             organization_id=organization_id,
