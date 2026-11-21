@@ -528,7 +528,8 @@ def register():
                 "info",
             )
         except Exception as e:
-            flash_message(f"Virhe vahvistusviestin lähettämisessä: {e}", "error")
+            current_app.logger.exception("Virhe vahvistusviestin lähettämisessä")
+            flash_message("Virhe vahvistusviestin lähettämisessä.", "error")
 
         # Keep the address across the redirect to the next-steps page.
         session["registration_email"] = email
@@ -1241,7 +1242,8 @@ def forced_pwd_reset():
         except Exception as e:
             log_entry["error"] = f"Password change failed: {e}"
             mongo.password_changes.insert_one(log_entry)
-            flash_message(f"Salasanan vaihto epäonnistui: {e}", "error")
+            current_app.logger.exception("Salasanan vaihto epäonnistui")
+            flash_message("Salasanan vaihto epäonnistui.", "error")
             return redirect(url_for("users.auth.forced_pwd_reset"))
 
         if getattr(current_user, "forced_identity_change", False):
@@ -1435,7 +1437,8 @@ def settings_api():
                 },
             )
         except Exception as e:
-            flash_message(f"Virhe asetusten muutosviestin lähettämisessä: {e}", "error")
+            current_app.logger.exception("Virhe asetusten muutosviestin lähettämisessä")
+            flash_message("Virhe asetusten muutosviestin lähettämisessä.", "error")
 
         # Start the process associated with the changed settings
         process_settings_change(user, changed_fields)
@@ -1557,7 +1560,8 @@ def settings_api_v2():
                 },
             )
         except Exception as e:
-            flash_message(f"Virhe asetusten muutosviestin lähettämisessä: {e}", "error")
+            current_app.logger.exception("Virhe asetusten muutosviestin lähettämisessä")
+            flash_message("Virhe asetusten muutosviestin lähettämisessä.", "error")
 
         process_settings_change(user, changed_fields)
 
@@ -2080,7 +2084,8 @@ def password_reset(token):
             )
             log_entry["error"] = f"Password change failed: {e}"
             mongo.password_changes.insert_one(log_entry)
-            flash_message(f"Salasanan vaihto epäonnistui: {e}", "error")
+            current_app.logger.exception("Salasanan vaihto epäonnistui")
+            flash_message("Salasanan vaihto epäonnistui.", "error")
             return redirect(url_for("users.auth.password_reset", token=token))
 
         # Notify user via email
@@ -2092,7 +2097,8 @@ def password_reset(token):
                 context={"user_name": user.displayname or user.username},
             )
         except Exception as e:
-            flash_message(f"Virhe salasanan vaihtoviestin lähettämisessä: {e}", "error")
+            current_app.logger.exception("Virhe salasanan vaihtoviestin lähettämisessä")
+            flash_message("Virhe salasanan vaihtoviestin lähettämisessä.", "error")
 
         flash_message("Salasanasi on päivitetty onnistuneesti.", "success")
         return redirect(url_for("users.auth.login"))

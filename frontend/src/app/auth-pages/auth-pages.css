@@ -87,11 +87,12 @@
 .next-steps__step p { margin: 0.25rem 0 0; }
 .next-steps__marker {
   display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem;
-  border: 2px solid var(--product-border); border-radius: 50%; font-weight: 700;
+  border: 2px solid var(--product-text-muted); border-radius: 50%; font-weight: 700;
 }
 .next-steps__step--done .next-steps__marker { border-color: var(--product-success, #15803d); color: var(--product-success, #15803d); }
 .next-steps__step--current .next-steps__marker { border-color: var(--product-primary); background: var(--product-primary); }
-.next-steps__step--todo { color: var(--product-text-muted); }
+.next-steps__step--todo, .next-steps__step--todo h2 { color: var(--product-text-muted); }
 .next-steps__email { overflow-wrap: anywhere; }
 .next-steps__help-title { font-size: 1.25rem; font-weight: 700; margin: 0; }
 .auth-page > .next-steps-live:empty { margin: 0; }
+.auth-form .register-status:empty { margin: 0; min-height: 0; }

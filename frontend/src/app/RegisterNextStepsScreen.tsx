@@ -75,14 +75,14 @@ export default function RegisterNextStepsScreen({ config }: { config: AppConfig 
   const steps: Step[] = [
     { title: copy.created, text: copy.createdText, state: 'done' },
     { title: copy.confirm, text: copy.confirmText, state: verified ? 'done' : 'current' },
-    { title: copy.ready, text: copy.readyText, state: verified ? 'current' : 'todo' },
+    { title: copy.ready, text: verified ? copy.readyTextVerified : copy.readyText, state: verified ? 'current' : 'todo' },
     { title: copy.profile, text: copy.profileText, state: 'todo' },
   ];
 
   return <article className="public-page-shell information-page auth-page" aria-labelledby="next-steps-title">
     <header className="public-page-header"><div className="public-page-header__content">
       <h1 className="public-page-header__title" id="next-steps-title">{copy.title}</h1>
-      <p className="public-page-header__description">{copy.lead}</p>
+      <p className="public-page-header__description">{verified ? copy.leadVerified : copy.lead}</p>
     </div></header>
     <FlashNotices notices={notices} />
     <div className="next-steps-live" role="status">{verified && <p className="flash-message flash-message--inline flash-success">

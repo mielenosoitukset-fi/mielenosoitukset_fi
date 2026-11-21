@@ -12,6 +12,7 @@ export const pollLimit = 180;
 export const nextStepsCopy = {
   title: 'Kiitos rekisteröitymisestäsi!',
   lead: 'Tilisi on luotu. Vahvista vielä sähköpostiosoitteesi, niin voit kirjautua sisään.',
+  leadVerified: 'Tilisi on luotu ja sähköpostiosoitteesi vahvistettu.',
   stepsLabel: 'Rekisteröitymisen vaiheet',
   created: 'Tili luotu',
   createdText: 'Tilisi on luotu onnistuneesti.',
@@ -20,6 +21,7 @@ export const nextStepsCopy = {
   sentTo: 'Vahvistus lähetettiin osoitteeseen',
   ready: 'Valmis',
   readyText: 'Kun sähköpostisi on vahvistettu, voit kirjautua sisään ja aloittaa palvelun käytön.',
+  readyTextVerified: 'Voit nyt kirjautua sisään ja aloittaa palvelun käytön.',
   profile: 'Viimeistele profiilisi halutessasi',
   profileText: 'Voit täydentää profiilisi tietoja myöhemmin. Se ei ole pakollista.',
   done: 'valmis',
