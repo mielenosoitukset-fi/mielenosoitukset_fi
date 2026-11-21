@@ -4689,3 +4689,24 @@ th.sortable.desc::after {
     transition: none;
   }
 }
+
+/* Case: public-page preview of a new demonstration (framed, same origin). */
+.case-page .case-demo-preview {
+  border: 1px solid var(--admin-workspace-border);
+  background: var(--admin-workspace-surface);
+  color: var(--admin-workspace-text);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+.case-page .case-demo-preview > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.case-page .case-demo-preview__frame {
+  display: block;
+  width: 100%;
+  height: min(75vh, 900px);
+  margin-top: 0.75rem;
+  border: 0;
+  border-radius: 0.375rem;
+}
