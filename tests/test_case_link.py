@@ -295,3 +295,33 @@ def test_escalate_through_link_needs_code_and_refuses_passkey_only(app, db, seed
     assert not _case(db, seeded_data).get("meta", {}).get("superior_needed")
     assert browser.post(url, json={**form, "code": pyotp.TOTP(secret).now()}).status_code == 200
     assert _case(db, seeded_data)["meta"]["superior_needed"] is True
+
+
+def test_reject_form_offers_the_matching_johtoryhma_decision_first(app, db, seeded_data):
+    from mielenosoitukset_fi.utils import moderation_blocks
+
+    _case(db, seeded_data)
+    demo_id = str(seeded_data["pending_demo_id"])
+    browser = app.test_client()
+    _open(browser, _link(app, db, seeded_data))
+    page = _case_path(db, seeded_data)
+    assert "jory_decision" not in browser.get(page).get_data(as_text=True)
+    # Without a decision on this demonstration nobody can claim one.
+    refused = _act(browser, db, seeded_data, "reject", reason_key="jory_decision")
+    assert refused.status_code == 400
+    assert db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})["rejected"] is False
+
+    moderation_blocks.sync(db, [{"id": "pre-1", "kind": "demo", "organizer": "Tämä mielenosoitus",
+                                 "organization_id": demo_id, "reason": "Ei sovi periaatteisiin",
+                                 "from": "2026-11-01", "until": "", "source": "MOSO/JORY/ENN/2026/007"}])
+    try:
+        shown = browser.get(page).get_data(as_text=True)
+        assert "jory_decision" in shown and "MOSO/JORY/ENN/2026/007" in shown
+        ok = _act(browser, db, seeded_data, "reject", reason_key="jory_decision")
+        assert ok.status_code == 200, ok.get_data(as_text=True)[:400]
+        case = _case(db, seeded_data)
+        entry = next(e for e in case["case_history"] if e.get("mech_action") == "reject_demo")
+        assert entry["metadata"]["decision_id"] == "MOSO/JORY/ENN/2026/007"
+        assert "Johtoryhmän päätös MOSO/JORY/ENN/2026/007" in entry["metadata"]["reason"]
+    finally:
+        db[moderation_blocks.COLLECTION].delete_many({"_id": "pre-1"})

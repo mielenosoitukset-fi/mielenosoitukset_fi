@@ -23,11 +23,14 @@ LABELS = {
     "out_of_scope": "Ei kuulu palveluun",
     "not_enough_info": "Puutteelliset tiedot",
     "other": "Muu syy",
+    # Not a fixed choice: offered first when Johtoryhmä has already decided
+    # against this demonstration (see ``reject_choices``).
+    "jory_decision": "Johtoryhmän päätös",
 }
 
 # Rejecting a demonstration and closing a case share most reasons; only a case
 # can be closed as handled.
-REJECT_KEYS = ("duplicate", "spam", "out_of_scope", "not_enough_info", "other")
+REJECT_KEYS = ("jory_decision", "duplicate", "spam", "out_of_scope", "not_enough_info", "other")
 CLOSE_KEYS = ("handled", "duplicate", "spam", "out_of_scope", "not_enough_info", "other")
 
 
@@ -36,7 +39,28 @@ class ReasonError(ValueError):
 
 
 def choices(keys):
-    return [(key, LABELS[key]) for key in keys]
+    """The fixed choices. The Johtoryhmä decision is never fixed: see ``reject_choices``."""
+    return [(key, LABELS[key]) for key in keys if key != "jory_decision"]
+
+
+def reject_choices(db, demo):
+    """Reject reasons for one demonstration, with a matching Johtoryhmä decision first.
+
+    When Johtoryhmä has already decided against this demonstration (a publishing
+    precedent or an organizer ban from Hallinto), that decision comes first, with
+    its id, so the form can preselect it.
+    """
+    from mielenosoitukset_fi.utils import moderation_blocks
+
+    result = choices(REJECT_KEYS)
+    block = moderation_blocks.demo_block(db, demo) if demo else None
+    if block:
+        reason = (block.get("reason") or "").strip()
+        label = f"{LABELS['jory_decision']} {moderation_blocks.decision_ref(block)}"
+        if reason:
+            label += f": {reason[:120]}"
+        result.insert(0, ("jory_decision", label))
+    return result
 
 
 def _case_by_reference(db, reference):
@@ -73,6 +97,22 @@ def parse_reason(payload, keys, db, *, case_id=None, demo_id=None, can_view_case
     metadata = {"reason_key": key, "reason_label": LABELS[key], "note": note}
     summary = LABELS[key]
     schema = {"reason": "string", "reason_key": "string", "reason_label": "string", "note": "string"}
+
+    if key == "jory_decision":
+        from mielenosoitukset_fi.utils import moderation_blocks
+
+        demo = None
+        if demo_id is not None and ObjectId.is_valid(str(demo_id)):
+            demo = db.demonstrations.find_one({"_id": ObjectId(str(demo_id))})
+        # The server finds the decision itself: the form cannot name one.
+        block = moderation_blocks.demo_block(db, demo) if demo else None
+        if not block:
+            raise ReasonError("Johtoryhmän päätös ei koske tätä mielenosoitusta.")
+        ref = moderation_blocks.decision_ref(block)
+        metadata["decision_id"] = ref
+        metadata["decision_block_id"] = str(block["_id"])
+        schema.update(decision_id="string", decision_block_id="string")
+        summary += f" {ref}"
 
     if key == "duplicate":
         reference = str(payload.get("duplicate_of") or "").strip()

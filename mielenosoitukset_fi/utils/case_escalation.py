@@ -90,7 +90,7 @@ def ask_label(db, meta):
     return f"Siirrä eteenpäin: {LEVEL_NAMES[next_target(db, level)[0]]}"
 
 
-def escalate(db, case_doc, user, reason, *, authentication, second_factor="none"):
+def escalate(db, case_doc, user, reason, *, authentication, second_factor="none", skip_permission=False):
     """Raise the case to the next level that has someone, and notify them.
 
     Returns the new level. The update only applies if the level is still the
@@ -100,7 +100,7 @@ def escalate(db, case_doc, user, reason, *, authentication, second_factor="none"
     level = current_level(meta)
     if level >= MAX_LEVEL:
         raise EscalationError("top_level")
-    if not can_escalate(meta, user):
+    if not skip_permission and not can_escalate(meta, user):
         raise EscalationError("not_allowed")
     new_level, recipients = next_target(db, level)
     now = utcnow()
@@ -221,3 +221,118 @@ def notify_level(db, case_doc, level, users, *, reason="", from_user=""):
                 logger.exception("Could not queue escalation mail for case %s", case_doc.get("_id"))
         sent += 1
     return sent
+
+
+# --- Hallinto: OT and Johtoryhmä decide escalated cases there -----------------
+
+OT_LEVEL, JORY_LEVEL = 3, 4
+HALLINTO_LEVEL_KEYS = {OT_LEVEL: "ot", JORY_LEVEL: "jory"}
+HALLINTO_ACTIONS = ("approve", "reject", "escalate")
+
+
+class HallintoCaseError(Exception):
+    """A refused Hallinto step; ``code`` is the answer, ``status`` the HTTP status."""
+
+    def __init__(self, code: str, status: int):
+        super().__init__(code)
+        self.code, self.status = code, status
+
+
+def _case_demo(db, case):
+    demo_id = case.get("demo_id")
+    if not demo_id or not ObjectId.is_valid(str(demo_id)):
+        return None
+    return db.demonstrations.find_one({"_id": ObjectId(str(demo_id))})
+
+
+def hallinto_view(db, case, base_url):
+    """One escalated case as Hallinto shows it."""
+    meta = case.get("meta") or {}
+    demo = _case_demo(db, case) or {}
+    level = current_level(meta)
+    escalated = next((entry for entry in reversed(case.get("case_history") or [])
+                      if entry.get("mech_action") == "escalate_demo"), {})
+    stamp = escalated.get("timestamp")
+    pending = bool(demo) and not demo.get("approved") and not demo.get("rejected")
+    return {
+        "id": str(case["_id"]), "number": case.get("running_num") or 0,
+        "demo": {"id": str(demo.get("_id") or ""), "title": demo.get("title") or "",
+                 "date": demo.get("date") or "", "city": demo.get("city") or ""},
+        "link": f"{base_url}/admin/case/{case['_id']}/",
+        "level": HALLINTO_LEVEL_KEYS.get(level, "ot"), "level_name": LEVEL_NAMES.get(level, ""),
+        "reason": (escalated.get("metadata") or {}).get("reason") or "",
+        "escalated_by": escalated.get("user") or "",
+        "escalated_at": stamp.replace(tzinfo=timezone.utc).isoformat() if stamp else "",
+        "status": "open" if pending else ("approved" if demo.get("approved") else "rejected"),
+        "can_escalate": pending and level == OT_LEVEL,
+    }
+
+
+def hallinto_list(db, base_url, limit=100):
+    """Open escalated cases at OT or Johtoryhmä first, then recently decided ones."""
+    cases = list(db.cases.find({"type": "new_demo", "meta.superior_needed": True,
+                                "meta.escalation_level": {"$gte": OT_LEVEL}})
+                 .sort("updated_at", -1).limit(limit))
+    items = [hallinto_view(db, case, base_url) for case in cases]
+    items.sort(key=lambda item: item["status"] != "open")
+    return items
+
+
+def hallinto_update(db, case_id, action, *, reason, message, actor, base_url, email_sender):
+    """Decide an escalated case as a person who holds the power in Hallinto.
+
+    ``actor`` is ``{"id", "name"}`` of the signed-in account. Approve and
+    reject go through the one decision service; escalate moves an OT case to
+    Johtoryhmä. The case must still be at OT or Johtoryhmä level and pending.
+    """
+    from flask import url_for
+
+    from mielenosoitukset_fi.demonstrations.decisions import apply_demo_decision
+    from mielenosoitukset_fi.utils import case_reasons
+
+    if action not in HALLINTO_ACTIONS:
+        raise HallintoCaseError("invalid_request", 400)
+    case = db.cases.find_one({"_id": ObjectId(case_id), "type": "new_demo"})
+    if not case:
+        raise HallintoCaseError("not_found", 404)
+    meta = case.get("meta") or {}
+    level = current_level(meta)
+    demo = _case_demo(db, case)
+    if level < OT_LEVEL or not demo:
+        raise HallintoCaseError("changed", 409)
+    if demo.get("approved") or demo.get("rejected"):
+        raise HallintoCaseError("closed", 409)
+    user = type("HallintoActor", (), {"username": actor["name"], "global_admin": True})()
+    if action == "escalate":
+        if level >= MAX_LEVEL:
+            raise HallintoCaseError("top_level", 409)
+        try:
+            esc_reason = clean_reason(reason)
+            escalate(db, case, user, esc_reason, authentication="hallinto", skip_permission=True)
+        except EscalationError as exc:
+            raise HallintoCaseError("invalid_request" if exc.code.startswith("reason") else "changed",
+                                    400 if exc.code.startswith("reason") else 409)
+    else:
+        decision = "approved" if action == "approve" else "rejected"
+        history = {}
+        if decision == "rejected":
+            try:
+                history, schema = case_reasons.parse_reason(
+                    {"reason_key": "other", "note": reason or ""}, case_reasons.REJECT_KEYS, db,
+                    demo_id=str(demo["_id"]))
+            except case_reasons.ReasonError as exc:
+                raise HallintoCaseError("invalid_request", 400) from exc
+        apply_demo_decision(
+            db, str(demo["_id"]), decision,
+            actor={"user_id": actor["id"], "username": actor["name"], "via": "hallinto_escalation"},
+            source="hallinto_escalation", email_sender=email_sender,
+            public_url=url_for("demonstration_detail", demo_id=str(demo["_id"]), _external=True),
+        )
+        now = utcnow()
+        entry = {"timestamp": now,
+                 "action": "Hyväksytty Hallinnossa" if decision == "approved" else "Hylätty Hallinnossa",
+                 "user": actor["name"], "mech_action": "approve_demo" if decision == "approved" else "reject_demo",
+                 "metadata": {**history, "authentication": "hallinto", "level": level},
+                 "meta_schema": {"authentication": "string", "level": "int"}}
+        db.cases.update_one({"_id": case["_id"]}, {"$push": {"case_history": entry}, "$set": {"updated_at": now}})
+    return hallinto_view(db, db.cases.find_one({"_id": case["_id"]}), base_url)

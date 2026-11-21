@@ -773,7 +773,8 @@ def single_case(case_id):
         undo_deadline=_undo_deadline(case_data.get("demo")),
         take_down_review=_take_down_review(case_data.get("demo")),
         take_down_second_admin=_take_down_second_admin(),
-        reject_reasons=case_reasons.choices(case_reasons.REJECT_KEYS),
+        reject_reasons=case_reasons.reject_choices(
+            mongo, mongo.demonstrations.find_one({"_id": ObjectId(str(case.demo_id))}) if case.demo_id and ObjectId.is_valid(str(case.demo_id)) else None),
         close_reasons=case_reasons.choices(case_reasons.CLOSE_KEYS),
     )
 

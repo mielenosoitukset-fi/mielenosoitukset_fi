@@ -1,0 +1,1 @@
+- OT ja Johtoryhmä voivat päättää eskaloidut mielenosoitustapaukset Hallinnossa (Asiat → Eskaloidut tapaukset): hyväksyä ja julkaista, hylätä syyn kanssa tai siirtää OT:n tapaus Johtoryhmälle. Päätös kulkee saman päätöspalvelun kautta kuin ylläpidossa ja kirjautuu Hallinnon tekijän nimellä.

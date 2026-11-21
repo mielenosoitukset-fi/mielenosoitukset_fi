@@ -625,6 +625,43 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             sent = False
         return jsonify(account=_account_view(user_doc), invited=sent), 201
 
+    @bp.post("/escalated-cases/list")
+    def escalated_cases_list():
+        """Cases escalated to OT or Johtoryhmä. Hallinto decides who may see
+        them (power ``case_escalations``); this needs a signed-in admin."""
+        from mielenosoitukset_fi.utils import case_escalation
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        return jsonify(items=case_escalation.hallinto_list(db, f"{origin.scheme}://{origin.netloc}"))
+
+    @bp.post("/escalated-cases/update")
+    def escalated_cases_update():
+        """Record one Hallinto step on an escalated case: approve, reject or
+        escalate (OT to Johtoryhmä). The decision uses the same service as the
+        admin pages and is recorded as the signed-in account."""
+        from mielenosoitukset_fi.utils import case_escalation
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        case_id, action = payload.get("id"), payload.get("action")
+        reason, message = payload.get("reason") or "", payload.get("message") or ""
+        if (not isinstance(case_id, str) or not _ACCOUNT_ID.fullmatch(case_id)
+                or action not in case_escalation.HALLINTO_ACTIONS
+                or not isinstance(reason, str) or not isinstance(message, str)):
+            return jsonify(error="invalid_request"), 400
+        account = db.users.find_one({"_id": ObjectId(payload["sub"])}, {"username": 1}) or {}
+        actor = {"id": payload["sub"], "name": account.get("username") or payload["sub"]}
+        try:
+            item = case_escalation.hallinto_update(
+                db, case_id, action, reason=reason, message=message, actor=actor,
+                base_url=f"{origin.scheme}://{origin.netloc}", email_sender=invite_sender())
+        except case_escalation.HallintoCaseError as exc:
+            return jsonify(error=exc.code), exc.status
+        return jsonify(item=item)
+
     @bp.post("/moderation-reviews/list")
     def moderation_reviews_list():
         """Rejections and take-downs waiting for OT review, then recent closed

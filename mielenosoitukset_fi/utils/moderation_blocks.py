@@ -101,3 +101,25 @@ def precedent_for(db, demo: dict, *, now: datetime | None = None):
     if not targets:
         return None
     return db[COLLECTION].find_one({"$and": [{"$or": targets}, _in_force(_today(now))]})
+
+
+def demo_block(db, demo: dict, *, now: datetime | None = None):
+    """The Johtoryhmä decision in force that already rules out this demonstration.
+
+    Either a publishing precedent that names it or one of its organizations, or
+    a ban on one of its organizers. Used to offer that decision as the reject
+    reason, so the history points at the decision instead of a free text.
+    """
+    found = precedent_for(db, demo, now=now)
+    if found:
+        return found
+    organizers = [o for o in (demo.get("organizers") or []) if isinstance(o, dict)]
+    return banned_organizer(
+        db, [o.get("name") for o in organizers],
+        [o.get("organization_id") for o in organizers], now=now,
+    )
+
+
+def decision_ref(block: dict) -> str:
+    """The decision's id as Hallinto recorded it (its reference, else the record id)."""
+    return (block.get("source") or "").strip() or str(block["_id"])
