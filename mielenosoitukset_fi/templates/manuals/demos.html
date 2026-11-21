@@ -22,7 +22,7 @@
     <li>{{ m.ui(_('Suosittele')) }} {{ _('nostaa mielenosoituksen etusivulle.') }} {{ m.ui(_('Poista suositus')) }} {{ _('poistaa sen sieltä.') }}</li>
   </ul>
   <h3>{{ _('Mitä päätös tekee') }}</h3>
-  <p>{{ _('Hyväksyminen ja hylkääminen toimivat samoin, teitpä päätöksen tapauksen sivulta, kaupunkiadminin tarkistussivulta tai sähköpostin linkistä. Myös yhdistäminen ja toistuvan sarjan massapäivitys hyväksyvät saman reitin kautta:') }}</p>
+  <p>{{ _('Hyväksyminen ja hylkääminen toimivat samoin, teitpä päätöksen tapauksen sivulta tai kaupunkiadminin tarkistussivulta. Myös yhdistäminen ja toistuvan sarjan massapäivitys hyväksyvät saman reitin kautta:') }}</p>
   <ul>
     <li>{{ _('ilmoittaja saa sähköpostin päätöksestä') }}</li>
     <li>{{ _('mielenosoitukseen liittyvät avoimet tapaukset sulkeutuvat') }}</li>
@@ -38,6 +38,8 @@
     <li>{{ _('ilmoittajalle ei lähetetä viestiä, eikä uusi hyväksyntä lähetä hyväksyntäviestiä toista kertaa') }}</li>
   </ul>
   <p>{{ _('Kun 30 minuuttia on kulunut, käytä') }} {{ m.ui(_('Poista julkaisusta')) }}.</p>
+  <h3 id="vanhentunut">{{ _('Vanhentunut') }}</h3>
+  <p>{{ _('Jos kukaan ei hyväksy tai hylkää ilmoitusta ennen mielenosoituksen päivää, taustatyö sulkee sen tilaan') }} {{ m.ui(_('Vanhentunut')) }}. {{ _('Tapaus sulkeutuu, ja syy näkyy sen historiassa. Jos päivä meni enintään 14 päivää sitten, ilmoittaja saa lyhyen anteeksipyynnön sähköpostilla. Vanhemmat suljetaan ilman viestiä.') }}</p>
   <h3 id="poista-julkaisusta">{{ _('Poista julkaisusta') }}</h3>
   <p>{{ _('Hyväksytyn mielenosoituksen voi ottaa pois sivustolta poistamatta sitä. Valitse tapauksessa') }} {{ m.ui(_('Poista julkaisusta')) }} {{ _('ja kirjoita syy. Syy on pakollinen ja näkyy julkisesti.') }}</p>
   <p>{{ _('Poisto vaatii toisen ylläpitäjän vahvistuksen. Valitse jompikumpi:') }}</p>
@@ -93,7 +95,13 @@
 
 <section id="moderointilinkit">
   <h2>{{ _('Moderointilinkit ja tokenit') }}</h2>
-  <p>{{ _('Ylläpitäjien sähköposteissa on linkkejä, joilla mielenosoituksen voi esikatsella, hyväksyä tai hylätä kirjautumatta.') }}</p>
+  <p>{{ _('Uudesta mielenosoituksesta lähtevässä ylläpitäjän sähköpostissa on kaksi painiketta:') }}</p>
+  <ul>
+    <li>{{ m.ui(_('Avaa tapaus')) }}: {{ _('vie mielenosoituksen tapaukseen (kaupunkiadminilla tarkistussivulle), jossa päätös tehdään. Linkki vaatii kirjautumisen.') }}</li>
+    <li>{{ m.ui(_('Esikatsele mielenosoitusta')) }}: {{ _('näyttää ilmoituksen kirjautumatta.') }}</li>
+  </ul>
+  <p>{{ _('Sähköpostista ei voi enää hyväksyä tai hylätä yhdellä klikkauksella. Aiemmin lähetettyjen viestien hyväksy- ja hylkää-linkit avaavat vain tapauksen eivätkä päätä mitään.') }}</p>
+  <p>{{ _('Esikatselulinkki:') }}</p>
   <ul>
     <li>{{ _('Linkki on kertakäyttöinen ja vanhenee 24 tunnissa.') }}</li>
     <li>{{ _('Linkki sidotaan ensimmäisen avaajan IP-osoitteeseen.') }}</li>

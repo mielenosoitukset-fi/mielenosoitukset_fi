@@ -143,6 +143,7 @@ PAGES = {
         "topics": [
             ("lista", "Lista ja suodattimet", "hae suodata menneet toistuvat tunniste"),
             ("hyvaksy", "Hyväksy tai hylkää", "hyväksy hylkää odottaa käsittele päätös tapaus julkaise heti julkaisun tila"),
+            ("vanhentunut", "Vanhentunut ilmoitus", "vanhentunut vanhentuneet päivä meni ratkaisematon expired"),
             ("peru-hyvaksynta", "Peru hyväksyntä", "peru hyväksyntä vahinko undo kumoa 30 minuuttia"),
             ("poista-julkaisusta", "Poista julkaisusta", "poista julkaisusta take down piilota julkaise uudelleen vahvista poisto kiireellinen toinen ylläpitäjä"),
             ("komentokeskus", "Komentokeskus", "command center hallintanäkymä"),
