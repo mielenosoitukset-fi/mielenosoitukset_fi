@@ -1,0 +1,1 @@
+- Organization account requests now reach the Go API: the deploy switches the form on (opt out with `ORG_REQUESTS_GO: false`), drops unconfirmed requests after a week, and the privacy notice describes the new register.

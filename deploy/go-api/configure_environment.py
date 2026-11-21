@@ -54,6 +54,12 @@ def configure(source, target):
         # Campaign opening interest signup (docs/campaign-opening-interest.md): same rules.
         if config.get("OPENING_INTEREST_SIGNUP") is True:
             values["OPENING_INTEREST_SIGNUP_ENABLED"] = "true"
+        # Organization account requests (docs/organization-requests.md): the form
+        # needs the submission origin and session socket above. On by default
+        # since 21 November 2026 (maintainer: "turn everything on"), when the
+        # Apache rules were already live; `ORG_REQUESTS_GO: false` opts out.
+        if config.get("ORG_REQUESTS_GO", True) is True:
+            values["ORG_REQUESTS_GO_ENABLED"] = "true"
         # Suggestion form writes (docs/go-public-api.md): need public submissions, as
         # above. On by default since 20 November 2026 (maintainer's go);
         # `SUGGESTIONS_GO: false` in config.yaml opts out. Without this line a
