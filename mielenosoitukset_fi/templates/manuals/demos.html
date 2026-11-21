@@ -97,10 +97,20 @@
   <h2>{{ _('Moderointilinkit ja tokenit') }}</h2>
   <p>{{ _('Uudesta mielenosoituksesta lähtevässä ylläpitäjän sähköpostissa on kaksi painiketta:') }}</p>
   <ul>
-    <li>{{ m.ui(_('Avaa tapaus')) }}: {{ _('vie mielenosoituksen tapaukseen (kaupunkiadminilla tarkistussivulle), jossa päätös tehdään. Linkki vaatii kirjautumisen.') }}</li>
+    <li>{{ m.ui(_('Avaa tapaus')) }}: {{ _('henkilökohtainen linkki, jolla voit käsitellä juuri tämän mielenosoituksen kirjautumatta. Jos viesti tuli osoitteeseen, jolla ei ole käyttäjätiliä, linkki vie kirjautumisen kautta tapaukseen.') }}</li>
     <li>{{ m.ui(_('Esikatsele mielenosoitusta')) }}: {{ _('näyttää ilmoituksen kirjautumatta.') }}</li>
   </ul>
-  <p>{{ _('Sähköpostista ei voi enää hyväksyä tai hylätä yhdellä klikkauksella. Aiemmin lähetettyjen viestien hyväksy- ja hylkää-linkit avaavat vain tapauksen eivätkä päätä mitään.') }}</p>
+  {% call m.task('tapauslinkki', _('Käsittele ilmoitus sähköpostin linkistä'), _('Hyväksy tai hylkää uusi mielenosoitus puhelimella ilman kirjautumista.'), none, none) %}
+    {% call m.step() %}<p>{{ _('Avaa sähköpostin') }} {{ m.ui(_('Avaa tapaus')) }} {{ _('ja valitse sivulla') }} {{ m.ui(_('Avaa tässä selaimessa')) }}. {{ _('Linkki toimii sen jälkeen vain tässä selaimessa. Pelkkä avaaminen ei vielä sido linkkiä, joten sähköpostin linkkiesikatselu ei vie sitä.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Tarkista tiedot ja valitse') }} {{ m.ui(_('Hyväksy ja julkaise')) }} {{ _('tai') }} {{ m.ui(_('Hylkää')) }} {{ _('syyn kanssa. Sivu näyttää ennen vahvistusta, mitä päätös tekee.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Jos käytät kaksivaiheista tunnistusta, kirjoita sovelluksen koodi. Jos kirjaudut pelkällä passkeyllä, valitse') }} {{ m.ui(_('Avaa tapaus kirjautumalla')) }}.</p>{% endcall %}
+  {% endcall %}
+  <ul>
+    <li>{{ _('Linkki koskee vain tätä yhtä odottavaa mielenosoitusta. Se ei kirjaa sinua sisään eikä avaa muuta ylläpitoa.') }}</li>
+    <li>{{ _('Linkki on voimassa 24 tuntia ja lakkaa toimimasta, kun mielenosoituksesta on tehty päätös millä tahansa tavalla.') }}</li>
+    <li>{{ _('Eskaloitua tapausta ei voi päättää linkillä, vaan se avataan kirjautumalla.') }}</li>
+    <li>{{ _('Aiemmin lähetettyjen viestien hyväksy- ja hylkää-linkit avaavat vain tapauksen eivätkä päätä mitään.') }}</li>
+  </ul>
   <p>{{ _('Esikatselulinkki:') }}</p>
   <ul>
     <li>{{ _('Linkki on kertakäyttöinen ja vanhenee 24 tunnissa.') }}</li>
