@@ -382,3 +382,53 @@ def test_account_invite_creates_an_ordinary_account_for_an_admin(owner, db, monk
         assert taken.status_code == 409 and taken.json["error"] == "username_in_use"
     finally:
         db.users.delete_many({"email": {"$in": ["uusi.admin@example.test", "other@example.test"]}})
+
+
+def _applications(owner_client, claims, path, body, auth=(CLIENT, SECRET)):
+    return owner_client.post(PREFIX + "/city-admin-applications/" + path, base_url=ORIGIN, auth=auth,
+                             json={"sub": claims["sub"], "sid": claims["sid"], **body})
+
+
+def test_city_admin_applications_for_hallinto(owner, db):
+    from mielenosoitukset_fi.utils.time_utils import utcnow
+    app, subject = owner
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    now = utcnow()
+    base = {"user_id": ObjectId(subject), "city_keys": ["tampere"], "about": "Haluan auttaa Tampereella.",
+            "activism": {"organizations": "Paikallinen ryhmä", "experience": "some", "experience_details": ""},
+            "references": "", "case_pending": True, "created_at": now, "updated_at": now}
+    open_id = db.city_admin_applications.insert_one({**base, "status": "received"}).inserted_id
+    withdrawn = db.city_admin_applications.insert_one({**base, "status": "withdrawn"}).inserted_id
+    try:
+        assert _applications(app.test_client(), claims, "list", {}).status_code == 403
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+        assert _applications(app.test_client(), claims, "list", {}, auth=(CLIENT, "wrong")).status_code == 401
+        items = _applications(app.test_client(), claims, "list", {}).json["items"]
+        ids = {item["id"] for item in items}
+        assert str(open_id) in ids and str(withdrawn) not in ids
+        item = next(i for i in items if i["id"] == str(open_id))
+        assert item["account"] == {"id": subject, "username": "hallinto-fixture-user", "name": "hallinto-fixture-user"}
+        assert item["cities"] == [{"key": "tampere", "name": "Tampere"}] and item["experience"] == "Jonkin verran"
+        assert "email" not in repr(item)
+
+        step = {"id": str(open_id), "status": "in_review", "case": "case-1"}
+        assert _applications(app.test_client(), claims, "update", step).json["item"]["case"] == "case-1"
+        stored = db.city_admin_applications.find_one({"_id": open_id})
+        assert stored["status"] == "in_review" and stored["case_pending"] is False
+        assert stored["history"][0]["by"] == subject and stored["history"][0]["via"] == "hallinto"
+        # Another case, an unknown status and a withdrawn application are refused.
+        assert _applications(app.test_client(), claims, "update", {**step, "case": "case-2"}).status_code == 409
+        assert _applications(app.test_client(), claims, "update", {**step, "status": "received"}).status_code == 400
+        assert _applications(app.test_client(), claims, "update", {**step, "id": str(withdrawn)}).status_code == 409
+        assert _applications(app.test_client(), claims, "update", {**step, "id": str(ObjectId())}).status_code == 404
+        # The decision sticks; replaying it is harmless.
+        declined = {**step, "status": "declined"}
+        assert _applications(app.test_client(), claims, "update", declined).status_code == 200
+        assert _applications(app.test_client(), claims, "update", declined).status_code == 200
+        assert _applications(app.test_client(), claims, "update", {**step, "status": "approved"}).status_code == 409
+        stored = db.city_admin_applications.find_one({"_id": open_id})
+        assert stored["status"] == "declined" and stored["decided_by"] == subject and len(stored["history"]) == 2
+    finally:
+        db.city_admin_applications.delete_many({"_id": {"$in": [open_id, withdrawn]}})

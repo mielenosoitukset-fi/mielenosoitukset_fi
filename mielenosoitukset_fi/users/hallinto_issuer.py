@@ -418,6 +418,40 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             return None, (jsonify(error="access_denied"), 403)
         return payload, None
 
+    @bp.post("/city-admin-applications/list")
+    def city_admin_applications_list():
+        """City admin applications for OT's handling in Hallinto. Hallinto
+        decides who may handle them; this only needs a signed-in admin."""
+        from mielenosoitukset_fi.utils import city_admin_applications
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        return jsonify(items=city_admin_applications.hallinto_list(db))
+
+    @bp.post("/city-admin-applications/update")
+    def city_admin_applications_update():
+        """Record a handling step from Hallinto: the status the applicant sees
+        and the Hallinto case. Nothing here grants a role."""
+        from mielenosoitukset_fi.utils import city_admin_applications
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        application_id, status, case = payload.get("id"), payload.get("status"), payload.get("case")
+        if (not isinstance(application_id, str) or not _ACCOUNT_ID.fullmatch(application_id)
+                or status not in city_admin_applications.HALLINTO_STATUSES
+                or not isinstance(case, str) or not 0 < len(case) <= 128):
+            return jsonify(error="invalid_request"), 400
+        try:
+            row = city_admin_applications.hallinto_update(db, ObjectId(application_id), status, case, payload["sub"])
+        except city_admin_applications.HallintoConflict:
+            return jsonify(error="conflict"), 409
+        if row is None:
+            return jsonify(error="not_found"), 404
+        users = {u["_id"]: u for u in db.users.find({"_id": row.get("user_id")}, {"username": 1, "displayname": 1})}
+        return jsonify(item=city_admin_applications.hallinto_view(row, users))
+
     @bp.post("/accounts/search")
     def account_search():
         payload, error = admin_payload()
