@@ -13,6 +13,7 @@
 .case-link__btn { padding: .65rem 1rem; border: 0; border-radius: .6rem; font-weight: 700; cursor: pointer; color: #fff; }
 .case-link__btn--approve { background: #1a7f37; }
 .case-link__btn--reject { background: #cf222e; }
+.case-link__btn--escalate { background: #0550ae; }
 .case-link__alert { border-radius: .75rem; padding: .85rem 1rem; border: 1px solid #d4a72c; background: rgba(212,167,44,.12); }
 .case-link__alert--ok { border-color: #1a7f37; background: rgba(26,127,55,.12); }
 .case-link h1, .case-link h2 { text-align: left; color: inherit; margin: .25rem 0 .75rem; }

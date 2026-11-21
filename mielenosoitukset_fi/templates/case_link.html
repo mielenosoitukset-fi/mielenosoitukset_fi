@@ -110,7 +110,7 @@
     <label for="code-escalate">{{ _('Vahvistuskoodi todennussovelluksesta') }}</label>
     <input id="code-escalate" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
     {% endif %}
-    <button class="case-link__btn" type="submit">{{ escalate_label }}</button>
+    <button class="case-link__btn case-link__btn--escalate" type="submit">{{ escalate_label }}</button>
   </form>
   {% endif %}
   <p class="case-link__muted">{{ _('Kaksoiskappaleet ja muut toiminnot ovat ylläpidossa.') }} <a href="{{ login_url }}">{{ _('Avaa tapaus kirjautumalla') }}</a></p>
