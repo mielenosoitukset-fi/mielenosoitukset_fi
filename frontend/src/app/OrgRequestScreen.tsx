@@ -133,7 +133,7 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
 
           <fieldset className="city-admin-fieldset">
             <legend>Organisaatio</legend>
-            <p className="city-admin-hint">Kun hakemus hyväksytään, nimi, sähköpostiosoite, verkkosivut ja some, logo ja kuvaus näkyvät organisaation julkisella sivulla. Paikkakunta ja Y-tunnus näkyvät vain ylläpidolle.</p>
+            <p className="city-admin-hint">{represents ? 'Kun hakemus hyväksytään' : 'Jos organisaatio ottaa tilin käyttöön'}, nimi, sähköpostiosoite, verkkosivut ja some, logo ja kuvaus näkyvät organisaation julkisella sivulla. Paikkakunta ja Y-tunnus näkyvät vain ylläpidolle.</p>
             <label htmlFor="org-request-name">Organisaation nimi</label>
             <input id="org-request-name" name="organization_name" required minLength={2} maxLength={120} autoComplete="organization" />
             <label htmlFor="org-request-email">Organisaation julkinen sähköpostiosoite{represents ? '' : ' (vapaaehtoinen)'}</label>
