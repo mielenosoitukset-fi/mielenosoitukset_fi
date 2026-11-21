@@ -116,3 +116,14 @@ def test_submitted_markup_cannot_break_out_of_props(admin_client, db, seeded_dat
     assert "<script>alert(1)" not in response.text
     assert "<img src=x onerror" not in response.text
     assert props_from(response)["preview"]["event"]["title"] == "</script><script>alert(1)</script>"
+
+
+def test_new_demo_case_frames_the_preview(admin_client, db, seeded_data):
+    demo_id = seeded_data["pending_demo_id"]
+    db.cases.update_one(
+        {"_id": seeded_data["case_id"]},
+        {"$set": {"demo_id": demo_id, "case_type": "new_demo", "type": "new_demo"}},
+    )
+    body = admin_client.get(f"/admin/case/{seeded_data['case_id']}/").get_data(as_text=True)
+    assert 'id="demo-preview"' in body
+    assert f'src="/admin/demo/{demo_id}/preview?embed=1"' in body

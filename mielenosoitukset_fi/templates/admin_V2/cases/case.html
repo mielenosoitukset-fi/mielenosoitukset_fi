@@ -205,6 +205,15 @@
             <div class="description-box">{{ (demo.description or _('Ei kuvausta'))|safe }}</div>
           </div>
 
+          {% if case.case_type == "new_demo" and demo._id %}
+          <details class="case-demo-preview" id="demo-preview">
+            <summary><i class="fa-solid fa-eye me-1" aria-hidden="true"></i>{{ _('Esikatselu: näin ilmoitus näkyy sivustolla') }}</summary>
+            <iframe class="case-demo-preview__frame" title="{{ _('Mielenosoituksen esikatselu') }}" loading="lazy"
+                    src="{{ url_for('admin_demo.preview_demo', demo_id=demo._id, embed=1) }}"></iframe>
+            <a class="btn btn-sm btn-outline-secondary mt-2" href="{{ url_for('admin_demo.preview_demo', demo_id=demo._id) }}" target="_blank" rel="noopener noreferrer">{{ _('Avaa esikatselu omaan välilehteen') }}</a>
+          </details>
+          {% endif %}
+
           {% if demo.organizers %}
           <div class="detail-item">
             <strong>{{ _('Järjestäjät') }}</strong>

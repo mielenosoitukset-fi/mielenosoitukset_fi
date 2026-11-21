@@ -1,0 +1,1 @@
+- Admin: a new demonstration's case now shows a collapsible preview of how the event will look on the public site, so it can be checked before approving.
