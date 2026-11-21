@@ -65,6 +65,12 @@ DEMO_APPROVAL_UNDO_MINUTES: 30
 TAKE_DOWN_SECOND_ADMIN: true
 TAKE_DOWN_CONFIRM_HOURS: 48
 
+# Demonstrations nobody approved or rejected before their date are closed as
+# expired by a background job. Submitters of demos that passed within
+# EXPIRED_DEMO_NOTIFY_DAYS get an apology email; older ones close quietly.
+EXPIRE_UNDECIDED_DEMOS: true
+EXPIRED_DEMO_NOTIFY_DAYS: 14
+
 # Optional configurations
 # SERVER_NAME: "www.example.com"  # Server name for the application
 # PREFERRED_URL_SCHEME: "https"  # URL scheme (e.g., https)

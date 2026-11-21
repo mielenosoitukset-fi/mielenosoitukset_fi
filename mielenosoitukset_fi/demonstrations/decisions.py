@@ -27,31 +27,40 @@ DECISION_STATES = {
     # without deleting it. It leaves every public list (approved is False) and
     # pending queues (rejected is True); the public URL shows a short notice.
     "taken_down": {"approved": False, "rejected": True, "taken_down": True},
+    # Maintainer decision (20 Nov 2026): a demo nobody decided before its date
+    # is closed as expired by the nightly job. It is not published and leaves
+    # the pending queues; the submitter gets an apology (recent ones only).
+    "expired": {"approved": False, "rejected": True, "taken_down": False},
 }
 DECISION_LABELS = {
     "approved": "Hyväksytty",
     "rejected": "Hylätty",
     "taken_down": "Poistettu julkaisusta",
+    "expired": "Vanhentunut",
 }
 DECISION_ACTIONS = {
     "approved": "approve_demo",
     "rejected": "reject_demo",
     "taken_down": "take_down_demo",
+    "expired": "expire_demo",
 }
 DECISION_REASONS = {
     "approved": "demo_approved",
     "rejected": "demo_rejected",
     "taken_down": "demo_taken_down",
+    "expired": "demo_expired",
 }
 DECISION_MESSAGES = {
     "approved": "Mielenosoitus hyväksyttiin",
     "rejected": "Mielenosoitus hylättiin",
     "taken_down": "Mielenosoitus poistettiin julkaisusta",
+    "expired": "Mielenosoitusta ei käsitelty ennen sen päivää, joten tapaus suljettiin",
 }
 SUBMITTER_SUBJECTS = {
     "approved": "Mielenosoituksesi on hyväksytty",
     "rejected": "Mielenosoituksesi on hylätty",
     "taken_down": "Mielenosoituksesi on poistettu sivustolta",
+    "expired": "Pahoittelumme: ilmoitustasi ei ehditty käsitellä",
 }
 TAKE_DOWN_REASON_MAX = 1000
 DEFAULT_UNDO_APPROVAL_MINUTES = 30
@@ -303,6 +312,7 @@ def apply_demo_decision(
     public_url: str | None = None,
     used_token_id=None,
     reason: str | None = None,
+    notify_submitter: bool = True,
 ) -> DemoDecisionResult:
     """Apply one terminal moderation decision and reconcile its side effects.
 
@@ -336,6 +346,11 @@ def apply_demo_decision(
         ],
     }
     extra_fields = {}
+    if decision == "expired":
+        # Only an undecided demo expires; a decided one keeps its decision.
+        transition_filter["approved"] = {"$ne": True}
+        transition_filter["rejected"] = {"$ne": True}
+        extra_fields = {"expired_at": now}
     if decision == "taken_down":
         reason = (reason or "").strip()
         if not reason:
@@ -389,13 +404,13 @@ def apply_demo_decision(
             or before.get("rejected") != target["rejected"]
             or bool(before.get("taken_down")) != target["taken_down"]
         )
-        decision_meta["notify_submitter"] = status_changed
+        decision_meta["notify_submitter"] = status_changed and notify_submitter
         db.demonstrations.update_one(
             {
                 "_id": demo_oid,
                 "moderation_decision.id": decision_meta["id"],
             },
-            {"$set": {"moderation_decision.notify_submitter": status_changed}},
+            {"$set": {"moderation_decision.notify_submitter": decision_meta["notify_submitter"]}},
         )
         # The atomic transition's before-image defines this decision's own
         # after-image. A fresh read could already belong to an opposite decision
