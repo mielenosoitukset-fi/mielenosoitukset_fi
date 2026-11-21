@@ -1,0 +1,12 @@
+.optout-card {
+  max-width: 36rem; margin: 2rem auto; padding: 1.5rem;
+  background: light-dark(#fff, #23272a); color: light-dark(#222, #f3f3f3);
+  border-radius: 1rem; box-shadow: 0 1px 8px rgba(0,0,0,.08);
+}
+.optout-card h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+.optout-card button {
+  margin-top: 1rem; padding: .7rem 1.5rem; border: 0; border-radius: 2rem; cursor: pointer;
+  font-size: 1rem; background: light-dark(#0056b3, #4ea1ff); color: light-dark(#fff, #10151a);
+}
+.optout-card button:focus-visible { outline: 3px solid light-dark(#222, #fff); outline-offset: 2px; }
+@media (max-width: 600px) { .optout-card { margin: 1rem; padding: 1rem; } }
