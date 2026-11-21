@@ -1,0 +1,1 @@
+- The password reset page now uses the new site design. The link check, password rules and change work as before.

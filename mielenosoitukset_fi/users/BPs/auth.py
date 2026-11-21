@@ -1883,21 +1883,20 @@ def _reset_token_spent(token: str, token_hash: str) -> bool:
     return False
 
 
-@auth_bp.route("/password_reset/<token>", methods=["GET", "POST"])
-def password_reset(token):
-    """
-    Handle password reset using a token, with full logging and single-use token enforcement.
+def _reset_link_state(token):
+    """Check a reset link once, logging a refused visit. Returns (refusal, context).
+
+    ``refusal`` is the Finnish message to flash when the link cannot be used (the
+    caller sends the visitor to the reset request page); otherwise ``context``
+    holds what the reset needs.
     """
     ip = get_client_ip()
     user_agent = request.headers.get("User-Agent", "")
-    
+
     token_hash = _reset_token_hash(token)
     # Check if token has already been used (hashed rows, or legacy raw rows)
     if _reset_token_spent(token, token_hash):
-        flash_message(
-            "Tämä salasanan palautuslinkki on jo käytetty.", "warning"
-        )
-        return redirect(url_for("users.auth.password_reset_request"))
+        return "Tämä salasanan palautuslinkki on jo käytetty.", None
 
     email = verify_reset_token(token)
 
@@ -1915,27 +1914,59 @@ def password_reset(token):
     if not email:
         log_entry["error"] = "Invalid or expired token"
         mongo.password_changes.insert_one(log_entry)
-        flash_message(
-            "Salasanan palautuslinkki on virheellinen tai vanhentunut.", "warning"
-        )
-        return redirect(url_for("users.auth.password_reset_request"))
+        return "Salasanan palautuslinkki on virheellinen tai vanhentunut.", None
 
     user_doc = _find_user_by_email(email)
     if not user_doc:
         log_entry["error"] = "User not found"
         mongo.password_changes.insert_one(log_entry)
-        flash_message("Käyttäjää ei löytynyt.", "warning")
-        return redirect(url_for("users.auth.password_reset_request"))
+        return "Käyttäjää ei löytynyt.", None
 
     if reset_invalidation_enabled() and token_issued_before(
         token, user_doc.get("password_changed_at")
     ):
         log_entry["error"] = "Token issued before the last password change"
         mongo.password_changes.insert_one(log_entry)
-        flash_message(
-            "Salasanan palautuslinkki on virheellinen tai vanhentunut.", "warning"
-        )
+        return "Salasanan palautuslinkki on virheellinen tai vanhentunut.", None
+
+    return None, {"ip": ip, "user_agent": user_agent, "token_hash": token_hash, "email": email,
+                  "user_doc": user_doc, "log_entry": log_entry}
+
+
+@auth_bp.route("/api/password_reset/status", methods=["POST"])
+def password_reset_status():
+    """Answer the React reset page: may this link be used? Same checks and log as Flask's GET.
+
+    POST with a JSON body so prefetchers and crawlers never record a visit. A refused
+    link flashes the same message as before; the page then opens the request page.
+    """
+    if request.headers.get("Sec-Fetch-Site", "same-origin") not in ("same-origin", "none"):
+        return jsonify({"valid": False}), 403, {"Cache-Control": "no-store"}
+    body = request.get_json(silent=True)
+    token = body.get("token") if isinstance(body, dict) else None
+    if not isinstance(token, str) or not token or len(token) > 2048:
+        return jsonify({"valid": False}), 400, {"Cache-Control": "no-store"}
+    refusal, context = _reset_link_state(token)
+    if refusal:
+        flash_message(refusal, "warning")
+        return jsonify({"valid": False}), 200, {"Cache-Control": "no-store"}
+    # Log the visit like the Flask GET did.
+    mongo.password_changes.insert_one(context["log_entry"])
+    return jsonify({"valid": True}), 200, {"Cache-Control": "no-store"}
+
+
+@auth_bp.route("/password_reset/<token>", methods=["GET", "POST"])
+def password_reset(token):
+    """
+    Handle password reset using a token, with full logging and single-use token enforcement.
+    """
+    refusal, context = _reset_link_state(token)
+    if refusal:
+        flash_message(refusal, "warning")
         return redirect(url_for("users.auth.password_reset_request"))
+    ip, user_agent = context["ip"], context["user_agent"]
+    token_hash, email = context["token_hash"], context["email"]
+    user_doc, log_entry = context["user_doc"], context["log_entry"]
 
     user = User.from_db(user_doc)
 
