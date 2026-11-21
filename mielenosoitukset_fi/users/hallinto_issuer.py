@@ -6,7 +6,7 @@ import logging
 import re
 import secrets
 from dataclasses import dataclass
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 from hmac import compare_digest
 from time import time
 from urllib.parse import unquote_plus, urlsplit
@@ -505,5 +505,72 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             logging.getLogger(__name__).exception("Hallinto account invite email failed")
             sent = False
         return jsonify(account=_account_view(user_doc), invited=sent), 201
+
+    @bp.post("/moderation-reviews/list")
+    def moderation_reviews_list():
+        """Rejections and take-downs waiting for OT review, then recent closed
+        ones. Hallinto decides who may review; this needs a signed-in admin."""
+        from mielenosoitukset_fi.utils import moderation_reviews
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        base = f"{origin.scheme}://{origin.netloc}"
+        items = moderation_reviews.list_reviews(db)
+        for item in items:
+            item["link"] = base + url_for("admin_demo.open_demo_decision", demo_id=item["demo"]["id"])
+        return jsonify(items=items)
+
+    @bp.post("/moderation-reviews/update")
+    def moderation_reviews_update():
+        """Record one OT step: confirm, overturn (publishes the demonstration),
+        needs_info, or reconsider (a request that arrived on ``received_on``).
+        The signed-in account is recorded; the submitter is emailed."""
+        from mielenosoitukset_fi.demonstrations.decisions import apply_demo_decision
+        from mielenosoitukset_fi.utils import moderation_reviews
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        review_id, action, message = payload.get("id"), payload.get("action"), payload.get("message")
+        received = payload.get("received_on")
+        if (not isinstance(review_id, str) or not _ACCOUNT_ID.fullmatch(review_id)
+                or action not in ("confirm", "overturn", "needs_info", "reconsider")
+                or not isinstance(message or "", str) or not isinstance(received or "", str)):
+            return jsonify(error="invalid_request"), 400
+        received_on = None
+        if received:
+            try:
+                day = datetime.strptime(received, "%Y-%m-%d")
+            except ValueError:
+                return jsonify(error="invalid_request"), 400
+            received_on = (day.replace(tzinfo=moderation_reviews.HELSINKI)
+                           .astimezone(UTC).replace(tzinfo=None))
+        account = db.users.find_one({"_id": ObjectId(payload["sub"])}, {"username": 1}) or {}
+        actor = {"id": payload["sub"], "name": account.get("username") or payload["sub"]}
+        sender = invite_sender()
+
+        row = db[moderation_reviews.COLLECTION].find_one(
+            {"_id": ObjectId(review_id)}, {"demo_id": 1}) or {}
+        public_url = (f"{origin.scheme}://{origin.netloc}"
+                      + url_for("demonstration_detail", demo_id=str(row["demo_id"]))
+                      if row.get("demo_id") else None)
+
+        def publish(demo_id, by):
+            apply_demo_decision(
+                db, demo_id, "approved",
+                actor={"user_id": by["id"], "username": by["name"], "via": "hallinto_review"},
+                source="hallinto_review", email_sender=sender, notify_submitter=False,
+                public_url=public_url,
+            )
+
+        try:
+            item = moderation_reviews.record(
+                db, review_id, action, actor=actor, message=message, received_on=received_on,
+                email_sender=sender, public_url=public_url, apply_decision=publish,
+            )
+        except moderation_reviews.ReviewError as exc:
+            return jsonify(error=exc.code), exc.status
+        return jsonify(item=item)
 
     app.register_blueprint(bp)
