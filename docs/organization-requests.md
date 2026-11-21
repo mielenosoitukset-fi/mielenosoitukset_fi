@@ -126,6 +126,7 @@ Live since 21 November 2026 (maintainer: "approve everything"): the deploy write
 `ORG_RECOVERY_GO_ENABLED=true` with the requests above (`ORG_RECOVERY_GO: false` in
 `config.yaml` opts out), the Apache POST and GET rules are on, and `release_routing.sh`
 keeps the old routing unless Go answers 405 on `GET /api/organization-requests/recovery`.
+Opting out also needs the Apache rules removed, or the release check refuses the routing.
 
 The answer never says whether the organization exists, is protected or already has a
 request. Quietly dropped, and answered like success: a bot, an address with two unconfirmed
