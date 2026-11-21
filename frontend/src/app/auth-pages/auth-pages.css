@@ -79,3 +79,12 @@
   .register-actions { flex-direction: column-reverse; align-items: stretch; }
   .register-actions .detail-button { width: 100%; justify-content: center; }
 }
+
+/* Sign-out confirmation */
+.logout-form > p { margin-top: 0; }
+.logout-actions { flex-direction: row-reverse; justify-content: flex-end; flex-wrap: wrap; }
+.logout-cancel { border-color: var(--product-text-muted); }
+@media (max-width: 575.98px) {
+  .logout-actions { flex-direction: column; align-items: stretch; }
+  .logout-actions .detail-button { width: 100%; justify-content: center; }
+}

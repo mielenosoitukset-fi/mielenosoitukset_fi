@@ -111,6 +111,10 @@ if (container) {
       void import('./PasswordResetScreen').then(({ default: PasswordResetScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<PasswordResetScreen config={props.config} token={token} />} />);
       }).catch(error => console.error('Could not start the password reset page', error));
+    } else if (route?.name === 'logout') {
+      void import('./LogoutScreen').then(({ default: LogoutScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<LogoutScreen config={props.config} session={props.session} />} />);
+      }).catch(error => console.error('Could not start the sign-out page', error));
     } else if (route?.name === 'register') {
       void import('./RegisterScreen').then(({ default: RegisterScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<RegisterScreen config={props.config} />} />);
