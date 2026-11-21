@@ -17,6 +17,7 @@ import { passwordResetRequestCopy, passwordResetRequestPath } from './password-r
 import { loginCopy, loginPath } from './login-route';
 import { registerCopy, registerPath } from './register-route';
 import { passwordResetCopy, resetTokenFromPath } from './password-reset-token-route';
+import { forcedIdentityCopy, forcedIdentityPath, forcedPasswordCopy, forcedPasswordPath } from './forced-route';
 import { nextStepsCopy, nextStepsPath } from './register-next-steps-route';
 import { logoutCopy, logoutPath } from './logout-route';
 
@@ -59,6 +60,8 @@ export type AppRoute =
   | { name: 'password-reset-request' }
   | { name: 'login' }
   | { name: 'register' }
+  | { name: 'forced-password' }
+  | { name: 'forced-identity' }
   | { name: 'register-next-steps' }
   | { name: 'logout' }
   | { name: 'password-reset'; token: string }
@@ -136,6 +139,8 @@ export function routeForPath(path: string): AppRoute | null {
   if (path === passwordResetRequestPath) return { name: 'password-reset-request' };
   if (path === loginPath) return { name: 'login' };
   if (path === registerPath) return { name: 'register' };
+  if (path === forcedPasswordPath) return { name: 'forced-password' };
+  if (path === forcedIdentityPath) return { name: 'forced-identity' };
   if (path === nextStepsPath) return { name: 'register-next-steps' };
   if (path === logoutPath) return { name: 'logout' };
   const resetToken = resetTokenFromPath(path);
@@ -212,6 +217,12 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   }
   if (route.name === 'password-reset') {
     return { title: `${passwordResetCopy.title} | Mielenosoitukset.fi`, description: passwordResetCopy.lead, robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'forced-password') {
+    return { title: `${forcedPasswordCopy.title} | Mielenosoitukset.fi`, description: forcedPasswordCopy.lead, robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'forced-identity') {
+    return { title: `${forcedIdentityCopy.title} | Mielenosoitukset.fi`, description: forcedIdentityCopy.lead, robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'register-next-steps') {
     return { title: `${nextStepsCopy.title} | Mielenosoitukset.fi`, description: nextStepsCopy.lead, robots: 'noindex, nofollow', canonical: null };

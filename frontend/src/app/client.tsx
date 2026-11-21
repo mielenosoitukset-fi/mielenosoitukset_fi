@@ -111,6 +111,14 @@ if (container) {
       void import('./PasswordResetScreen').then(({ default: PasswordResetScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<PasswordResetScreen config={props.config} token={token} />} />);
       }).catch(error => console.error('Could not start the password reset page', error));
+    } else if (route?.name === 'forced-password') {
+      void import('./ForcedPasswordScreen').then(({ default: ForcedPasswordScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<ForcedPasswordScreen config={props.config} session={props.session} />} />);
+      }).catch(error => console.error('Could not start the password change page', error));
+    } else if (route?.name === 'forced-identity') {
+      void import('./ForcedIdentityScreen').then(({ default: ForcedIdentityScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<ForcedIdentityScreen config={props.config} session={props.session} />} />);
+      }).catch(error => console.error('Could not start the name change page', error));
     } else if (route?.name === 'register-next-steps') {
       void import('./RegisterNextStepsScreen').then(({ default: RegisterNextStepsScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<RegisterNextStepsScreen config={props.config} />} />);

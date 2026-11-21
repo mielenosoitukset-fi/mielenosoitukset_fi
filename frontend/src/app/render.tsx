@@ -46,6 +46,9 @@ import NotificationsScreen from './NotificationsScreen';
 import PasswordResetRequestScreen from './PasswordResetRequestScreen';
 import RegisterScreen from './RegisterScreen';
 import PasswordResetScreen from './PasswordResetScreen';
+import ForcedPasswordScreen from './ForcedPasswordScreen';
+import ForcedIdentityScreen from './ForcedIdentityScreen';
+import { forcedIdentityPath, forcedPasswordPath, forcedRedirect } from './forced-route';
 import RegisterNextStepsScreen from './RegisterNextStepsScreen';
 import LogoutScreen from './LogoutScreen';
 import LoginScreen from './LoginScreen';
@@ -102,7 +105,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; logout?: string; registerNextSteps?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; logout?: string; registerNextSteps?: string; forcedPassword?: string; forcedIdentity?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -328,6 +331,12 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     path: input.path, locales: session.locales,
   });
   const text = catalog(config.locale);
+  // Like Flask's before_app_request: an account with a required step sees only that step and sign-out.
+  if (session.authenticated && (session.forced?.password || session.forced?.identity)
+    && route.name !== 'forced-password' && route.name !== 'forced-identity' && (route.name as string) !== 'logout') {
+    return { status: 302, html: '', redirect: session.forced.password ? forcedPasswordPath : forcedIdentityPath,
+      headers: { 'Cache-Control': 'private, no-store' } };
+  }
 
   let meta: RouteMeta = routeMeta(route, config, text);
   let detail: DetailBootstrap | undefined;
@@ -590,6 +599,24 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<PasswordResetScreen config={config} token={route.token} />} />);
+  }
+
+  if (route.name === 'forced-password' || route.name === 'forced-identity') {
+    const page = route.name === 'forced-password' ? 'password' : 'identity';
+    // Like Flask's login_required, then its order of steps; Flask checks everything again on POST.
+    if (!session.authenticated && !session.unverified) return { status: 302, html: '',
+      redirect: `${config.urls.login}?next=${encodeURIComponent(input.path)}`, headers: { 'Cache-Control': 'private, no-store' } };
+    const elsewhere = session.authenticated ? forcedRedirect(page, session.forced, config.urls.settings) : null;
+    if (elsewhere) return { status: 302, html: '', redirect: elsewhere, headers: { 'Cache-Control': 'private, no-store' } };
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    extraHead = (page === 'password' ? assets.forcedPassword ?? '' : assets.forcedIdentity ?? '')
+      + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The forms are plain HTML that post to Flask, so they work without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={page === 'password' ? <ForcedPasswordScreen config={config} session={session} />
+        : <ForcedIdentityScreen config={config} session={session} />} />);
   }
 
   if (route.name === 'register-next-steps') {

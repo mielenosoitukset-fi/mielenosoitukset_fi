@@ -13,6 +13,17 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
+// forcedStepPath names the page a flagged account must finish, or "" for other errors.
+func forcedStepPath(err error) string {
+	switch {
+	case errors.Is(err, errPasswordChangeRequired):
+		return passwordChangePath
+	case errors.Is(err, errIdentityChangeRequired):
+		return identityChangePath
+	}
+	return ""
+}
+
 // Flask remains the authority for its signed session cookies. Only the account
 // ID is used for the private admin case; it grants no submission privileges.
 func submissionActor(ctx context.Context, request *http.Request, config submissionConfig) (bson.ObjectID, error) {
@@ -53,6 +64,10 @@ func submissionActor(ctx context.Context, request *http.Request, config submissi
 	var summary struct {
 		Authenticated *bool  `json:"authenticated"`
 		ID            string `json:"actor_id"`
+		Forced        struct {
+			Password bool `json:"password"`
+			Identity bool `json:"identity"`
+		} `json:"forced"`
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, 64<<10)).Decode(&summary); err != nil {
 		return bson.NilObjectID, err
@@ -62,6 +77,14 @@ func submissionActor(ctx context.Context, request *http.Request, config submissi
 	}
 	if !*summary.Authenticated {
 		return bson.NilObjectID, nil
+	}
+	// Flask lets flagged accounts read /api/session so the React pages can render;
+	// they must not act as signed in until the required step is done.
+	if summary.Forced.Password {
+		return bson.NilObjectID, errPasswordChangeRequired
+	}
+	if summary.Forced.Identity {
+		return bson.NilObjectID, errIdentityChangeRequired
 	}
 	return bson.ObjectIDFromHex(summary.ID)
 }

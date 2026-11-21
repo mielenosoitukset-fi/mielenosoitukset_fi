@@ -150,7 +150,11 @@ func TestSubmissionSessionUsesExistingFlaskAuthority(t *testing.T) {
 			t.Error("incorrect bridge request")
 		}
 		if r.Header.Get("Cookie") == "session=valid" {
-			fmt.Fprintf(w, `{"authenticated":true,"actor_id":%q}`, id.Hex())
+			fmt.Fprintf(w, `{"authenticated":true,"actor_id":%q,"forced":{"password":false,"identity":false}}`, id.Hex())
+		} else if r.Header.Get("Cookie") == "session=forcedpw" {
+			fmt.Fprintf(w, `{"authenticated":true,"actor_id":%q,"forced":{"password":true,"identity":true}}`, id.Hex())
+		} else if r.Header.Get("Cookie") == "session=forcedid" {
+			fmt.Fprintf(w, `{"authenticated":true,"actor_id":%q,"forced":{"password":false,"identity":true}}`, id.Hex())
 		} else {
 			fmt.Fprint(w, `{"authenticated":false}`)
 		}
@@ -164,6 +168,14 @@ func TestSubmissionSessionUsesExistingFlaskAuthority(t *testing.T) {
 		actor, err := submissionActor(context.Background(), r, config)
 		if err != nil || (cookie == "session=valid" && actor != id) || (cookie != "session=valid" && !actor.IsZero()) {
 			t.Fatal(cookie, actor, err)
+		}
+	}
+	for cookie, want := range map[string]string{"session=forcedpw": passwordChangePath, "session=forcedid": identityChangePath} {
+		r := httptest.NewRequest("POST", "/api/submissions", nil)
+		r.Header.Set("Cookie", cookie)
+		actor, err := submissionActor(context.Background(), r, config)
+		if !actor.IsZero() || forcedStepPath(err) != want {
+			t.Fatal("flagged account accepted as signed in", cookie, actor, err)
 		}
 	}
 }

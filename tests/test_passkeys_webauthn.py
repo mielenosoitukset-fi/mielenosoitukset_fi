@@ -526,8 +526,9 @@ def test_passkey_login_uses_next_from_login_page(wapp, db, seeded_data):
 
 
 def test_passkey_login_keeps_next_through_forced_password_reset(wapp, db, seeded_data):
-    db.users.update_one({"_id": seeded_data["user_id"]}, {"$set": {"forced_pwd_reset": True}})
     key, credential = _registered_key(wapp, seeded_data)
+    # Flagged after the key exists: a flagged session can only reach the forced steps.
+    db.users.update_one({"_id": seeded_data["user_id"]}, {"$set": {"forced_pwd_reset": True}})
     anon = wapp.test_client()
     r = _passkey_login(anon, key, credential, next="/users/profile/")
     assert r.get_json()["redirect"] == "/users/auth/forced_pwd_reset/"

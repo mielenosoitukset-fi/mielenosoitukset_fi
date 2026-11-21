@@ -38,6 +38,8 @@ export type SessionSummary = {
   unverified?: boolean;
   /** Signed token the sign-out form must post; only present for a signed-in visitor. */
   logoutToken?: string;
+  /** Steps an administrator requires before the account can be used; only for a signed-in visitor. */
+  forced?: { password: boolean; identity: boolean };
   organization?: {
     id: string; following: boolean; invited: boolean; hasMessages: boolean;
     permissions: Record<'VIEW_ORGANIZATION' | 'EDIT_ORGANIZATION' | 'DELETE_ORGANIZATION' | 'INVITE_TO_ORGANIZATION', boolean>;
@@ -105,6 +107,9 @@ export function normalizeSession(value: unknown): SessionSummary {
     ...(raw.auth_bridge === true ? { authBridge: true } : {}),
     ...(raw.authenticated === true && typeof raw.logout_token === 'string' && /^[\w.-]{20,400}$/.test(raw.logout_token)
       ? { logoutToken: raw.logout_token } : {}),
+    ...(raw.authenticated === true && raw.forced && typeof raw.forced === 'object'
+      ? { forced: { password: (raw.forced as Record<string, unknown>).password === true,
+        identity: (raw.forced as Record<string, unknown>).identity === true } } : {}),
     ...(organization ? { organization } : {}),
     ...(raw.authenticated === true && raw.translation_join && typeof raw.translation_join === 'object'
       ? { translationJoin: normalizeTranslationJoin(raw.translation_join as Record<string, unknown>) } : {}),

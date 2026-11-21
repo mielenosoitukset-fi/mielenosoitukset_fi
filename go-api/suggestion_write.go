@@ -334,7 +334,10 @@ func (s *suggestionWrites) saveOrganization(ctx context.Context, w http.Response
 	}
 	actor := bson.NilObjectID
 	if r.Header.Get("Cookie") != "" && s.actor != nil {
-		if actor, err = s.actor(r); err != nil {
+		if actor, err = s.actor(r); forcedStepPath(err) != "" {
+			writeError(w, http.StatusForbidden, "account step required")
+			return
+		} else if err != nil {
 			writeError(w, http.StatusServiceUnavailable, "session unavailable")
 			return
 		}
