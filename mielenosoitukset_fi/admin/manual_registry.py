@@ -238,10 +238,10 @@ PAGES = {
         "group": "system",
         "access": "analytics",
         "endpoint": "admin.stats",
-        "summary": "Tilastot ja palvelun analytiikka.",
+        "summary": "Analytiikka: katselut, kävijät ja määrät yhdessä paikassa.",
         "topics": [
-            ("tilastot", "Tilastot", "tilastot määrät"),
-            ("analytiikka", "Palvelun analytiikka", "analytiikka kävijät katselut"),
+            ("tilastot", "Analytiikka", "analytiikka tilastot määrät katselut"),
+            ("analytiikka", "Mielenosoituksen analytiikka", "mielenosoitus analytiikka kävijät katselut"),
         ],
     },
     "security": {

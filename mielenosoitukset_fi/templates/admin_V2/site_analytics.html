@@ -1,5 +1,6 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
+{% from 'admin_V2/_analytics_hub.html' import analytics_tabs with context %}
 
 {% block title %}{{ _('Palvelun analytiikka') }}{% endblock %}
 
@@ -46,10 +47,12 @@
     _('Palvelun analytiikka'),
     _('Tässä näkymässä käytetään palvelimen laskureita. Sivunäytöt ja kävijäarviot ovat eri mittareita, eivätkä ne vastaa suoraan Matomon käyntejä.'),
     _('Analytiikka'),
-    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Palvelun analytiikka'), none)],
+    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Analytiikka'), url_for('admin.stats')), (_('Koko palvelu'), none)],
     metric_value=overview.today.current,
     metric_label=_('sivunäyttöä tänään')
   ) }}
+
+  {{ analytics_tabs('site') }}
 
   <form method="get" class="admin-filter-bar" aria-label="{{ _('Aikavälin valinta') }}">
     <input type="hidden" name="vitals_page" value="{{ vitals_page }}" data-vitals-page-input>

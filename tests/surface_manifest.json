@@ -144,13 +144,14 @@
       "sha256": "17666f6c69589d762b8a67fe8e7de91362fd0d3511a103b13d939dde0438ed95"
     },
     "mielenosoitukset_fi/admin/admin_case_bp.py": {
-      "count": 23,
+      "count": 24,
       "coverage": [
         "integration",
         "e2e-admin",
-        "tests/test_demo_suggestion_cases.py"
+        "tests/test_demo_suggestion_cases.py",
+        "tests/test_case_resolving_actions.py"
       ],
-      "sha256": "687e5ae729440d8c05962056b3ae6743c1bb43cc83f57ff2b2679e42aeb792bf"
+      "sha256": "8f4101cdde6694b8833f6bed7a76ddd75c5002a1afe4bc6c9396086c512e68bb"
     },
     "mielenosoitukset_fi/admin/admin_city_bp.py": {
       "count": 1,
@@ -160,7 +161,7 @@
       "sha256": "651daec4ff338a32e0ee863fb56c268fe26cafac872b016a53066275b7490b46"
     },
     "mielenosoitukset_fi/admin/admin_demo_bp.py": {
-      "count": 56,
+      "count": 57,
       "coverage": [
         "integration",
         "e2e-admin",
@@ -169,9 +170,10 @@
         "tests/test_demo_decision_preview.py",
         "tests/test_token_lifecycle.py",
         "tests/test_surface_manifest.py",
-        "tests/test_demo_take_down.py"
+        "tests/test_demo_take_down.py",
+        "tests/test_demo_restore.py"
       ],
-      "sha256": "ba3545eec9c386ddcb0488c0c9477d85371699241101632d4f129d963b5e68e2"
+      "sha256": "8bd90b907c529797260b2115898d2aae8df8c612677776b344cb680c3637d445"
     },
     "mielenosoitukset_fi/admin/admin_dev_bp.py": {
       "count": 6,
@@ -199,12 +201,13 @@
       "sha256": "be65f026e9bbcd3d4b5054b9d450bfae5233bdbfb7c3d1e0bcfc9127b73a0906"
     },
     "mielenosoitukset_fi/admin/admin_org_bp.py": {
-      "count": 16,
+      "count": 17,
       "coverage": [
         "integration",
-        "e2e-admin"
+        "e2e-admin",
+        "tests/test_case_resolving_actions.py"
       ],
-      "sha256": "ef1d20938bc8b80882041c4ef9e4ee41030cb232153f42bdf0a4058b8402518c"
+      "sha256": "e89cc83aa6102c8d264c23b5b995302e67b79a4252a28f5d59f4a2015c08d59d"
     },
     "mielenosoitukset_fi/admin/admin_recu_demo_bp.py": {
       "count": 8,

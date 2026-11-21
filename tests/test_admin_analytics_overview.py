@@ -1,52 +1,45 @@
-from bson import ObjectId
+"""Analytics live in one hub; the old pages redirect there."""
+
+import re
 
 
-def _seed_views(db, count):
-    db.prepped_analytics.delete_many({})
-    demos = []
-    for index in range(count):
-        demo_id = ObjectId()
-        demos.append({"_id": demo_id, "title": f"Katsotuin <{index:02d}>", "date": "2026-12-01"})
-        db.prepped_analytics.insert_one({"_id": demo_id, "demo_id": demo_id, "views": 1000 - index})
-    db.demonstrations.insert_many(demos)
-    return demos
+def test_old_most_viewed_list_redirects_to_the_hub(admin_client):
+    response = admin_client.get("/admin/demo_analytics?page=2")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/admin/stats?include_past=1")
 
 
-def test_analytics_overview_lists_most_viewed_page_by_page(admin_client, db):
-    demos = _seed_views(db, 60)
-
-    first = admin_client.get("/admin/demo_analytics").get_data(as_text=True)
-    assert first.count('href="/admin/per_demo_analytics/') == 50
-    assert first.index("Katsotuin &lt;00&gt;") < first.index("Katsotuin &lt;01&gt;")
-    assert "Katsotuin &lt;50&gt;" not in first
-    assert "Sivu 1 / 2" in first
-    assert "page=2" in first
-    assert "<00>" not in first
-
-    second = admin_client.get("/admin/demo_analytics?page=2").get_data(as_text=True)
-    assert second.count('href="/admin/per_demo_analytics/') == 10
-    assert "Katsotuin &lt;59&gt;" in second
-    assert ">51.</span>" in second
-
-    clamped = admin_client.get("/admin/demo_analytics?page=99").get_data(as_text=True)
-    assert "Sivu 2 / 2" in clamped
-    assert str(demos[59]["_id"]) in clamped
-
-    assert admin_client.get("/admin/demo_analytics?page=x").status_code == 200
+def test_old_per_demo_page_redirects_to_the_one_demo_page(admin_client, seeded_data):
+    demo_id = seeded_data["demo_id"]
+    response = admin_client.get(f"/admin/per_demo_analytics/{demo_id}")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(f"/admin/analytics/demonstration/{demo_id}")
+    assert admin_client.get("/admin/per_demo_analytics/not-an-id").status_code == 404
 
 
-def test_analytics_overview_names_deleted_demonstrations(admin_client, db):
-    db.prepped_analytics.delete_many({})
-    gone = ObjectId()
-    db.prepped_analytics.insert_one({"_id": gone, "demo_id": gone, "views": 5})
+def test_hub_tabs_on_every_analytics_page(admin_client, seeded_data):
+    demo_id = seeded_data["demo_id"]
+    for url, current in (
+        ("/admin/stats", "Mielenosoitusten katselut"),
+        ("/admin/analytics/", "Koko palvelu"),
+        ("/admin/analytics/overall_24h", "Viimeiset 24 h"),
+    ):
+        page = admin_client.get(url).get_data(as_text=True)
+        nav = re.search(r"data-analytics-tabs>(.*?)</nav>", page, re.S)
+        assert nav, url
+        assert re.findall(r'aria-current="page"><i[^>]*></i>([^<]+)</a>', nav.group(1)) == [current], url
 
-    page = admin_client.get("/admin/demo_analytics").get_data(as_text=True)
-    assert "Poistettu mielenosoitus" in page
-    assert str(gone) in page
-    assert "Sivu 1 / 1" not in page
+    stats = admin_client.get("/admin/stats?include_past=1").get_data(as_text=True)
+    assert "/admin/per_demo_analytics/" not in stats
+    command_center = admin_client.get(f"/admin/demo/command-center/{demo_id}").get_data(as_text=True)
+    assert f"/admin/analytics/demonstration/{demo_id}" in command_center
+    demo_page = admin_client.get(f"/admin/analytics/demonstration/{demo_id}").get_data(as_text=True)
+    assert "Perinteinen katseluanalytiikka" not in demo_page
+    assert f'/admin/demo/command-center/{demo_id}' in demo_page
 
 
-def test_analytics_overview_empty_state(admin_client, db):
-    db.prepped_analytics.delete_many({})
-    page = admin_client.get("/admin/demo_analytics").get_data(as_text=True)
-    assert "Ei tietoja saatavilla." in page
+def test_sidebar_has_one_analytics_entry(admin_client):
+    page = admin_client.get("/admin/stats").get_data(as_text=True)
+    links = re.findall(r'class="nav-link admin-sidebar-link[^"]*" href="([^"]+)"', page)
+    assert "/admin/stats" in links
+    assert "/admin/analytics/" not in links

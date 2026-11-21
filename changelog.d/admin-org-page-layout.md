@@ -1,0 +1,1 @@
+- Organisaation ylläpitosivun jäsen- ja kutsutaulukot eivät enää jää sivupaneelin alle: kapeammilla näytöillä paneeli siirtyy taulukoiden alle ja taulukko vierittyy omassa alueessaan. Tilakortin sanat (esim. "Vahvistamaton") eivät enää katkea.

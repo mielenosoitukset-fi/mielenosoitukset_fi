@@ -1139,6 +1139,9 @@ body {
 
 .admin-toast.show { transform: translateY(0); }
 
+/* Off-screen toasts stay out of the tab order and screen reader output. */
+.admin-toast:not(.show) { visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s; }
+
 .admin-toast__icon {
   display: grid;
   width: 2rem;
@@ -4769,6 +4772,41 @@ th.sortable.desc::after {
   margin: 0 0 .5rem;
   color: var(--admin-workspace-muted);
   font-size: .85rem;
+}
+
+/* Tables in the main column of a detail page (organisation members and
+   invites) share the row with a side panel, so they size to that column and
+   scroll inside it instead of running under the panel. */
+.admin-detail-layout > .admin-stack .admin-data-view__viewport {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.admin-detail-layout > .admin-stack .admin-data-view__table {
+  min-width: 36rem;
+}
+
+.admin-detail-layout > .admin-stack .admin-data-view__table .admin-row-actions {
+  flex-wrap: wrap;
+}
+
+.admin-detail-layout > .admin-stack .admin-data-view__table .admin-row-actions .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Pages whose main column holds tables (organisation members) put the side
+   panel below the tables until the screen is wide enough for both. */
+@media (max-width: 1500px) {
+  .admin-detail-layout.admin-detail-layout--table-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Word values ("Vahvistamaton") in label cards use the smaller label size. */
+.admin-workspace-summary-card.admin-workspace-summary-card--label > div > strong {
+  font-size: 1.05rem;
+  line-height: 1.3;
 }
 
 /* Case list on phones: the four state links fit in two rows above the list. */
