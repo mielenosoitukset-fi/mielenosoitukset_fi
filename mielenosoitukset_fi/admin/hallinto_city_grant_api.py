@@ -22,7 +22,7 @@ import hmac
 import json
 import re
 from datetime import timedelta, timezone
-from urllib.parse import unquote, urlencode
+from urllib.parse import unquote, urlencode, urlsplit
 from zoneinfo import ZoneInfo
 
 from bson import ObjectId
@@ -67,7 +67,22 @@ def _reply(outcome: city_grants.Outcome):
     return response
 
 
+def _proxy_ok() -> bool:
+    """The internal vhost adds a secret header that public vhosts strip.
+
+    A client certificate is public, so the forwarded certificate headers alone
+    could be replayed through a public vhost that forgot to strip them.
+    """
+    secret = request.headers.get("X-Hallinto-Proxy-Secret", "")
+    if not secret or len(secret) > 256:
+        return False
+    digest = hashlib.sha256(secret.encode("utf-8")).hexdigest()
+    return hmac.compare_digest(digest, _settings()["proxy_secret_sha256"])
+
+
 def _workload_ok() -> bool:
+    if not _proxy_ok():
+        return False
     if request.headers.get("X-SSL-Client-Verify") != "SUCCESS":
         return False
     raw = request.headers.get("X-SSL-Client-Cert", "")
@@ -126,17 +141,17 @@ def build_blueprint(db) -> Blueprint:
 
     @bp.get("/operations/by-key")
     def read_receipt():
-        actor_id = grant_proofs.proof_actor(db, _bearer(), audience=AUDIENCE)
+        key = request.headers.get("Idempotency-Key", "")
+        actor_id = grant_proofs.proof_actor(db, _bearer(), audience=AUDIENCE, idempotency_key=key)
         if actor_id is None:
             return _error("denied")
         return _reply(city_grants.read_operation_receipt(
-            db, integration=INTEGRATION, actor_id=actor_id,
-            idempotency_key=request.headers.get("Idempotency-Key", ""),
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key,
         ))
 
     @bp.get("/city-grants/<account_id>")
     def read_state(account_id):
-        actor_id = grant_proofs.proof_actor(db, _bearer(), audience=AUDIENCE)
+        actor_id = grant_proofs.proof_actor(db, _bearer(), audience=AUDIENCE, subject=account_id)
         if actor_id is None or city_grants.authorized_actor(db, actor_id) is None:
             return _error("denied")
         state = city_grants.read_city_grant_state(db, account_id)
@@ -167,6 +182,18 @@ def _same_origin() -> bool:
     origin = request.headers.get("Origin") or request.headers.get("Referer") or ""
     host = request.host_url.rstrip("/")
     return origin == host or origin.startswith(host + "/")
+
+
+def _no_framing(response):
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
+    return response
+
+
+def _hallinto_home() -> str:
+    url = urlsplit(_settings()["return_url"])
+    return f"{url.scheme}://{url.netloc}/"
 
 
 def build_approval_blueprint(db) -> Blueprint:
@@ -218,10 +245,9 @@ def build_approval_blueprint(db) -> Blueprint:
             last_day=last_day.strftime("%-d.%-m.%Y"), eligible=state["eligible"],
             elevated=has_strong_elevation(APPROVAL_WINDOW_SECONDS),
             has_passkey=webauthn.passkey_count(current_user._id) > 0,
-            has_totp=_user_requires_totp(),
+            has_totp=_user_requires_totp(), hallinto_url=_hallinto_home(),
         ))
-        response.headers["Cache-Control"] = "no-store"
-        return response
+        return _no_framing(response)
 
     @bp.post("/approve")
     @login_required
@@ -234,11 +260,10 @@ def build_approval_blueprint(db) -> Blueprint:
         factor = "passkey" if elevation_method() == "webauthn" else "password_totp"
         proof = grant_proofs.issue_proof(
             db, actor_id=current_user._id, audience=AUDIENCE, action=grant_proofs.ACTION_CITY_ADMIN_V1,
-            intent_digest=digest, factor=factor,
+            intent_digest=digest, factor=factor, subject=str(fields["account_id"]),
         )
         fragment = urlencode({"state": state_param, "proof": proof, "expected_state": state["expected_state"]})
-        response = redirect(_settings()["return_url"] + "#" + fragment, code=303)
-        response.headers["Cache-Control"] = "no-store"
+        response = _no_framing(redirect(_settings()["return_url"] + "#" + fragment, code=303))
         response.headers["Referrer-Policy"] = "no-referrer"
         return response
 
@@ -248,7 +273,9 @@ def build_approval_blueprint(db) -> Blueprint:
 def register(app, db, settings: dict) -> None:
     fingerprints = settings.get("workload_cert_sha256")
     key = settings.get("attestation_public_key")
-    if (not isinstance(fingerprints, list) or not fingerprints
+    proxy = settings.get("proxy_secret_sha256")
+    if (not isinstance(proxy, str) or len(proxy) != 64 or proxy != proxy.lower()
+            or not isinstance(fingerprints, list) or not fingerprints
             or not all(isinstance(f, str) and len(f) == 64 and f == f.lower() for f in fingerprints)
             or not isinstance(key, str)
             or not isinstance(settings.get("return_url"), str)
@@ -259,6 +286,7 @@ def register(app, db, settings: dict) -> None:
         "workload_cert_sha256": list(fingerprints),
         "attestation_key": Ed25519PublicKey.from_public_bytes(_b64url(key)),
         "return_url": settings["return_url"],
+        "proxy_secret_sha256": proxy,
     }
     city_grants.ensure_operation_indexes(db)
     grant_proofs.ensure_proof_indexes(db)

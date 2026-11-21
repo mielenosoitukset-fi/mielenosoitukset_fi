@@ -271,7 +271,8 @@
   align-items: flex-start;
 }
 
-.workflow-step-up-heading h6 {
+.workflow-step-up-heading h6,
+.workflow-step-up-heading h2 {
   margin: 0;
   color: var(--admin-workspace-text);
   font-size: .95rem;
@@ -287,6 +288,19 @@
 
 .workflow-step-up-passkey,
 .workflow-step-up-form .workflow-button { width: 100%; }
+
+/* Hallinto approval page: the step-up box sits in the page flow, not a modal. */
+.hallinto-approve .workflow-step-up {
+  max-width: 36rem;
+  margin-top: 0;
+}
+
+.hallinto-approve-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: center;
+}
 
 .workflow-step-up-divider {
   display: flex;

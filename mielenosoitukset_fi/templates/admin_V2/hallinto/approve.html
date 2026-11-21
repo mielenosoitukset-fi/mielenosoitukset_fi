@@ -1,9 +1,9 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
 {% block title %}Vahvista nimitys – Mielenosoitukset.fi{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/users.css', v='20261002-admin-ui-55') }}">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/users.css', v='20261121-hallinto-approve') }}">{% endblock %}
 {% block main_content %}
-<section class="admin-page admin-workspace">
+<section class="admin-page admin-workspace hallinto-approve">
   {{ admin_page_hero('Vahvista nimitys', 'Hallinnossa hyväksytty nimitys tulee voimaan vasta, kun vahvistat sen tässä.', 'Hallinto', [('Hallintapaneeli', url_for('admin.admin_dashboard')), ('Vahvista nimitys', none)]) }}
   <section class="admin-form-section" aria-labelledby="approve-terms-heading">
     <div class="admin-form-section__header">
@@ -25,11 +25,12 @@
     </div>
   </section>
 
-  <form method="post" action="{{ url_for('hallinto_city_grant_approval.approve_confirm') }}" id="approveForm"{% if not (elevated and eligible) %} class="d-none"{% endif %}>
+  <form method="post" action="{{ url_for('hallinto_city_grant_approval.approve_confirm') }}" id="approveForm" class="hallinto-approve-actions{% if not (elevated and eligible) %} d-none{% endif %}">
     <input type="hidden" name="r" value="{{ raw }}">
     <input type="hidden" name="state" value="{{ state_param }}">
     {% if elevated and eligible %}
     <button type="submit" class="workflow-button btn btn-primary"><i class="fas fa-check" aria-hidden="true"></i>Vahvista nimitys</button>
+    <a class="btn btn-link" href="{{ hallinto_url }}">Peruuta</a>
     {% endif %}
   </form>
 
@@ -72,6 +73,11 @@
     {% endif %}
   </section>
   {% endif %}
+  {% endif %}
+  {% if not (elevated and eligible) %}
+  <div class="hallinto-approve-actions">
+    <a class="btn btn-outline-secondary" href="{{ hallinto_url }}"><i class="fas fa-arrow-left" aria-hidden="true"></i> Takaisin Hallintoon</a>
+  </div>
   {% endif %}
 </section>
 {% endblock %}

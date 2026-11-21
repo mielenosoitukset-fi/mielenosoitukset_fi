@@ -38,8 +38,13 @@ def ensure_proof_indexes(db) -> None:
     db[PROOFS].create_index("purge_at", expireAfterSeconds=0, name="owner_grant_proof_purge")
 
 
-def issue_proof(db, *, actor_id, audience: str, action: str, intent_digest: str, factor: str) -> str:
-    """Return a new proof token for a fresh strong-factor approval."""
+def issue_proof(db, *, actor_id, audience: str, action: str, intent_digest: str, factor: str,
+                subject: Optional[str] = None) -> str:
+    """Return a new proof token for a fresh strong-factor approval.
+
+    ``subject`` is the account the intent is about; state lookups with this
+    proof are limited to it.
+    """
     if factor not in STRONG_FACTORS:
         raise ValueError("a grant proof needs a passkey or password and TOTP")
     if not (audience and action and intent_digest):
@@ -49,7 +54,7 @@ def issue_proof(db, *, actor_id, audience: str, action: str, intent_digest: str,
     db[PROOFS].insert_one({
         "_id": ObjectId(), "token_hash": _hash(token), "actor_id": str(actor_id),
         "audience": audience, "action": action, "intent_digest": intent_digest, "factor": factor,
-        "created_at": now, "expires_at": now + PROOF_TTL, "purge_at": now + PROOF_TTL + timedelta(days=1),
+        "subject": str(subject) if subject is not None else None, "created_at": now, "expires_at": now + PROOF_TTL, "purge_at": now + PROOF_TTL + timedelta(days=1),
         "used_at": None, "idempotency_key": None,
     })
     return token
@@ -77,10 +82,21 @@ def consume_proof(db, token, *, audience: str, action: str, intent_digest: str,
     return proof["actor_id"] if proof else None
 
 
-def proof_actor(db, token, *, audience: str) -> Optional[str]:
-    """Actor of an unexpired proof already used by a command, for receipt lookups."""
+def proof_actor(db, token, *, audience: str, subject: Optional[str] = None,
+                idempotency_key: Optional[str] = None) -> Optional[str]:
+    """Actor of an unexpired proof, limited to what it was issued for.
+
+    A receipt lookup needs the proof already bound to that Idempotency-Key;
+    a state lookup needs the account the proof was issued for.
+    """
     if not isinstance(token, str) or not token or len(token) > 256:
         return None
-    proof = db[PROOFS].find_one({"token_hash": _hash(token), "audience": audience,
-                                 "expires_at": {"$gt": utcnow()}})
+    if subject is None and not idempotency_key:
+        return None
+    query = {"token_hash": _hash(token), "audience": audience, "expires_at": {"$gt": utcnow()}}
+    if subject is not None:
+        query["subject"] = str(subject)
+    if idempotency_key:
+        query["idempotency_key"] = idempotency_key
+    proof = db[PROOFS].find_one(query)
     return proof["actor_id"] if proof else None

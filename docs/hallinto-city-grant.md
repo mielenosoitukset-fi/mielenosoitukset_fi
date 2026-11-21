@@ -45,6 +45,7 @@ Until C02/C04 prove compatibility, keep API disabled. Required staging checks in
 
 Off unless `HALLINTO_CITY_GRANT_CONFIG_FILE` names a restricted JSON file (mode 0600, owned by the service user or root) with:
 
+- `proxy_secret_sha256`: lowercase SHA-256 of the secret the internal vhost adds as `X-Hallinto-Proxy-Secret`. A client certificate is public, so the forwarded certificate alone is not proof that the request came through the mTLS vhost.
 - `workload_cert_sha256`: lowercase SHA-256 fingerprints of the DER client certificates Hallinto presents.
 - `attestation_public_key`: Hallinto's Ed25519 public key, raw 32 bytes in base64url.
 - `return_url`: the exact `https://` Hallinto URL that receives the proof.
@@ -58,7 +59,7 @@ Approval flow (Olivia, 21 November 2026: approve in Hallinto, step up on Flask b
 
 `intent_digest` is the SHA-256 hex digest of the canonical intent: the request without `authority_attestation`, plus `"permissions"` (the nine A3 permissions, sorted). It is serialized as JSON with sorted keys, no whitespace and unescaped UTF-8, which is Python's `json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False)`. In Go, marshal a map with `SetEscapeHTML(false)` and drop the trailing newline.
 
-The first use of a proof binds it to its `Idempotency-Key`. Only a retry of the same command can present the proof again, and only until it expires. `GET /operations/by-key` and `GET /city-grants/{account_id}` take any unexpired proof for the audience; the actor is re-checked.
+The first use of a proof binds it to its `Idempotency-Key`. Only a retry of the same command can present the proof again, and only until it expires. `GET /operations/by-key` takes an unexpired proof already bound to that `Idempotency-Key`. `GET /city-grants/{account_id}` takes an unexpired proof issued for that account. The actor is re-checked. The approval page and its redirect send `X-Frame-Options: DENY` and `frame-ancestors 'none'`.
 
 Apache (internal vhost only, production activation needs Olivia's go-ahead): `SSLVerifyClient require` against the Hallinto CA. Overwrite the forwarded headers on every request, so a client value never reaches Gunicorn:
 
@@ -66,5 +67,6 @@ Apache (internal vhost only, production activation needs Olivia's go-ahead): `SS
     RequestHeader unset X-SSL-Client-Verify
     RequestHeader set X-SSL-Client-Verify "%{SSL_CLIENT_VERIFY}s"
     RequestHeader set X-SSL-Client-Cert "expr=%{escape:%{SSL_CLIENT_CERT}}"
+    RequestHeader set X-Hallinto-Proxy-Secret "<secret from a root-only include>"
 
-Route only `/internal/hallinto/` through that vhost, and block `/internal/` on the public vhosts.
+Route only `/internal/hallinto/` through that vhost. Include `deploy/apache/hallinto-public-vhost-guard.conf` in every public vhost: it strips all three headers and denies `/internal/`.

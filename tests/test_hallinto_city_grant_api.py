@@ -42,10 +42,11 @@ def _certificate():
 WORKLOAD = _certificate()
 OTHER = _certificate()
 SIGNER = Ed25519PrivateKey.generate()
+PROXY_SECRET = "internal-vhost-secret-0000000000000001"
 
 
 def _headers(cert=WORKLOAD, proof=None, key=KEY):
-    headers = {"X-SSL-Client-Verify": "SUCCESS",
+    headers = {"X-Hallinto-Proxy-Secret": PROXY_SECRET, "X-SSL-Client-Verify": "SUCCESS",
                "X-SSL-Client-Cert": quote(cert.public_bytes(Encoding.PEM).decode())}
     if proof:
         headers["Authorization"] = f"Bearer {proof}"
@@ -60,6 +61,7 @@ def api(app_factory, db):
         "workload_cert_sha256": [hashlib.sha256(WORKLOAD.public_bytes(Encoding.DER)).hexdigest()],
         "attestation_public_key": _b64url(SIGNER.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)),
         "return_url": RETURN_URL,
+        "proxy_secret_sha256": hashlib.sha256(PROXY_SECRET.encode()).hexdigest(),
     })
     seeded = _seed_database(app, db)
     target = ObjectId()
@@ -76,7 +78,7 @@ def api(app_factory, db):
     with app.app_context():
         proof = grant_proofs.issue_proof(db, actor_id=seeded["admin_id"], audience=AUDIENCE,
                                          action=grant_proofs.ACTION_CITY_ADMIN_V1,
-                                         intent_digest=digest, factor="passkey")
+                                         intent_digest=digest, factor="passkey", subject=str(target))
     try:
         yield app, app.test_client(), db, body, digest, proof, seeded, target
     finally:
@@ -107,14 +109,19 @@ def test_appointment_through_the_route(api):
 
 @pytest.mark.parametrize("headers", [
     {},
-    {"X-SSL-Client-Verify": "NONE"},
-    {"X-SSL-Client-Verify": "SUCCESS", "X-SSL-Client-Cert": "not-a-certificate"},
+    {"X-Hallinto-Proxy-Secret": PROXY_SECRET, "X-SSL-Client-Verify": "NONE"},
+    {"X-Hallinto-Proxy-Secret": PROXY_SECRET, "X-SSL-Client-Verify": "SUCCESS",
+     "X-SSL-Client-Cert": "not-a-certificate"},
     "other-cert",
+    "no-proxy-secret",
 ])
 def test_workload_identity_is_required(api, headers):
     app, client, db, body, digest, proof, seeded, target = api
     if headers == "other-cert":
         headers = _headers(cert=OTHER, proof=proof)
+    elif headers == "no-proxy-secret":
+        # A public vhost that forwards the (public) certificate is not enough.
+        headers = {k: v for k, v in _headers(proof=proof).items() if k != "X-Hallinto-Proxy-Secret"}
     else:
         headers = {**headers, "Authorization": f"Bearer {proof}", "Idempotency-Key": KEY}
     response = client.post("/internal/hallinto/v1/city-appointments", json=body, headers=headers)
@@ -133,6 +140,18 @@ def test_proof_is_bound_to_the_intent_and_the_command(api):
     other_key = client.post("/internal/hallinto/v1/city-appointments", json=body,
                             headers=_headers(proof=proof, key="hallinto-api-000000000002"))
     assert other_key.status_code == 403
+
+
+def test_lookups_are_limited_to_what_the_proof_was_for(api):
+    app, client, db, body, digest, proof, seeded, target = api
+    # Not yet used: no receipt lookup.
+    assert client.get("/internal/hallinto/v1/operations/by-key", headers=_headers(proof=proof)).status_code == 403
+    assert client.post("/internal/hallinto/v1/city-appointments", json=body,
+                       headers=_headers(proof=proof)).status_code == 200
+    other_key = _headers(proof=proof, key="hallinto-api-000000000003")
+    assert client.get("/internal/hallinto/v1/operations/by-key", headers=other_key).status_code == 403
+    other = client.get(f"/internal/hallinto/v1/city-grants/{seeded['admin_id']}", headers=_headers(proof=proof, key=None))
+    assert other.status_code == 403
 
 
 def test_attestation_must_sign_the_same_intent(api):
@@ -199,6 +218,8 @@ def test_approval_needs_a_strong_factor_within_15_minutes(api, strong, age, expe
     page = verifier.get("/admin/hallinto/approve", query_string={"r": _terms(body), "state": STATE})
     assert page.status_code == 200 and "Kuopio" in page.get_data(as_text=True)
     assert page.headers["Cache-Control"] == "no-store"
+    assert page.headers["X-Frame-Options"] == "DENY"
+    assert "frame-ancestors 'none'" in page.headers["Content-Security-Policy"]
     response = _confirm(verifier, body)
     assert response.status_code == 303
     location = response.headers["Location"]
@@ -225,4 +246,5 @@ def test_approval_without_any_strong_factor_points_to_settings(api):
     app, client, db, body, digest, proof, seeded, target = api
     page = _verifier(app, seeded["admin_id"], strong=None).get(
         "/admin/hallinto/approve", query_string={"r": _terms(body), "state": STATE})
-    assert "Lisää passkey asetuksissa" in page.get_data(as_text=True)
+    text = page.get_data(as_text=True)
+    assert "Lisää passkey asetuksissa" in text and 'href="https://hallinto.example.test/"' in text
