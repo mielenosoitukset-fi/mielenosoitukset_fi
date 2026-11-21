@@ -46,6 +46,7 @@ import NotificationsScreen from './NotificationsScreen';
 import PasswordResetRequestScreen from './PasswordResetRequestScreen';
 import RegisterScreen from './RegisterScreen';
 import PasswordResetScreen from './PasswordResetScreen';
+import RegisterNextStepsScreen from './RegisterNextStepsScreen';
 import LogoutScreen from './LogoutScreen';
 import LoginScreen from './LoginScreen';
 import { loginLegacyLocation } from './login-route';
@@ -101,7 +102,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; logout?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; logout?: string; registerNextSteps?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -238,8 +239,8 @@ ${options.jsonLd ? `<script type="application/ld+json">${serialize(options.jsonL
 <link rel="stylesheet" href="/static/css/home.css?v=20261112-quick-picks">
 <link rel="stylesheet" href="/static/css/product-tokens.css?v=20261110-pride-contrast-1">
 <link rel="stylesheet" href="/static/css/user-workspace.css?v=20261120-user-workspace-10">
-<link rel="stylesheet" href="/static/css/public-header.css?v=20261027-react-header-1">
-<link rel="stylesheet" href="/static/css/flash.css?v=20261110-inline-spacing-1">
+<link rel="stylesheet" href="/static/css/public-header.css?v=20261121-mobile-bar-1">
+<link rel="stylesheet" href="/static/css/flash.css?v=20261121-plain-info-1">
 <link rel="stylesheet" href="/static/css/public_hero.css?v=20261015-hero-width-1">
 ${options.extraHead ?? ''}
 ${options.siteAnalyticsEnabled ? `<script src="https://cdn2.mielenosoitukset.fi/vendor/web-vitals/6.2.2/web-vitals.iife.js" integrity="sha256-Hl6bmva41xz+9QjlqGnFO0zyu8ytjJtaxmTDTpP2FRo=" defer crossorigin="anonymous"></script>
@@ -589,6 +590,17 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<PasswordResetScreen config={config} token={route.token} />} />);
+  }
+
+  if (route.name === 'register-next-steps') {
+    // The address comes from Flask's session after hydration; the shell shows the session too.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    extraHead = (assets.registerNextSteps ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The resend form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<RegisterNextStepsScreen config={config} />} />);
   }
 
   if (route.name === 'logout') {

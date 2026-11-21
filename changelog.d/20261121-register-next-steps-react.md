@@ -1,0 +1,1 @@
+- The page shown after registering is now part of the new site. It checks only your own registration, a confirmation link can be resent at most three times an hour per account, and the old check can no longer be used to test whether some other address has an account.

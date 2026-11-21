@@ -1,0 +1,1 @@
+- Admin guide: step-by-step use of the private "Avaa tapaus" e-mail link that decides one new demonstration without logging in.

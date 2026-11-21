@@ -718,3 +718,67 @@
     outline-offset: 2px;
   }
 }
+
+/* Phones: one blue app bar. The site name and the menu button share the bar
+   instead of a second, otherwise empty white strip holding only the button.
+   The whole bar stays at the top while scrolling, as the strip did. */
+@media (max-width: 768px) {
+  .public-header-ready {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    position: sticky;
+    top: var(--fb-h, 0px);
+    z-index: 10000;
+    background: linear-gradient(135deg, var(--product-action-bg), var(--product-action-hover));
+    box-shadow: var(--product-shadow);
+  }
+
+  .public-header-ready > .public-site-header {
+    grid-column: 1;
+    min-width: 0;
+    padding: 0.625rem 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .public-header-ready > .public-site-header .container {
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding-inline: 1rem;
+    text-align: start;
+  }
+
+  .public-header-ready > .public-main-nav {
+    grid-column: 2;
+    position: static;
+    background: none;
+    border-bottom: 0;
+    box-shadow: none;
+  }
+
+  /* The drawer is full width with padding; keep the padding inside it. */
+  .public-header-ready .public-main-nav .nav-list {
+    box-sizing: border-box;
+  }
+
+  .public-header-ready > .public-main-nav .nav-container {
+    min-height: 0;
+    padding: 0.5rem 1rem 0.5rem 0;
+  }
+
+  .public-header-ready .public-main-nav .mobile-menu-toggle {
+    background: transparent;
+    color: var(--product-on-action);
+    border: 1px solid color-mix(in srgb, var(--product-on-action) 45%, transparent);
+  }
+
+  .public-header-ready .public-main-nav .mobile-menu-toggle:hover {
+    background: color-mix(in srgb, var(--product-on-action) 14%, transparent);
+  }
+
+  .public-header-ready .public-main-nav .mobile-menu-toggle:focus-visible {
+    outline: 2px solid var(--product-on-action);
+    outline-offset: 2px;
+  }
+}

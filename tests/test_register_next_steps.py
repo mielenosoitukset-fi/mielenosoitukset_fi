@@ -77,3 +77,58 @@ def test_resend_confirmation_does_not_expose_delivery_exception(
         "message": "Vahvistusviestin lähetys epäonnistui.",
     }
     assert "private mail transport details" not in response.get_data(as_text=True)
+
+
+STATUS = "/users/auth/api/register/status"
+
+
+def test_status_answers_from_this_browsers_session_only(client, db, seeded_data):
+    assert client.get(STATUS).get_json() == {"email": None, "verified": False}
+    db.users.update_one({"_id": seeded_data["user_id"]}, {"$set": {"confirmed": False}})
+    with client.session_transaction() as browser_session:
+        browser_session["registration_email"] = "alice@example.test"
+    response = client.get(STATUS)
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.get_json() == {"email": "alice@example.test", "verified": False}
+    db.users.update_one({"_id": seeded_data["user_id"]}, {"$set": {"confirmed": True}})
+    assert client.get(STATUS).get_json() == {"email": "alice@example.test", "verified": True}
+
+
+def test_check_email_verified_no_longer_answers_for_any_address(client, db, seeded_data):
+    db.users.update_one({"_id": seeded_data["user_id"]}, {"$set": {"confirmed": True}})
+    # Without a registration in this session, a confirmed account is not revealed.
+    response = client.post("/users/auth/check_email_verified", json={"email": "alice@example.test"})
+    assert response.get_json() == {"verified": False}
+    with client.session_transaction() as browser_session:
+        browser_session["registration_email"] = "alice@example.test"
+    assert client.post("/users/auth/check_email_verified", json={"email": "ALICE@example.test"}).get_json() == {"verified": True}
+    assert client.post("/users/auth/check_email_verified", json={"email": "bob@example.test"}).get_json() == {"verified": False}
+
+
+def test_resend_confirmation_is_capped_per_account(client, db, seeded_data, monkeypatch):
+    from mielenosoitukset_fi.users.BPs import auth as auth_module
+
+    db.users.update_one({"_id": seeded_data["user_id"]}, {"$set": {"confirmed": False}})
+    sent = []
+    monkeypatch.setattr(auth_module, "verify_emailer", lambda email, username: sent.append(email))
+    for _ in range(auth_module.RESEND_CONFIRMATION_LIMIT + 2):
+        response = client.post(
+            "/users/auth/resend_confirmation",
+            data={"email_or_username": "alice@example.test"},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        # The answer never changes, so the cap does not reveal anything either.
+        assert response.status_code == 200 and response.get_json()["status"] == "success"
+    assert len(sent) == auth_module.RESEND_CONFIRMATION_LIMIT
+
+
+def test_react_page_is_routed_for_get_only_and_posts_resend_to_flask():
+    routing = (ROOT / "deploy/apache/react-ssr-routing.conf").read_text(encoding="utf-8")
+    rule = 'RewriteRule "^/users/auth/register/next_steps$" "http://127.0.0.1:8090$0" [P,L]'
+    assert rule in routing
+    assert routing.split(rule)[0].rstrip().splitlines()[-1] == 'RewriteCond %{REQUEST_METHOD} "^(GET|HEAD)$"'
+    screen = (ROOT / "frontend/src/app/RegisterNextStepsScreen.tsx").read_text(encoding="utf-8")
+    route = (ROOT / "frontend/src/app/register-next-steps-route.ts").read_text(encoding="utf-8")
+    assert 'action={resendConfirmationPath} method="post"' in screen and 'name="email_or_username"' in screen
+    assert "export const registerStatusApi = '/users/auth/api/register/status';" in route

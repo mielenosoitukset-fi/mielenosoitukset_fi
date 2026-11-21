@@ -60,6 +60,8 @@ def test_embed_hides_site_chrome_only(admin_client, db, seeded_data):
     assert_preview(embedded, demo)
     assert 'public-detail-main demo-preview-embed"' in embedded.text
     assert 'demo-preview-embed"' not in plain.text
+    assert '<p class="staff-preview-bar"' in plain.text and '<p class="staff-preview-bar"' not in embedded.text
+    assert 'Odottaa hyväksyntää' in plain.text
     embedded_props, plain_props = props_from(embedded), props_from(plain)
     for props in (embedded_props, plain_props):
         props["urls"].pop("login")  # carries the current address
@@ -116,6 +118,18 @@ def test_submitted_markup_cannot_break_out_of_props(admin_client, db, seeded_dat
     assert "<script>alert(1)" not in response.text
     assert "<img src=x onerror" not in response.text
     assert props_from(response)["preview"]["event"]["title"] == "</script><script>alert(1)</script>"
+
+
+@pytest.mark.parametrize("update, label", [
+    ({"approved": True}, "Julkaistu"), ({"rejected": True}, "Hylätty"),
+    ({"approved": True, "hide": True}, "Piilotettu"), ({"cancelled": True}, "Peruttu"),
+    ({"approved": True, "taken_down": True}, "Poistettu julkaisusta"),
+])
+def test_status_bar_names_the_review_state(admin_client, db, seeded_data, update, label):
+    db.demonstrations.update_one({"_id": seeded_data["pending_demo_id"]}, {"$set": update})
+    response = admin_client.get(f"/admin/demo/{seeded_data['pending_demo_id']}/preview")
+    bar = response.text.split('<p class="staff-preview-bar"', 1)[1].split('</p>', 1)[0]
+    assert label in bar
 
 
 def test_new_demo_case_frames_the_preview(admin_client, db, seeded_data):
