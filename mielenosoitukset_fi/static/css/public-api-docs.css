@@ -2,27 +2,6 @@
   min-width: 0;
 }
 
-#api-docs-page .public-page-header {
-  color: var(--product-text);
-  background: var(--product-surface);
-  border: 1px solid var(--product-border);
-}
-
-#api-docs-page .public-page-header__description {
-  color: var(--product-text-muted);
-}
-
-#api-docs-page .public-page-header__meta > span {
-  color: var(--product-text);
-  background: var(--product-surface-muted);
-  border-color: var(--product-border);
-}
-
-#api-docs-page .public-page-header__meta a {
-  color: var(--product-primary);
-}
-
-#api-docs-page .public-page-header,
 #api-docs-page .api-docs-sidebar,
 #api-docs-page .api-docs-content {
   border-radius: 12px;

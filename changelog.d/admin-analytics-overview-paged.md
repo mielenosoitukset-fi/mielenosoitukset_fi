@@ -1,0 +1,1 @@
+- The admin demonstration analytics page lists the most viewed demonstrations by name, 50 per page, with links to each one's analytics, instead of one long list of identifiers.

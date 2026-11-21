@@ -42,7 +42,7 @@ Audit, 20 November 2026 (Flask routes rendering a public, non-admin page, checke
 - [ ] `/report` error report form. It needs a session-scope token like `/contact`. *(approval: session change)*
 - [x] `/status`: React SSR with read-only Go `/api/status`, bounded cached database check and HTTP 200 on dependency/API failure. React routing is active (production Apache include checked 13 November). Keep outstanding real-data visual acceptance in the page-by-page review below; the original sandbox limitation is not a current activation blocker.
 - [x] Token pages, `/cancel_demonstration/<token>`: React page with a read-only Go `/api/cancellation-links/<token>`; routing active since 12 Nov 2026.
-- [ ] Token pages that write on GET: `/kampanja/confirm/<token>`, `/auth/confirm_email/<token>` and `/orgs/accept_invite` confirm or join in the GET itself and redirect (login needed for the invite). Moving them needs a decision: split into a React page plus a POST, or keep Flask.
+- [ ] Token pages that write on GET: `/kampanja/confirm/<token>`, `/auth/confirm_email/<token>` and `/orgs/accept_invite` confirm or join in the GET itself and redirect (login needed for the invite). Decision (20 Nov 2026): split into a React page with a button plus a Go POST, so a GET never writes. `/kampanja/confirm/<token>` is built dark ([docs/volunteer-confirm-react.md](docs/volunteer-confirm-react.md), draft PR); `/users/auth/confirm_email/<token>` is built dark too ([docs/email-confirm-react.md](docs/email-confirm-react.md); the token-signing key is an open decision); `/users/orgs/accept_invite` is built dark too ([docs/org-invite-react.md](docs/org-invite-react.md); `BOARD_ORG_ID` must reach Go before activation). All three are draft PRs awaiting a security and visual SHIP, then the maintainer's go to activate.
 - [ ] Account pages: login, register and next steps, settings, password reset, forced password and identity change, MFA verification, public profile `/<username>`. *(approval: authentication flows)*
 - [x] `/api-docs/`: build-time Markdown on the React host; OpenAPI YAML stays in Flask (#1068).
 - [x] `/developer` overview and app detail: React screens, Go reads/write controls and Apache routing are live (#1130, #1134, #1138, #1139, #1143, #1145; verified 13 November). Session-read failures no longer look like sign-out. Scope/access requests and the `/download_material/<id>` redirect remain Flask. See [developer controls](docs/developer-react-write-controls.md).
@@ -103,12 +103,12 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 
 ## Security and permissions
 
-- [ ] **SEC-01:** release acceptance evidence for the MFA challenge (#901).
+- [ ] **SEC-01:** release acceptance evidence for the MFA challenge (#901). Code and test evidence recorded in [docs/sec-01-mfa-acceptance.md](docs/sec-01-mfa-acceptance.md) (20 November 2026); a manual sign-in with a real authenticator remains.
 - [ ] **SEC-03:** broader role and audit acceptance after #917/#918/#919.
 - [x] **SEC-04:** token and approval lifecycle: revocation, expiry, replay, idempotent decisions. Inventory and open questions in [docs/token-lifecycle.md](docs/token-lifecycle.md).
-- [ ] **SEC-05:** review incident #912/#913 protections before touching related code.
+- [x] **SEC-05:** review incident #912/#913 protections before touching related code. Reviewed 20 November 2026: acknowledgement suppression and contact intake protections hold in Flask and in the Go `/contact` route. Follow-ups are tracked privately.
 - [x] Harden privileged admin user actions (#547), organization membership and invites (#550, #342), and the organization admin panel (#549): done in #918/#919; issues closed 20 November 2026. Broader acceptance stays in SEC-03.
-- [ ] **QA-01:** finish the individual review of authentication and permission tests. QA-01j (#966), QA-01k (#973 via #964) and QA-01m (#1114, superseding #979) are merged. Remaining: other authentication and permission test files, see the roadmap.
+- [ ] **QA-01:** finish the individual review of authentication and permission tests. QA-01j (#966), QA-01k (#973 via #964) and QA-01m (#1114, superseding #979) are merged. `test_auth_bridge_session.py` reviewed 20 November 2026 (cross-organization check added). Remaining: other authentication and permission test files, see the roadmap.
 
 ## Data, jobs and integrations
 

@@ -120,7 +120,7 @@ export function OrganizationPage({ organization: org, authenticated, privateStat
   const incomplete = !org.verified && (!website || !email || !socials.length);
   const platforms: Record<string, string> = { facebook: 'Facebook', twitter: 'Twitter', instagram: 'Instagram', linkedin: 'LinkedIn', youtube: 'YouTube', tiktok: 'TikTok' };
   return <article className="organization-page">
-    <section className="org-hero site-hero">
+    <section className="org-hero">
       <div className="org-hero-content"><div className="org-hero-header">
         <div className="org-logo-wrapper">{logo
           ? <img src={logo} alt={`${text.logo} ${org.name}`} decoding="async" referrerPolicy="no-referrer" />

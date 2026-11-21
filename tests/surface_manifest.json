@@ -118,7 +118,7 @@
     ]
   },
   "background_jobs": {
-    "count": 28,
+    "count": 29,
     "coverage": [
       "jobs",
       "tests/test_urgent_review_delivery.py",
@@ -127,9 +127,10 @@
       "tests/test_pride_banner_volunteers.py",
       "tests/test_purge_suggestion_ips.py",
       "tests/test_demo_suggestion_cases.py",
+      "tests/test_user_erasure.py",
       "tests/test_scrub_admin_log_secrets.py"
     ],
-    "sha256": "a1d4e0ee6236660817b8d039de4d9ebdd9d8194e53039eee06f32a0d483d48c6"
+    "sha256": "f548e6d59b106b2f2d96f3130ae5dc4e7e2a1cacb609c6745c89303368573bbd"
   },
   "routes": {
     "mielenosoitukset_fi/admin/admin_bp.py": {
@@ -157,14 +158,15 @@
       "sha256": "651daec4ff338a32e0ee863fb56c268fe26cafac872b016a53066275b7490b46"
     },
     "mielenosoitukset_fi/admin/admin_demo_bp.py": {
-      "count": 51,
+      "count": 52,
       "coverage": [
         "integration",
         "e2e-admin",
         "tests/test_urgent_review_route.py",
-        "tests/test_demo_decision_preview.py"
+        "tests/test_demo_decision_preview.py",
+        "tests/test_demo_take_down.py"
       ],
-      "sha256": "1fb5b1d9e6598aa9fc9f9289bcb11d80cc803720186c4490f406863b08709889"
+      "sha256": "e06ef6c4e5397f1c1994b7883c3ab2558ae08ef164209af1d29b62e27e8b867b"
     },
     "mielenosoitukset_fi/admin/admin_dev_bp.py": {
       "count": 6,
@@ -192,12 +194,12 @@
       "sha256": "be65f026e9bbcd3d4b5054b9d450bfae5233bdbfb7c3d1e0bcfc9127b73a0906"
     },
     "mielenosoitukset_fi/admin/admin_org_bp.py": {
-      "count": 15,
+      "count": 16,
       "coverage": [
         "integration",
         "e2e-admin"
       ],
-      "sha256": "19d8fb701e0b1374257cc98c696e089b2b39d30ebe9bce789692e51de406c0ad"
+      "sha256": "ef1d20938bc8b80882041c4ef9e4ee41030cb232153f42bdf0a4058b8402518c"
     },
     "mielenosoitukset_fi/admin/admin_recu_demo_bp.py": {
       "count": 8,
@@ -274,7 +276,7 @@
         "tests/test_fundraising_page.py",
         "tests/test_public_session_summary.py"
       ],
-      "sha256": "5d15762ba7f16e29b9cb0a6a094ae7adb1ab1967dad45e535185977089718e42"
+      "sha256": "f202d922ee0328300072b744b1f6a2ef2b6ca2cdf2f3f7e9d345ffabda74021e"
     },
     "mielenosoitukset_fi/developer_bp.py": {
       "count": 9,

@@ -247,11 +247,7 @@ func serveMyApplications(ctx context.Context, w http.ResponseWriter, db *mongo.D
 }
 
 func serveApplication(ctx context.Context, w http.ResponseWriter, r *http.Request, db *mongo.Database, config submissionConfig, actor bson.ObjectID) {
-	var panicMode struct {
-		Panic bool `bson:"panic"`
-	}
-	err := db.Collection("panic").FindOne(ctx, bson.M{"name": bson.M{"$in": bson.A{"global", "security"}}}).Decode(&panicMode)
-	if (err != nil && !errors.Is(err, mongo.ErrNoDocuments)) || panicMode.Panic {
+	if active, err := panicSwitchActive(ctx, db); err != nil || active {
 		applicationFailure(w, 503, "APPLY_UNAVAILABLE", "Palvelu ei ole juuri nyt käytettävissä.")
 		return
 	}
