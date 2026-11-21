@@ -119,6 +119,44 @@ if grep -q '^RewriteRule "\^/kampanja/api/volunteers\$" "http://127.0.0.1:8091/'
   fi
 fi
 
+# Settings writes: with the write flag Go answers a GET to /api/account/profile
+# with 405 (Allow: POST) before any session or database work; without it the
+# path is unknown (404). The settings page only posts to Go when the flag is on.
+if grep -q '^RewriteRule "\^/api/account/profile\$" "http://127.0.0.1:8091' "$reviewed"; then
+  settings_writes_ready() {
+    [[ $(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' \
+      http://127.0.0.1:8091/api/account/profile || true) == 405 ]]
+  }
+  if ! retry 5 2 settings_writes_ready; then
+    log "Go settings writes are not enabled/ready; keeping the current routing"
+    exit 1
+  fi
+fi
+
+# Token confirm pages: with the flag Go answers a GET to the confirm POST path
+# with 405 (Allow: POST) before any database work; without it the path is
+# unknown (404), and the React page's button would have nothing to post to.
+if grep -q '^RewriteRule "\^/api/campaign-volunteers/confirm\$" "http://127.0.0.1:8091' "$reviewed"; then
+  volunteer_confirm_ready() {
+    [[ $(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' \
+      http://127.0.0.1:8091/api/campaign-volunteers/confirm || true) == 405 ]]
+  }
+  if ! retry 5 2 volunteer_confirm_ready; then
+    log "Go volunteer confirmation is not enabled/ready; keeping the current routing"
+    exit 1
+  fi
+fi
+if grep -q '^RewriteRule "\^/api/account/confirm-email\$" "http://127.0.0.1:8091' "$reviewed"; then
+  email_confirm_ready() {
+    [[ $(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' \
+      http://127.0.0.1:8091/api/account/confirm-email || true) == 405 ]]
+  }
+  if ! retry 5 2 email_confirm_ready; then
+    log "Go e-mail confirmation is not enabled/ready; keeping the current routing"
+    exit 1
+  fi
+fi
+
 install -d -m 0700 "$backup_root"
 backup="$backup_root/mielenosoitukset-react-ssr.conf.$(date -u +%Y%m%dT%H%M%SZ)"
 cp -a "$include" "$backup"

@@ -1,0 +1,1 @@
+- Admin: demonstrations that nobody approved or rejected before their date are now closed automatically as "Vanhentunut". The case closes with that reason in its history. The submitter gets a short apology email when the date passed within the last 14 days; older ones close without email. Settings: `EXPIRE_UNDECIDED_DEMOS`, `EXPIRED_DEMO_NOTIFY_DAYS`.

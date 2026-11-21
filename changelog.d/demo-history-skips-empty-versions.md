@@ -1,0 +1,1 @@
+- Admin: a demonstration's edit history no longer fills with empty "Aiempi versio" rows. The daily job that marks past demonstrations saved every past demonstration again each day; it now marks each one only once. Versions where nothing but the save time changed are hidden, and versions saved by a background job name the job instead of "unknown".

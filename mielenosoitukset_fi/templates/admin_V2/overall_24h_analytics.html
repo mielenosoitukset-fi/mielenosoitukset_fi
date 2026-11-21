@@ -1,5 +1,6 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
+{% from 'admin_V2/_analytics_hub.html' import analytics_tabs with context %}
 
 {% block title %}{{ _('Katselukerrat yhteensä viimeisen 24 tunnin aikana') }}{% endblock %}
 
@@ -9,10 +10,12 @@
     _('Katselukerrat yhteensä viimeisen 24 tunnin aikana'),
     _('Tarkastele kaikkien mielenosoitusten katselukertoja valitulla aikavälijaolla.'),
     _('Analytiikka'),
-    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Tilastot'), url_for('admin.stats')), (_('Viimeiset 24 tuntia'), none)],
+    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Analytiikka'), url_for('admin.stats')), (_('Viimeiset 24 h'), none)],
     back_url=url_for('admin.stats'),
-    back_label=_('Tilastot')
+    back_label=_('Analytiikka')
   ) }}
+
+  {{ analytics_tabs('24h') }}
 
   <section class="admin-section-card" aria-labelledby="overall-chart-title">
     <header class="admin-section-card__header">

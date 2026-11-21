@@ -55,6 +55,22 @@ TICKET_IGNORED_SENDERS: []  # Optional static fallback blocklist (admin UI manag
 # national team. Cities without city admins fall back to the national queue.
 CITY_ASSIGNMENT_ESCALATION_HOURS: 24
 
+# Minutes after an approval during which an admin can undo it in the case.
+# The demo returns to pending and its case reopens; no email is sent.
+DEMO_APPROVAL_UNDO_MINUTES: 30
+
+# Taking an approved demo off the site needs a second admin. A normal request
+# waits for the confirmation; an urgent one hides the demo at once and must be
+# confirmed within TAKE_DOWN_CONFIRM_HOURS. false = one admin is enough.
+TAKE_DOWN_SECOND_ADMIN: true
+TAKE_DOWN_CONFIRM_HOURS: 48
+
+# Demonstrations nobody approved or rejected before their date are closed as
+# expired by a background job. Submitters of demos that passed within
+# EXPIRED_DEMO_NOTIFY_DAYS get an apology email; older ones close quietly.
+EXPIRE_UNDECIDED_DEMOS: true
+EXPIRED_DEMO_NOTIFY_DAYS: 14
+
 # Optional configurations
 # SERVER_NAME: "www.example.com"  # Server name for the application
 # PREFERRED_URL_SCHEME: "https"  # URL scheme (e.g., https)
@@ -101,3 +117,10 @@ BABEL:
     fi: "Suomi"
     en: "English"
     sv: "Svenska"
+
+# Public key (PEM) that seals a deleted account's identity; private key stays offline.
+# See docs/account-erasure.md. Unset: no seal is stored.
+# ERASURE_SEAL_PUBLIC_KEY: |
+#   -----BEGIN PUBLIC KEY-----
+#   ...
+#   -----END PUBLIC KEY-----

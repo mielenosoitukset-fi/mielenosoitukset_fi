@@ -8,10 +8,18 @@ import { contactCopy, contactPath } from './contact-route';
 import { campaignCopy, campaignPath } from './campaign-route';
 import { cityAdminCopy, cityAdminPath } from './city-admin-route';
 import { developerCopy, developerPath } from './developer-route';
+import { volunteerConfirmCopy } from './volunteer-confirm';
+import { emailConfirmCopy } from './email-confirm';
+import { orgInviteCopy } from './org-invite';
 import { notificationsCopy, notificationsPath } from './notifications-route';
 import type { InformationPage } from './information';
 import { passwordResetRequestCopy, passwordResetRequestPath } from './password-reset-route';
 import { loginCopy, loginPath } from './login-route';
+import { registerCopy, registerPath } from './register-route';
+import { passwordResetCopy, resetTokenFromPath } from './password-reset-token-route';
+import { forcedIdentityCopy, forcedIdentityPath, forcedPasswordCopy, forcedPasswordPath } from './forced-route';
+import { nextStepsCopy, nextStepsPath } from './register-next-steps-route';
+import { logoutCopy, logoutPath } from './logout-route';
 
 /**
  * Public routes owned by the standalone React application.
@@ -42,12 +50,21 @@ export type AppRoute =
   | { name: 'organization-fill'; id: string }
   | { name: 'suggest-change'; id: string }
   | { name: 'cancel-link'; token: string }
+  | { name: 'volunteer-confirm'; token: string }
+  | { name: 'email-confirm'; token: string }
+  | { name: 'org-invite' }
   | { name: 'developer'; appId?: string }
   | { name: 'profile'; username: string }
   | { name: 'account-settings' }
   | { name: 'notifications' }
   | { name: 'password-reset-request' }
   | { name: 'login' }
+  | { name: 'register' }
+  | { name: 'forced-password' }
+  | { name: 'forced-identity' }
+  | { name: 'register-next-steps' }
+  | { name: 'logout' }
+  | { name: 'password-reset'; token: string }
   | { name: 'detail'; identifier: string }
   | { name: 'series'; parent: string };
 
@@ -121,10 +138,22 @@ export function routeForPath(path: string): AppRoute | null {
   if (path === notificationsPath) return { name: 'notifications' };
   if (path === passwordResetRequestPath) return { name: 'password-reset-request' };
   if (path === loginPath) return { name: 'login' };
+  if (path === registerPath) return { name: 'register' };
+  if (path === forcedPasswordPath) return { name: 'forced-password' };
+  if (path === forcedIdentityPath) return { name: 'forced-identity' };
+  if (path === nextStepsPath) return { name: 'register-next-steps' };
+  if (path === logoutPath) return { name: 'logout' };
+  const resetToken = resetTokenFromPath(path);
+  if (resetToken) return { name: 'password-reset', token: resetToken };
   const profile = PROFILE_PATH.exec(path);
   if (profile) return profile[1] === 'edit' ? null : { name: 'profile', username: profile[1] };
   const cancelLink = /^\/cancel_demonstration\/([A-Za-z0-9_-]{1,128})$/.exec(path);
   if (cancelLink) return { name: 'cancel-link', token: cancelLink[1] };
+  const volunteerConfirm = /^\/kampanja\/confirm\/([A-Za-z0-9_-]{1,128})$/.exec(path);
+  if (volunteerConfirm) return { name: 'volunteer-confirm', token: volunteerConfirm[1] };
+  if (path === '/users/orgs/accept_invite') return { name: 'org-invite' };
+  const emailConfirm = /^\/users\/auth\/confirm_email\/([A-Za-z0-9_.-]{5,3100})$/.exec(path);
+  if (emailConfirm) return { name: 'email-confirm', token: emailConfirm[1] };
   const organization = /^\/organization\/([a-f\d]{24})$/i.exec(path);
   if (organization) return { name: 'organization', id: organization[1].toLowerCase() };
   if (path === '/demonstrations') return { name: 'listing', scope: 'all' };
@@ -163,6 +192,18 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
     return { title: `${developerCopy.title} | Mielenosoitukset.fi`, description: developerCopy.description,
       robots: 'noindex, nofollow', canonical: null };
   }
+  if (route.name === 'volunteer-confirm') {
+    return { title: `${volunteerConfirmCopy.title} | Mielenosoitukset.fi`, description: volunteerConfirmCopy.title,
+      robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'email-confirm') {
+    return { title: `${emailConfirmCopy.title} | Mielenosoitukset.fi`, description: emailConfirmCopy.title,
+      robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'org-invite') {
+    return { title: `${orgInviteCopy.title} | Mielenosoitukset.fi`, description: orgInviteCopy.title,
+      robots: 'noindex, nofollow', canonical: null };
+  }
   if (route.name === 'account-settings') {
     return { title: 'Asetukset | Mielenosoitukset.fi', description: 'Hallinnoi tilisi tietoja, turvallisuutta, profiilia ja API-avaimia yhdessä paikassa.',
       robots: 'noindex, nofollow', canonical: null };
@@ -173,6 +214,24 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   }
   if (route.name === 'login') {
     return { title: `${loginCopy.title} | Mielenosoitukset.fi`, description: loginCopy.lead, robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'password-reset') {
+    return { title: `${passwordResetCopy.title} | Mielenosoitukset.fi`, description: passwordResetCopy.lead, robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'forced-password') {
+    return { title: `${forcedPasswordCopy.title} | Mielenosoitukset.fi`, description: forcedPasswordCopy.lead, robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'forced-identity') {
+    return { title: `${forcedIdentityCopy.title} | Mielenosoitukset.fi`, description: forcedIdentityCopy.lead, robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'register-next-steps') {
+    return { title: `${nextStepsCopy.title} | Mielenosoitukset.fi`, description: nextStepsCopy.lead, robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'logout') {
+    return { title: `Kirjaudu ulos | Mielenosoitukset.fi`, description: logoutCopy.lead, robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'register') {
+    return { title: `${registerCopy.title} | Mielenosoitukset.fi`, description: registerCopy.lead, robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'password-reset-request') {
     return { title: `${passwordResetRequestCopy.title} | Mielenosoitukset.fi`, description: passwordResetRequestCopy.lead,

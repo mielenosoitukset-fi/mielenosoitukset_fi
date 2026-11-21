@@ -1,5 +1,7 @@
 export type DetailEvent = {
   _id: string; title: string; description: string; date: string | null;
+  /** Last day of a multi-day demonstration (YYYY-MM-DD); null for one day. */
+  end_date?: string | null;
   start_time: string | null; end_time: string | null; city: string | null; address: string | null;	latitude: number | null; longitude: number | null; tags: string[]; route: string[];
 	/** Public attendance total; null when the stored counter is absent. */
 	likes: number | null;
@@ -14,7 +16,7 @@ export type DetailMessages = {
   loading: string; error: string; retry: string; notFound: string; allEvents: string;
   date: string; location: string; startingFrom: string; cancelled: string; description: string;
   organizers: string; noOrganizers: string; organizerProfile: string; website: string;
-  route: string; map: string; showMap: string; mapLoading: string; directions: string;
+  route: string; map: string; showMap: string; mapLoading: string; mapError?: string; directions: string;
   series: string;
   gallery: string; openImage: string; close: string; previous: string; next: string; imageUnavailable: string;
   calendar: string; reminder: string; report: string; invite: string; attend: string;
@@ -38,4 +40,10 @@ export type DetailProps = {
   recurringTargetId?: string | null; recurringFollowing?: boolean;
   onOrganizationFollowChange?: (id: string, following: boolean) => void;
   onRecurringFollowChange?: (following: boolean) => void;
+  /**
+   * Admin preview of an event the public API does not serve yet. `event` is the
+   * API response, preloaded by the server. The page renders exactly as public,
+   * but sends no requests, records no view and its controls do nothing.
+   */
+  preview?: { event: unknown };
 };

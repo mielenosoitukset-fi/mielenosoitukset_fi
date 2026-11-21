@@ -387,6 +387,8 @@ def test_user_role_forms_use_shared_admin_contract():
 def test_demo_collection_uses_server_side_filter_and_pagination_contract():
     template = Path(
         "mielenosoitukset_fi/templates/admin_V2/demonstrations/dashboard.html"
+    ).read_text(encoding="utf-8") + Path(
+        "mielenosoitukset_fi/templates/admin_V2/demonstrations/_demo_row.html"
     ).read_text(encoding="utf-8")
     route = Path(
         "mielenosoitukset_fi/admin/admin_demo_bp.py"
@@ -421,9 +423,12 @@ def test_demo_collection_uses_server_side_filter_and_pagination_contract():
     assert "<style" not in template
     assert "modal-dark" not in template
     assert "filterRows" not in template
-    assert '"priority": {"_sort_priority": 1, "date": 1, "_id": 1}' in route
-    assert '"date_desc": {"date": -1, "_id": -1}' in route
-    assert "filtered_count = mongo.demonstrations.count_documents(filter_query)" in route
+    # Priority order (pending first, then by date) is checked end to end in
+    # test_demo_dashboard_priority_pages_match_one_sorted_list.
+    assert '"priority": [("date", 1), ("_id", 1)]' in route
+    assert '"date_desc": [("date", -1), ("_id", -1)]' in route
+    assert '{"$match": filter_query}' in route
+    assert 'filtered_count = counts.get("filtered", 0)' in route
 
 
 def test_secondary_editors_use_shared_form_primitives():
@@ -450,7 +455,7 @@ def test_submitter_modal_keeps_stable_dom_across_reopens():
         "mielenosoitukset_fi/templates/admin_V2/demonstrations/dashboard.html"
     ).read_text(encoding="utf-8")
     handler = dashboard.split("window.showSubmitterInfoModal = async", 1)[1].split(
-        "// Initial button text update", 1
+        "</script>", 1
     )[0]
 
     assert 'class="modal fade admin-modal" id="submitterInfoModal"' in dashboard
@@ -773,7 +778,7 @@ def test_audit_and_developer_pages_use_canonical_hero_navigation():
     assert "<style" not in logs
     assert "css/admin/audit.css" in logs
     assert "admin-filter-bar" in logs
-    assert "admin-section-tabs" in logs
+    assert "log_hub_tabs('admin')" in logs
     assert "admin-data-view__header admin-result-summary" in logs
     assert "admin-data-view__viewport" in logs
     assert "admin_pagination(" in logs
@@ -814,7 +819,7 @@ def test_analytics_pages_use_shared_hero_metric_slot():
         "mielenosoitukset_fi/templates/admin_V2/macros.html"
     ).read_text(encoding="utf-8")
     pages = (
-        "mielenosoitukset_fi/templates/admin_V2/analytics.html",
+        "mielenosoitukset_fi/templates/admin_V2/site_analytics.html",
         "mielenosoitukset_fi/templates/admin_V2/stats.html",
     )
 
@@ -845,9 +850,9 @@ def test_analytics_pages_use_shared_theme_aware_components():
     analytics_css = Path(
         "mielenosoitukset_fi/static/css/admin/analytics.css"
     ).read_text(encoding="utf-8")
+    # The old most-viewed list and per-demo page now redirect to the one
+    # analytics hub, so only the 24 h chart page keeps this chart contract.
     pages = (
-        Path("mielenosoitukset_fi/templates/admin_V2/analytics.html"),
-        Path("mielenosoitukset_fi/templates/admin_V2/per_demo_analytics.html"),
         Path("mielenosoitukset_fi/templates/admin_V2/overall_24h_analytics.html"),
     )
 
@@ -868,13 +873,7 @@ def test_analytics_pages_use_shared_theme_aware_components():
         assert "getAdminChartColors" in source
         assert "admin:themechange" in source
 
-    per_demo = pages[1].read_text(encoding="utf-8")
-    assert "admin-workspace-summary" in per_demo
-    assert "admin-analytics__data-disclosure" in per_demo
-    assert "admin-data-view__table" in per_demo
-    assert "prefers-reduced-motion: reduce" in per_demo
-
-    overall = pages[2].read_text(encoding="utf-8")
+    overall = pages[0].read_text(encoding="utf-8")
     assert 'class="admin-page admin-analytics"' in overall
     assert "admin-filter-bar__primary" in overall
     assert "admin-analytics__data-disclosure" in overall
@@ -926,12 +925,13 @@ def test_case_views_use_shared_workspace_components_without_inline_css():
     assert "<style" not in case_list
     assert "<style" not in case_detail
     assert "admin-workspace-summary" in case_list
-    assert case_list.count("<div><span>") == 4
-    assert "admin-filter-chip" in case_list
+    assert case_list.count("<div><span>") == 1
     assert 'href="{{ url_for(\'admin_case.single_case\'' in case_list
     assert "onclick=\"window.location" not in case_list
-    assert "aria-pressed" in case_list
-    assert "card.hidden = !visible" in case_list
+    # State filters are links served by the server, not hidden client-side.
+    assert 'aria-current="page"' in case_list
+    assert "card.hidden" not in case_list
+    assert 'role="search"' in case_list
     assert "admin-detail-layout" in case_detail
     assert case_detail.count("admin-section-card") >= 5
     card_count = case_detail.count('<section class="admin-section-card"')
@@ -1082,13 +1082,15 @@ def test_every_full_admin_v2_page_uses_canonical_hero_macro():
 
     # Account status, scoped history and approval-only review add three pages
     # to the 51-page baseline after the media workspace was retired, and the
-    # security incident screen adds one more.
+    # security incident screen adds one more. The organization change history
+    # (built from audit_events) adds another.
     assert Path('mielenosoitukset_fi/templates/admin_V2/user/account_status.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/user/history.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/demonstrations/review.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/cities/review_dashboard.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/governance/security.html') in pages
-    assert len(pages) == 56
+    assert Path('mielenosoitukset_fi/templates/admin_V2/organizations/history.html') in pages
+    assert len(pages) == 55
     for locale in ("en", "fi", "sv"):
         catalog = Path(
             f"mielenosoitukset_fi/translations/{locale}/LC_MESSAGES/messages.po"
@@ -1107,7 +1109,6 @@ def test_full_admin_pages_use_breadcrumbs_and_standard_back_actions():
     from jinja2.visitor import NodeVisitor
 
     top_level_without_back = {
-        "analytics.html",
         "background_jobs.html",
         "cases/all.html",
         "dashboard.html",
@@ -1290,7 +1291,7 @@ def test_demo_editor_static_geometry_uses_shared_form_components():
     assert 'class="row g-3 admin-coordinate-fields"' in template
     assert 'class="admin-form-section__header"' in template
     assert 'data-bs-target="#editLinkModal"' in template
-    assert 'id="duplicate-demo-btn"' in template
+    assert "create_demo', pohja=" in template
     assert ".admin-token-input:focus-within" in workspace
     assert '.admin-editor-form :where(input:not([type="checkbox"])' in workspace
     assert ':not([type="hidden"]):not(.admin-token-input__field), select, textarea):focus' in workspace
@@ -1492,8 +1493,9 @@ def test_admin_boolean_controls_do_not_inherit_text_field_geometry():
     assert 'input[type="radio"].form-check-input' in workspace
     assert ".form-check-input:indeterminate" in workspace
     assert ".form-check-input:focus-visible" in workspace
+    assert "{% elif can_approve_demo|default(false) %}" in demo_form
+    assert "{% if can_approve_demo|default(false) %}" in recurring_form
     for template in (demo_form, recurring_form):
-        assert "{% if can_approve_demo|default(false) %}" in template
         assert 'class="admin-check-row"' in template
         assert "data-admin-boolean" in template
         assert 'aria-live="polite"' in template

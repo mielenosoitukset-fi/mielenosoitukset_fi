@@ -50,6 +50,8 @@ import os
 import sys
 from datetime import datetime
 
+from mielenosoitukset_fi.utils.time_utils import utcnow
+
 # Get the parent directory
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
@@ -67,6 +69,13 @@ Demonstration = classes.Demonstration
 RecurringDemonstration = classes.RecurringDemonstration
 db_manager = DatabaseManager().get_instance()
 db = db_manager.get_db()
+
+
+def demo_last_day(demo):
+    """Return the last day a demonstration runs (``end_date`` when later)."""
+    start = demo["date"]
+    end = demo.get("end_date")
+    return end if isinstance(end, str) and end > start else start
 
 
 def is_future_demo(demo_date, today):
@@ -102,7 +111,9 @@ def fetch_upcoming_demos(_tr: bool = False):
     """
     if _tr:
         return list(db["demonstrations"].find())
-    return list(db["demonstrations"].find(variables.DEMO_FILTER))
+    query = dict(variables.DEMO_FILTER)
+    query["in_past"] = {"$ne": True}
+    return list(db["demonstrations"].find(query))
 
 
 def hide_past_demos(demos, today):
@@ -129,18 +140,22 @@ def hide_past_demos(demos, today):
 
     for demo in demos:
         stats["total"] += 1
+        if demo.get("in_past") is True:
+            # Already marked. Saving it again only moved last_modified and
+            # filled the demo's version history with empty versions.
+            continue
         try:
-            demo_date = datetime.strptime(demo["date"], "%Y-%m-%d").date()
+            # A multi-day demonstration is past only after its last day.
+            demo_date = datetime.strptime(demo_last_day(demo), "%Y-%m-%d").date()
             if not is_future_demo(demo_date, today):
-                try:
-                    demonstration_instance = Demonstration.from_dict(demo)
-                except Exception:
-                    demonstration_instance = RecurringDemonstration.from_dict(demo)
-                demonstration_instance.in_past = True
-
-                # CHANGE v4.3.2: Do not hide, just mark as in_past
-                demonstration_instance.save()
-                stats["hidden"] += 1
+                # CHANGE v4.3.2: Do not hide, just mark as in_past.
+                # Set only the flag; a full model save rewrote every field.
+                result = db["demonstrations"].update_one(
+                    {"_id": demo["_id"], "in_past": {"$ne": True}},
+                    {"$set": {"in_past": True, "last_modified": utcnow()}},
+                )
+                if result.modified_count:
+                    stats["hidden"] += 1
         except Exception as e:
             stats["errors"] += 1
             print(f"Error processing demonstration {demo['_id']}: {e}")

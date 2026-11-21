@@ -118,6 +118,8 @@ type scenarioFixture struct {
 		CaseKeys           []string       `json:"case_keys"`
 		CaseType           string         `json:"case_type"`
 		CaseMeta           map[string]any `json:"case_meta"`
+		CaseOrganizationID string         `json:"case_organization_id"`
+		CaseSubmitter      map[string]any `json:"case_submitter"`
 		CaseSuggestionKeys []string       `json:"case_suggestion_keys"`
 		MailSubject        string         `json:"mail_subject"`
 		MailHTML           string         `json:"mail_html"`
@@ -294,6 +296,18 @@ func TestParityOrganizationScenarios(t *testing.T) {
 		sortStrings(embeddedKeys)
 		caseType, _ := documentValue(caseDoc, "type")
 		caseMeta, _ := documentValue(caseDoc, "meta")
+		suggestionHex := func() string { id, _ := documentValue(doc, "_id"); return id.(bson.ObjectID).Hex() }()
+		if linked, _ := documentValue(caseMeta, "suggestion_id"); linked != suggestionHex {
+			t.Errorf("%s: case suggestion_id %v want %v", scenario.Name, linked, suggestionHex)
+		}
+		caseMeta = bson.D{{Key: "suggestion_id", Value: "{suggestion}"}}
+		if caseOrg, _ := documentValue(caseDoc, "organization_id"); scenario.CaseOrganizationID != "{org}" || caseOrg.(bson.ObjectID).Hex() != orgID {
+			t.Errorf("%s: case organization_id %v", scenario.Name, caseOrg)
+		}
+		caseSubmitter, _ := documentValue(caseDoc, "submitter")
+		if !reflect.DeepEqual(jsonRoundTrip(t, plain(caseSubmitter)), jsonRoundTrip(t, scenario.CaseSubmitter)) {
+			t.Errorf("%s: case submitter %v want %v", scenario.Name, plain(caseSubmitter), scenario.CaseSubmitter)
+		}
 		running, _ := documentValue(caseDoc, "running_num")
 		if !reflect.DeepEqual(caseKeys, scenario.CaseKeys) || !reflect.DeepEqual(embeddedKeys, scenario.CaseSuggestionKeys) || caseType != scenario.CaseType || !reflect.DeepEqual(jsonRoundTrip(t, plain(caseMeta)), jsonRoundTrip(t, scenario.CaseMeta)) || running != int64(100_007) {
 			t.Errorf("%s: case differs: %v %v %v", scenario.Name, caseKeys, embeddedKeys, caseType)

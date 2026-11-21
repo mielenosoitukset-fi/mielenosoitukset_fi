@@ -3,6 +3,7 @@ import re
 import hmac
 import secrets
 from flask import abort, current_app
+from werkzeug.exceptions import Forbidden
 from copy import deepcopy
 
 from mielenosoitukset_fi.utils.time_utils import utcnow
@@ -26,7 +27,7 @@ from flask import (
 from flask_login import current_user, login_required
 from pymongo import DESCENDING, ReturnDocument
 
-from flask_babel import _, force_locale, gettext as babel_gettext
+from flask_babel import _, force_locale, get_locale, gettext as babel_gettext
 from urllib.parse import quote_plus
 
 from mielenosoitukset_fi.utils.classes import Demonstration, MemberShip, Case
@@ -76,6 +77,7 @@ from mielenosoitukset_fi.utils.database import stringify_object_ids
 
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from mielenosoitukset_fi.demonstrations.audit import (
+    meaningful_history_query,
     record_demo_change,
     log_demo_audit_entry,
     save_demo_history,
@@ -524,8 +526,17 @@ def _decision_urls(demo_ids):
     return urls
 
 
-def _apply_demo_decision(demo_id, decision, source, used_token_id=None):
+def _apply_demo_decision(demo_id, decision, source, used_token_id=None, reason=None):
     """Route adapter for the shared idempotent moderation service."""
+    from mielenosoitukset_fi.utils.demo_takedown import can_take_down_demo
+
+    if decision in {"approved", "taken_down"} and ObjectId.is_valid(str(demo_id)):
+        state = mongo.demonstrations.find_one({"_id": ObjectId(str(demo_id))}, {"taken_down": 1})
+        # Taking down, and republishing a taken-down demo, use one rights check.
+        if (decision == "taken_down" or (state or {}).get("taken_down")) and not can_take_down_demo(
+            current_user, state
+        ):
+            abort(403)
     actor = capture_actor_context()
     if source == "token":
         registered = mongo[MAGIC_COLLECTION].find_one({"_id": used_token_id}) or {}
@@ -545,6 +556,7 @@ def _apply_demo_decision(demo_id, decision, source, used_token_id=None):
             "demonstration_detail", demo_id=str(demo_id), _external=True
         ),
         used_token_id=used_token_id,
+        reason=reason,
     )
 
 
@@ -749,6 +761,9 @@ def unrecommend_demo(demo_id):
     return jsonify({"status": "OK", "message": _(u"Suositus poistettu.")})
 
 
+AUDIT_ROWS_ON_DEMO_HISTORY = 50
+
+
 @admin_demo_bp.route("/edit_history/<demo_id>", methods=["GET"])
 @login_required
 @admin_required
@@ -775,7 +790,7 @@ def demo_edit_history(demo_id):
 
     if not flush_rollback_history(mongo, demo_data["_id"]):
         abort(503)
-    history_query = {"demo_id": str(demo_data["_id"])}
+    history_query = meaningful_history_query(demo_data["_id"])
     page, per_page = parse_admin_pagination(request.args)
     total_count = mongo.demo_edit_history.count_documents(history_query)
     pagination = build_admin_pagination(
@@ -793,8 +808,17 @@ def demo_edit_history(demo_id):
     )
     demo = Demonstration.from_dict(demo_data)
     demo_name = demo.title
+    # Every write from any path (Go API, jobs, links, scripts), not only the
+    # saves that store a full version above.
+    from mielenosoitukset_fi.admin.audit_history import helsinki_time, load_history
+
+    audit = load_history(mongo, "demonstrations", demo_data["_id"])
     return render_template(
         "admin/demonstrations/edit_history.html",
+        helsinki_time=helsinki_time,
+        audit_rows=audit["rows"][:AUDIT_ROWS_ON_DEMO_HISTORY],
+        audit_total=len(audit["rows"]),
+        audit_limit=AUDIT_ROWS_ON_DEMO_HISTORY,
         history=history,
         demo_id=str(demo_data["_id"]),
         demo_name=demo_name,
@@ -1722,30 +1746,34 @@ def generate_demo_preview_link(demo_id: str, *, recipient: dict | None = None) -
     return url_for("admin_demo.preview_demo_with_token", token=token, _external=True)
 
 def generate_demo_approve_link(demo_id: str, *, recipient: dict | None = None) -> str:
-    token = serializer.dumps(_magic_link_payload(demo_id), salt="approve-demo")
-    actor = _get_actor_label()
-    _registry_upsert_initial(_hash_token(token), "approve", str(demo_id), actor, recipient=recipient)
-    demo = _load_demo_or_bust(demo_id)
+    """Admin email link (20 Nov 2026).
+
+    A known admin recipient gets a scoped case link: that one demonstration,
+    no login, decisions only with their second factor. Anyone else gets the
+    stable link that needs a login.
+    """
+    if recipient and recipient.get("user_id"):
+        return generate_case_link(demo_id, recipient=recipient)
+    return demo_decision_link(demo_id)
+
+
+def generate_case_link(demo_id: str, *, recipient: dict) -> str:
+    token = serializer.dumps(_magic_link_payload(demo_id), salt="case-demo")
+    doc = _registry_upsert_initial(_hash_token(token), "case", str(demo_id), recipient=recipient)
+    if doc is not None and "bound_browser_hash" not in doc:
+        mongo[MAGIC_COLLECTION].update_one({"_id": doc["_id"]}, {"$set": {"bound_browser_hash": None}})
     log_demo_audit_entry(
         demo_id,
         action="token_created",
-        message=_safe_translate("%(user)s loi hyväksyntälinkin", user=actor),
-        details={"token_type": "approve", "demo_date": demo.get("date"), "demo_city": demo.get("city")},
+        message=_safe_translate("Tapauslinkki luotiin sähköpostia varten"),
+        details={"token_type": "case", "recipient": (recipient or {}).get("username")},
     )
-    return url_for("admin_demo.approve_demo_with_token", token=token, _external=True)
+    return url_for("admin_demo.case_link", token=token, _external=True)
+
 
 def generate_demo_reject_link(demo_id: str, *, recipient: dict | None = None) -> str:
-    token = serializer.dumps(_magic_link_payload(demo_id), salt="reject-demo")
-    actor = _get_actor_label()
-    _registry_upsert_initial(_hash_token(token), "reject", str(demo_id), actor, recipient=recipient)
-    demo = _load_demo_or_bust(demo_id)
-    log_demo_audit_entry(
-        demo_id,
-        action="token_created",
-        message=_safe_translate("%(user)s loi hylkäyslinkin", user=actor),
-        details={"token_type": "reject", "demo_date": demo.get("date"), "demo_city": demo.get("city")},
-    )
-    return url_for("admin_demo.reject_demo_with_token", token=token, _external=True)
+    """Kept for callers; same case link as ``generate_demo_approve_link``."""
+    return demo_decision_link(demo_id)
 
 def _create_demo_edit_link(demo_id: str, duration_key: str = "24h"):
     duration_key, duration_seconds = _edit_link_duration(duration_key)
@@ -1873,116 +1901,237 @@ def preview_demo_with_token(token):
     # If you prefer multi-view by same IP until expiry, move this to a POST confirm or omit.
     _mark_used(doc["_id"])
 
-    # Make ObjectId JSON-friendly
-    if isinstance(demo.get("_id"), ObjectId):
-        demo["_id"] = str(demo["_id"])
-
-    return render_template("detail.html", demo=stringify_object_ids(demo), preview_mode=True)
+    # The same React page the public will see, not the retired Flask template.
+    from mielenosoitukset_fi.utils.react_detail import render_demo_preview
+    return render_demo_preview(demo, _preview_language())
 
 # ------------------------------------------------------------------------------
 # APPROVE / REJECT – require POST confirm to avoid link prefetch/GET abuse
 # ------------------------------------------------------------------------------
 
+def _demo_id_from_link_token(action: str, token: str):
+    """Read the demo id from an old approve/reject email link, or None."""
+    try:
+        payload = serializer.loads(token, salt=f"{action}-demo")
+    except BadSignature:
+        return None
+    demo_id = str(payload.get("demo_id")) if isinstance(payload, dict) else str(payload)
+    return demo_id if ObjectId.is_valid(demo_id) else None
+
+
 @admin_demo_bp.route("/approve_demo_with_token/<token>", methods=["GET", "POST"])
-def approve_demo_with_token(token):
-    """
-    Two-step:
-     - GET: validate/bind & show confirm page with a CSRF-protected POST.
-     - POST: perform the action, mark token used.
-    """
-    if request.method == "GET":
-        doc = _check_and_bind("approve", token)
-        demo = _load_demo_or_bust(doc["demo_id"])
-        return render_template("admin_V2/cc/confirm_action.html",
-                               action="approve",
-                               token=token,
-                               demo=demo)
-
-    # POST
-    doc = _check_and_bind("approve", token)  # re-check before state change
-    demo_id = doc["demo_id"]
-    try:
-        result = _apply_demo_decision(
-            demo_id,
-            "approved",
-            source="token",
-            used_token_id=doc["_id"],
-        )
-    except Exception:
-        logger.exception("Failed to approve demo %s via token %s", demo_id, doc.get("_id"))
-        flash_message("Hyväksyntä epäonnistui. Yritä uudelleen.", "error")
-        return redirect(url_for("admin_demo.approve_demo_with_token", token=token))
-    _mark_used(doc["_id"])
-    flash_message(
-        "Mielenosoitus hyväksyttiin onnistuneesti!"
-        if result.changed
-        else "Mielenosoitus oli jo hyväksytty.",
-        "success" if result.changed else "info",
-    )
-    return redirect(
-        url_for("demonstration_detail", demo_id=demo_id, _external=True)
-    )
-
-
 @admin_demo_bp.route("/reject_demo_with_token/<token>", methods=["GET", "POST"])
-def reject_demo_with_token(token):
-    """
-    Two-step:
-     - GET: validate/bind & show confirm page with a CSRF-protected POST.
-     - POST: perform the action, mark token used.
-    """
-    if request.method == "GET":
-        doc = _check_and_bind("reject", token)
-        demo = _load_demo_or_bust(doc["demo_id"])
-        return render_template("admin_V2/cc/confirm_action.html",
-                               action="reject",
-                               token=token,
-                               demo=demo)
+def legacy_decision_link(token):
+    """Old one-click email links open the case instead of deciding.
 
-    # POST
-    doc = _check_and_bind("reject", token)  # re-check before state change
-    demo_id = doc["demo_id"]
+    Maintainer decision (20 Nov 2026): new demonstrations are decided only in
+    the case, where the preview and side effects are shown first.
+    """
+    action = "approve" if "/approve_demo_with_token/" in request.path else "reject"
+    demo_id = _demo_id_from_link_token(action, token)
+    if not demo_id:
+        abort(404)
+    return redirect(url_for("admin_demo.open_demo_decision", demo_id=demo_id))
+
+
+from flask import request, render_template
+from mielenosoitukset_fi.utils.multi_day import normalize_end_date
+from flask_login import login_required, current_user
+from datetime import datetime, date
+from bson.objectid import ObjectId as BsonObjectId
+
+
+@admin_demo_bp.route("/<demo_id>/decide", methods=["GET"])
+@login_required
+@admin_required
+def open_demo_decision(demo_id):
+    """Stable link for emails: the one page where this admin decides the demo."""
+    if not ObjectId.is_valid(demo_id):
+        abort(404)
+    if not mongo.demonstrations.find_one({"_id": ObjectId(demo_id)}, {"_id": 1}):
+        abort(404)
+    if not _user_can_access_demo(demo_id, "ACCEPT_DEMO"):
+        if _user_can_access_demo(demo_id, "VIEW_DEMO"):
+            return redirect(url_for("admin_demo.demo_command_center", demo_id=demo_id))
+        abort(403)
+    return redirect(_decision_urls([demo_id])[demo_id])
+
+
+_CASE_LINK_ERRORS = {
+    "unknown": (404, "Linkkiä ei tunnistettu."),
+    "expired": (410, "Linkki on vanhentunut. Avaa tapaus kirjautumalla ylläpitoon."),
+    "revoked": (410, "Linkki ei ole enää voimassa. Avaa tapaus kirjautumalla ylläpitoon."),
+    "used": (410, "Mielenosoituksesta on jo tehty päätös tällä linkillä."),
+    "other_browser": (403, "Linkki on jo avattu toisessa selaimessa. Avaa tapaus kirjautumalla ylläpitoon."),
+    "no_recipient": (403, "Linkkiä ei voi käyttää ilman kirjautumista. Avaa tapaus kirjautumalla ylläpitoon."),
+    "no_rights": (403, "Sinulla ei ole enää oikeutta käsitellä tätä mielenosoitusta."),
+    "bad_code": (400, "Vahvistuskoodi ei kelpaa. Yritä uudelleen."),
+}
+
+
+def _case_link_state(token, *, allow_bind=False):
+    """Validate a scoped case link for this browser; returns (doc, demo, user, new_cookie)."""
+    from mielenosoitukset_fi.utils import case_links
+
     try:
-        result = _apply_demo_decision(
-            demo_id,
-            "rejected",
-            source="token",
-            used_token_id=doc["_id"],
-        )
-    except Exception:
-        logger.exception("Failed to reject demo %s via token %s", demo_id, doc.get("_id"))
-        flash_message("Hylkäys epäonnistui. Yritä uudelleen.", "error")
-        return redirect(url_for("admin_demo.reject_demo_with_token", token=token))
-    _mark_used(doc["_id"])
-    flash_message(
-        "Mielenosoitus hylättiin onnistuneesti!"
-        if result.changed
-        else "Mielenosoitus oli jo hylätty.",
-        "success" if result.changed else "info",
+        payload = serializer.loads(token, salt="case-demo", max_age=MAGIC_TTL_SECONDS)
+    except SignatureExpired:
+        raise case_links.CaseLinkError("expired")
+    except BadSignature:
+        raise case_links.CaseLinkError("unknown")
+    demo_id = str(payload.get("demo_id")) if isinstance(payload, dict) else ""
+    if not ObjectId.is_valid(demo_id):
+        raise case_links.CaseLinkError("unknown")
+    doc = case_links.load_link(mongo, _hash_token(token), demo_id)
+    # Rights first: a link whose admin lost access shows nothing, not even the open button.
+    user = case_links.recipient_user(mongo, doc)
+    demo = mongo.demonstrations.find_one({"_id": ObjectId(demo_id)})
+    if not demo:
+        raise case_links.CaseLinkError("unknown")
+    if not has_demo_approval_permission(user, demo):
+        raise case_links.CaseLinkError("no_rights")
+    new_cookie = case_links.bind_browser(
+        mongo, doc, request.cookies.get(case_links.COOKIE_NAME), allow_bind=allow_bind
     )
-    return redirect(url_for("index"))
-from flask import request, render_template
-from flask_login import login_required, current_user
-from datetime import datetime, date
-from bson.objectid import ObjectId as BsonObjectId
+    return doc, demo, user, new_cookie
 
-from flask import request, render_template
-from flask_login import login_required, current_user
-from bson.objectid import ObjectId as BsonObjectId
-from datetime import datetime, date
 
-from flask import request, render_template, session
-from flask_login import login_required, current_user
-from bson.objectid import ObjectId as BsonObjectId
+def _case_link_page(token, *, status=200, error=None, result=None, allow_bind=False):
+    from mielenosoitukset_fi.demonstrations.decisions import preview_demo_decision
+    from mielenosoitukset_fi.utils import case_links, case_reasons
 
-from flask import request, render_template, session
-from flask_login import login_required, current_user
-from bson.objectid import ObjectId as BsonObjectId
-from datetime import date
+    try:
+        doc, demo, user, new_cookie = _case_link_state(token, allow_bind=allow_bind)
+    except case_links.CaseLinkError as exc:
+        if exc.code == "not_bound":
+            # Interstitial: a person presses the button; a link scanner does not.
+            session.setdefault("case_link_csrf", secrets.token_urlsafe(24))
+            page = render_template("case_link.html", open_form=True, csrf=session["case_link_csrf"],
+                                   login_url=url_for("users.auth.login"))
+            response = make_response(page, 200)
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["X-Robots-Tag"] = "noindex"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            return response
+        code, message = _CASE_LINK_ERRORS.get(exc.code, (403, "Linkkiä ei voi käyttää."))
+        page = render_template("case_link.html", error=message, login_url=url_for("users.auth.login"))
+        response = make_response(page, code)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Robots-Tag"] = "noindex"
+        return response
+    case_doc = mongo.cases.find_one(
+        {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}, {"meta.superior_needed": 1}
+    ) or {}
+    pending = not demo.get("approved") and not demo.get("rejected")
+    escalated = bool((case_doc.get("meta") or {}).get("superior_needed")) and not getattr(user, "global_admin", False)
+    factor = case_links.second_factor(mongo, user)
+    csrf = session.setdefault("case_link_csrf", secrets.token_urlsafe(24))
+    page = render_template(
+        "case_link.html",
+        demo=stringify_object_ids(demo),
+        recipient=user.username,
+        token=token,
+        csrf=csrf,
+        pending=pending,
+        escalated=escalated,
+        factor=factor,
+        effects={d: preview_demo_decision(mongo, demo["_id"], d) for d in ("approved", "rejected")} if pending else {},
+        reject_reasons=case_reasons.choices(case_reasons.REJECT_KEYS),
+        login_url=url_for("users.auth.login", next=url_for("admin_demo.open_demo_decision", demo_id=str(demo["_id"]))),
+        error=error,
+        result=result,
+        expires_at=doc.get("expires_at"),
+    )
+    response = make_response(page, status)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Robots-Tag"] = "noindex"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    if new_cookie:
+        response.set_cookie(
+            case_links.COOKIE_NAME, new_cookie, max_age=MAGIC_TTL_SECONDS, httponly=True,
+            secure=request.is_secure or not current_app.debug, samesite="Lax",
+            path=url_for("admin_demo.case_link", token=token),
+        )
+    return response
 
-from flask import request, render_template
-from flask_login import login_required, current_user
-from bson.objectid import ObjectId as BsonObjectId
+
+@admin_demo_bp.route("/case_link/<token>", methods=["GET"])
+def case_link(token):
+    """One demonstration, no login, for the admin the email was sent to."""
+    return _case_link_page(token)
+
+
+@admin_demo_bp.route("/case_link/<token>", methods=["POST"])
+def case_link_decide(token):
+    """Approve or reject through a scoped case link (second factor if enabled)."""
+    from mielenosoitukset_fi.utils import case_links, case_reasons
+
+    sent = request.form.get("csrf") or ""
+    expected = session.get("case_link_csrf") or ""
+    if not expected or not secrets.compare_digest(sent, expected):
+        return _case_link_page(token, status=400, error=_("Istunnon turvatarkistus epäonnistui. Lataa sivu uudelleen."))
+    if request.form.get("open") == "1":
+        return _case_link_page(token, allow_bind=True)
+    try:
+        doc, demo, user, _new_cookie = _case_link_state(token)
+    except case_links.CaseLinkError:
+        return _case_link_page(token)
+    decision = request.form.get("decision")
+    if decision not in {"approved", "rejected"}:
+        return _case_link_page(token, status=400, error=_("Valitse hyväksy tai hylkää."))
+    if demo.get("approved") or demo.get("rejected"):
+        return _case_link_page(token, status=409, error=_("Mielenosoituksesta on jo tehty päätös."))
+    case_doc = mongo.cases.find_one(
+        {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}
+    ) or {}
+    if (case_doc.get("meta") or {}).get("superior_needed") and not getattr(user, "global_admin", False):
+        return _case_link_page(token, status=403, error=_("Tapaus on eskaloitu. Päätöksen tekee esihenkilö."))
+    factor = case_links.second_factor(mongo, user)
+    if factor == "passkey_only":
+        return _case_link_page(token, status=403, error=_("Tilisi käyttää pääsyavainta. Kirjaudu sisään tehdäksesi päätöksen."))
+    reason_meta = None
+    if decision == "rejected":
+        try:
+            reason_meta, reason_schema = case_reasons.parse_reason(
+                request.form.to_dict(), case_reasons.REJECT_KEYS, mongo, demo_id=str(demo["_id"]),
+            )
+        except case_reasons.ReasonError as error:
+            return _case_link_page(token, status=400, error=str(error))
+    if factor == "totp":
+        try:
+            case_links.check_code(mongo, doc, user, request.form.get("code"))
+        except case_links.CaseLinkError as exc:
+            code, message = _CASE_LINK_ERRORS.get(exc.code, (400, "Vahvistus epäonnistui."))
+            return _case_link_page(token, status=code, error=_(message))
+    actor = case_links.actor_for(user, doc, mfa=factor == "totp")
+    apply_demo_decision(
+        mongo, str(demo["_id"]), decision, actor=actor, source="case_link", email_sender=email_sender,
+        public_url=url_for("demonstration_detail", demo_id=str(demo["_id"]), _external=True),
+        used_token_id=doc["_id"],
+    )
+    _mark_used(doc["_id"])
+    if reason_meta and case_doc.get("_id"):
+        now = _now_utc()
+        mongo.cases.update_one({"_id": case_doc["_id"]}, {
+            "$push": {
+                "action_logs": {"user": user.username, "action_type": "reject_reason",
+                                "reason": reason_meta["reason"], "timestamp": now},
+                "case_history": {"timestamp": now, "action": "Mielenosoitus hylätty", "user": user.username,
+                                 "mech_action": "reject_demo", "metadata": reason_meta, "meta_schema": reason_schema},
+            },
+            "$set": {"updated_at": now},
+        })
+    label = _("Hyväksytty ja julkaistu.") if decision == "approved" else _("Hylätty.")
+    page = render_template("case_link.html", result=label, login_url=url_for("users.auth.login"))
+    response = make_response(page, 200)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+def demo_decision_link(demo_id) -> str:
+    """Absolute link for admin emails; opens the case (or review page)."""
+    return url_for("admin_demo.open_demo_decision", demo_id=str(demo_id), _external=True)
+
 
 @admin_demo_bp.route("/")
 @login_required
@@ -1998,7 +2147,7 @@ def demo_control():
     approval_filter = (request.args.get("approved") or "all").lower()
     if approval_filter == "true":
         approval_filter = "approved"
-    elif approval_filter == "false" or approval_filter not in {"all", "approved", "pending"}:
+    elif approval_filter == "false" or approval_filter not in {"all", "approved", "pending", "rejected"}:
         approval_filter = "all"
     recurring_filter = (request.args.get("recurring") or "all").lower()
     if recurring_filter not in {"all", "true", "false"}:
@@ -2026,9 +2175,9 @@ def demo_control():
         show_past_filter = show_past_param
 
     # --- Build filter clauses ---
-    scope_clauses = [
-        {"$or": [{"rejected": {"$exists": False}}, {"rejected": False}]},
-    ]
+    # Rejected demos are part of the scope; the approval filter decides
+    # whether they show ("Kaikki" includes them, "Hylätty" shows only them).
+    scope_clauses = []
 
     # Permission scope is part of the base query. Counts and result rows always
     # derive from this exact query so scoped users never see global totals.
@@ -2076,10 +2225,13 @@ def demo_control():
     if show_past_filter == "false":
         filter_clauses.append({"$or": [{"in_past": {"$exists": False}}, {"in_past": False}]})
 
+    not_rejected = {"rejected": {"$ne": True}}
     if approval_filter == "approved":
         filter_clauses.append({"approved": True})
     elif approval_filter == "pending":
-        filter_clauses.append({"approved": False})
+        filter_clauses.append({"approved": False, **not_rejected})
+    elif approval_filter == "rejected":
+        filter_clauses.append({"rejected": True, "approved": {"$ne": True}})
 
     if recurring_filter != "all":
         filter_clauses.append({"recurs": True} if recurring_filter == "true" else {"recurs": {"$ne": True}})
@@ -2110,44 +2262,66 @@ def demo_control():
     filter_query = query_from(filter_clauses)
 
     # --- Count total documents ---
+    # The four filtered counts come from one pass over the filtered rows
+    # instead of one collection scan each.
     total_count = mongo.demonstrations.count_documents(scope_query)
-    filtered_count = mongo.demonstrations.count_documents(filter_query)
-    pending_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"approved": False}]))
-    approved_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"approved": True}]))
-    recurring_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"recurs": True}]))
+    counts = next(
+        mongo.demonstrations.aggregate(
+            [
+                {"$match": filter_query},
+                {
+                    "$group": {
+                        "_id": None,
+                        "filtered": {"$sum": 1},
+                        "pending": {"$sum": {"$cond": [{"$and": [{"$eq": ["$approved", False]}, {"$ne": ["$rejected", True]}]}, 1, 0]}},
+                        "approved": {"$sum": {"$cond": [{"$eq": ["$approved", True]}, 1, 0]}},
+                        "recurring": {"$sum": {"$cond": [{"$eq": ["$recurs", True]}, 1, 0]}},
+                    }
+                },
+            ]
+        ),
+        {},
+    )
+    filtered_count = counts.get("filtered", 0)
+    pending_count = counts.get("pending", 0)
+    approved_count = counts.get("approved", 0)
+    recurring_count = counts.get("recurring", 0)
     total_pages = max(1, (filtered_count + per_page - 1) // per_page)
     page = min(page, total_pages)
     # --- Fetch current page ---
     skip_count = (page - 1) * per_page
 
-    # Use aggregation to sort unapproved demos first, then approved, all within MongoDB
-    # (avoids loading entire collection into Python memory)
-    sort_key_stage = {
-        "$addFields": {
-            "_sort_priority": {
-                "$cond": [{"$eq": ["$approved", False]}, 0, 1]
-            }
-        }
-    }
+    # "priority" lists demos waiting for approval first, then the rest, each
+    # by date. It is read as two date-ordered queries so MongoDB can walk the
+    # date index and stop at the page instead of sorting every matching row.
     sort_specs = {
-        "priority": {"_sort_priority": 1, "date": 1, "_id": 1},
-        "date_asc": {"date": 1, "_id": 1},
-        "date_desc": {"date": -1, "_id": -1},
-        "title_asc": {"title": 1, "_id": 1},
+        "priority": [("date", 1), ("_id", 1)],
+        "date_asc": [("date", 1), ("_id", 1)],
+        "date_desc": [("date", -1), ("_id", -1)],
+        "title_asc": [("title", 1), ("_id", 1)],
     }
-    sort_stage = {"$sort": sort_specs[sort_filter]}
-    project_stage = {"$project": {"_sort_priority": 0}}
-
-    pipeline = [
-        {"$match": filter_query},
-        sort_key_stage,
-        sort_stage,
-        {"$skip": skip_count},
-        {"$limit": per_page},
-        project_stage,
-    ]
-
-    demos = list(mongo.demonstrations.aggregate(pipeline))
+    order = sort_specs[sort_filter]
+    if sort_filter == "priority":
+        demos = []
+        if skip_count < pending_count:
+            demos = list(
+                mongo.demonstrations.find(query_from(filter_clauses + [{"approved": False, **not_rejected}]))
+                .sort(order)
+                .skip(skip_count)
+                .limit(per_page)
+            )
+        remaining = per_page - len(demos)
+        if remaining > 0:
+            demos += list(
+                mongo.demonstrations.find(query_from(filter_clauses + [{"$or": [{"approved": {"$ne": False}}, {"rejected": True}]}]))
+                .sort(order)
+                .skip(max(0, skip_count - pending_count))
+                .limit(remaining)
+            )
+    else:
+        demos = list(
+            mongo.demonstrations.find(filter_query).sort(order).skip(skip_count).limit(per_page)
+        )
 
     recommended_lookup = {
         doc.get("demo_id"): True for doc in mongo.recommended_demos.find({}, {"demo_id": 1})
@@ -2195,6 +2369,7 @@ def demo_control():
     approval_label = {
         "approved": _("Hyväksytty"),
         "pending": _("Odottaa hyväksyntää"),
+        "rejected": _("Hylätty"),
     }.get(approval_filter, "")
     recurring_label = {
         "true": _("Vain toistuvat"),
@@ -2642,56 +2817,6 @@ def reject_demo_translation(demo_id, language):
     )
     flash_message(_("Käännösehdotus hylättiin."), "success")
     return redirect(url_for("admin_demo.edit_demo_translations", demo_id=demo_id, language=language))
-
-@admin_demo_bp.route("/duplicate/<demo_id>", methods=["POST"])
-@login_required
-@admin_required
-@permission_required("CREATE_DEMO", _type="DEMONSTRATION")
-def duplicate_demo(demo_id):
-    """
-    Duplicate a demonstration. The duplicate will have 'approved' set to False.
-
-    Parameters
-    ----------
-    demo_id : str
-        The ID of the demonstration to duplicate.
-
-    Returns
-    -------
-    flask.Response
-        JSON response with new demo ID or error message.
-    """
-    from bson.objectid import ObjectId
-    demo_data = mongo.demonstrations.find_one({"_id": ObjectId(demo_id)})
-    if not demo_data:
-        return jsonify({"status": "ERROR", "message": _(u"Mielenosoitusta ei löytynyt.")}), 404
-
-    # Remove unique fields and set approved to False
-    demo_data.pop("_id", None)
-    demo_data["approved"] = False
-    demo_data["title"] = f"{demo_data['title']} (Kopio)"
-    # Set created_datetime to current time for the new demo
-    demo_data["created_datetime"] = utcnow()
-
-        
-    # If it was a recurring demo, turn it into a non-recurring one
-    if demo_data.get("recurs", False):
-        demo_data["recurs"] = False
-
-    # Optionally, clear other fields (like editors, submitters, etc.) if needed
-
-    new_demo = Demonstration.from_dict(demo_data)
-    new_demo.save()
-
-    log_demo_audit_entry(
-        new_demo._id,
-        action="duplicate_demo",
-        message=_("%(user)s kopioi mielenosoituksen") % {"user": _get_actor_label()},
-        details={"source_demo_id": demo_id},
-    )
-
-    return jsonify({"status": "OK", "new_demo_id": str(new_demo._id)})
-
 
 @admin_demo_bp.route("/merge", methods=["GET", "POST"])
 @login_required
@@ -3331,6 +3456,40 @@ def filter_demonstrations(query, search_query, show_past, today):
     return filtered_demos
 
 
+# Content an admin can reuse when starting a new demo from an existing one.
+# Everything else (date, state, slug, submitter, cases, tokens, series link,
+# generated preview image) belongs to the original and is never copied.
+_COPYABLE_DEMO_FIELDS = (
+    "title", "description", "default_language", "translations", "start_time",
+    "end_time", "city", "address", "route", "latitude", "longitude", "facebook",
+    "img", "cover_picture", "cover_source", "organizers", "tags", "event_type",
+)
+
+
+def _copy_template_from_request():
+    """Return (unsaved Demonstration, source info) for ``?pohja=<demo id>``.
+
+    Nothing is written: the admin gets the normal create form filled in, and
+    only pressing "Luo" creates a demo, through the same path as any new demo.
+    """
+    source_id = (request.args.get("pohja") or "").strip()
+    if not source_id or not ObjectId.is_valid(source_id):
+        return None, None
+    source = mongo.demonstrations.find_one({"_id": ObjectId(source_id)})
+    if not source or not _user_can_access_demo(source["_id"], "VIEW_DEMO"):
+        return None, None
+    data = {key: source.get(key) for key in _COPYABLE_DEMO_FIELDS if source.get(key) is not None}
+    # The model validates the date, so build with the original and clear it:
+    # the admin has to pick the new date.
+    data["date"] = source.get("date")
+    template_demo = Demonstration.from_dict(data)
+    template_demo._id = None
+    template_demo.date = ""
+    template_demo.end_date = None
+    template_demo.preview_image = None
+    return template_demo, {"id": str(source["_id"]), "title": source.get("title") or ""}
+
+
 @admin_demo_bp.route("/create_demo", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -3358,6 +3517,7 @@ def create_demo():
         return handle_demo_form(request, is_edit=False)
 
     organizations = _available_organizer_organizations("CREATE_DEMO")
+    template_demo, template_source = _copy_template_from_request()
 
     # Render the demonstration creation form
     return render_template(
@@ -3366,7 +3526,8 @@ def create_demo():
         form_action=url_for("admin_demo.create_demo"),
         title="Luo mielenosoitus",
         submit_button_text="Luo",
-        demo=None,
+        demo=template_demo,
+        copy_source=template_source,
         city_list=CITY_LIST,
         demo_edit_access={"explicit_editors": [], "organizations": []},
         show_demo_access_panel=False,
@@ -3433,6 +3594,11 @@ def edit_demo(demo_id):
         demo_edit_access=demo_edit_access,
         show_demo_access_panel=show_demo_access_panel,
         can_approve_demo=has_demo_approval_permission(current_user, demo_data),
+        # Decisions (approve, reject, take down) happen in the case only.
+        decision_url=(
+            _decision_urls([demo_id]).get(str(demo_id))
+            if has_demo_approval_permission(current_user, demo_data) else None
+        ),
         can_generate_edit_link=can_generate_edit_link,
         edit_link_rows=(
             _demo_edit_link_rows(demo_id) if can_generate_edit_link else []
@@ -3475,6 +3641,32 @@ def review_demo(demo_id):
         "admin_V2/demonstrations/review.html", demo=content, state=state,
         review_csrf_token=_edit_link_csrf_token(),
     )
+
+
+@admin_demo_bp.route("/<demo_id>/preview")
+@login_required
+@admin_required
+@permission_required("VIEW_DEMO", _type="DEMONSTRATION")
+def preview_demo(demo_id):
+    """The public detail page as it will look, for any review state.
+
+    Same React screen and public API payload as the live page, read-only. Meant
+    to be framed by the case view with ``?embed=1``; the response allows
+    same-origin framing only.
+    """
+    demo_data = _find_demo_with_alias_support(demo_id)
+    if not demo_data:
+        abort(404)
+    _abort_if_demo_forbidden(demo_data["_id"], "VIEW_DEMO")
+    from mielenosoitukset_fi.utils.react_detail import render_demo_preview
+    return render_demo_preview(demo_data, _preview_language(), embed=request.args.get("embed") == "1")
+
+
+def _preview_language():
+    try:
+        return str(get_locale() or "fi").strip().lower()
+    except Exception:
+        return "fi"
 
 
 @admin_demo_bp.route("/command-center/<demo_id>")
@@ -3654,7 +3846,21 @@ def demo_command_center(demo_id):
         "recommended": bool(recommended_doc),
         "needs_review": not demo_data.get("approved") and not demo_data.get("rejected"),
         "cancellation_requested": bool(demo_data.get("cancellation_requested")),
+        "taken_down": bool(demo_data.get("taken_down")),
     }
+    # Offer only the actions that make sense in the demo's current state.
+    status_flags["public"] = status_flags["approved"] and not status_flags["taken_down"]
+    status_flags["can_recommend"] = (
+        status_flags["public"] and not status_flags["cancelled"] and not status_flags["hidden"]
+    )
+    status_flags["can_cancel"] = not (
+        status_flags["cancelled"] or status_flags["rejected"] or status_flags["taken_down"]
+    )
+    cancelled_by_doc = demo_data.get("cancelled_by") if isinstance(demo_data.get("cancelled_by"), dict) else {}
+    status_flags["series_break"] = status_flags["cancelled"] and cancelled_by_doc.get("source") == "recurring_break"
+    status_flags["can_restore"] = (
+        status_flags["cancelled"] and not status_flags["series_break"] and not status_flags["rejected"]
+    )
 
     location_query = " ".join(
         part for part in [demo.address, demo.city if getattr(demo, "city", None) else None] if part
@@ -3670,16 +3876,17 @@ def demo_command_center(demo_id):
 
     action_endpoints = {
         "cancel": {"url": url_for("admin_demo_api.admin_cancel_demo", demo_id=demo_id_str), "method": "POST"},
+        "restore": {"url": url_for("admin_demo_api.admin_restore_demo", demo_id=demo_id_str), "method": "POST"},
         "recommend": {"url": url_for("admin_demo.recommend_demo", demo_id=demo_id_str), "method": "POST"},
         "unrecommend": {"url": url_for("admin_demo.unrecommend_demo", demo_id=demo_id_str), "method": "POST"},
-        "duplicate": {"url": url_for("admin_demo.duplicate_demo", demo_id=demo_id_str), "method": "POST"},
         "screenshot": {"url": url_for("admin_demo.trigger_ss", demo_id=demo_id_str), "method": "GET"},
     }
     links = {
         "edit": url_for("admin_demo.edit_demo", demo_id=demo_id_str),
+        "copy_as_new": url_for("admin_demo.create_demo", pohja=demo_id_str),
         "history": url_for("admin_demo.demo_edit_history", demo_id=demo_id_str),
         "audit": url_for("admin_demo.view_demo_audit_log", demo_id=demo_id_str),
-        "analytics": url_for("admin.demo_analytics", demo_id=demo_id_str),
+        "analytics": url_for("admin_site_analytics.site_demo_analytics", demo_id=demo_id_str),
     }
 
     permissions = {
@@ -4278,11 +4485,11 @@ def handle_demo_form(
     can_change_approval = has_demo_approval_permission(
         current_user, approval_scope_demo
     )
-    requested_approval = bool(demonstration_data.get("approved"))
-    if not can_change_approval:
-        demonstration_data["approved"] = bool(
-            approval_scope_demo and approval_scope_demo.get("approved")
-        )
+    # Maintainer decision (20 Nov 2026): the edit form never changes the
+    # approval status. Decisions happen in the case through the decision
+    # service; a new demo starts pending and an approver's "publish now"
+    # choice on the create form runs the same service after the insert.
+    requested_approval = not is_edit and request.form.get("approved") == "on"
     
     if demo_id and demonstration_data.get("_id") is None:
         demonstration_data["_id"] = ObjectId(demo_id)
@@ -4301,16 +4508,15 @@ def handle_demo_form(
                 if incoming_city_key != previous_city_key and not _user_can_create_demo_in_city(demonstration_data.get("city")):
                     flash_message(_("Sinulla ei ole oikeutta siirtää mielenosoitusta valittuun paikkakuntaan."), "error")
                     abort(403)
-                approve_after_save = can_change_approval and requested_approval
-                if approve_after_save:
-                    # Keep the status unchanged during the ordinary field save;
-                    # the decision service owns approval and its side effects.
-                    demonstration_data["approved"] = bool(prev_demo.get("approved"))
+                demonstration_data.pop("approved", None)
                 merged_data = _deep_merge(prev_demo, demonstration_data)
+                # An emptied end date makes the demonstration one day again;
+                # _deep_merge would otherwise keep the old value.
+                if "end_date" in demonstration_data:
+                    merged_data["end_date"] = demonstration_data["end_date"]
                 demo = Demonstration.from_dict(merged_data)
-                # Only an approver's form value is authoritative for approval;
-                # otherwise keep whatever the database holds now.
-                demo.save(write_approval=can_change_approval)
+                # The status is whatever the database holds now.
+                demo.save(write_approval=False)
                 hist_id = record_demo_change(
                     demo_id,
                     prev_demo,
@@ -4336,12 +4542,6 @@ def handle_demo_form(
                             "reason": "Muokattu mielenosoitusta hallintapaneelista, lisätietoa: <a href='{}'>historia</a>".format(url_for('admin_demo.view_demo_diff', history_id=hist_id, _external=True))
                         },
                     })
-                if approve_after_save:
-                    _apply_demo_decision(
-                        demo_id,
-                        "approved",
-                        source="admin_form",
-                    )
             flash_message("Mielenosoitus päivitetty onnistuneesti.", "success")
         else:
             if not _user_can_create_demo_in_city(demonstration_data.get("city")):
@@ -4361,6 +4561,10 @@ def handle_demo_form(
                 message=_("%(user)s loi mielenosoituksen") % {"user": _get_actor_label()},
                 details={"title": demonstration_data.get("title")}
             )
+            if can_change_approval and requested_approval:
+                _apply_demo_decision(
+                    str(insert_result.inserted_id), "approved", source="admin_form_create"
+                )
             flash_message("Mielenosoitus luotu onnistuneesti.", "success")
 
         # Redirect to the demonstration control panel on success
@@ -4698,6 +4902,7 @@ def collect_demo_data(request, existing_organizers=None):
     # Validate required fields
     if not title or not date or not city:
         raise ValueError(_("Otsikko, päivämäärä ja kaupunki ovat pakollisia kenttiä."))
+    end_date = normalize_end_date(date, request.form.get("end_date"))
 
     # Process organizers and tags
     organizers = collect_organizers(
@@ -4746,6 +4951,7 @@ def collect_demo_data(request, existing_organizers=None):
     return {
         "title": title,
         "date": date,
+        "end_date": end_date,
         "start_time": start_time,
         "end_time": end_time,
         "facebook": facebook,
@@ -4756,7 +4962,8 @@ def collect_demo_data(request, existing_organizers=None):
         "type": event_type,
         "route": route,
         "organizers": organizers,
-        "approved": approved,
+        # Status is never taken from the form; see handle_demo_form.
+        "approved": False,
         "tags": tags,
         "description": description,
         "default_language": default_language,
@@ -5803,6 +6010,76 @@ def reject_demo(demo_id):
     )
 
 
+_TAKE_DOWN_ERRORS = {
+    "reason": (400, "Kirjoita syy. Se näytetään mielenosoituksen sivulla ja lähetetään ilmoittajalle."),
+    "not_public": (409, "Vain julkaistun mielenosoituksen voi poistaa julkaisusta."),
+    "open": (409, "Mielenosoituksella on jo avoin poistopyyntö."),
+    "same_admin": (409, "Toisen ylläpitäjän pitää vahvistaa poisto. Et voi vahvistaa omaa pyyntöäsi."),
+    "no_request": (409, "Vahvistettavaa poistopyyntöä ei ole."),
+    "not_found": (404, "Mielenosoitusta ei löytynyt"),
+}
+
+
+def _take_down_action(demo_id, data, source):
+    """One path for take-down requests, confirmations and withdrawals.
+
+    Returns (json body, status). Rights: ``can_take_down_demo``; the
+    second-admin rule lives in ``utils.demo_takedown``.
+    """
+    from mielenosoitukset_fi.demonstrations.decisions import DemoNotPublished
+    from mielenosoitukset_fi.utils import demo_takedown
+
+    if not ObjectId.is_valid(str(demo_id)):
+        return {"success": False, "error": _("Mielenosoitusta ei löytynyt")}, 404
+    demo = mongo.demonstrations.find_one({"_id": ObjectId(str(demo_id))}, {"approved": 1, "taken_down": 1})
+    if not demo:
+        return {"success": False, "error": _("Mielenosoitusta ei löytynyt")}, 404
+    if not demo_takedown.can_take_down_demo(current_user, demo):
+        return {"success": False, "error": _("Käyttöoikeutesi eivät riitä poistamaan mielenosoitusta julkaisusta.")}, 403
+
+    def apply(reason):
+        return _apply_demo_decision(demo_id, "taken_down", source=source, reason=reason)
+
+    action = data.get("action") or "take_down"
+    actor = capture_actor_context()
+    try:
+        if action == "confirm_take_down":
+            status = demo_takedown.confirm_take_down(mongo, demo_id, current_user, apply=apply, actor=actor)
+        elif action == "cancel_take_down":
+            status = demo_takedown.cancel_take_down_request(mongo, demo_id, current_user, actor=actor)
+        else:
+            status = demo_takedown.request_take_down(
+                mongo, demo_id, current_user, str(data.get("reason") or ""),
+                urgent=data.get("urgent") is True, apply=apply, actor=actor,
+            )
+    except DemoNotPublished:
+        code, message = _TAKE_DOWN_ERRORS["not_public"]
+        return {"success": False, "error": _(message)}, code
+    except demo_takedown.TakeDownReviewError as error:
+        code, message = _TAKE_DOWN_ERRORS.get(error.code, (409, "Toimintoa ei voitu tehdä."))
+        return {"success": False, "error": _(message)}, code
+    messages = {
+        "taken_down": _("Mielenosoitus poistettiin julkaisusta."),
+        "requested": _("Poistopyyntö odottaa toisen ylläpitäjän vahvistusta."),
+        "public": _("Poistopyyntö peruttiin. Mielenosoitus pysyy julkisena."),
+    }
+    return {"success": True, "status": status, "message": messages[status]}, 200
+
+
+@admin_demo_api_bp.route("/<demo_id>/take_down", methods=["POST"])
+@login_required
+@admin_required
+def take_down_demo(demo_id):
+    """Take an approved demo off the public site without deleting it.
+
+    JSON: {"reason": str, "urgent": bool} or {"action": "confirm_take_down"|"cancel_take_down"}.
+    """
+    if not request.is_json:
+        return jsonify({"success": False, "error": _("Virheellinen pyyntö.")}), 415
+    body, code = _take_down_action(demo_id, request.get_json(silent=True) or {}, source="admin_take_down")
+    return jsonify(body), code
+
+
 @admin_demo_api_bp.route("/bulk_decide", methods=["POST"])
 @login_required
 @admin_required
@@ -5833,13 +6110,18 @@ def bulk_decide_demos():
         elif not _user_can_access_demo(raw_id, "ACCEPT_DEMO"):
             entry["status"] = "forbidden"
         else:
-            result = _apply_demo_decision(
-                raw_id,
-                decision,
-                source="admin_bulk",
-            )
-            entry["status"] = "changed" if result.changed else "unchanged"
-            changed_count += int(result.changed)
+            try:
+                result = _apply_demo_decision(
+                    raw_id,
+                    decision,
+                    source="admin_bulk",
+                )
+            except Forbidden:
+                # A taken-down demo is republished only by take-down rights.
+                entry["status"] = "forbidden"
+            else:
+                entry["status"] = "changed" if result.changed else "unchanged"
+                changed_count += int(result.changed)
         results.append(entry)
 
     return jsonify(
@@ -5897,6 +6179,58 @@ def admin_cancel_demo(demo_id):
     )
 
     return jsonify({"success": True, "message": "Mielenosoitus merkitty perutuksi."})
+
+
+@admin_demo_api_bp.route("/<demo_id>/restore", methods=["POST"])
+@login_required
+@admin_required
+@permission_required("EDIT_DEMO", _type="DEMONSTRATION")
+def admin_restore_demo(demo_id):
+    """Undo a cancellation. A reason is required and kept in the history."""
+    from mielenosoitukset_fi.utils.demo_cancellation import RestoreRefused, restore_demo
+
+    try:
+        demo_oid = _require_valid_objectid(demo_id)
+    except ValueError:
+        return jsonify({"success": False, "error": "Virheellinen tunniste"}), 400
+
+    demo = mongo.demonstrations.find_one({"_id": demo_oid})
+    if not demo:
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
+    _abort_if_demo_forbidden(demo["_id"], "EDIT_DEMO")
+
+    payload = request.get_json(silent=True) if request.is_json else request.form
+    reason = ((payload or {}).get("reason") or "").strip()
+    if len(reason) < 3:
+        return jsonify({"success": False, "error": _("Kerro lyhyesti, miksi peruutus kumotaan.")}), 400
+    reason = reason[:500]
+
+    try:
+        restored = restore_demo(
+            demo,
+            restored_by={
+                "user_id": str(current_user.id),
+                "source": "admin_api",
+                "username": getattr(current_user, "username", None),
+            },
+            reason=reason,
+        )
+    except RestoreRefused as exc:
+        return jsonify({"success": False, "error": str(exc)}), 409
+
+    if not restored:
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei ole merkitty perutuksi.")}), 409
+
+    updated_demo = mongo.demonstrations.find_one({"_id": demo_oid}) or demo
+    record_demo_change(
+        demo_id,
+        demo,
+        updated_demo,
+        action="restore_demo",
+        message=_("%(user)s kumosi mielenosoituksen peruutuksen") % {"user": _get_actor_label()},
+        extra_details={"reason": reason},
+    )
+    return jsonify({"success": True, "message": _("Peruutus kumottu. Mielenosoitus näkyy taas tulevana.")})
 
 
 @admin_demo_api_bp.route("/bulk_cancel", methods=["POST"])

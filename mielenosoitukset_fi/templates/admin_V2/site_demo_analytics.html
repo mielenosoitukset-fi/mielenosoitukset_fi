@@ -11,11 +11,12 @@
     _('Analytiikka'),
     [
       (_('Hallintapaneeli'), url_for('admin.admin_dashboard')),
-      (_('Palvelun analytiikka'), url_for('admin_site_analytics.site_overview')),
-      (demo.title or demo_id, none),
+      (_('Analytiikka'), url_for('admin.stats')),
+      (demo.title or demo_id, url_for('admin_demo.demo_command_center', demo_id=demo_id)),
+      (_('Analytiikka'), none),
     ],
-    back_url=url_for('admin_site_analytics.site_overview'),
-    back_label=_('Palvelun analytiikka'),
+    back_url=url_for('admin_demo.demo_command_center', demo_id=demo_id),
+    back_label=_('Takaisin mielenosoitukseen'),
     metric_value=data.total,
     metric_label=_('sivunäyttöä yhteensä')
   ) }}
@@ -30,11 +31,6 @@
         <option value="90" {% if range_days == 90 %}selected{% endif %}>{{ _('Viimeiset 90 päivää') }}</option>
         <option value="365" {% if range_days == 365 %}selected{% endif %}>{{ _('Viimeiset 365 päivää') }}</option>
       </select>
-    </div>
-    <div class="admin-form-actions">
-      <a class="btn btn-secondary" href="{{ url_for('admin.demo_analytics', demo_id=demo_id) }}">
-        <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>{{ _('Perinteinen katseluanalytiikka') }}
-      </a>
     </div>
   </form>
 

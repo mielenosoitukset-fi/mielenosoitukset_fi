@@ -1,0 +1,1 @@
+- Mielenosoituksen hallintanäkymä näyttää vain tilaan sopivat toiminnot (esim. suosittelu ja esikatselukuva vain julkaistuille, peruminen ei hylätyille), jokainen linkki näkyy kerran, ja puhelimella toiminnot ovat heti otsikon alla. Mielenosoituslista ei enää levene puhelimella ruutua leveämmäksi.

@@ -130,6 +130,32 @@ def _pending_mfa_digest(value):
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+RESEND_CONFIRMATION_LIMIT = 3
+RESEND_CONFIRMATION_WINDOW_SECONDS = 3600
+
+
+def _resend_confirmation_allowed(user_id):
+    """Count a confirmation resend for this account; False once the hourly limit is used.
+
+    Anyone can ask for a resend by address or username, so without a cap the form could
+    flood an unconfirmed address with mail.
+    """
+    collection = _pending_mfa_collection()
+    now = utcnow()
+    bucket = int(now.timestamp()) // RESEND_CONFIRMATION_WINDOW_SECONDS
+    key = "resend-confirm:" + _pending_mfa_digest(f"{user_id}:{bucket}")
+    row = collection.find_one_and_update(
+        {"_id": key},
+        {"$inc": {"attempts": 1}, "$setOnInsert": {
+            "kind": "login_rate_limit",
+            "expires_at": now + timedelta(seconds=2 * RESEND_CONFIRMATION_WINDOW_SECONDS),
+        }},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+    return (row or {}).get("attempts", 1) <= RESEND_CONFIRMATION_LIMIT
+
+
 def _clear_pending_mfa_login():
     """Revoke this browser's pending first factor and remove its handle."""
     challenge = session.pop(MFA_PENDING_LOGIN_KEY, None)
@@ -336,8 +362,16 @@ def _username_taken_by_other(username: str, user_id: ObjectId) -> bool:
 
 @auth_bp.before_app_request
 def enforce_required_identity_change():
-    """Keep flagged accounts in the identity-change flow until it is complete."""
-    if not current_user.is_authenticated or not getattr(current_user, "forced_identity_change", False):
+    """Keep flagged accounts in the forced password and identity flow until it is complete."""
+    if not current_user.is_authenticated:
+        return None
+    if getattr(current_user, "forced_pwd_reset", False):
+        target = url_for("users.auth.forced_pwd_reset")
+        message = "Salasana on vaihdettava ennen palvelun käyttöä."
+    elif getattr(current_user, "forced_identity_change", False):
+        target = url_for("users.auth.forced_identity_change")
+        message = "Käyttäjänimi ja näyttönimi on vaihdettava ennen palvelun käyttöä."
+    else:
         return None
 
     allowed_endpoints = {
@@ -345,15 +379,19 @@ def enforce_required_identity_change():
         "users.auth.forced_identity_change",
         "users.auth.forced_pwd_reset",
         "users.auth.logout",
+        # The React pages of this flow read the header session, their notices and,
+        # on the identity page, whether a username is free.
+        "public_session_summary",
+        "get_flash_message_messages",
+        "users.auth.api_username_free",
     }
     if request.endpoint in allowed_endpoints:
         return None
 
-    target = url_for("users.auth.forced_identity_change")
     if request.path.startswith("/api/") or request.path.startswith("/users/auth/api/"):
         return jsonify({
             "status": "error",
-            "message": "Käyttäjänimi ja näyttönimi on vaihdettava ennen palvelun käyttöä.",
+            "message": message,
             "redirect": target,
         }), 428
     return redirect(target)
@@ -502,7 +540,8 @@ def register():
                 "info",
             )
         except Exception as e:
-            flash_message(f"Virhe vahvistusviestin lähettämisessä: {e}", "error")
+            current_app.logger.exception("Virhe vahvistusviestin lähettämisessä")
+            flash_message("Virhe vahvistusviestin lähettämisessä.", "error")
 
         # Keep the address across the redirect to the next-steps page.
         session["registration_email"] = email
@@ -519,6 +558,26 @@ def register_next_steps():
         email=email,
         email_found=bool(email),
     )
+
+
+def _registration_state():
+    """The address this browser just registered with, and whether it is confirmed yet."""
+    email = session.get("registration_email") or ""
+    if not isinstance(email, str) or not email:
+        return None, False
+    try:
+        user_doc = _find_user_by_email(email)
+        return email, bool(user_doc and User.from_db(user_doc).confirmed)
+    except Exception:
+        current_app.logger.exception("Could not read the registration state")
+        return email, False
+
+
+@auth_bp.route("/api/register/status", methods=["GET"])
+def register_status():
+    """Answer the React next-steps page from this browser's own session, never for any address."""
+    email, verified = _registration_state()
+    return jsonify({"email": email, "verified": verified}), 200, {"Cache-Control": "no-store"}
 
 
 # ------------------------
@@ -792,7 +851,7 @@ def resend_confirmation():
 
         if user_doc:
             user = User.from_db(user_doc)
-            if not user.confirmed:
+            if not user.confirmed and _resend_confirmation_allowed(user.id):
                 try:
                     verify_emailer(user.email, user.username)
                 except Exception:
@@ -825,11 +884,14 @@ def resend_confirmation():
 
     if user_doc:
         user = User.from_db(user_doc)
-        if not user.confirmed:
+        if not user.confirmed and _resend_confirmation_allowed(user.id):
             try:
                 verify_emailer(user.email, user.username)
-            except Exception as e:
-                flash_message(f"Vahvistusviestin lähetys epäonnistui: {e}", "error")
+            except Exception:
+                current_app.logger.exception(
+                    "Failed to resend confirmation for user %s", user.id
+                )
+                flash_message("Vahvistusviestin lähetys epäonnistui.", "error")
                 return redirect(url_for("users.auth.login"))
 
     flash_message(
@@ -849,12 +911,14 @@ def check_email_verified():
     dict
         A dictionary indicating whether the email is verified.
     """
-    try:
-        user = _find_user_by_email(request.json.get("email"))
-        user = User.from_db(user)
-        return jsonify({"verified": user.confirmed})
-    except Exception as e:
-        return jsonify({"verified": False})
+    # Only this browser's own registration is answered, so the endpoint cannot tell
+    # anyone whether some other address has a confirmed account.
+    body = request.get_json(silent=True)
+    asked = body.get("email") if isinstance(body, dict) else None
+    email, verified = _registration_state()
+    if not email or not isinstance(asked, str) or asked.strip().lower() != email.strip().lower():
+        return jsonify({"verified": False}), 200, {"Cache-Control": "no-store"}
+    return jsonify({"verified": verified}), 200, {"Cache-Control": "no-store"}
 
 @auth_bp.route("/2fa_check", methods=["POST"])
 def mfa_check():
@@ -1139,6 +1203,10 @@ from datetime import datetime
 @auth_bp.route("/forced_pwd_reset/", methods=["GET", "POST"])
 @login_required
 def forced_pwd_reset():
+    # This form changes the password without the current one, so it is only for
+    # accounts an administrator flagged; anyone else uses the settings page.
+    if not getattr(current_user, "forced_pwd_reset", False):
+        return redirect(url_for("users.auth.settings"))
     ip = get_client_ip()
     user_agent = request.headers.get("User-Agent", "")
 
@@ -1190,7 +1258,8 @@ def forced_pwd_reset():
         except Exception as e:
             log_entry["error"] = f"Password change failed: {e}"
             mongo.password_changes.insert_one(log_entry)
-            flash_message(f"Salasanan vaihto epäonnistui: {e}", "error")
+            current_app.logger.exception("Salasanan vaihto epäonnistui")
+            flash_message("Salasanan vaihto epäonnistui.", "error")
             return redirect(url_for("users.auth.forced_pwd_reset"))
 
         if getattr(current_user, "forced_identity_change", False):
@@ -1384,7 +1453,8 @@ def settings_api():
                 },
             )
         except Exception as e:
-            flash_message(f"Virhe asetusten muutosviestin lähettämisessä: {e}", "error")
+            current_app.logger.exception("Virhe asetusten muutosviestin lähettämisessä")
+            flash_message("Virhe asetusten muutosviestin lähettämisessä.", "error")
 
         # Start the process associated with the changed settings
         process_settings_change(user, changed_fields)
@@ -1506,7 +1576,8 @@ def settings_api_v2():
                 },
             )
         except Exception as e:
-            flash_message(f"Virhe asetusten muutosviestin lähettämisessä: {e}", "error")
+            current_app.logger.exception("Virhe asetusten muutosviestin lähettämisessä")
+            flash_message("Virhe asetusten muutosviestin lähettämisessä.", "error")
 
         process_settings_change(user, changed_fields)
 
@@ -1883,21 +1954,20 @@ def _reset_token_spent(token: str, token_hash: str) -> bool:
     return False
 
 
-@auth_bp.route("/password_reset/<token>", methods=["GET", "POST"])
-def password_reset(token):
-    """
-    Handle password reset using a token, with full logging and single-use token enforcement.
+def _reset_link_state(token):
+    """Check a reset link once, logging a refused visit. Returns (refusal, context).
+
+    ``refusal`` is the Finnish message to flash when the link cannot be used (the
+    caller sends the visitor to the reset request page); otherwise ``context``
+    holds what the reset needs.
     """
     ip = get_client_ip()
     user_agent = request.headers.get("User-Agent", "")
-    
+
     token_hash = _reset_token_hash(token)
     # Check if token has already been used (hashed rows, or legacy raw rows)
     if _reset_token_spent(token, token_hash):
-        flash_message(
-            "Tämä salasanan palautuslinkki on jo käytetty.", "warning"
-        )
-        return redirect(url_for("users.auth.password_reset_request"))
+        return "Tämä salasanan palautuslinkki on jo käytetty.", None
 
     email = verify_reset_token(token)
 
@@ -1915,27 +1985,59 @@ def password_reset(token):
     if not email:
         log_entry["error"] = "Invalid or expired token"
         mongo.password_changes.insert_one(log_entry)
-        flash_message(
-            "Salasanan palautuslinkki on virheellinen tai vanhentunut.", "warning"
-        )
-        return redirect(url_for("users.auth.password_reset_request"))
+        return "Salasanan palautuslinkki on virheellinen tai vanhentunut.", None
 
     user_doc = _find_user_by_email(email)
     if not user_doc:
         log_entry["error"] = "User not found"
         mongo.password_changes.insert_one(log_entry)
-        flash_message("Käyttäjää ei löytynyt.", "warning")
-        return redirect(url_for("users.auth.password_reset_request"))
+        return "Käyttäjää ei löytynyt.", None
 
     if reset_invalidation_enabled() and token_issued_before(
         token, user_doc.get("password_changed_at")
     ):
         log_entry["error"] = "Token issued before the last password change"
         mongo.password_changes.insert_one(log_entry)
-        flash_message(
-            "Salasanan palautuslinkki on virheellinen tai vanhentunut.", "warning"
-        )
+        return "Salasanan palautuslinkki on virheellinen tai vanhentunut.", None
+
+    return None, {"ip": ip, "user_agent": user_agent, "token_hash": token_hash, "email": email,
+                  "user_doc": user_doc, "log_entry": log_entry}
+
+
+@auth_bp.route("/api/password_reset/status", methods=["POST"])
+def password_reset_status():
+    """Answer the React reset page: may this link be used? Same checks and log as Flask's GET.
+
+    POST with a JSON body so prefetchers and crawlers never record a visit. A refused
+    link flashes the same message as before; the page then opens the request page.
+    """
+    if request.headers.get("Sec-Fetch-Site", "same-origin") not in ("same-origin", "none"):
+        return jsonify({"valid": False}), 403, {"Cache-Control": "no-store"}
+    body = request.get_json(silent=True)
+    token = body.get("token") if isinstance(body, dict) else None
+    if not isinstance(token, str) or not token or len(token) > 2048:
+        return jsonify({"valid": False}), 400, {"Cache-Control": "no-store"}
+    refusal, context = _reset_link_state(token)
+    if refusal:
+        flash_message(refusal, "warning")
+        return jsonify({"valid": False}), 200, {"Cache-Control": "no-store"}
+    # Log the visit like the Flask GET did.
+    mongo.password_changes.insert_one(context["log_entry"])
+    return jsonify({"valid": True}), 200, {"Cache-Control": "no-store"}
+
+
+@auth_bp.route("/password_reset/<token>", methods=["GET", "POST"])
+def password_reset(token):
+    """
+    Handle password reset using a token, with full logging and single-use token enforcement.
+    """
+    refusal, context = _reset_link_state(token)
+    if refusal:
+        flash_message(refusal, "warning")
         return redirect(url_for("users.auth.password_reset_request"))
+    ip, user_agent = context["ip"], context["user_agent"]
+    token_hash, email = context["token_hash"], context["email"]
+    user_doc, log_entry = context["user_doc"], context["log_entry"]
 
     user = User.from_db(user_doc)
 
@@ -1977,6 +2079,10 @@ def password_reset(token):
 
         try:
             user._change_password(password)
+            # The link reached this address, so it is confirmed. Accounts
+            # created by an admin from Hallinto are activated this way.
+            mongo.users.update_one({"_id": user_doc["_id"], "confirmed": {"$ne": True}},
+                                   {"$set": {"confirmed": True}})
             if reset_invalidation_enabled():
                 # Existing sessions carry the old epoch and are dropped by the
                 # user loader; the cookie format is unchanged.
@@ -1994,7 +2100,8 @@ def password_reset(token):
             )
             log_entry["error"] = f"Password change failed: {e}"
             mongo.password_changes.insert_one(log_entry)
-            flash_message(f"Salasanan vaihto epäonnistui: {e}", "error")
+            current_app.logger.exception("Salasanan vaihto epäonnistui")
+            flash_message("Salasanan vaihto epäonnistui.", "error")
             return redirect(url_for("users.auth.password_reset", token=token))
 
         # Notify user via email
@@ -2006,7 +2113,8 @@ def password_reset(token):
                 context={"user_name": user.displayname or user.username},
             )
         except Exception as e:
-            flash_message(f"Virhe salasanan vaihtoviestin lähettämisessä: {e}", "error")
+            current_app.logger.exception("Virhe salasanan vaihtoviestin lähettämisessä")
+            flash_message("Virhe salasanan vaihtoviestin lähettämisessä.", "error")
 
         flash_message("Salasanasi on päivitetty onnistuneesti.", "success")
         return redirect(url_for("users.auth.login"))

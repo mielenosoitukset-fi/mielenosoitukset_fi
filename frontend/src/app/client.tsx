@@ -16,13 +16,17 @@ function Root(props: Bootstrap) {
   useEffect(() => {
     function activate() {
       if ((document as Document & { prerendering?: boolean }).prerendering || navigator.doNotTrack === '1') return;
-      if (session.matomoEnabled && !document.getElementById('public-app-matomo')) {
+      const name = routeForPath(path)?.name;
+      // Pages whose address carries a secret token never load the third-party tracker,
+      // which would send the full URL off-site.
+      const secretPath = name === 'password-reset' || name === 'cancel-link' || name === 'volunteer-confirm'
+        || name === 'email-confirm' || name === 'org-invite';
+      if (session.matomoEnabled && !secretPath && !document.getElementById('public-app-matomo')) {
         const script = document.createElement('script');
         script.id = 'public-app-matomo'; script.src = '/static/js/matomo.js'; script.async = true;
         document.head.appendChild(script);
       }
       // Detail/series views keep their separate demonstration-view collection.
-      const name = routeForPath(path)?.name;
       if (!name || !['home', 'listing', 'organization', 'cities', 'today', 'submit', 'calendar', 'calendar-year', 'pride', 'information', 'campaign', 'fundraising', 'contact', 'city-admin', 'organization-fill', 'suggest-change', 'api-docs'].includes(name)
         || !session.siteAnalyticsEnabled || tracked.current) return;
       tracked.current = true;
@@ -70,6 +74,21 @@ if (container) {
       void import('./CancelLinkScreen').then(({ default: CancelLinkScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<CancelLinkScreen link={link} token={token} />} />);
       }).catch(error => console.error('Could not start the cancellation page', error));
+    } else if (route?.name === 'volunteer-confirm') {
+      const token = route.token;
+      void import('./VolunteerConfirmScreen').then(({ default: VolunteerConfirmScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<VolunteerConfirmScreen token={token} />} />);
+      }).catch(error => console.error('Could not start the volunteer confirmation page', error));
+    } else if (route?.name === 'email-confirm') {
+      const token = route.token;
+      void import('./EmailConfirmScreen').then(({ default: EmailConfirmScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<EmailConfirmScreen token={token} loginUrl={props.config.urls.login} />} />);
+      }).catch(error => console.error('Could not start the e-mail confirmation page', error));
+    } else if (route?.name === 'org-invite') {
+      const organizationId = props.orgInvite?.organizationId ?? null;
+      void import('./OrgInviteScreen').then(({ default: OrgInviteScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<OrgInviteScreen organizationId={organizationId} loginUrl={props.config.urls.login} logoutUrl={props.config.urls.logout} />} />);
+      }).catch(error => console.error('Could not start the invitation page', error));
     } else if (route?.name === 'developer') {
       const appId = route.appId;
       void import('./DeveloperScreen').then(({ default: DeveloperScreen }) => {
@@ -87,6 +106,31 @@ if (container) {
       void import('./LoginScreen').then(({ default: LoginScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<LoginScreen config={props.config} search={window.location.search} />} />);
       }).catch(error => console.error('Could not start the login page', error));
+    } else if (route?.name === 'password-reset') {
+      const token = route.token;
+      void import('./PasswordResetScreen').then(({ default: PasswordResetScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<PasswordResetScreen config={props.config} token={token} />} />);
+      }).catch(error => console.error('Could not start the password reset page', error));
+    } else if (route?.name === 'forced-password') {
+      void import('./ForcedPasswordScreen').then(({ default: ForcedPasswordScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<ForcedPasswordScreen config={props.config} session={props.session} />} />);
+      }).catch(error => console.error('Could not start the password change page', error));
+    } else if (route?.name === 'forced-identity') {
+      void import('./ForcedIdentityScreen').then(({ default: ForcedIdentityScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<ForcedIdentityScreen config={props.config} session={props.session} />} />);
+      }).catch(error => console.error('Could not start the name change page', error));
+    } else if (route?.name === 'register-next-steps') {
+      void import('./RegisterNextStepsScreen').then(({ default: RegisterNextStepsScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<RegisterNextStepsScreen config={props.config} />} />);
+      }).catch(error => console.error('Could not start the next steps page', error));
+    } else if (route?.name === 'logout') {
+      void import('./LogoutScreen').then(({ default: LogoutScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<LogoutScreen config={props.config} session={props.session} />} />);
+      }).catch(error => console.error('Could not start the sign-out page', error));
+    } else if (route?.name === 'register') {
+      void import('./RegisterScreen').then(({ default: RegisterScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<RegisterScreen config={props.config} />} />);
+      }).catch(error => console.error('Could not start the registration page', error));
     } else if (route?.name === 'password-reset-request') {
       void import('./PasswordResetRequestScreen').then(({ default: PasswordResetRequestScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<PasswordResetRequestScreen config={props.config} />} />);

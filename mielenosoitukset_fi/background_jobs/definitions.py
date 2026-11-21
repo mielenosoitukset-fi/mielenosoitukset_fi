@@ -25,6 +25,7 @@ from mielenosoitukset_fi.scripts.auto_close_cases import main as auto_close_case
 from mielenosoitukset_fi.scripts.process_support_tickets import main as process_support_tickets
 from mielenosoitukset_fi.scripts.process_email_queue import run as process_email_queue
 from mielenosoitukset_fi.scripts.escalate_city_assignments import main as escalate_city_assignments
+from mielenosoitukset_fi.scripts.expire_undecided_demos import main as expire_undecided_demos
 from mielenosoitukset_fi.scripts.deliver_city_admin_applications import main as deliver_city_admin_applications
 from mielenosoitukset_fi.scripts.purge_city_admin_applications import main as purge_city_admin_applications
 from mielenosoitukset_fi.scripts.deliver_case_notices import main as deliver_case_notices
@@ -33,6 +34,7 @@ from mielenosoitukset_fi.scripts.send_fundraising_reminders import main as send_
 from mielenosoitukset_fi.scripts.purge_fundraising_reminders import main as purge_fundraising_reminders
 from mielenosoitukset_fi.scripts.purge_campaign_volunteers import main as purge_campaign_volunteers
 from mielenosoitukset_fi.scripts.purge_suggestion_ips import main as purge_suggestion_ips
+from mielenosoitukset_fi.scripts.purge_erased_accounts import main as purge_erased_accounts
 from mielenosoitukset_fi.scripts.scrub_admin_log_secrets import main as scrub_admin_log_secrets
 from mielenosoitukset_fi.scripts.deliver_pride_banner_confirmations import main as deliver_pride_banner_confirmations
 from mielenosoitukset_fi.scripts.purge_pride_banner_volunteers import main as purge_pride_banner_volunteers
@@ -153,9 +155,9 @@ JOB_DEFINITIONS: List[JobDefinition] = [
     JobDefinition(
         key="auto_close_cases",
         name="Case autoclose (demos/orgs)",
-        description="Closes cases whose linked demos were accepted/rejected/cancelled or org edits are applied.",
+        description="Closes cases whose linked demo, suggestion or org edit was already handled. The case list itself never closes cases.",
         func=auto_close_cases,
-        default_trigger=_interval(hours=1),
+        default_trigger=_interval(minutes=10),
         allow_interval_override=True,
     ),
     JobDefinition(
@@ -179,6 +181,14 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         description="Escalates city-admin assigned demonstrations with no decision within 24 h to the national team.",
         func=escalate_city_assignments,
         default_trigger=_interval(minutes=30),
+        allow_interval_override=True,
+    ),
+    JobDefinition(
+        key="expire_undecided_demos",
+        name="Close undecided past demonstrations",
+        description="Closes demonstrations nobody approved or rejected before their date as expired (Vanhentunut) through the decision service. Submitters of demos that passed within EXPIRED_DEMO_NOTIFY_DAYS (14) get an apology email; older ones close quietly. EXPIRE_UNDECIDED_DEMOS=false turns it off.",
+        func=expire_undecided_demos,
+        default_trigger=_interval(hours=6),
         allow_interval_override=True,
     ),
     JobDefinition(
@@ -235,6 +245,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         name="Suggestion IP retention",
         description="Removes the IP address and User-Agent from organisation and demonstration suggestions (and their cases) older than 90 days. Never deletes the suggestions. Does nothing unless SUGGESTION_IP_PURGE_ENABLED is set.",
         func=purge_suggestion_ips,
+        default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="purge_erased_accounts",
+        name="Deleted account retention",
+        description="Deletes the identity seal and kept non-audit records of accounts deleted more than ERASURE_RETENTION_DAYS (default 730) ago.",
+        func=purge_erased_accounts,
         default_trigger=_interval(days=1),
     ),
     JobDefinition(

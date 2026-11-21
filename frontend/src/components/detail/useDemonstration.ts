@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import type { DetailEvent } from './types';
 import { safeHref } from './content';
 
@@ -21,7 +21,7 @@ export function parseDetail(value: unknown, expectedId: string): DetailEvent {
     throw new Error('Invalid demonstration response');
   }
   const result: DetailEvent = {
-    _id: expectedId, title: data.title, description: text(data.description) ?? '', date: text(data.date),
+    _id: expectedId, title: data.title, description: text(data.description) ?? '', date: text(data.date), end_date: text(data.end_date),
     start_time: text(data.start_time), end_time: text(data.end_time), city: text(data.city), address: text(data.address),	  latitude: coordinate(data.latitude, 90), longitude: coordinate(data.longitude, 180), tags: strings(data.tags), likes: count(data.likes),
     route: strings(data.route), cancelled: data.cancelled, event_type: text(data.event_type), facebook: text(data.facebook),
     img: text(data.img), cover_picture: text(data.cover_picture), preview_image: text(data.preview_image), gallery_images: strings(data.gallery_images),
@@ -37,12 +37,23 @@ export function parseDetail(value: unknown, expectedId: string): DetailEvent {
   return result;
 }
 
-/** One data request per event/language, cancelled on route change or unmount. */
-export function useDemonstration(endpoint: string, id: string, locale: string) {
+/**
+ * One data request per event/language, cancelled on route change or unmount.
+ *
+ * `preloaded` is the API response the host already has (the admin preview of an
+ * event the public API does not serve yet). It goes through the same parser and
+ * replaces the request for that id only.
+ */
+export function useDemonstration(endpoint: string, id: string, locale: string, preloaded?: unknown) {
   const key = `${endpoint}\n${id}\n${locale}`;
   const [revision, retry] = useReducer((value: number) => value + 1, 0);
   const [stored, setStored] = useState<StoredState>({ key, value: { status: 'loading' } });
+  const preloadedState = useMemo<State | null>(() => {
+    if (preloaded === undefined) return null;
+    try { return { status: 'ready', event: parseDetail(preloaded, id) }; } catch { return { status: 'error' }; }
+  }, [preloaded, id]);
   useEffect(() => {
+    if (preloadedState) return undefined;
     const controller = new AbortController();
     let active = true;
     let expired = false;
@@ -66,6 +77,7 @@ export function useDemonstration(endpoint: string, id: string, locale: string) {
     }
     void load();
     return () => { active = false; window.clearTimeout(timeout); controller.abort(); };
-  }, [key, endpoint, id, locale, revision]);
+  }, [key, endpoint, id, locale, revision, preloadedState]);
+  if (preloadedState) return { state: preloadedState, retry };
   return { state: stored.key === key ? stored.value : { status: 'loading' } as State, retry };
 }

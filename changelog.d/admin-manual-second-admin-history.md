@@ -1,0 +1,1 @@
+- Admin guide: take-downs need a second admin (normal and urgent), and the new field-by-field change logs for demonstrations and organizations.

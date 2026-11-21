@@ -258,6 +258,13 @@ func reminderListHandler(next http.Handler, db *mongo.Database, config submissio
 				reminderFailure(w, http.StatusServiceUnavailable, "REMINDER_UNAVAILABLE", "Yritä uudelleen hetken kuluttua.")
 				return
 			}
+			if allowed && path == list.signupPath {
+				allowed, err = signupMailCapAllowed(ctx, db, list.rateScope, signupMailCapAdminLog(db))
+				if err != nil {
+					reminderFailure(w, http.StatusServiceUnavailable, "REMINDER_UNAVAILABLE", "Yritä uudelleen hetken kuluttua.")
+					return
+				}
+			}
 			if !allowed {
 				w.Header().Set("Retry-After", "60")
 				reminderFailure(w, http.StatusTooManyRequests, "REMINDER_RATE_LIMITED", "Yrityksiä on liian monta. Odota hetki ja yritä uudelleen.")

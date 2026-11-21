@@ -31,32 +31,14 @@ def test_case_pages_render_clean_support_case_views(admin_client, seeded_data):
     assert "Sisäiset muistiinpanot" in detail_page
 
 
-def test_approve_demo_token_closes_linked_support_case(client, db, seeded_data):
-    response = client.post(
-        f"/admin/demo/approve_demo_with_token/{seeded_data['approve_token']}",
-        follow_redirects=False,
-    )
-
-    assert response.status_code == 302
-
+def test_api_decisions_close_linked_case(admin_client, db, seeded_data):
+    """Email links no longer decide (20 Nov 2026); the case closes on any decision."""
+    response = admin_client.post(f"/api/admin/demo/{seeded_data['pending_demo_id']}/approve")
+    assert response.status_code == 200
     case = db.cases.find_one({"_id": seeded_data["case_id"]})
     assert case["meta"]["closed"] is True
     assert case["meta"]["closed_reason"] == "demo_approved"
     assert any(log.get("action_type") == "approve_demo" for log in case["action_logs"])
-
-
-def test_reject_demo_token_closes_linked_support_case(client, db, seeded_data):
-    response = client.post(
-        f"/admin/demo/reject_demo_with_token/{seeded_data['reject_token']}",
-        follow_redirects=False,
-    )
-
-    assert response.status_code == 302
-
-    case = db.cases.find_one({"_id": seeded_data["case_id"]})
-    assert case["meta"]["closed"] is True
-    assert case["meta"]["closed_reason"] == "demo_rejected"
-    assert any(log.get("action_type") == "reject_demo" for log in case["action_logs"])
 
 
 def test_deescalate_writes_case_history(admin_client, db, seeded_data):

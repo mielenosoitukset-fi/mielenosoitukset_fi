@@ -4,7 +4,7 @@ import { DetailActionDialog, Participation } from '../components/detail/DetailAc
 import type { DialogKind } from '../components/detail/DetailActions';
 import { FollowButton } from '../components/detail/FollowButton';
 import { DetailGallery } from '../components/detail/DetailGallery';
-import { clockLabel, dateLabel, safeHref, sanitizeDescription } from '../components/detail/content';
+import { clockLabel, dateLabel, dateRangeLabel, safeHref, sanitizeDescription } from '../components/detail/content';
 import { useDemonstration } from '../components/detail/useDemonstration';
 import type { DetailEvent, DetailProps } from '../components/detail/types';
 import { isGeneratedPreview } from '../lib/event-image';
@@ -122,7 +122,7 @@ function EventContent({ event, props }: { event: DetailEvent; props: DetailProps
     <header className="detail-heading">
       {event.cancelled && <p className="detail-cancelled" role="status"><Icon name="ban" />{text.cancelled}</p>}
       <h1>{event.title}</h1>
-      <dl className="detail-facts"><div><dt><Icon name="calendar-days" />{text.date}</dt><dd>{dateLabel(event.date, props.locale)}<span>{time ? <>{time}{event.start_time && !event.end_time ? ` ${text.startingFrom}` : ''}</> : text.unknownTime}</span></dd></div>
+      <dl className="detail-facts"><div><dt><Icon name="calendar-days" />{text.date}</dt><dd>{dateRangeLabel(event.date, event.end_date, props.locale)}<span>{time ? <>{time}{event.start_time && !event.end_time ? ` ${text.startingFrom}` : ''}</> : text.unknownTime}</span></dd></div>
         {location && <div><dt><Icon name="location-dot" />{text.location}</dt><dd>{location}</dd></div>}</dl>
       <div className="detail-actions">
         {!event.cancelled && <><button type="button" className="detail-button detail-button--primary" onClick={() => setDialog('reminder')}><Icon name="bell" />{text.reminder}</button>
@@ -146,8 +146,8 @@ function EventContent({ event, props }: { event: DetailEvent; props: DetailProps
       {externalEvent && <LinkButton href={externalEvent}>{text.facebook}</LinkButton>}
     </div><aside className="detail-aside">
       <section className="detail-section detail-location"><h2>{text.location}</h2><p>{location}</p><a href={directions} target="_blank" rel="noopener noreferrer">{text.directions}<Icon name="arrow-up-right-from-square" /></a>
-        {event.latitude !== null && event.longitude !== null && (mapVisible
-          ? <MapBoundary fallback={<p>{text.error}</p>}><Suspense fallback={<p role="status">{text.mapLoading}</p>}><DetailMap latitude={event.latitude} longitude={event.longitude} messages={text} /></Suspense></MapBoundary>
+        {((event.latitude !== null && event.longitude !== null) || location) && (mapVisible
+          ? <MapBoundary fallback={<p>{text.mapError ?? text.error}</p>}><Suspense fallback={<p role="status">{text.mapLoading}</p>}><DetailMap key={event._id} latitude={event.latitude} longitude={event.longitude} query={location} messages={text} /></Suspense></MapBoundary>
           : <button className="detail-button" type="button" onClick={() => showMap(true)}><Icon name="map" />{text.showMap}</button>)}
       </section>
       {event.cancelled
@@ -178,7 +178,7 @@ function SeriesNavigation({ props }: { props: DetailProps }) {
 
 /** Portable screen: host supplies routes, translations and navigation adapter. */
 export function DemonstrationDetailPage(props: DetailProps) {
-  const { state, retry } = useDemonstration(props.endpoint, props.id, props.locale);
+  const { state, retry } = useDemonstration(props.endpoint, props.id, props.locale, props.preview?.event);
   useEffect(() => { if (state.status === 'ready') props.onLoaded?.(state.event); }, [state, props.onLoaded]);
   let content: ReactNode;
   if (state.status === 'loading') content = <div className="detail-loading" role="status" aria-busy="true"><span className="detail-loading__bar" />{props.messages.loading}</div>;

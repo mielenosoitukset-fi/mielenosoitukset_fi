@@ -55,7 +55,7 @@
                 </a>
                 {% endif %}
                 {% if demo_permissions.get("VIEW_ANALYTICS") %}
-                <a href="{{ url_for('admin.demo_analytics', demo_id=demo['_id']) }}" class="public-toolbox__action">
+                <a href="{{ url_for('admin_site_analytics.site_demo_analytics', demo_id=demo['_id']|string) }}" class="public-toolbox__action">
                     <span class="public-toolbox__action-icon" aria-hidden="true"><i class="fas fa-chart-line"></i></span>
                     <span class="public-toolbox__action-label">{{ _('Tilastot') }}</span>
                     <i class="fa-solid fa-chevron-right public-toolbox__action-arrow" aria-hidden="true"></i>

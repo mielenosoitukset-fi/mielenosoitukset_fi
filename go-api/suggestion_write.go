@@ -334,7 +334,10 @@ func (s *suggestionWrites) saveOrganization(ctx context.Context, w http.Response
 	}
 	actor := bson.NilObjectID
 	if r.Header.Get("Cookie") != "" && s.actor != nil {
-		if actor, err = s.actor(r); err != nil {
+		if actor, err = s.actor(r); forcedStepPath(err) != "" {
+			writeError(w, http.StatusForbidden, "account step required")
+			return
+		} else if err != nil {
 			writeError(w, http.StatusServiceUnavailable, "session unavailable")
 			return
 		}
@@ -365,18 +368,23 @@ func (s *suggestionWrites) saveOrganization(ctx context.Context, w http.Response
 		writeError(w, http.StatusServiceUnavailable, "service unavailable")
 		return
 	}
-	var submitter any
+	var submitterID any
 	if !actor.IsZero() {
-		submitter = actor
+		submitterID = actor
 	}
-	// The embedded copy carries _id last, as pymongo's in-place insert leaves it.
-	embedded := append(body(false), bson.E{Key: "_id", Value: suggestionID})
+	// The case links the organisation and the suggestion by id. It does not
+	// copy the suggestion, so the submitter's IP and user agent stay only on
+	// the suggestion record (purged on schedule).
+	var submitter any
+	if email, ok := submitterEmail.(string); ok && email != "" {
+		submitter = bson.D{{Key: "submitter_email", Value: submitterEmail}}
+	}
 	err = s.store.CreateCase(ctx, func(running int64) bson.D {
 		return bson.D{
 			{Key: "_id", Value: bson.NewObjectID()}, {Key: "type", Value: "organization_edit_suggestion"},
-			{Key: "demo_id", Value: nil}, {Key: "organization_id", Value: nil}, {Key: "submitter_id", Value: submitter},
-			{Key: "submitter", Value: nil}, {Key: "error_report", Value: bson.D{}}, {Key: "suggestion", Value: embedded},
-			{Key: "meta", Value: bson.D{{Key: "urgency", Value: "high"}}}, {Key: "action_logs", Value: bson.A{}},
+			{Key: "demo_id", Value: nil}, {Key: "organization_id", Value: id}, {Key: "submitter_id", Value: submitterID},
+			{Key: "submitter", Value: submitter}, {Key: "error_report", Value: bson.D{}}, {Key: "suggestion", Value: bson.D{}},
+			{Key: "meta", Value: bson.D{{Key: "suggestion_id", Value: suggestionID.Hex()}}}, {Key: "action_logs", Value: bson.A{}},
 			{Key: "case_history", Value: bson.A{}}, {Key: "running_num", Value: running},
 			{Key: "created_at", Value: bson.NewDateTimeFromTime(now)}, {Key: "updated_at", Value: bson.NewDateTimeFromTime(now)},
 		}

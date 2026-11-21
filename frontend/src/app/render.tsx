@@ -36,17 +36,30 @@ import ApiDocsScreen from './ApiDocsScreen';
 import apiDocs from 'virtual:api-docs';
 import StatusScreen from './StatusScreen';
 import CancelLinkScreen from './CancelLinkScreen';
+import VolunteerConfirmScreen from './VolunteerConfirmScreen';
+import EmailConfirmScreen from './EmailConfirmScreen';
+import OrgInviteScreen from './OrgInviteScreen';
 import DeveloperScreen from './DeveloperScreen';
 import ProfileScreen from './ProfileScreen';
 import AccountSettingsScreen from './AccountSettingsScreen';
 import NotificationsScreen from './NotificationsScreen';
 import PasswordResetRequestScreen from './PasswordResetRequestScreen';
+import RegisterScreen from './RegisterScreen';
+import PasswordResetScreen from './PasswordResetScreen';
+import ForcedPasswordScreen from './ForcedPasswordScreen';
+import ForcedIdentityScreen from './ForcedIdentityScreen';
+import { forcedIdentityPath, forcedPasswordPath, forcedRedirect } from './forced-route';
+import RegisterNextStepsScreen from './RegisterNextStepsScreen';
+import LogoutScreen from './LogoutScreen';
 import LoginScreen from './LoginScreen';
 import { loginLegacyLocation } from './login-route';
 import { accountCopy } from './account-settings-route';
 import { notificationsCopy } from './notifications-route';
 import { loadProfile, profileTitle } from './profile-route';
 import type { ProfileInitial } from './profile-route';
+import { volunteerConfirmCopy } from './volunteer-confirm';
+import { emailConfirmCopy } from './email-confirm';
+import { orgInviteCopy, orgInviteIdPattern } from './org-invite';
 import { loadCancelLink, cancelLinkTitle, type CancelLinkState } from './cancel-link';
 import { loadStatus, statusTitle, type ServiceStatus } from './status';
 import { loadSuggestion, suggestionTitle, suggestionLead, type SuggestionDemo } from './suggest-change';
@@ -92,7 +105,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; logout?: string; registerNextSteps?: string; forcedPassword?: string; forcedIdentity?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -228,9 +241,9 @@ ${options.jsonLd ? `<script type="application/ld+json">${serialize(options.jsonL
 <noscript><link rel="stylesheet" href="https://cdn2.mielenosoitukset.fi/vendor/bootstrap/5.3.0/bootstrap.min.css" crossorigin></noscript>
 <link rel="stylesheet" href="/static/css/home.css?v=20261112-quick-picks">
 <link rel="stylesheet" href="/static/css/product-tokens.css?v=20261110-pride-contrast-1">
-<link rel="stylesheet" href="/static/css/user-workspace.css?v=20261110-user-workspace-8">
-<link rel="stylesheet" href="/static/css/public-header.css?v=20261027-react-header-1">
-<link rel="stylesheet" href="/static/css/flash.css?v=20261110-inline-spacing-1">
+<link rel="stylesheet" href="/static/css/user-workspace.css?v=20261120-user-workspace-10">
+<link rel="stylesheet" href="/static/css/public-header.css?v=20261121-mobile-bar-1">
+<link rel="stylesheet" href="/static/css/flash.css?v=20261121-plain-info-1">
 <link rel="stylesheet" href="/static/css/public_hero.css?v=20261015-hero-width-1">
 ${options.extraHead ?? ''}
 ${options.siteAnalyticsEnabled ? `<script src="https://cdn2.mielenosoitukset.fi/vendor/web-vitals/6.2.2/web-vitals.iife.js" integrity="sha256-Hl6bmva41xz+9QjlqGnFO0zyu8ytjJtaxmTDTpP2FRo=" defer crossorigin="anonymous"></script>
@@ -318,6 +331,12 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     path: input.path, locales: session.locales,
   });
   const text = catalog(config.locale);
+  // Like Flask's before_app_request: an account with a required step sees only that step and sign-out.
+  if (session.authenticated && (session.forced?.password || session.forced?.identity)
+    && route.name !== 'forced-password' && route.name !== 'forced-identity' && (route.name as string) !== 'logout') {
+    return { status: 302, html: '', redirect: session.forced.password ? forcedPasswordPath : forcedIdentityPath,
+      headers: { 'Cache-Control': 'private, no-store' } };
+  }
 
   let meta: RouteMeta = routeMeta(route, config, text);
   let detail: DetailBootstrap | undefined;
@@ -340,7 +359,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
   let fundraisingData: Record<string, unknown> | null | undefined;
   let campaignVisible: boolean | undefined;
   if (route.name === 'api-docs') {
-    extraHead = '<link rel="stylesheet" href="/static/css/public-api-docs.css?v=20261110-2">';
+    extraHead = '<link rel="stylesheet" href="/static/css/public-api-docs.css?v=20261120-plain-headers-1">';
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<div id="api-docs-page" dangerouslySetInnerHTML={{ __html: renderToStaticMarkup(<ApiDocsScreen {...apiDocs} />) }} />} />);
@@ -497,6 +516,45 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
       serverPage={<DeveloperScreen config={config} session={session} appId={route.appId} />} />);
   }
 
+  if (route.name === 'volunteer-confirm') {
+    // The link is a bearer secret and the page reads nothing: it only shows the button.
+    // Never cached, never indexed, no referrer to other sites.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.volunteerConfirm ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${volunteerConfirmCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<VolunteerConfirmScreen token={route.token} />} />);
+  }
+
+  if (route.name === 'email-confirm') {
+    // The link is a bearer secret (a signed token naming the address) and the page reads
+    // nothing: it only shows the button. Never cached, never indexed, no referrer.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.emailConfirm ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${emailConfirmCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<EmailConfirmScreen token={route.token} loginUrl={config.urls.login} />} />);
+  }
+
+  let orgInvite: { organizationId: string | null } | undefined;
+  if (route.name === 'org-invite') {
+    // Per-account page: never cached or indexed. The invitation is read in the browser from Go,
+    // with the visitor's own session, so the server renders only the shell and the id from the link.
+    const raw = new URLSearchParams(input.search ?? '').get('organization_id');
+    orgInvite = { organizationId: raw && orgInviteIdPattern.test(raw) ? raw : raw ? 'invalid' : null };
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.orgInvite ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    noscript = `<noscript><p class="container-main-content">${orgInviteCopy.noscript}</p></noscript>`;
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<OrgInviteScreen organizationId={orgInvite.organizationId} loginUrl={config.urls.login} logoutUrl={config.urls.logout} />} />);
+  }
+
   if (route.name === 'account-settings') {
     // Per-account page: never cached or indexed. The data loads in the browser from the Go read route.
     headers['Cache-Control'] = 'private, no-store';
@@ -529,6 +587,72 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<LoginScreen config={config} search={input.search ?? ''} />} />);
+  }
+
+  if (route.name === 'password-reset') {
+    // The path carries the reset token: never cache, never send it on as a referrer.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.passwordReset ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<PasswordResetScreen config={config} token={route.token} />} />);
+  }
+
+  if (route.name === 'forced-password' || route.name === 'forced-identity') {
+    const page = route.name === 'forced-password' ? 'password' : 'identity';
+    // Like Flask's login_required, then its order of steps; Flask checks everything again on POST.
+    if (!session.authenticated && !session.unverified) return { status: 302, html: '',
+      redirect: `${config.urls.login}?next=${encodeURIComponent(input.path)}`, headers: { 'Cache-Control': 'private, no-store' } };
+    const elsewhere = session.authenticated ? forcedRedirect(page, session.forced, config.urls.settings) : null;
+    if (elsewhere) return { status: 302, html: '', redirect: elsewhere, headers: { 'Cache-Control': 'private, no-store' } };
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    extraHead = (page === 'password' ? assets.forcedPassword ?? '' : assets.forcedIdentity ?? '')
+      + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The forms are plain HTML that post to Flask, so they work without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={page === 'password' ? <ForcedPasswordScreen config={config} session={session} />
+        : <ForcedIdentityScreen config={config} session={session} />} />);
+  }
+
+  if (route.name === 'register-next-steps') {
+    // The address comes from Flask's session after hydration; the shell shows the session too.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    extraHead = (assets.registerNextSteps ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The resend form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<RegisterNextStepsScreen config={config} />} />);
+  }
+
+  if (route.name === 'logout') {
+    // Like Flask: a signed-out visitor goes to the login page. The form carries this account's token.
+    if (!session.authenticated && !session.unverified) return { status: 302, html: '', redirect: config.urls.login,
+      headers: { 'Cache-Control': 'private, no-store' } };
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    extraHead = (assets.logout ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<LogoutScreen config={config} session={session} />} />);
+  }
+
+  if (route.name === 'register') {
+    // Same for every visitor, but the shared header shows the session: never cache.
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    headers['Referrer-Policy'] = 'no-referrer';
+    extraHead = (assets.register ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<RegisterScreen config={config} />} />);
   }
 
   if (route.name === 'password-reset-request') {
@@ -856,6 +980,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     ...(organizationFill ? { organizationFill } : {}),
     ...(suggestionDemo ? { suggestionDemo } : {}),
     ...(cancelLink ? { cancelLink } : {}),
+    ...(orgInvite ? { orgInvite } : {}),
     ...(profile ? { profile } : {}),
     ...(route.name === 'status' ? { serviceStatus } : {}),
     ...(detail ? { detail } : {}), ...(series ? { series } : {}), ...(home ? { home } : {}),

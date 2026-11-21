@@ -1,5 +1,6 @@
 {% extends "admin_base.html" %}
 {% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
+{% from 'admin_V2/_log_hub.html' import log_hub_tabs with context %}
 
 {% block title %}{{ _('Tekninen audit-loki') }}{% endblock %}
 
@@ -8,11 +9,13 @@
   {{ admin_page_hero(
     _('Tekninen audit-loki'),
     _('Korkean tason tapahtumaloki järjestelmän toiminnoista ja niiden teknisestä kontekstista.'),
-    _('Lokit ja tietosuoja'),
-    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Hallinnan tapahtumaloki'), url_for('admin.logs')), (_('Tekninen audit-loki'), none)],
+    _('Lokit ja tapahtumat'),
+    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Lokit ja tapahtumat'), url_for('admin.logs')), (_('Tekninen audit-loki'), none)],
     back_url=url_for('admin.logs'),
-    back_label=_('Hallinnan tapahtumaloki')
+    back_label=_('Lokit ja tapahtumat')
   ) }}
+
+  {{ log_hub_tabs('technical') }}
 
   <section class="admin-workspace-toolbar" aria-label="{{ _('Teknisen audit-lokin suodattimet') }}">
     <form method="get" action="{{ url_for('admin_demo.view_super_audit_logs') }}" class="admin-filter-bar">

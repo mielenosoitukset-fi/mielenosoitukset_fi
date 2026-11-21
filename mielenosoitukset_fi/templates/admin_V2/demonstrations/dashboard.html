@@ -1,7 +1,8 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
 {% from 'admin_V2/demonstrations/_edit_link_modal.html' import demo_edit_link_modal %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/demonstrations.css', v='20260914-admin-ui-51') }}">{% endblock %}
+{% from 'admin_V2/demonstrations/_demo_row.html' import demo_row with context %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/demonstrations.css', v='20261121-command-center') }}">{% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/admin_demo_edit_links.js') }}"></script>
 
@@ -91,10 +92,12 @@
             <option value="all" {% if approval_filter == 'all' %}selected{% endif %}>{{ _('Kaikki') }}</option>
             <option value="pending" {% if approval_filter == 'pending' %}selected{% endif %}>{{ _('Odottaa hyväksyntää') }}</option>
             <option value="approved" {% if approval_filter == 'approved' %}selected{% endif %}>{{ _('Hyväksytty') }}</option>
+            <option value="rejected" {% if approval_filter == 'rejected' %}selected{% endif %}>{{ _('Hylätty') }}</option>
           </select>
         </div>
         <button type="submit" class="btn btn-primary"><i class="fas fa-filter" aria-hidden="true"></i>{{ _('Suodata') }}</button>
       </div>
+      {% if not show_hidden or not show_cancelled %}<p class="admin-field__help mb-2">{{ _('Kaikki sisältää myös hylätyt. Piilotetut ja perutut valitaan lisäsuodattimista.') }}</p>{% endif %}
 
       <details class="admin-advanced-filters" {% if tag_filter or missing_tag_filter or show_hidden or show_cancelled or recurring_filter != 'all' or show_past_filter != 'all' or sort_filter != 'priority' %}open{% endif %}>
         <summary>{{ _('Lisäsuodattimet') }}</summary>
@@ -174,345 +177,22 @@
       <tbody>
 
 {# Split demos into clean groups #}
-{% set pending = demonstrations|selectattr('approved', 'equalto', False)|list %}
+{% set pending = demonstrations|selectattr('approved', 'equalto', False)|rejectattr('rejected')|list %}
 {% set approved = demonstrations|selectattr('approved', 'equalto', True)|list %}
+{% set rejected = demonstrations|selectattr('rejected')|rejectattr('approved')|list %}
 
-{# ----------------------------- #
-   PENDING SECTION
-   ----------------------------- #}
-{% if pending %}
-<tr class="admin-data-group-header">
-    <td colspan="{{ column_count }}"><strong>{{ _('Odottaa hyväksyntää') }}</strong></td>
+{% for group, label, header_class, rows in [
+    ('pending', _('Odottaa hyväksyntää'), '', pending),
+    ('approved', _('Hyväksytyt mielenosoitukset'), ' admin-data-group-header--success', approved),
+    ('rejected', _('Hylätyt mielenosoitukset'), '', rejected),
+] if rows %}
+<tr class="admin-data-group-header{{ header_class }}">
+    <td colspan="{{ column_count }}"><strong>{{ label }}</strong></td>
 </tr>
-
-{% for demo in pending %}
-<tr id="demo-{{ demo._id }}" class="admin-data-row--attention" data-search-row="true" data-search-text="{{ (demo.title ~ ' ' ~ demo.city ~ ' ' ~ demo.date ~ ' ' ~ (demo.address or '') ~ ' ' ~ ((demo.tags or [])|join(' ')))|lower }}">
-
-    <td class="select-col">
-        <input type="checkbox" class="demo-select form-check-input admin-selection-checkbox" value="{{ demo._id }}" data-demo-id="{{ demo._id }}" aria-label="{{ _('Valitse mielenosoitus') }} {{ demo.title }}"{{ '' if current_user.has_permission('EDIT_DEMO') and 'EDIT_DEMO' in demo_actions.get(demo._id|string, []) else ' disabled' }}>
-    </td>
-
-    <td>{{ demo.title }}</td>
-    <td>{{ demo.city }}</td>
-    <td>{{ demo.date }}</td>
-
-    <td>
-        {% if demo.recurs %}
-            <i class="fa-solid fa-check-circle admin-status-icon admin-status-icon--success"></i> {{ _('Kyllä') }}
-        {% else %}
-            <i class="fa-solid fa-times-circle admin-status-icon admin-status-icon--danger"></i> {{ _('Ei') }}
-        {% endif %}
-    </td>
-
-    <td data-col="approved">
-        {% if demo.city_assignment %}
-            {% if demo.city_assignment.escalated %}
-                <span class="badge bg-warning text-dark">{{ _('Eskaloitu') }}</span>
-            {% else %}
-                <span class="badge bg-info text-dark">{{ _('Kaupungin vastuulla') }}</span>
-            {% endif %}
-        {% else %}
-        <i class="fa-solid fa-times-circle admin-status-icon admin-status-icon--danger"></i> {{ _('Ei') }}
-        {% endif %}
-    </td>
-
-    {% if show_cancelled %}
-    <td>
-        {% if demo.cancelled %}
-            <span class="badge bg-danger">{{ _('Peruttu') }}</span>
-            {% if demo.cancelled_at %}
-                <div class="text-muted small">{{ demo.cancelled_at }}</div>
-            {% endif %}
-        {% else %}
-            <span class="text-muted">-</span>
-        {% endif %}
-    </td>
-    {% endif %}
-
-    <td class="actions-cell">
-        <div class="d-flex align-items-center gap-2">
-            {% if 'VIEW_DEMO' in demo_actions.get(demo._id|string, []) %}
-            <a class="btn btn-sm btn-outline-primary"
-               href="{{ url_for('demonstration_detail', demo_id=(demo.slug or demo._id)) }}"
-               target="_blank" rel="noopener"
-               title="{{ _('Avaa julkinen esikatselu') }}"
-               aria-label="{{ _('Avaa julkinen esikatselu') }}: {{ demo.title }}">
-                <i class="fa-solid fa-eye" aria-hidden="true"></i>
-            </a>
-            <a class="btn btn-sm btn-outline-primary command-center-btn"
-               href="{{ url_for('admin_demo.demo_command_center', demo_id=demo._id) }}"
-               title="{{ _('Hallintanäkymä') }}">
-                <i class="fa-solid fa-table-columns"></i>
-                <span class="visually-hidden">{{ _('Hallintanäkymä') }}</span>
-            </a>
-            {% endif %}
-            {% if 'GENERATE_EDIT_LINK' in demo_actions.get(demo._id|string, []) %}
-            <button class="btn btn-sm btn-outline-secondary" type="button"
-                    data-bs-toggle="modal" data-bs-target="#dashboardEditLinkModal"
-                    data-demo-edit-link-trigger data-demo-id="{{ demo._id }}" data-demo-title="{{ demo.title }}"
-                    title="{{ _('Luo ja kopioi muokkauslinkki') }}"
-                    aria-label="{{ _('Luo ja kopioi muokkauslinkki') }}: {{ demo.title }}">
-                <i class="fa-solid fa-link" aria-hidden="true"></i>
-            </button>
-            {% endif %}
-            <div class="dropdown">
-                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
-                        id="actionsDropdown-approved-{{ demo._id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fa-solid fa-ellipsis-vertical"></i> {{ _('Toiminnot') }}
-                </button>
-
-            <ul class="dropdown-menu" aria-labelledby="actionsDropdown-approved-{{ demo._id }}">
-
-                {# Decide: one place per admin, the case (or the review page for city admins). #}
-                {% if not demo.approved and not demo.rejected and decision_urls.get(demo._id|string) %}
-                      <li><a class="dropdown-item" href="{{ decision_urls[demo._id|string] }}">
-                          <i class="fa-solid fa-scale-balanced me-2"></i>{{ _('Käsittele') }}
-                      </a></li>
-                {% endif %}
-
-                {# Recommend toggle #}
-                {% if current_user.global_admin %}
-                    {% if demo.is_recommended %}
-                        <li><button class="dropdown-item" type="button"
-                                    onclick="toggleRecommendation('{{ demo._id }}', this, true)">
-                            <i class="fa-solid fa-star-half-stroke me-2"></i>{{ _('Poista suositus') }}
-                        </button></li>
-                    {% else %}
-                        <li><button class="dropdown-item" type="button"
-                                    onclick="toggleRecommendation('{{ demo._id }}', this, false)">
-                            <i class="fa-solid fa-star me-2"></i>{{ _('Suosittele') }}
-                        </button></li>
-                    {% endif %}
-                {% endif %}
-
-                {# Edit #}
-                {% if 'EDIT_DEMO' in demo_actions.get(demo._id|string, []) %}
-                    <li><a class="dropdown-item"
-                           href="{{ url_for('admin_demo.edit_demo', demo_id=demo._id) }}">
-                        <i class="fas fa-edit me-2"></i>{{ _('Muokkaa') }}
-                    </a></li>
-                {% endif %}
-
-                {# View #}
-                {% if 'VIEW_DEMO' in demo_actions.get(demo._id|string, []) %}
-                    <li><a class="dropdown-item"
-                           href="{{ url_for('demonstration_detail', demo_id=demo._id) }}">
-                        <i class="fa-solid fa-eye me-2"></i>{{ _('Katsele') }}
-                    </a></li>
-
-                    <li><button class="dropdown-item" type="button"
-                                onclick="showSubmitterInfoModal('{{ demo._id }}', this)">
-                        <i class="fa-solid fa-user me-2"></i>{{ _('Ilmoittaja') }}
-                    </button></li>
-                {% endif %}
-
-                {# Screenshot + Freeze #}
-                {% if 'CREATE_DEMO' in demo_actions.get(demo._id|string, []) %}
-                    <li><button class="dropdown-item" type="button"
-                                onclick="triggerScreenshot('{{ demo._id }}', this)">
-                        <i class="fas fa-camera me-2"></i>{{ _('Luo esikatselukuva') }}
-                    </button></li>
-
-                    <li><button class="dropdown-item" type="button"
-                                data-bs-toggle="modal" data-bs-target="#freezeModal"
-                                onclick="openFreezeModal('{{ demo._id }}')">
-                        <i class="fas fa-snowflake me-2"></i>Jäädytys
-                        <span class="text-muted">(vain toistuville)</span>
-                    </button></li>
-                {% endif %}
-
-                {# Edit history #}
-                <li><a class="dropdown-item"
-                       href="{{ url_for('admin_demo.demo_edit_history', demo_id=demo._id) }}">
-                    <i class="fa-solid fa-history me-2"></i>{{ _('Muokkaushistoria') }}
-                </a></li>
-
-                <li><a class="dropdown-item"
-                       href="{{ url_for('admin_demo.view_demo_audit_log', demo_id=demo._id) }}">
-                    <i class="fa-solid fa-clipboard-list me-2"></i>{{ _('Audit-loki') }}
-                </a></li>
-
-                {# Delete #}
-                {% if current_user.has_permission("DELETE_DEMO") %}
-                    <li><button class="dropdown-item text-danger" type="button"
-                                data-demo-title="{{ demo.title }}" onclick="openModal(event, this.dataset.demoTitle, '{{ demo._id }}')">
-                        <i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}
-                    </button></li>
-                {% else %}
-                    <li><span class="dropdown-item disabled">
-                        <i class="fas fa-ban me-2"></i>{{ _('Poista') }}
-                    </span></li>
-                {% endif %}
-
-            </ul>
-        </div>
-        </div>
-    </td>
-
-</tr>
+{% for demo in rows %}
+{{ demo_row(demo, group) }}
 {% endfor %}
-{% endif %}
-
-{# ----------------------------- #
-   APPROVED SECTION
-   ----------------------------- #}
-{% if approved %}
-<tr class="admin-data-group-header admin-data-group-header--success">
-    <td colspan="{{ column_count }}"><strong>{{ _('Hyväksytyt mielenosoitukset') }}</strong></td>
-</tr>
-
-{% for demo in approved %}
-<tr id="demo-{{ demo._id }}" data-search-row="true" data-search-text="{{ (demo.title ~ ' ' ~ demo.city ~ ' ' ~ demo.date ~ ' ' ~ (demo.address or '') ~ ' ' ~ ((demo.tags or [])|join(' ')))|lower }}">
-
-    <td class="select-col">
-        <input type="checkbox" class="demo-select form-check-input admin-selection-checkbox" value="{{ demo._id }}" data-demo-id="{{ demo._id }}" aria-label="{{ _('Valitse mielenosoitus') }} {{ demo.title }}"{{ '' if current_user.has_permission('EDIT_DEMO') and 'EDIT_DEMO' in demo_actions.get(demo._id|string, []) else ' disabled' }}>
-    </td>
-
-    <td>{{ demo.title }}</td>
-    <td>{{ demo.city }}</td>
-    <td>{{ demo.date }}</td>
-
-    <td>
-        {% if demo.recurs %}
-            <i class="fa-solid fa-check-circle admin-status-icon admin-status-icon--success"></i> {{ _('Kyllä') }}
-        {% else %}
-            <i class="fa-solid fa-times-circle admin-status-icon admin-status-icon--danger"></i> {{ _('Ei') }}
-        {% endif %}
-    </td>
-
-    <td data-col="approved">
-        <i class="fa-solid fa-check-circle admin-status-icon admin-status-icon--success"></i> {{ _('Kyllä') }}
-    </td>
-
-    {% if show_cancelled %}
-    <td>
-        {% if demo.cancelled %}
-            <span class="badge bg-danger">{{ _('Peruttu') }}</span>
-            {% if demo.cancelled_at %}
-                <div class="text-muted small">{{ demo.cancelled_at }}</div>
-            {% endif %}
-        {% else %}
-            <span class="text-muted">-</span>
-        {% endif %}
-    </td>
-    {% endif %}
-
-    <td class="actions-cell">
-        <div class="d-flex align-items-center gap-2">
-        {% if 'VIEW_DEMO' in demo_actions.get(demo._id|string, []) %}
-        <a class="btn btn-sm btn-outline-primary"
-           href="{{ url_for('demonstration_detail', demo_id=(demo.slug or demo._id)) }}"
-           target="_blank" rel="noopener"
-           title="{{ _('Avaa julkinen esikatselu') }}"
-           aria-label="{{ _('Avaa julkinen esikatselu') }}: {{ demo.title }}">
-            <i class="fa-solid fa-eye" aria-hidden="true"></i>
-        </a>
-        <a class="btn btn-sm btn-outline-primary command-center-btn"
-           href="{{ url_for('admin_demo.demo_command_center', demo_id=demo._id) }}"
-           title="{{ _('Hallintanäkymä') }}">
-            <i class="fa-solid fa-table-columns"></i>
-            <span class="visually-hidden">{{ _('Hallintanäkymä') }}</span>
-        </a>
-        {% endif %}
-        {% if 'GENERATE_EDIT_LINK' in demo_actions.get(demo._id|string, []) %}
-        <button class="btn btn-sm btn-outline-secondary" type="button"
-                data-bs-toggle="modal" data-bs-target="#dashboardEditLinkModal"
-                data-demo-edit-link-trigger data-demo-id="{{ demo._id }}" data-demo-title="{{ demo.title }}"
-                title="{{ _('Luo ja kopioi muokkauslinkki') }}"
-                aria-label="{{ _('Luo ja kopioi muokkauslinkki') }}: {{ demo.title }}">
-            <i class="fa-solid fa-link" aria-hidden="true"></i>
-        </button>
-        {% endif %}
-        <div class="dropdown">
-            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
-                    id="actionsDropdown-{{ demo._id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fa-solid fa-ellipsis-vertical"></i> {{ _('Toiminnot') }}
-            </button>
-
-            <ul class="dropdown-menu" aria-labelledby="actionsDropdown-{{ demo._id }}">
-
-                {# Recommend toggle #}
-                {% if current_user.global_admin %}
-                    {% if demo.is_recommended %}
-                        <li><button class="dropdown-item" type="button"
-                                    onclick="toggleRecommendation('{{ demo._id }}', this, true)">
-                            <i class="fa-solid fa-star-half-stroke me-2"></i>{{ _('Poista suositus') }}
-                        </button></li>
-                    {% else %}
-                        <li><button class="dropdown-item" type="button"
-                                    onclick="toggleRecommendation('{{ demo._id }}', this, false)">
-                            <i class="fa-solid fa-star me-2"></i>{{ _('Suosittele') }}
-                        </button></li>
-                    {% endif %}
-                {% endif %}
-
-                {# Edit #}
-                {% if 'EDIT_DEMO' in demo_actions.get(demo._id|string, []) %}
-                    <li><a class="dropdown-item"
-                           href="{{ url_for('admin_demo.edit_demo', demo_id=demo._id) }}">
-                        <i class="fas fa-edit me-2"></i>{{ _('Muokkaa') }}
-                    </a></li>
-                {% endif %}
-
-                {# View #}
-                {% if 'VIEW_DEMO' in demo_actions.get(demo._id|string, []) %}
-                    <li><a class="dropdown-item"
-                           href="{{ url_for('demonstration_detail', demo_id=demo._id) }}">
-                        <i class="fa-solid fa-eye me-2"></i>{{ _('Katsele') }}
-                    </a></li>
-
-                    <li><button class="dropdown-item" type="button"
-                                onclick="showSubmitterInfoModal('{{ demo._id }}', this)">
-                        <i class="fa-solid fa-user me-2"></i>{{ _('Ilmoittaja') }}
-                    </button></li>
-                {% endif %}
-
-                {# Screenshot + Freeze #}
-                {% if 'CREATE_DEMO' in demo_actions.get(demo._id|string, []) %}
-                    <li><button class="dropdown-item" type="button"
-                                onclick="triggerScreenshot('{{ demo._id }}', this)">
-                        <i class="fas fa-camera me-2"></i>{{ _('Luo esikatselukuva') }}
-                    </button></li>
-
-                    <li><button class="dropdown-item" type="button"
-                                data-bs-toggle="modal" data-bs-target="#freezeModal"
-                                onclick="openFreezeModal('{{ demo._id }}')">
-                        <i class="fas fa-snowflake me-2"></i>Jäädytys
-                        <span class="text-muted">(vain toistuville)</span>
-                    </button></li>
-                {% endif %}
-
-                {# Edit history #}
-                <li><a class="dropdown-item"
-                       href="{{ url_for('admin_demo.demo_edit_history', demo_id=demo._id) }}">
-                    <i class="fa-solid fa-history me-2"></i>{{ _('Muokkaushistoria') }}
-                </a></li>
-
-                <li><a class="dropdown-item"
-                       href="{{ url_for('admin_demo.view_demo_audit_log', demo_id=demo._id) }}">
-                    <i class="fa-solid fa-clipboard-list me-2"></i>{{ _('Audit-loki') }}
-                </a></li>
-
-                {# Delete #}
-                {% if current_user.has_permission("DELETE_DEMO") %}
-                    <li><button class="dropdown-item text-danger" type="button"
-                                data-demo-title="{{ demo.title }}" onclick="openModal(event, this.dataset.demoTitle, '{{ demo._id }}')">
-                        <i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}
-                    </button></li>
-                {% else %}
-                    <li><span class="dropdown-item disabled">
-                        <i class="fas fa-ban me-2"></i>{{ _('Poista') }}
-                    </span></li>
-                {% endif %}
-
-            </ul>
-        </div>
-        </div>
-    </td>
-
-</tr>
 {% endfor %}
-{% endif %}
 
 </tbody>
 
@@ -613,85 +293,16 @@
       const submitterModalEl = document.getElementById('submitterInfoModal');
       const submitterModal = bootstrap.Modal.getOrCreateInstance(submitterModalEl);
 
-      // Fast delete mode flag
-      let fastDeleteMode = false;
-
-      function updateDeleteButtonTexts() {
-        document.querySelectorAll('.delete-button').forEach(btn => {
-          const icon = btn.querySelector('i');
-          if (icon) {
-            btn.innerHTML = icon.outerHTML + (fastDeleteMode ? ' Pikapoisto' : ' {{ _("Poista") }}');
-          } else {
-            // fallback if no icon found
-            btn.textContent = fastDeleteMode ? 'Pikapoisto' : '{{ _("Poista") }}';
-          }
-        });
-      }
-
-
-      // Listen Shift key down/up globally
+      // Deleting always asks first (there is no keyboard shortcut that
+      // skips the confirmation).
       document.addEventListener('keydown', e => {
-        if (e.key === 'Shift') {
-          fastDeleteMode = true;
-          updateDeleteButtonTexts();
-          console.log('Fast delete mode enabled.');
-        }
         if (e.key === 'Escape') {
           deleteModal.hide();
-          console.log('Modal closed via Escape.');
         }
       });
-
-      document.addEventListener('keyup', e => {
-        if (e.key === 'Shift') {
-          fastDeleteMode = false;
-          updateDeleteButtonTexts();
-          console.log('Fast delete mode disabled.');
-        }
-      });
-      // Helper: Animate then remove the row
-      function animateAndRemoveRow(rowEl) {
-        if (!rowEl) return;
-        rowEl.classList.add('fade-out');
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          rowEl.remove();
-          return;
-        }
-        const removeRow = () => rowEl.remove();
-        rowEl.addEventListener('transitionend', removeRow, { once: true });
-        window.setTimeout(removeRow, 350);
-      }
-      // Open delete modal or fast-delete immediately if shift pressed
+      // Open the delete confirmation
       window.openModal = (event, title, id) => {
         event.preventDefault();
-
-
-
-        // Inside your main script:
-        if (fastDeleteMode) {
-          // Fast delete directly without modal
-          fetch("/admin/demo/delete_demo", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ demo_id: id }),
-            redirect: 'manual'
-          })
-            .then(res => res.json())
-            .then(data => {
-              if (data.status === 'OK') {
-                const row = document.getElementById(`demo-${id}`);
-                animateAndRemoveRow(row);
-                console.log(`Demo ${id} deleted instantly (pikapoisto).`);
-              } else {
-                alert(data.message || '{{ _("Virhe poistettaessa.") }}');
-              }
-            })
-            .catch(() => alert('{{ _("Yhteysvirhe, yritä uudelleen.") }}'));
-
-          return;
-        }
-
-
         // Normal modal open flow
         document.getElementById('demoTitle').textContent = title;
         const confirmDeleteBtn = document.getElementById('confirmDelete');
@@ -790,12 +401,9 @@
         if (submitterTrigger?.isConnected) submitterTrigger.focus();
       });
 
-      // Initial button text update
-      updateDeleteButtonTexts();
     });
 
 
-    // animateAndRemoveRow is implemented earlier (kept single canonical implementation)
 
 
   </script>

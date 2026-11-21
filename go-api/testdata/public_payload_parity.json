@@ -1,0 +1,2684 @@
+{
+ "cases": [
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "fi",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_date": "2026-12-03",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": "2026-12-03",
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "default_language": "en",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus",
+    "translations": {
+     "en": {
+      "title": "English"
+     },
+     "fi": {
+      "tags": [
+       "a"
+      ],
+      "title": " Suomeksi "
+     },
+     "sv": {
+      "description": "  "
+     }
+    }
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "en",
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "en",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "en",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "English"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "default_language": "xx",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus",
+    "translations": {
+     "en": {
+      "description": "Body",
+      "title": "English"
+     }
+    }
+   },
+   "lang": "en",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "en",
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "Body",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "en",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "English"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus",
+    "translations": {
+     "en": "bad",
+     "sv": {
+      "tags": [
+       " ",
+       "taggen"
+      ]
+     }
+    }
+   },
+   "lang": "sv",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi",
+     "sv"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "sv",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "taggen"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": {
+     "$date": {
+      "$numberLong": "1796164200000"
+     }
+    },
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": {
+     "$date": {
+      "$numberLong": "1796167800000"
+     }
+    },
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": null,
+    "date": {
+     "$numberInt": "20261201"
+    },
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": {
+     "$numberInt": "17"
+    },
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": null,
+    "cover_picture": null,
+    "cover_source": null,
+    "date": null,
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": null,
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": true,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "likes": {
+     "$numberInt": "7"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "parent": {
+     "$oid": "65f0c0ffee0000000000cafe"
+    },
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": true,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": 7,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": "65f0c0ffee0000000000cafe",
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": "yes",
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "likes": {
+     "$numberInt": "-1"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "parent": "65F0C0FFEE0000000000CAFE",
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": "65f0c0ffee0000000000cafe",
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "likes": {
+     "$numberDouble": "2.5"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "parent": "not-an-id",
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "likes": {
+     "$numberLong": "2147483648"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": "17",
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 17.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "likes": "12",
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": true,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": 12,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": null,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": "nan",
+    "longitude": "1e400",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": null,
+    "likes": null,
+    "longitude": null,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": " 60.1",
+    "longitude": "0x1p-2",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": null,
+    "likes": null,
+    "longitude": 0.25,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": "1_0",
+    "longitude": "-.5e1",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 10.0,
+    "likes": null,
+    "longitude": -5.0,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": "1__0",
+    "longitude": "_1",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": null,
+    "likes": null,
+    "longitude": null,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": "1_",
+    "longitude": "٣",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": null,
+    "likes": null,
+    "longitude": null,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": "0x_1.8p1",
+    "longitude": "1e+0_1",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 3.0,
+    "likes": null,
+    "longitude": 10.0,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": "Infinity",
+    "longitude": "5.",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": null,
+    "likes": null,
+    "longitude": 5.0,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "route": [
+     "A",
+     " B ",
+     "",
+     {
+      "$numberInt": "3"
+     }
+    ],
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [
+     "A",
+     "B"
+    ],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "route": "[\"Rautatientori\", \" Senaatintori \"]",
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [
+     "Rautatientori",
+     "Senaatintori"
+    ],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "route": "['Kauppatori', \"Esplanadi\", 'It\\'s here']",
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [
+     "Kauppatori",
+     "Esplanadi",
+     "It's here"
+    ],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "route": "['bad' 'list']",
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [
+     "['bad' 'list']"
+    ],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "route": "Kaisaniemi, Kallio\nSörnäinen,,",
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [
+     "Kaisaniemi",
+     "Kallio",
+     "Sörnäinen"
+    ],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "route": "null",
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "route": "[1, 2]",
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [
+     "[1",
+     "2]"
+    ],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "route": "['\\x41\\u00e4\\101']",
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [
+     "AäA"
+    ],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "route": "['\\q']",
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [
+     "['\\q']"
+    ],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "gallery_images": [
+     "a.jpg\n b.jpg ",
+     [
+      "c.jpg",
+      "a.jpg"
+     ],
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "hide": false,
+    "images": [
+     "ignored.jpg"
+    ],
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [
+     "a.jpg",
+     "b.jpg",
+     "c.jpg"
+    ],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "gallery_images": [],
+    "hide": false,
+    "images": "x.jpg\n\ny.jpg",
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [
+     "x.jpg",
+     "y.jpg"
+    ],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": "c.jpg",
+    "cover_source": "auto",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "event_type": "march",
+    "facebook": "https://facebook.com/events/1",
+    "hide": false,
+    "img": "https://cdn.example.test/i.jpg",
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [],
+    "preview_image": "p.png",
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": "c.jpg",
+    "cover_source": "auto",
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": "march",
+    "facebook": "https://facebook.com/events/1",
+    "gallery_images": [],
+    "img": "https://cdn.example.test/i.jpg",
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [],
+    "parent": null,
+    "preview_image": "p.png",
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  },
+  {
+   "document": {
+    "_id": {
+     "$oid": "65f0c0ffee0000000000abcd"
+    },
+    "address": "Senaatintori",
+    "approved": false,
+    "cancelled": false,
+    "city": "Helsinki",
+    "date": "2026-12-01",
+    "description": "<p>Kuvaus</p>",
+    "end_time": null,
+    "hide": false,
+    "latitude": {
+     "$numberDouble": "60.17"
+    },
+    "longitude": "24.94",
+    "organizers": [
+     {
+      "email": "org@example.test",
+      "logo": "l.png",
+      "name": "Org",
+      "organization_id": {
+       "$oid": "65f0c0ffee0000000000beef"
+      },
+      "show_email_public": true,
+      "website": "https://org.test"
+     },
+     {
+      "email": "no@example.test",
+      "name": "Hidden email",
+      "organization_id": "65f0c0ffee0000000000beef"
+     },
+     {
+      "email": "p@example.test",
+      "is_private": true,
+      "logo": "l",
+      "name": "Private",
+      "organization_id": {
+       "$oid": "65f0c0ffee0000000000beef"
+      },
+      "show_email_public": false,
+      "website": "w"
+     },
+     {
+      "is_private": true,
+      "name": "Private shown",
+      "show_name_public": true,
+      "website": "w"
+     },
+     {
+      "is_private": null,
+      "name": "Bad flag"
+     },
+     {
+      "is_private": false,
+      "name": ""
+     },
+     {},
+     "string",
+     null
+    ],
+    "rejected": false,
+    "running_number": {
+     "$numberInt": "42"
+    },
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "submitter_email": "private@example.test",
+    "tags": [
+     "ilmasto",
+     " rauha ",
+     "",
+     {
+      "$numberInt": "5"
+     }
+    ],
+    "title": "Mielenosoitus"
+   },
+   "lang": "",
+   "payload": {
+    "_id": "65f0c0ffee0000000000abcd",
+    "address": "Senaatintori",
+    "available_languages": [
+     "fi"
+    ],
+    "cancelled": false,
+    "city": "Helsinki",
+    "cover_picture": null,
+    "cover_source": null,
+    "date": "2026-12-01",
+    "default_language": "fi",
+    "description": "<p>Kuvaus</p>",
+    "end_date": null,
+    "end_time": null,
+    "event_type": null,
+    "facebook": null,
+    "gallery_images": [],
+    "img": null,
+    "latitude": 60.17,
+    "likes": null,
+    "longitude": 24.94,
+    "organizers": [
+     {
+      "email": "org@example.test",
+      "is_private": false,
+      "logo": "l.png",
+      "name": "Org",
+      "organization_id": "65f0c0ffee0000000000beef",
+      "website": "https://org.test"
+     },
+     {
+      "email": null,
+      "is_private": false,
+      "logo": null,
+      "name": "Hidden email",
+      "organization_id": "65f0c0ffee0000000000beef",
+      "website": null
+     },
+     {
+      "email": null,
+      "is_private": true,
+      "logo": null,
+      "name": null,
+      "organization_id": null,
+      "website": null
+     },
+     {
+      "email": null,
+      "is_private": true,
+      "logo": null,
+      "name": "Private shown",
+      "organization_id": null,
+      "website": "w"
+     },
+     {
+      "email": null,
+      "is_private": false,
+      "logo": null,
+      "name": null,
+      "organization_id": null,
+      "website": null
+     }
+    ],
+    "parent": null,
+    "preview_image": null,
+    "resolved_language": "fi",
+    "route": [],
+    "running_number": 42.0,
+    "slug": "mielenosoitus",
+    "start_time": "17:00",
+    "tags": [
+     "ilmasto",
+     "rauha"
+    ],
+    "title": "Mielenosoitus"
+   }
+  }
+ ]
+}

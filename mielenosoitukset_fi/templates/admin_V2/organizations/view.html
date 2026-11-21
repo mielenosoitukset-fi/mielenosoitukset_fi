@@ -14,6 +14,7 @@
   ) %}
       <a class="admin-page-hero__action" href="{{ url_for('org', org_id=organization._id) }}"><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>{{ _('Julkinen sivu') }}</a>
       {% if can_edit_organization %}<a class="admin-page-hero__action" href="{{ url_for('admin_org.edit_organization', org_id=organization._id) }}"><i class="fas fa-pen" aria-hidden="true"></i>{{ _('Muokkaa') }}</a>{% endif %}
+      {% if can_edit_organization %}<a class="admin-page-hero__action" href="{{ url_for('admin_org.organization_history', org_id=organization._id) }}"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i>{{ _('Muutoshistoria') }}</a>{% endif %}
   {% endcall %}
 
   <section class="admin-workspace-summary" aria-label="{{ _('Organisaation yhteenveto') }}">
@@ -23,7 +24,7 @@
     <article class="admin-workspace-summary-card admin-workspace-summary-card--label"><span class="admin-workspace-summary-icon"><i class="fas fa-globe" aria-hidden="true"></i></span><div><span>{{ _('Verkkosivu') }}</span><strong>{{ _('Lisätty') if organization.website else _('Puuttuu') }}</strong></div></article>
   </section>
 
-  <div class="admin-detail-layout">
+  <div class="admin-detail-layout admin-detail-layout--table-main">
     <div class="admin-stack">
       <section class="admin-data-view">
         <div class="admin-data-view__header">
@@ -101,7 +102,7 @@
       <section class="admin-section-card">
         <div class="admin-section-card__header"><div class="admin-section-card__title"><i class="fas fa-hashtag" aria-hidden="true"></i><h2>{{ _('Sosiaalinen media') }}</h2></div></div>
         <div class="admin-section-card__body">
-          {% if organization.social_media_links %}<div class="admin-link-list">{% for platform, url in organization.social_media_links.items() %}<a class="admin-link-list__item" href="{{ url }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-{{ platform }} admin-link-list__icon" aria-hidden="true"></i><span>{{ platform|capitalize }}</span><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></a>{% endfor %}</div>
+          {% if organization.social_media_links %}<div class="admin-link-list">{% set known_platforms = ['facebook', 'twitter', 'mastodon', 'instagram', 'linkedin', 'tiktok', 'youtube', 'snapchat'] %}{% for platform, url in organization.social_media_links.items() %}{% if url|safe_href %}<a class="admin-link-list__item" href="{{ url|safe_href }}" target="_blank" rel="noopener noreferrer">{% if platform in known_platforms %}<i class="fab fa-{{ platform }} admin-link-list__icon" aria-hidden="true"></i><span>{{ platform|capitalize }}</span>{% else %}<i class="fas fa-link admin-link-list__icon" aria-hidden="true"></i><span>{{ _('Muu') if platform == 'muu' else platform }}</span>{% endif %}<i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></a>{% endif %}{% endfor %}</div>
           {% else %}<div class="admin-empty-state"><i class="fas fa-link-slash admin-empty-state__icon" aria-hidden="true"></i><strong class="admin-empty-state__title">{{ _('Ei some-linkkejä') }}</strong><span>{{ _('Linkkejä voi lisätä muokkausnäkymässä.') }}</span></div>{% endif %}
         </div>
       </section>

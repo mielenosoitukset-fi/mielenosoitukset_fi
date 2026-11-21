@@ -74,11 +74,14 @@ type calendarDay struct {
 	Count int64  `json:"count"`
 }
 type calendarPayload struct {
-	Year  int           `json:"year"`
-	Month int           `json:"month"`
-	City  string        `json:"city,omitempty"`
-	Total int64         `json:"total"`
-	Days  []calendarDay `json:"days"`
+	Year  int    `json:"year"`
+	Month int    `json:"month"`
+	City  string `json:"city,omitempty"`
+	Total int64  `json:"total"`
+	// Demonstrations counts each demonstration once; Total sums the day
+	// counts, where a multi-day demonstration counts on every day it runs.
+	Demonstrations int64         `json:"demonstrations"`
+	Days           []calendarDay `json:"days"`
 }
 type calendarStore interface {
 	FindCalendar(context.Context, calendarMonth) (calendarPayload, error)
@@ -93,25 +96,34 @@ func (s mongoStore) FindCalendar(ctx context.Context, month calendarMonth) (cale
 		end = start.AddDate(1, 0, 0)
 	}
 	filter := publicDatedFilter()
-	filter["date"] = bson.M{"$gte": start.Format("2006-01-02"), "$lt": end.Format("2006-01-02")}
+	first, last := start.Format("2006-01-02"), end.AddDate(0, 0, -1).Format("2006-01-02")
+	// A multi-day demonstration counts on every day it runs in the period.
+	span, running := overlapDates(first, last)
+	filter["date"] = span
+	filter["$and"] = append(filter["$and"].(bson.A), running)
 	filter["cancelled"] = bson.M{"$ne": true}
 	if month.City != "" {
 		filter["$and"] = listingSearch(listingQuery{Cities: []string{cityCatalog[month.City].Name}}, filter["$and"].(bson.A))
 	}
-	cursor, err := s.collection.Aggregate(ctx, mongo.Pipeline{
-		{{Key: "$match", Value: filter}},
-		{{Key: "$group", Value: bson.M{"_id": "$date", "count": bson.M{"$sum": 1}}}},
-		{{Key: "$sort", Value: bson.M{"_id": 1}}},
-	})
+	pipeline := mongo.Pipeline{{{Key: "$match", Value: filter}}, {{Key: "$project", Value: bson.M{"date": 1, "end_date": 1}}}}
+	pipeline = append(pipeline, demoDaysStages()...)
+	pipeline = append(pipeline,
+		bson.D{{Key: "$match", Value: bson.M{"_day": bson.M{"$gte": first, "$lte": last}}}},
+		bson.D{{Key: "$group", Value: bson.M{"_id": "$_day", "count": bson.M{"$sum": 1}, "ids": bson.M{"$addToSet": "$_id"}}}},
+		bson.D{{Key: "$sort", Value: bson.M{"_id": 1}}},
+	)
+	cursor, err := s.collection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return calendarPayload{}, err
 	}
 	defer cursor.Close(ctx)
 	payload := calendarPayload{Year: month.Year, Month: month.Month, City: month.City, Days: []calendarDay{}}
+	seen := map[bson.ObjectID]bool{}
 	for cursor.Next(ctx) {
 		var row struct {
-			Date  string `bson:"_id"`
-			Count int64  `bson:"count"`
+			Date  string          `bson:"_id"`
+			Count int64           `bson:"count"`
+			IDs   []bson.ObjectID `bson:"ids"`
 		}
 		if err := cursor.Decode(&row); err != nil {
 			return calendarPayload{}, err
@@ -122,7 +134,11 @@ func (s mongoStore) FindCalendar(ctx context.Context, month calendarMonth) (cale
 		}
 		payload.Days = append(payload.Days, calendarDay{row.Date, row.Count})
 		payload.Total += row.Count
+		for _, id := range row.IDs {
+			seen[id] = true
+		}
 	}
+	payload.Demonstrations = int64(len(seen))
 	return payload, cursor.Err()
 }
 

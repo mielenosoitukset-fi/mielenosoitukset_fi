@@ -267,7 +267,9 @@ def _generate(client, db, seeded_data, captured_mail):
         # The Go side builds its own absolute link from the configured origin.
         context.update(review_link="https://mielenosoitukset.fi/admin/organization/ORG/suggestion/SUGGESTION", submitted_at="2026-11-17 10:20 UTC", ip=FIXED_IP, user_agent=FIXED_AGENT)
         assert context["fields"] == stored["fields"]
-        assert case["suggestion"]["_id"] == stored["_id"]
+        # The case links the suggestion by id and does not copy it (no IP or agent).
+        assert case["meta"]["suggestion_id"] == str(stored["_id"])
+        assert case["organization_id"] == org_id
         fixture["org_scenarios"].append({
             "name": scenario["name"],
             "org": scenario["org"],
@@ -283,14 +285,14 @@ def _generate(client, db, seeded_data, captured_mail):
             "case_keys": sorted(case.keys()),
             "case_type": case["type"],
             "case_demo_id": case["demo_id"],
-            "case_organization_id": case["organization_id"],
+            "case_organization_id": "{org}" if case["organization_id"] == org_id else _repr_free(case["organization_id"]),
             "case_submitter_id": case["submitter_id"],
             "case_submitter": case["submitter"],
             "case_error_report": case["error_report"],
-            "case_meta": case["meta"],
+            "case_meta": {**case["meta"], "suggestion_id": "{suggestion}"},
             "case_action_logs": case["action_logs"],
             "case_case_history": case["case_history"],
-            "case_suggestion_keys": sorted(case["suggestion"].keys()),
+            "case_suggestion_keys": sorted((case["suggestion"] or {}).keys()),
             "mail_subject": mail["subject"],
             "mail_recipients": mail["recipients"],
             "mail_html": env.get_template(mail["template"]).render(context),

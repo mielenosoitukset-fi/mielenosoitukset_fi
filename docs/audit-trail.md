@@ -34,7 +34,9 @@ that was written:
 | `duration_ms` | driver time |
 
 Writes that matched nothing (polling claims, a delete of something already
-gone) are not events. Failed writes are.
+gone) are not events, and neither are updates that matched a document but
+changed nothing (`nModified: 0`, every field already had the value). Failed
+writes are events.
 
 ### Never logged
 
@@ -47,7 +49,8 @@ hashes, JWTs or Fernet tokens, and every non-id value of the credential collecti
 `magic_links`, `mfas`, `mfa_login_challenges`, `user_passkeys`,
 `passkey_challenges`, `fresh_step_up_tokens`, `used_password_change_tokens`,
 `demo_cancellation_tokens`, `demo_submission_tokens`, `contact_form_tokens`,
-`hallinto_sessions`, `oauth_authorization_codes`, `erasure_identity_seals`).
+`hallinto_sessions`, `oauth_authorization_codes`, `erasure_identity_seals`,
+`hallinto_oidc_codes`, `hallinto_login_markers`).
 Long strings are cut at 300 characters, lists at 50 items. Both services run
 the same redaction vectors (`go-api/testdata/audit_redaction.json`).
 
@@ -142,3 +145,18 @@ Counted with a regex over `insert_*`, `update_*`, `replace_one`, `delete_*`,
 The existing logs stay: they carry human-readable intent (reasons, case
 links, before/after snapshots of demonstrations). `audit_events` is the
 complete, low-level trail beneath them.
+
+## Reading the history
+
+`admin/audit_history.py` turns the events of one document into readable rows
+(newest first, at most 500): time in Helsinki, created/edited/deleted, actor
+(user name for user ids, otherwise token, link, job or system) with the path,
+and each field's new value. The old value is the value the previous recorded
+event set; before the trail started it is unknown and not shown.
+
+- Organizations: **Muutoshistoria** on the admin organization page
+  (`/admin/organization/history/<org_id>`, needs `EDIT_ORGANIZATION` and edit
+  rights to that organization).
+- Demonstrations: the edit history page shows the saved versions as before and,
+  below them, "Kaikki kirjatut muutokset" (the 50 newest events), including
+  writes from the Go API, jobs and links that never stored a version.

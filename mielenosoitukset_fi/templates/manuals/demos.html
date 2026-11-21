@@ -16,20 +16,46 @@
 
 <section id="hyvaksy">
   <h2>{{ _('Hyväksy tai hylkää') }}</h2>
-  <p>{{ _('Uudet ilmoitukset odottavat hyväksyntää. Helpoin tapa käsitellä ne on') }} <a href="{{ manual_url('cases', 'kasittele-uusi') }}">{{ _('tapauksen kautta') }}</a>{{ _(', koska hylkäämisen syy tallentuu silloin historiaan.') }}</p>
+  <p>{{ _('Uudet ilmoitukset hyväksytään tai hylätään aina') }} <a href="{{ manual_url('cases', 'kasittele-uusi') }}">{{ _('tapauksessa') }}</a>{{ _(', joten hylkäämisen syy tallentuu historiaan.') }}</p>
   <ul>
-    <li>{{ m.ui(_('Hyväksy')) }} {{ _('julkaisee mielenosoituksen heti.') }}</li>
-    <li>{{ m.ui(_('Hylkää')) }} {{ _('listalla piilottaa mielenosoituksen, mutta ei kysy syytä.') }}</li>
+    <li>{{ m.ui(_('Käsittele')) }} {{ _('näkyy listan rivin toiminnoissa ja komentokeskuksessa, kun ilmoitus odottaa päätöstä. Se avaa mielenosoituksen tapauksen. Kaupunkiadmin pääsee samasta painikkeesta tarkistussivulle.') }}</li>
     <li>{{ m.ui(_('Suosittele')) }} {{ _('nostaa mielenosoituksen etusivulle.') }} {{ m.ui(_('Poista suositus')) }} {{ _('poistaa sen sieltä.') }}</li>
   </ul>
   <h3>{{ _('Mitä päätös tekee') }}</h3>
-  <p>{{ _('Hyväksyminen ja hylkääminen toimivat samoin, teitpä päätöksen listalta, komentokeskuksesta, tapauksen sivulta tai sähköpostin linkistä:') }}</p>
+  <p>{{ _('Hyväksyminen ja hylkääminen toimivat samoin, teitpä päätöksen tapauksen sivulta tai kaupunkiadminin tarkistussivulta. Myös yhdistäminen ja toistuvan sarjan massapäivitys hyväksyvät saman reitin kautta:') }}</p>
   <ul>
     <li>{{ _('ilmoittaja saa sähköpostin päätöksestä') }}</li>
     <li>{{ _('mielenosoitukseen liittyvät avoimet tapaukset sulkeutuvat') }}</li>
     <li>{{ _('käyttämättömät esikatselu-, hyväksymis-, hylkäämis- ja muokkauslinkit mitätöidään') }}</li>
     <li>{{ _('kaupunkiadminin käsittelyjonon määräaika poistuu') }}</li>
   </ul>
+  <p>{{ _('Muokkauslomake ei muuta tilaa. Se näyttää kohdassa') }} {{ m.ui(_('Julkaisun tila')) }} {{ _('nykyisen tilan ja linkin') }} {{ m.ui(_('Avaa tapaus')) }}. {{ _('Vain uuden mielenosoituksen luontilomakkeessa on') }} {{ m.ui(_('Julkaise heti')) }}{{ _(', joka hyväksyy tallennettaessa samalla tavalla kuin tapaus.') }}</p>
+  <h3 id="peru-hyvaksynta">{{ _('Peru hyväksyntä') }}</h3>
+  <p>{{ _('Jos hyväksyit mielenosoituksen vahingossa, voit perua sen tapauksessa 30 minuutin ajan. Painike') }} {{ m.ui(_('Peru hyväksyntä')) }} {{ _('näyttää, mihin kellonaikaan asti peruminen onnistuu. Sen näkee jokainen, jolla on oikeus hyväksyä mielenosoitus.') }}</p>
+  <ul>
+    <li>{{ _('mielenosoitus poistuu heti julkiselta sivustolta ja palaa odottamaan käsittelyä valtakunnalliseen jonoon') }}</li>
+    <li>{{ _('tapaus avautuu uudelleen, ja ilmoittajan muokkauslinkki toimii taas') }}</li>
+    <li>{{ _('ilmoittajalle ei lähetetä viestiä, eikä uusi hyväksyntä lähetä hyväksyntäviestiä toista kertaa') }}</li>
+  </ul>
+  <p>{{ _('Kun 30 minuuttia on kulunut, käytä') }} {{ m.ui(_('Poista julkaisusta')) }}.</p>
+  <h3 id="vanhentunut">{{ _('Vanhentunut') }}</h3>
+  <p>{{ _('Jos kukaan ei hyväksy tai hylkää ilmoitusta ennen mielenosoituksen päivää, taustatyö sulkee sen tilaan') }} {{ m.ui(_('Vanhentunut')) }}. {{ _('Tapaus sulkeutuu, ja syy näkyy sen historiassa. Jos päivä meni enintään 14 päivää sitten, ilmoittaja saa lyhyen anteeksipyynnön sähköpostilla. Vanhemmat suljetaan ilman viestiä.') }}</p>
+  <h3 id="poista-julkaisusta">{{ _('Poista julkaisusta') }}</h3>
+  <p>{{ _('Hyväksytyn mielenosoituksen voi ottaa pois sivustolta poistamatta sitä. Valitse tapauksessa') }} {{ m.ui(_('Poista julkaisusta')) }} {{ _('ja kirjoita syy. Syy on pakollinen ja näkyy julkisesti.') }}</p>
+  <p>{{ _('Poisto vaatii toisen ylläpitäjän vahvistuksen. Valitse jompikumpi:') }}</p>
+  <ul>
+    <li>{{ m.ui(_('Lähetä vahvistettavaksi')) }}: {{ _('mielenosoitus näkyy sivustolla, kunnes toinen ylläpitäjä valitsee tapauksessa') }} {{ m.ui(_('Vahvista poisto')) }}.</li>
+    <li>{{ m.ui(_('Kiireellinen')) }}: {{ _('mielenosoitus poistuu heti, ja toisen ylläpitäjän pitää vahvistaa poisto 48 tunnin kuluessa. Tapaus näyttää määräajan ja kertoo, jos vahvistus on myöhässä.') }}</li>
+  </ul>
+  <p>{{ _('Kukaan ei voi vahvistaa omaa pyyntöään. Toinen ylläpitäjä voi myös hylätä pyynnön, ja tekijä voi perua sen. Silloin mielenosoitus pysyy julkisena, ilmoittajalle ei lähetetä viestiä ja merkintä jää tapauksen historiaan.') }}</p>
+  <p>{{ _('Kun poisto on vahvistettu:') }}</p>
+  <ul>
+    <li>{{ _('mielenosoitus poistuu listoilta, hausta ja kartalta, ja sen sivulla näkyy lyhyt ilmoitus syineen') }}</li>
+    <li>{{ _('ilmoittaja saa sähköpostin, jossa on syy') }}</li>
+    <li>{{ _('tekijä ja aika tallentuvat, ja komentokeskus näyttää tilan') }} {{ m.ui(_('Poistettu julkaisusta')) }}</li>
+    <li>{{ m.ui(_('Julkaise uudelleen')) }} {{ _('samassa tapauksessa palauttaa mielenosoituksen sivustolle') }}</li>
+  </ul>
+  <p>{{ _('Toistaiseksi vain superkäyttäjä voi poistaa julkaisusta tai julkaista uudelleen.') }}</p>
   {% call m.callout('tip') %}
   <p>{{ _('Kaupunkiadminin etusivulla on oma käsittelyjono. Katso') }} <a href="{{ manual_url('dashboard', 'kaupunkiadmin') }}">{{ _('kaupunkiadminin käsittelyjono') }}</a>.</p>
   {% endcall %}
@@ -39,14 +65,14 @@
   <h2>{{ _('Komentokeskus') }}</h2>
   <p>{{ _('Komentokeskus kokoaa yhden mielenosoituksen kaiken tiedon samalle sivulle: tilan, aikataulun ja sijainnin, järjestäjät, muokkausoikeudet, tapaukset ja pyynnöt, ehdotukset, analytiikan sekä lokit ja historian. Pääset sinne listan toimintovalikosta tai mielenosoituksen nimestä.') }}</p>
   <ul>
-    <li>{{ m.ui(_('Pikatoiminnot')) }}: {{ _('hyväksy, hylkää, merkitse perutuksi, suosittele, luo esikatselukuva tai kopioi pohjaksi.') }}</li>
+    <li>{{ m.ui(_('Pikatoiminnot')) }}: {{ _('käsittele (avaa tapauksen, kun ilmoitus odottaa päätöstä), merkitse perutuksi, suosittele, luo esikatselukuva tai kopioi pohjaksi.') }}</li>
     <li>{{ m.ui(_('Tapaukset ja pyynnöt')) }}: {{ _('kaikki tähän mielenosoitukseen liittyvät tapaukset linkkeineen.') }}</li>
   </ul>
 </section>
 
 <section id="muokkaa-osio">
   <h2>{{ _('Muokkaa ja palauta') }}</h2>
-  <p>{{ _('Jokainen muutos tallentuu muokkaushistoriaan. Historiasta näet, kuka muutti mitä ja milloin.') }}</p>
+  <p>{{ _('Jokainen muutos tallentuu muokkaushistoriaan. Historiasta näet, kuka muutti mitä ja milloin. Tallennettujen versioiden alla on') }} {{ m.ui(_('Kaikki kirjatut muutokset')) }}{{ _(': jokainen muutos kentittäin vanhoine ja uusine arvoineen sekä reitti, jota kautta se tehtiin (ylläpito, julkinen lomake, linkki, taustatyö tai skripti). Loki alkaa sen käyttöönotosta 20.11.2026.') }}</p>
   {% call m.task('muokkaa', _('Palauta aiempi versio'), _('Joku on muuttanut tietoja väärin, ja haluat palauttaa aiemman version.'), demos_url, _('Avaa mielenosoitukset')) %}
     {% call m.step() %}<p>{{ _('Etsi mielenosoitus listalta ja avaa') }} {{ m.ui(_('Muokkaushistoria')) }}.</p>{% endcall %}
     {% call m.step() %}<p>{{ _('Valitse muutos, jota ennen tiedot olivat oikein, ja avaa') }} {{ m.ui(_('Näytä muutos')) }}. {{ _('Vertailu näyttää vanhan ja uuden arvon rinnakkain.') }}</p>{% endcall %}
@@ -69,7 +95,23 @@
 
 <section id="moderointilinkit">
   <h2>{{ _('Moderointilinkit ja tokenit') }}</h2>
-  <p>{{ _('Ylläpitäjien sähköposteissa on linkkejä, joilla mielenosoituksen voi esikatsella, hyväksyä tai hylätä kirjautumatta.') }}</p>
+  <p>{{ _('Uudesta mielenosoituksesta lähtevässä ylläpitäjän sähköpostissa on kaksi painiketta:') }}</p>
+  <ul>
+    <li>{{ m.ui(_('Avaa tapaus')) }}: {{ _('henkilökohtainen linkki, jolla voit käsitellä juuri tämän mielenosoituksen kirjautumatta. Jos viesti tuli osoitteeseen, jolla ei ole käyttäjätiliä, linkki vie kirjautumisen kautta tapaukseen.') }}</li>
+    <li>{{ m.ui(_('Esikatsele mielenosoitusta')) }}: {{ _('näyttää ilmoituksen kirjautumatta.') }}</li>
+  </ul>
+  {% call m.task('tapauslinkki', _('Käsittele ilmoitus sähköpostin linkistä'), _('Hyväksy tai hylkää uusi mielenosoitus puhelimella ilman kirjautumista.'), none, none) %}
+    {% call m.step() %}<p>{{ _('Avaa sähköpostin') }} {{ m.ui(_('Avaa tapaus')) }} {{ _('ja valitse sivulla') }} {{ m.ui(_('Avaa tässä selaimessa')) }}. {{ _('Linkki toimii sen jälkeen vain tässä selaimessa. Pelkkä avaaminen ei vielä sido linkkiä, joten sähköpostin linkkiesikatselu ei vie sitä.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Tarkista tiedot ja valitse') }} {{ m.ui(_('Hyväksy ja julkaise')) }} {{ _('tai') }} {{ m.ui(_('Hylkää')) }} {{ _('syyn kanssa. Sivu näyttää ennen vahvistusta, mitä päätös tekee.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Jos käytät kaksivaiheista tunnistusta, kirjoita sovelluksen koodi. Jos kirjaudut pelkällä passkeyllä, valitse') }} {{ m.ui(_('Avaa tapaus kirjautumalla')) }}.</p>{% endcall %}
+  {% endcall %}
+  <ul>
+    <li>{{ _('Linkki koskee vain tätä yhtä odottavaa mielenosoitusta. Se ei kirjaa sinua sisään eikä avaa muuta ylläpitoa.') }}</li>
+    <li>{{ _('Linkki on voimassa 24 tuntia ja lakkaa toimimasta, kun mielenosoituksesta on tehty päätös millä tahansa tavalla.') }}</li>
+    <li>{{ _('Eskaloitua tapausta ei voi päättää linkillä, vaan se avataan kirjautumalla.') }}</li>
+    <li>{{ _('Aiemmin lähetettyjen viestien hyväksy- ja hylkää-linkit avaavat vain tapauksen eivätkä päätä mitään.') }}</li>
+  </ul>
+  <p>{{ _('Esikatselulinkki:') }}</p>
   <ul>
     <li>{{ _('Linkki on kertakäyttöinen ja vanhenee 24 tunnissa.') }}</li>
     <li>{{ _('Linkki sidotaan ensimmäisen avaajan IP-osoitteeseen.') }}</li>
@@ -86,6 +128,7 @@
     <li>{{ _('Valitse jokaiselle kentälle, mistä mielenosoituksesta arvo säilytetään.') }}</li>
     <li>{{ _('Tarkista yhteenveto ja vahvista.') }}</li>
   </ol>
+  <p>{{ _('Hyväksyntä ei ole valittava kenttä. Jos jokin yhdistetyistä oli hyväksytty, säilytettävä mielenosoitus hyväksytään tavallisena päätöksenä. Hylättyä säilytettävää ei julkaista, vaan saat siitä varoituksen. Yöllinen automaattinen yhdistäminen ohittaa ryhmät, joissa päätökset eroavat, ja jättää ne ylläpitäjälle.') }}</p>
   {% call m.callout('tip') %}
   <p>{{ _('Jos toinen ilmoituksista odottaa vielä hyväksyntää, on helpompaa hylätä se kaksoiskappaleena. Katso') }} <a href="{{ manual_url('cases', 'kaksoiskappale') }}">{{ _('Hylkää kaksoiskappale') }}</a>.</p>
   {% endcall %}

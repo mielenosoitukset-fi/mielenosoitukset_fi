@@ -49,7 +49,10 @@ def test_public_chrome_css_uses_product_tokens_and_namespaced_components():
 
     section = source.split("PUBLIC PAGE CHROME", 1)[1].split("BUTTONS", 1)[0]
     assert "var(--product-" in section
-    assert "linear-gradient(135deg, var(--product-action-bg), var(--product-action-hover))" in section
+    header_rule = section.split(".public-page-header {", 1)[1].split("}", 1)[0]
+    # Plain page heading (docs/decisions.md "Public page look"): no gradient card.
+    assert "linear-gradient" not in header_rule
+    assert "border-bottom: 1px solid var(--product-border)" in header_rule
     assert "--api-docs-" not in section
     assert "var(--admin-" not in section
 
@@ -61,7 +64,7 @@ def test_public_header_uses_shared_scoped_component_css():
     css = HEADER_CSS.read_text(encoding="utf-8")
 
     assert "css/public-header.css" in base
-    assert "20261027-react-header-1" in base
+    assert "20261121-mobile-bar-1" in base
     assert "root.classList.add('js')" in base
     assert '<header class="top-header public-site-header' in header
     assert '<nav class="main-nav public-main-nav"' in header

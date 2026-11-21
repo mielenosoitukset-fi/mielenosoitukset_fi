@@ -5,7 +5,8 @@ Inventory taken from the code on 12 November 2026. "Tested" names the test in
 
 | Flow | Token | Expiry | Revocation | Replay | Double decision |
 | --- | --- | --- | --- | --- | --- |
-| Demonstration approve / reject / preview links (`admin_demo_bp`) | Signed itsdangerous string plus a `magic_links` registry row keyed by SHA-256 hash; forged or unregistered strings are refused | 24 hours (signature) and `expires_at` in the row → 410 | `revoked` flag, security-case suspension, and every terminal decision revokes sibling preview/approve/reject/edit links | Single use: `used_at` set after the decision, later use shows "already used" (200) and is audited; bound to the first IP | `apply_demo_decision` is idempotent: same decision reuses its id, no repeated notification, history or audit. Opposite decisions: last one wins (existing behaviour) |
+| Demonstration preview links (`admin_demo_bp`) | Signed itsdangerous string plus a `magic_links` registry row keyed by SHA-256 hash; forged or unregistered strings are refused | 24 hours (signature) and `expires_at` in the row → 410 | `revoked` flag, security-case suspension, and every terminal decision revokes sibling preview/approve/reject/edit links | Single use: `used_at` set after the decision, later use shows "already used" (200) and is audited; bound to the first IP | `apply_demo_decision` is idempotent: same decision reuses its id, no repeated notification, history or audit. Opposite decisions: last one wins (existing behaviour) |
+| Old approve / reject email links (`legacy_decision_link`) | Signature only; never decides. Since 20 Nov 2026 they redirect to `/admin/demo/<id>/decide`, which needs an admin session and opens the case (or review page). New emails carry that link directly, with no bearer token | n/a | n/a | n/a | Decisions run only from the case, review page or admin API |
 | Demonstration edit link | Same registry, action `edit` | 1 h, 24 h or 7 d chosen at creation → refused when expired | Revocable from the token admin; revoked on terminal decision | Reusable until it expires or is revoked (it is an edit session, not a one-shot) | n/a |
 | Organizer cancellation link (`/cancel_demonstration/<token>`) | Random token, hash stored in `demo_cancellation_tokens` | `expires_at` (`TOKEN_EXPIRY_DAYS` after creation) | None besides expiry. Not revoked when the demo is cancelled by other means | `used_at` set after the action; later use refused. The check and the mark are two separate steps, so two simultaneous POSTs can both pass (see Questions) | Not verified here |
 | Password reset (`/password_reset/<token>`) | Signed JWT carrying the e-mail address | 1 hour | None. Existing sessions and older reset links stay valid after a reset | Single use through `used_password_change_tokens`, recorded after the password change; the token itself is stored there in plain text | n/a |
@@ -96,3 +97,15 @@ Use the production virtualenv's Python (`PRODUCTION_PYTHON`): it must have Flask
 application imports. `-B` keeps it from writing `.pyc` files. A file that cannot be parsed exits with a fixed
 message that never quotes `config.yaml`. The file ends at mode 600, which is fine for a systemd `EnvironmentFile`
 (systemd reads it as root). `--config` and `--env-file` override the default paths. Covered by `tests/test_confirmation_token_key.py`.
+
+## Scoped case links (admin emails, 20 Nov 2026)
+
+Admin moderation emails to a known admin carry a `case` link (`/admin/demo/case_link/<token>`):
+
+- One link per recipient admin and demonstration, valid 24 h; any decision on the demonstration revokes it (`TERMINAL_TOKEN_ACTIONS`), and a decision made with it marks it used.
+- A plain GET only shows an "Avaa tässä selaimessa" button, so mail scanners that prefetch links cannot claim it. The POST binds the link to that browser (HttpOnly cookie, only its hash is stored).
+- It never logs anyone in. It shows that one demonstration and offers approve or reject (with a reason); duplicates, escalation, take-down and everything else need a login.
+- Rights are checked against the recipient's current account on every request.
+- Second factor: an admin with TOTP must enter a code (the login verifier; a code is not accepted twice; five wrong codes revoke the link). An admin with passkeys only must log in to decide.
+- The decision runs through `apply_demo_decision` with `source="case_link"` and the actor marked `authentication: case_link`.
+- Recipients without a user account get the login link `/admin/demo/<id>/decide`.

@@ -49,6 +49,21 @@ def configure(source, target):
         # hand-set environment flag was lost at the next deploy.
         if config.get("SUGGESTIONS_GO", True) is True:
             values["SUGGESTIONS_GO_ENABLED"] = "true"
+        # Campaign volunteer confirmation by button and POST
+        # (docs/volunteer-confirm-react.md): on by default since 21 November 2026
+        # (maintainer's go); `VOLUNTEER_CONFIRM_GO: false` in config.yaml opts out.
+        if config.get("VOLUNTEER_CONFIRM_GO", True) is True:
+            values["VOLUNTEER_CONFIRM_GO_ENABLED"] = "true"
+        # E-mail confirmation by button and POST (docs/email-confirm-react.md): on
+        # by default since 21 November 2026; `EMAIL_CONFIRM_GO: false` opts out.
+        # Go gets only the derived key Flask signs these tokens with
+        # (utils/auth.py derive_confirmation_key), never SECRET_KEY, and it is
+        # derived here on every deploy so a rewrite cannot drop it.
+        if config.get("EMAIL_CONFIRM_GO", True) is True:
+            values["EMAIL_CONFIRM_GO_ENABLED"] = "true"
+            values["EMAIL_CONFIRM_JWT_KEY"] = hmac.new(
+                secret.encode(), b"moso-email-confirmation-token-v1", hashlib.sha256,
+            ).hexdigest()
     # Event analytics follow the Flask switch, which defaults to enabled when
     # the key is missing (app.py: config.get("SITE_ANALYTICS_ENABLED", True)),
     # so a redeploy keeps Go writes in step with Flask.
@@ -87,9 +102,10 @@ def configure(source, target):
         # maintainer's go); `ACCOUNT_SETTINGS_READS: false` in config.yaml opts out.
         if config.get("ACCOUNT_SETTINGS_READS", True) is True:
             values["ACCOUNT_SETTINGS_READS_ENABLED"] = "true"
-            # Bio and general writes (steps 3a, 3b): their own switch, and only on
-            # top of reads that are set explicitly in config.yaml.
-            if config.get("ACCOUNT_SETTINGS_READS") is True and config.get("ACCOUNT_SETTINGS_WRITES") is True:
+            # Bio and general writes (steps 3a, 3b) and later account writes: their
+            # own switch, on by default since 20 November 2026 (maintainer's go;
+            # `ACCOUNT_SETTINGS_WRITES: false` opts out), and only on top of reads.
+            if config.get("ACCOUNT_SETTINGS_WRITES", True) is True:
                 values["ACCOUNT_SETTINGS_WRITES_ENABLED"] = "true"
     # Public profile reads (docs/account-pages-react.md): GET /api/profile/<username>.
     # Its own switch, off by default and independent of the bridge; the own and

@@ -42,9 +42,16 @@
         <div class="admin-section-card__header">
           <div class="admin-section-card__title"><h2>{{ _('Tapauksen tiedot') }}</h2></div>
           {% if demo and demo._id %}
+          {% if demo.approved and not demo.taken_down %}
           <a class="btn btn-outline-primary btn-sm" href="{{ url_for('demonstration_detail', demo_id=demo._id) }}">
             <i class="fa-solid fa-eye me-1"></i>{{ _('Avaa julkinen sivu') }}
           </a>
+          {% else %}
+          {# Not public yet: the public page would not show it, so open the admin preview. #}
+          <a class="btn btn-outline-primary btn-sm" href="{{ url_for('admin_demo.preview_demo', demo_id=demo._id) }}">
+            <i class="fa-solid fa-eye me-1"></i>{{ _('Esikatsele') }}
+          </a>
+          {% endif %}
           {% endif %}
         </div>
         <div class="admin-section-card__body admin-stack">
@@ -174,7 +181,7 @@
             <div class="detail-item"><strong>{{ _('Päättymisaika') }}</strong><span>{{ demo.end_time or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Kaupunki') }}</strong><span>{{ demo.city or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Osoite') }}</strong><span>{{ demo.address or '-' }}</span></div>
-            <div class="detail-item"><strong>{{ _('Tapahtumatyyppi') }}</strong><span>{{ demo.event_type or demo.type or '-' }}</span></div>
+            <div class="detail-item"><strong>{{ _('Tapahtumatyyppi') }}</strong><span>{{ (demo.event_type or demo.type)|event_type_label if (demo.event_type or demo.type) else '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Facebook') }}</strong>{% if demo.facebook|safe_href %}<a href="{{ demo.facebook|safe_href }}" target="_blank" rel="noopener noreferrer">{{ demo.facebook }}</a>{% else %}<span>-</span>{% endif %}</div>
           </div>
 
@@ -205,6 +212,15 @@
             <div class="description-box">{{ (demo.description or _('Ei kuvausta'))|safe }}</div>
           </div>
 
+          {% if case.case_type == "new_demo" and demo._id %}
+          <details class="case-demo-preview" id="demo-preview">
+            <summary><i class="fa-solid fa-eye me-1" aria-hidden="true"></i>{{ _('Esikatselu: näin ilmoitus näkyy sivustolla') }}</summary>
+            <iframe class="case-demo-preview__frame" title="{{ _('Mielenosoituksen esikatselu') }}" loading="lazy"
+                    src="{{ url_for('admin_demo.preview_demo', demo_id=demo._id, embed=1) }}"></iframe>
+            <a class="btn btn-sm btn-outline-secondary mt-2" href="{{ url_for('admin_demo.preview_demo', demo_id=demo._id) }}" target="_blank" rel="noopener noreferrer">{{ _('Avaa esikatselu omaan välilehteen') }}</a>
+          </details>
+          {% endif %}
+
           {% if demo.organizers %}
           <div class="detail-item">
             <strong>{{ _('Järjestäjät') }}</strong>
@@ -226,20 +242,76 @@
               <div>{{ submitter.submitter_name or case_data.submitter_label }}</div>
               {% if submitter.submitter_email %}<div class="muted">{{ submitter.submitter_email }}</div>{% endif %}
               {% if submitter.submitter_role %}<div class="muted">{{ submitter.submitter_role }}</div>{% endif %}
-              {% if submitter.submitted_at %}<div class="muted">{{ _('Lähetetty') }}: {{ submitter.submitted_at }}</div>{% endif %}
+              {% if submitter.submitted_at %}<div class="muted">{{ _('Lähetetty') }}: {{ submitter.submitted_at|datetimeformat }}</div>{% endif %}
             </div>
           </div>
 
+          {% if demo.taken_down %}
+          <div class="alert alert-warning" role="status">
+            <strong>{{ _('Poistettu julkaisusta') }}</strong>
+            {% if demo.taken_down_by or demo.taken_down_at %}<span class="d-block muted">{{ demo.taken_down_by or '' }}{% if demo.taken_down_at %}, {{ demo.taken_down_at|datetimeformat("%d.%m.%Y %H:%M") }}{% endif %}</span>{% endif %}
+            {% if demo.taken_down_reason %}<span class="d-block">{{ _('Syy') }}: {{ demo.taken_down_reason }}</span>{% endif %}
+          </div>
+          {% endif %}
+          {% if take_down_review %}
+          <div class="alert {{ 'alert-danger' if take_down_review.overdue else 'alert-info' }}" role="status">
+            <strong>{% if take_down_review.status == 'requested' %}{{ _('Poistopyyntö odottaa toisen ylläpitäjän vahvistusta') }}{% else %}{{ _('Kiireellinen poisto odottaa toisen ylläpitäjän vahvistusta') }}{% endif %}</strong>
+            <span class="d-block muted">{{ take_down_review.requested_by_name }}{% if take_down_review.requested_at_label %}, {{ take_down_review.requested_at_label }}{% endif %}</span>
+            <span class="d-block">{{ _('Syy') }}: {{ take_down_review.reason }}</span>
+            {% if take_down_review.status == 'requested' %}
+            <span class="d-block">{{ _('Mielenosoitus näkyy sivustolla, kunnes toinen ylläpitäjä vahvistaa poiston.') }}</span>
+            {% elif take_down_review.overdue %}
+            <span class="d-block">{{ _('Vahvistus on myöhässä. Määräaika oli') }} {{ take_down_review.confirm_by_label }}.</span>
+            {% elif take_down_review.confirm_by_label %}
+            <span class="d-block">{{ _('Vahvistettava viimeistään') }} {{ take_down_review.confirm_by_label }}.</span>
+            {% endif %}
+            {% if take_down_review.own %}<span class="d-block muted">{{ _('Teit pyynnön itse, joten toisen ylläpitäjän pitää vahvistaa se.') }}</span>{% endif %}
+          </div>
+          {% endif %}
           <div class="admin-row-actions">
 {% if global_case_controls %}
+            {% if demo.taken_down %}
+            {% if can_take_down and take_down_review and not take_down_review.own %}
+            <button class="btn btn-danger" type="button" onclick="confirmTakeDown()">
+              <i class="fa-solid fa-check-double me-1"></i>{{ _('Vahvista poisto') }}
+            </button>
+            {% endif %}
+            {% if can_take_down %}
+            <button class="btn btn-success" type="button" onclick="approveDemo()">
+              <i class="fa-solid fa-rotate-left me-1"></i>{{ _('Julkaise uudelleen') }}
+            </button>
+            {% endif %}
+            {% elif demo.approved %}
+            {% if undo_deadline %}
+            <button class="btn btn-outline-secondary" type="button" onclick="undoApproval()">
+              <i class="fa-solid fa-rotate-left me-1"></i>{{ _('Peru hyväksyntä') }}
+              <span class="muted">({{ _('klo') }} {{ undo_deadline }} {{ _('asti') }})</span>
+            </button>
+            {% endif %}
+            {% if can_take_down and take_down_review %}
+            {% if not take_down_review.own %}
+            <button class="btn btn-danger" type="button" onclick="confirmTakeDown()">
+              <i class="fa-solid fa-check-double me-1"></i>{{ _('Vahvista poisto') }}
+            </button>
+            {% endif %}
+            <button class="btn btn-outline-secondary" type="button" onclick="cancelTakeDown()">
+              <i class="fa-solid fa-xmark me-1"></i>{% if take_down_review.own %}{{ _('Peru pyyntö') }}{% else %}{{ _('Hylkää pyyntö') }}{% endif %}
+            </button>
+            {% elif can_take_down %}
+            <button class="btn btn-outline-danger" type="button" onclick="takeDownDemo()">
+              <i class="fa-solid fa-eye-slash me-1"></i>{{ _('Poista julkaisusta') }}
+            </button>
+            {% endif %}
+            {% else %}
             <button class="btn btn-success" type="button" onclick="approveDemo()" {% if case.meta.superior_needed and current_user.role != 'global_admin' %}disabled{% endif %}>
               <i class="fa-solid fa-check me-1"></i>{{ _('Hyväksy mielenosoitus') }}
             </button>
-{% endif %}
-{% if global_case_controls %}
+            {% if not demo.rejected %}
             <button class="btn btn-danger" type="button" onclick="rejectDemo()" {% if case.meta.superior_needed and current_user.role != 'global_admin' %}disabled{% endif %}>
               <i class="fa-solid fa-xmark me-1"></i>{{ _('Hylkää mielenosoitus') }}
             </button>
+            {% endif %}
+            {% endif %}
 {% endif %}
             {% if not case.meta.superior_needed and not demo.approved and not demo.rejected %}
 {% if global_case_controls %}
@@ -262,26 +334,39 @@
             <strong>{{ _('Peruutuksen syy') }}</strong>
             <div class="note-box">{{ cancellation.reason or _('Ei syytä annettu') }}</div>
           </div>
-          {% if not cancellation.cancelled %}
-          <div class="admin-row-actions">
+          {% if not cancellation.cancelled and not case.meta.closed %}
 {% if global_case_controls %}
+          <div class="admin-row-actions">
             <button class="btn btn-danger" type="button" onclick="approveCancellation()">
               <i class="fa-solid fa-ban me-1"></i>{{ _('Hyväksy peruutus') }}
             </button>
-{% endif %}
           </div>
+          <form method="POST" action="{{ url_for('admin_case.decline_cancellation', case_id=case._id) }}" class="admin-stack admin-decline-form">
+            <label for="decline_reason" class="form-label mb-0"><strong>{{ _('Hylkää peruutuspyyntö') }}</strong></label>
+            <textarea id="decline_reason" name="reason" class="form-control" rows="2" maxlength="1000" required aria-describedby="decline_reason_help"></textarea>
+            <p id="decline_reason_help" class="admin-field__help">{{ _('Mielenosoitus pysyy julkaistuna, ja tapaus sulkeutuu tällä syyllä. Pyytäjälle ei lähetetä viestiä automaattisesti.') }}</p>
+            <div><button type="submit" class="btn btn-outline-secondary"><i class="fa-solid fa-xmark me-1" aria-hidden="true"></i>{{ _('Hylkää pyyntö') }}</button></div>
+          </form>
+{% endif %}
           {% endif %}
           {% elif case.case_type == "demo_error_report" %}
           <div class="detail-grid">
             <div class="detail-item"><strong>{{ _('Liittyvä mielenosoitus') }}</strong><span>{{ demo.title or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Raportoija') }}</strong><span>{{ error_report.user or _('Anonyymi') }}</span></div>
             <div class="detail-item"><strong>{{ _('IP') }}</strong><span>{{ error_report.ip or '-' }}</span></div>
-            <div class="detail-item"><strong>{{ _('Aikaleima') }}</strong><span>{% if error_report.date %}{{ error_report.date }}{% else %}-{% endif %}</span></div>
+            <div class="detail-item"><strong>{{ _('Aikaleima') }}</strong><span>{% if error_report.date %}{{ error_report.date|datetimeformat }}{% else %}-{% endif %}</span></div>
           </div>
           <div class="detail-item">
             <strong>{{ _('Virheilmoituksen sisältö') }}</strong>
             <div class="note-box">{{ error_report.error or _('Ei sisältöä') }}</div>
           </div>
+          {% if demo._id %}
+          <div class="admin-row-actions">
+            <a class="btn btn-primary" href="{{ url_for('admin_demo.edit_demo', demo_id=demo._id) }}"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i>{{ _('Korjaa mielenosoitusta') }}</a>
+            <a class="btn btn-outline-primary" href="{{ url_for('admin_demo.demo_command_center', demo_id=demo._id) }}"><i class="fa-solid fa-gauge me-1" aria-hidden="true"></i>{{ _('Avaa hallintapaneelissa') }}</a>
+          </div>
+          <p class="admin-field__help">{{ _('Kun virhe on korjattu, sulje tapaus syyllä "Käsitelty".') }}</p>
+          {% endif %}
           {% elif case.case_type == "demo_edit_suggestion" %}
           {% set demo_suggestion = case_data.demo_suggestion if case_data.demo_suggestion is defined else {} %}
           {% if demo_suggestion.found %}
@@ -314,10 +399,13 @@
           <div class="empty-state">{{ _('Ehdotusta ei löytynyt. Se on ehkä poistettu.') }}</div>
           {% endif %}
           {% elif case.case_type == "organization_edit_suggestion" %}
+          {% set org_suggestion = case_data.org_suggestion if case_data.org_suggestion is defined else {} %}
           <div class="detail-grid">
-            <div class="detail-item"><strong>{{ _('Organisaatio') }}</strong><span>{{ organization.name or '-' }}</span></div>
+            <div class="detail-item"><strong>{{ _('Organisaatio') }}</strong><span>{% if organization._id %}<a href="{{ url_for('admin_org.view_organization', org_id=organization._id) }}">{{ organization.name or '-' }}</a>{% else %}-{% endif %}</span></div>
             <div class="detail-item"><strong>{{ _('Ilmoittaja') }}</strong><span>{{ case_data.submitter_label }}</span></div>
+            <div class="detail-item"><strong>{{ _('Ehdotuksen tila') }}</strong><span>{{ org_suggestion.state_label or '-' }}</span></div>
           </div>
+          {% if org_suggestion.found %}
           <div class="detail-item">
             <strong>{{ _('Ehdotetut muutokset') }}</strong>
             {% if changes %}
@@ -334,6 +422,17 @@
             <div class="empty-state">{{ _('Ei muutoksia vertailtavaksi.') }}</div>
             {% endif %}
           </div>
+          {% if org_suggestion.can_review and not org_suggestion.decided %}
+          <div class="admin-row-actions">
+            <a class="btn btn-primary" href="{{ url_for('admin_org.review_suggestion', org_id=org_suggestion.org_id, suggestion_id=org_suggestion.id) }}"><i class="fa-solid fa-code-compare me-1" aria-hidden="true"></i>{{ _('Käsittele ehdotus') }}</a>
+          </div>
+          <p class="admin-field__help">{{ _('Valitse hyväksyttävät kentät tai hylkää ehdotus. Tapaus sulkeutuu päätöksen jälkeen.') }}</p>
+          {% elif not org_suggestion.can_review %}
+          <div class="muted">{{ _('Ehdotuksen käsittely vaatii oikeuden muokata tätä organisaatiota.') }}</div>
+          {% endif %}
+          {% else %}
+          <div class="empty-state">{{ _('Ehdotusta ei löytynyt. Se on ehkä poistettu.') }}</div>
+          {% endif %}
           {% elif case.case_type == "city_admin_application" %}
           {% set application = case_data.application if case_data.application is defined else none %}
           {% if application %}
@@ -427,7 +526,7 @@
               <select name="action_type">
                 <option value="note">{{ _('Muistiinpano') }}</option>
                 <option value="follow_up">{{ _('Seurantatoimi') }}</option>
-                <option value="contacted">{{ _('Oltu yhteydessa') }}</option>
+                <option value="contacted">{{ _('Oltu yhteydessä') }}</option>
               </select>
             </label>
             <label>
@@ -520,7 +619,7 @@
                 <strong>{{ log.user or log.admin or _('Järjestelmä') }}</strong>
                 <span class="muted">{{ log.timestamp|datetimeformat("%d.%m.%Y %H:%M") if log.timestamp else '-' }}</span>
               </div>
-              {% if log.action_type %}<div class="muted">{{ log.action_type }}</div>{% endif %}
+              {% if log.action_type %}<div class="muted">{{ log.action_type|case_action_label }}</div>{% endif %}
               <div>{{ log.reason or log.note or _('Ei lisätietoja') }}</div>
             </div>
             {% endfor %}
@@ -541,7 +640,7 @@
             {% for event in case.case_history|reverse %}
             <div class="timeline-entry">
               <div class="timeline-entry-header">
-                <strong>{{ event.action or _('Tapahtuma') }}</strong>
+                <strong>{{ event.action|case_action_label if event.action else _('Tapahtuma') }}</strong>
                 <span class="muted">{{ event.timestamp|datetimeformat("%d.%m.%Y %H:%M") if event.timestamp else '-' }}</span>
               </div>
               <div class="muted">{{ event.user or _('Järjestelmä') }}</div>
@@ -755,6 +854,99 @@
       if (result.isConfirmed && await window.MosoDemoDecision.confirm(caseDemoId, "rejected")) {
         sendDemoAction("reject", result.value);
       }
+    });
+  }
+
+  function undoApproval() {
+    Swal.fire({
+      title: "{{ _('Peru hyväksyntä') }}",
+      html: `<div class="text-start admin-stack">
+          <p>{{ _('Mielenosoitus poistuu heti julkiselta sivustolta ja palaa odottamaan käsittelyä. Tämä tapaus avataan uudelleen, ja ilmoittajan muokkauslinkki toimii taas.') }}</p>
+          <p>{{ _('Ilmoittajalle ei lähetetä viestiä. Hän on jo voinut saada hyväksyntäviestin. Jos hyväksyt mielenosoituksen myöhemmin, viestiä ei lähetetä toista kertaa.') }}</p>
+          <p class="muted">{{ _('Se palaa valtakunnalliseen jonoon, ei kaupungin ylläpitäjille.') }}</p>
+        </div>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "{{ _('Peru hyväksyntä') }}",
+      cancelButtonText: "{{ _('Takaisin') }}",
+      focusCancel: true,
+    }).then((result) => {
+      if (result.isConfirmed) sendDemoAction("undo_approval");
+    });
+  }
+
+  const takeDownSecondAdmin = {{ (take_down_second_admin is not none) | tojson }};
+  const takeDownConfirmHours = {{ (take_down_second_admin or {}).get('hours', 48) | tojson }};
+
+  function takeDownDemo() {
+    const effects = "{{ _('Kun poisto tehdään, mielenosoitus poistuu listoilta, hausta ja kartalta, mutta sitä ei poisteta. Sen sivulla näkyy lyhyt ilmoitus ja kirjoittamasi syy. Ilmoittaja saa sähköpostin, jossa on syy. Voit julkaista sen myöhemmin uudelleen.') }}";
+    const review = takeDownSecondAdmin
+      ? `<p>{{ _('Toisen ylläpitäjän pitää vahvistaa poisto. Siihen asti mielenosoitus näkyy sivustolla.') }}</p>
+         <div class="form-check">
+           <input class="form-check-input" type="checkbox" id="take-down-urgent">
+           <label class="form-check-label" for="take-down-urgent">{{ _('Kiireellinen: poista heti. Toinen ylläpitäjä vahvistaa jälkikäteen') }} (${takeDownConfirmHours} h).</label>
+         </div>`
+      : "";
+    Swal.fire({
+      title: "{{ _('Poista julkaisusta') }}",
+      html: `<div class="text-start admin-stack">
+          <p>${effects}</p>
+          ${review}
+          <label class="form-label" for="take-down-reason">{{ _('Syy (pakollinen, näkyy julkisesti)') }}</label>
+          <textarea id="take-down-reason" class="form-control" rows="3" maxlength="1000"></textarea>
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: takeDownSecondAdmin ? "{{ _('Lähetä vahvistettavaksi') }}" : "{{ _('Poista julkaisusta') }}",
+      cancelButtonText: "{{ _('Peruuta') }}",
+      focusConfirm: false,
+      didOpen: () => {
+        const urgent = document.getElementById("take-down-urgent");
+        if (urgent) urgent.addEventListener("change", () => {
+          Swal.getConfirmButton().textContent = urgent.checked
+            ? "{{ _('Poista heti') }}" : "{{ _('Lähetä vahvistettavaksi') }}";
+        });
+      },
+      preConfirm: () => {
+        const reason = document.getElementById("take-down-reason").value.trim();
+        if (!reason) {
+          Swal.showValidationMessage("{{ _('Kirjoita syy.') }}");
+          return false;
+        }
+        const urgent = document.getElementById("take-down-urgent");
+        return { reason, urgent: Boolean(urgent && urgent.checked) };
+      },
+    }).then((result) => {
+      if (result.isConfirmed) sendDemoAction("take_down", result.value);
+    });
+  }
+
+  function confirmTakeDown() {
+    Swal.fire({
+      title: "{{ _('Vahvista poisto') }}",
+      html: `<div class="text-start admin-stack">
+          <p>{{ _('Vahvistat toisen ylläpitäjän poiston julkaisusta. Lue syy yllä.') }}</p>
+          {% if take_down_review and take_down_review.status == 'requested' %}<p>{{ _('Mielenosoitus poistuu nyt sivustolta, sen sivulla näkyy syy ja ilmoittaja saa sähköpostin, jossa on syy.') }}</p>{% else %}<p>{{ _('Mielenosoitus on jo poistettu sivustolta. Vahvistus ei lähetä uutta viestiä.') }}</p>{% endif %}
+        </div>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "{{ _('Vahvista poisto') }}",
+      cancelButtonText: "{{ _('Takaisin') }}",
+      focusCancel: true,
+    }).then((result) => {
+      if (result.isConfirmed) sendDemoAction("confirm_take_down");
+    });
+  }
+
+  function cancelTakeDown() {
+    Swal.fire({
+      title: {% if take_down_review and take_down_review.own %}"{{ _('Peru pyyntö') }}"{% else %}"{{ _('Hylkää pyyntö') }}"{% endif %},
+      text: "{{ _('Mielenosoitus pysyy julkisena. Ilmoittajalle ei lähetetä viestiä. Merkintä jää tapauksen historiaan.') }}",
+      showCancelButton: true,
+      confirmButtonText: "{{ _('Kyllä') }}",
+      cancelButtonText: "{{ _('Takaisin') }}",
+      focusCancel: true,
+    }).then((result) => {
+      if (result.isConfirmed) sendDemoAction("cancel_take_down");
     });
   }
 

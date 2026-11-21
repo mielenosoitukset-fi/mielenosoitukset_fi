@@ -34,6 +34,7 @@ from .city_grants import (
     _profile_snapshot, can_manage_scope_grants,
     city_scope_grant_for_user, commit_profile_change, history_actor, sync_city_scope_grant,
 )
+from .user_erasure import erase_user
 from .user_history import (
     PENDING_HISTORY, MAX_PENDING_HISTORY,
     flush_user_history, history_event, history_query, present_history,
@@ -173,6 +174,10 @@ def user_control():
     for user in users:
         if user.get("role") in {None, "user"} and str(user["_id"]) in scoped_user_ids:
             user["role"] = "city_admin"
+        # An admin without site-wide rights only works in granted cities.
+        user["admin_city_only"] = (
+            user.get("role") == "admin" and not user.get("global_permissions") and str(user["_id"]) in scoped_user_ids
+        )
         user["can_change_status"] = can_change_account_status(
             current_user, SimpleNamespace(_id=user["_id"], role=user.get("role") or "user",
                                           global_admin=user.get("global_admin", False))
@@ -564,7 +569,11 @@ def edit_user(user_id):
         enabled_city_list=enabled_city_names(mongo),
         city_name_to_key=CITY_NAME_TO_KEY,
         city_scope_grant=city_scope_grant,
+        city_scope_names=[CITY_KEY_TO_NAME.get(key, key) for key in (city_scope_grant or {}).get("scope_keys", [])],
         city_admin_permissions=CITY_ADMIN_AVAILABLE_PERMISSIONS,
+        city_permission_labels={
+            name: _(PERMISSION_DESCRIPTIONS[name]) for name in CITY_ADMIN_AVAILABLE_PERMISSIONS if name in PERMISSION_DESCRIPTIONS
+        },
     )
 
 
@@ -893,6 +902,21 @@ def delete_user():
         if json_mode:
             return jsonify({"status": "ERROR", "message": _("Käyttäjää muutettiin samanaikaisesti. Tämä poistoyritys ei onnistunut. Vahvista henkilöllisyytesi ennen uutta yritystä.")}), 409
         abort(409)
+
+    # Delete, keep or pseudonymise the account's records (#596, docs/account-erasure.md).
+    try:
+        report = erase_user(
+            mongo,
+            user_data,
+            current_app.config["SECRET_KEY"],
+            current_app.config.get("ERASURE_SEAL_PUBLIC_KEY"),
+        )
+    except Exception:
+        current_app.logger.exception("User %s deleted but erasure of their records failed", target_user._id)
+    else:
+        if not report["sealed"]:
+            current_app.logger.warning("ERASURE_SEAL_PUBLIC_KEY is not set: no identity seal stored")
+        current_app.logger.info("User deleted; erasure counts: %s", {k: v for k, v in report.items() if k != "sealed"})
 
     success_message = "Käyttäjä poistettu onnistuneesti."
     if json_mode:

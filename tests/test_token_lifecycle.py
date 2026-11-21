@@ -66,93 +66,67 @@ def test_unknown_cancellation_link_changes_nothing(client, db, seeded_data):
 # --- Demonstration approve / reject / preview / edit links ------------------
 
 
-@pytest.mark.parametrize("route", ["approve", "reject", "preview"])
-def test_expired_magic_link_is_gone_and_does_not_decide(
-    client, db, seeded_data, route
-):
+def test_expired_preview_link_is_gone(client, db, seeded_data):
     from mielenosoitukset_fi.utils.time_utils import utcnow
 
     db.magic_links.update_many(
         {"demo_id": str(seeded_data["pending_demo_id"])},
         {"$set": {"expires_at": utcnow() - timedelta(seconds=1)}},
     )
-    token = seeded_data[f"{route}_token"]
-    response = client.get(f"/admin/demo/{route}_demo_with_token/{token}")
+    response = client.get(
+        f"/admin/demo/preview_demo_with_token/{seeded_data['preview_token']}"
+    )
     assert response.status_code == 410
-    if route != "preview":
-        post = client.post(f"/admin/demo/{route}_demo_with_token/{token}")
-        assert post.status_code == 410
-    demo = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
+
+
+@pytest.mark.parametrize("route", ["approve", "reject"])
+@pytest.mark.parametrize("state", ["valid", "expired", "revoked"])
+def test_old_decision_links_open_the_case_and_never_decide(
+    client, db, seeded_data, route, state
+):
+    """Maintainer decision (20 Nov 2026): email links open the case only."""
+    from mielenosoitukset_fi.utils.time_utils import utcnow
+
+    demo_id = seeded_data["pending_demo_id"]
+    if state == "expired":
+        db.magic_links.update_many(
+            {"demo_id": str(demo_id)}, {"$set": {"expires_at": utcnow() - timedelta(seconds=1)}}
+        )
+    if state == "revoked":
+        db.magic_links.update_many({"demo_id": str(demo_id)}, {"$set": {"revoked": True}})
+    token = seeded_data[f"{route}_token"]
+    for method in (client.get, client.post):
+        response = method(f"/admin/demo/{route}_demo_with_token/{token}")
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith(f"/admin/demo/{demo_id}/decide")
+    demo = db.demonstrations.find_one({"_id": demo_id})
     assert not demo.get("approved") and not demo.get("rejected")
     assert "moderation_decision" not in demo
 
 
-def test_revoked_magic_link_is_forbidden_and_does_not_decide(
-    client, db, seeded_data
-):
-    db.magic_links.update_many(
-        {"demo_id": str(seeded_data["pending_demo_id"])}, {"$set": {"revoked": True}}
-    )
-    response = client.post(
-        f"/admin/demo/approve_demo_with_token/{seeded_data['approve_token']}"
-    )
-    assert response.status_code == 403
-    demo = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
-    assert not demo.get("approved")
-
-
-def test_unregistered_but_validly_signed_magic_link_is_rejected(
-    app, client, db, seeded_data
-):
+def test_forged_decision_link_is_not_found(app, client, db, seeded_data):
+    from itsdangerous import URLSafeTimedSerializer
     from mielenosoitukset_fi.admin.admin_demo_bp import serializer
 
     with app.app_context():
-        forged = serializer.dumps(
-            str(seeded_data["pending_demo_id"]), salt="approve-demo"
-        ) + "x"
-        # A correctly signed token that never reached the registry is also refused.
-        unregistered = serializer.dumps(
-            str(seeded_data["pending_demo_id"]), salt="approve-demo-unregistered"
-        )
-    assert client.post(f"/admin/demo/approve_demo_with_token/{forged}").status_code == 400
-    assert (
-        client.post(f"/admin/demo/approve_demo_with_token/{unregistered}").status_code
-        == 400
+        tampered = serializer.dumps(str(seeded_data["pending_demo_id"]), salt="approve-demo") + "x"
+    old_key = URLSafeTimedSerializer("your_secret_key").dumps(
+        str(seeded_data["pending_demo_id"]), salt="approve-demo"
     )
-    assert not db.demonstrations.find_one(
-        {"_id": seeded_data["pending_demo_id"]}
-    ).get("approved")
+    for token in (tampered, old_key):
+        assert client.post(f"/admin/demo/approve_demo_with_token/{token}").status_code == 404
+    assert not db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]}).get("approved")
 
 
-def test_magic_link_cannot_be_used_for_another_action(client, db, seeded_data):
-    response = client.post(
-        f"/admin/demo/reject_demo_with_token/{seeded_data['approve_token']}"
-    )
-    assert response.status_code == 400
-    demo = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
-    assert not demo.get("rejected")
-
-
-def test_approval_link_replay_does_not_repeat_the_decision(
-    client, db, seeded_data, monkeypatch
-):
-    from importlib import import_module
-
-    queued = []
-    for name in ("mielenosoitukset_fi.admin.admin_demo_bp", "admin.admin_demo_bp"):
-        monkeypatch.setattr(
-            import_module(name).email_sender, "queue_email", lambda **k: queued.append(k)
-        )
-    url = f"/admin/demo/approve_demo_with_token/{seeded_data['approve_token']}"
-    assert client.post(url).status_code == 302
-    decision = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})[
-        "moderation_decision"
-    ]
-    assert client.post(url).status_code == 200
-    assert client.post(url).status_code == 200
-    after = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
-    assert after["moderation_decision"] == decision
-    assert len(queued) <= 1
+def test_decide_link_requires_login_and_leads_to_the_case(admin_client, client, db, seeded_data):
+    demo_id = seeded_data["pending_demo_id"]
+    anonymous = client.get(f"/admin/demo/{demo_id}/decide")
+    assert anonymous.status_code in (302, 401)
+    assert "/admin/case/" not in anonymous.headers.get("Location", "")
+    case = db.cases.find_one({"type": "new_demo", "demo_id": demo_id})
+    response = admin_client.get(f"/admin/demo/{demo_id}/decide")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(f"/admin/case/{case['_id']}/")
 
 
 # --- Password reset and e-mail confirmation (signed JWT, one hour) ----------
@@ -357,32 +331,14 @@ def test_claimed_reset_token_blocks_a_second_submission(
     assert db.users.find_one({"email": "alice@example.test"})["password_hash"] == before
 
 
-def test_magic_link_signed_with_the_old_constant_key_is_rejected(
-    app, client, db, seeded_data
-):
-    """A link signed with a key from the public source must never verify."""
-    from itsdangerous import URLSafeTimedSerializer
-
-    forged = URLSafeTimedSerializer("your_secret_key").dumps(
-        str(seeded_data["pending_demo_id"]), salt="approve-demo"
-    )
-    assert client.post(f"/admin/demo/approve_demo_with_token/{forged}").status_code == 400
-    assert not db.demonstrations.find_one(
-        {"_id": seeded_data["pending_demo_id"]}
-    ).get("approved")
-
-
-def test_magic_links_always_carry_a_random_id(app, seeded_data):
-    """Links made without a recipient must not be recomputable from the demo id."""
+def test_admin_email_decision_link_is_the_case_link(app, seeded_data):
+    """Email links carry no bearer token; login and case rights decide access."""
     from mielenosoitukset_fi.admin.admin_demo_bp import (
         generate_demo_approve_link,
-        serializer,
+        generate_demo_reject_link,
     )
 
     demo_id = str(seeded_data["pending_demo_id"])
     with app.test_request_context("/"):
-        first = generate_demo_approve_link(demo_id).rsplit("/", 1)[-1]
-        second = generate_demo_approve_link(demo_id).rsplit("/", 1)[-1]
-        payload = serializer.loads(first, salt="approve-demo")
-    assert first != second
-    assert payload["demo_id"] == demo_id and len(payload["jti"]) >= 24
+        assert generate_demo_approve_link(demo_id).endswith(f"/admin/demo/{demo_id}/decide")
+        assert generate_demo_reject_link(demo_id) == generate_demo_approve_link(demo_id)

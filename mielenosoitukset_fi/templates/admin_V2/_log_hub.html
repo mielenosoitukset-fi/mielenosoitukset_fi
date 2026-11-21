@@ -1,0 +1,14 @@
+{#
+  One log hub: every log page shares the same title pattern, breadcrumb and
+  tabs, so an admin can move between log sources and always get back.
+  Per-demo history (edit history, demo audit log) lives on the demo and links
+  back to its command center instead.
+#}
+{% macro log_hub_tabs(active) %}
+<nav class="admin-section-tabs" aria-label="{{ _('Lokilähteet') }}" data-log-hub-tabs>
+  <a href="{{ url_for('admin.logs') }}"{% if active == 'admin' %} aria-current="page"{% endif %}><i class="fa-solid fa-list-check" aria-hidden="true"></i>{{ _('Hallintatoiminnot') }}</a>
+  <a href="{{ url_for('admin_demo.audit_timeline') }}"{% if active == 'demos' %} aria-current="page"{% endif %}><i class="fa-solid fa-bullhorn" aria-hidden="true"></i>{{ _('Mielenosoitushistoria') }}</a>
+  {% if current_user.global_admin or current_user.has_permission('VIEW_CLEARANCE_AUDIT') %}<a href="{{ url_for('admin_governance.audit_log') }}"{% if active == 'clearances' %} aria-current="page"{% endif %}><i class="fa-solid fa-user-shield" aria-hidden="true"></i>{{ _('Hyväksyntöjen tapahtumaloki') }}</a>{% endif %}
+  {% if current_user.global_admin %}<a href="{{ url_for('admin_demo.view_super_audit_logs') }}"{% if active == 'technical' %} aria-current="page"{% endif %}><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>{{ _('Tekninen audit-loki') }}</a>{% endif %}
+</nav>
+{% endmacro %}

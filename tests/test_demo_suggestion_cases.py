@@ -84,9 +84,13 @@ def test_case_list_and_detail_show_suggestion(app, db, admin_client, seeded_data
     assert f"/admin/demo/suggestions/{suggestion_id}" in page
     assert "Käsittele ehdotus" in page
 
-    # Deciding the suggestion closes the case on the next list view as well.
+    # A suggestion decided elsewhere is closed by the background job; the
+    # list view itself never writes.
     db.demo_suggestions.update_one({"_id": suggestion_id}, {"$set": {"status": "rejected"}})
     admin_client.get("/admin/case/")
+    assert not db.cases.find_one({"_id": suggestion_id})["meta"].get("closed")
+    from mielenosoitukset_fi.scripts.auto_close_cases import _resolve
+    _resolve(db)
     assert db.cases.find_one({"_id": suggestion_id})["meta"]["closed"] is True
 
 

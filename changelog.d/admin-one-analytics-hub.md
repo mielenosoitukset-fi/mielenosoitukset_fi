@@ -1,0 +1,1 @@
+- Admin analytics live in one place, "Analytiikka", with tabs for demo views, the whole site and the last 24 hours. Each demo has one analytics page, and the list counts views the same way as that page, so the numbers match. The old most-viewed list and the old per-demo page redirect there.

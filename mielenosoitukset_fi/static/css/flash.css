@@ -18,10 +18,11 @@
   --flash-warning-text: light-dark(#92400e, #fbbf24);
   --flash-warning-icon: light-dark(#f59e0b, #fb923c);
 
-  --flash-info-bg: light-dark(rgba(6, 182, 212, 0.1), rgba(34, 211, 238, 0.15));
-  --flash-info-border: light-dark(rgba(6, 182, 212, 0.2), rgba(34, 211, 238, 0.3));
-  --flash-info-text: light-dark(#0e7490, #67e8f9);
-  --flash-info-icon: light-dark(#06b6d4, #22d3ee);
+  /* Info uses the site's own blue, not a separate cyan (maintainer decision 20.11.2026). */
+  --flash-info-bg: var(--product-primary-soft, light-dark(#edf4ff, #17233b));
+  --flash-info-border: color-mix(in srgb, var(--product-primary, #0033a0) 22%, transparent);
+  --flash-info-text: var(--product-text, light-dark(#172033, #e7edf7));
+  --flash-info-icon: var(--product-primary, light-dark(#0033a0, #8bb1ff));
 }
 
 .flash-messages {
@@ -60,7 +61,15 @@
 .flash-message--inline {
   width: 100%;
   margin-block: 1.5rem;
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
+  box-shadow: none;
   animation: none;
+}
+
+/* Inline notices are plain boxes: no accent stripe or floating shadow. */
+.flash-message.flash-message--inline::before {
+  content: none;
 }
 
 .flash-message::before {

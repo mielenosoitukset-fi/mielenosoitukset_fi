@@ -184,6 +184,10 @@ func publicSubmissionHandler(next http.Handler, db *mongo.Database, config submi
 			return
 		}
 		actor, err := submissionActor(ctx, r, config)
+		if forcedStepPath(err) != "" {
+			submissionFailure(w, 403, "SUBMIT_ACCOUNT_STEP", "Viimeistele tilisi pakollinen muutos ennen lähettämistä.")
+			return
+		}
 		if err != nil {
 			submissionFailure(w, 503, "SUBMIT_SESSION", "Istunnon tarkistaminen epäonnistui. Yritä uudelleen.")
 			return

@@ -50,7 +50,7 @@ func (a *API) getHome(w http.ResponseWriter, r *http.Request) {
 
 func homeProjection() bson.M {
 	fields := bson.M{}
-	for _, field := range []string{"_id", "title", "date", "start_time", "end_time", "city", "address", "tags", "default_language", "gallery_images", "images", "img", "cover_picture", "cover_image", "preview_image"} {
+	for _, field := range []string{"_id", "title", "date", "end_date", "start_time", "end_time", "city", "address", "tags", "default_language", "gallery_images", "images", "img", "cover_picture", "cover_image", "preview_image"} {
 		fields[field] = 1
 	}
 	for _, lang := range []string{"fi", "en", "sv"} {
@@ -70,7 +70,9 @@ func (s mongoStore) FindHome(ctx context.Context, lang string) (bson.M, error) {
 	}
 	filter := publicDatedFilter()
 	today := time.Now().In(location).Format("2006-01-02")
-	filter["date"] = bson.M{"$gte": today, "$lte": shiftDay(today, upcomingHorizonDays)}
+	span, running := overlapDates(today, shiftDay(today, upcomingHorizonDays))
+	filter["date"] = span
+	filter["$and"] = append(filter["$and"].(bson.A), running)
 	filter["cancelled"] = bson.M{"$ne": true}
 	ids, ranks, err := s.homeRecommendations(ctx)
 	if err != nil {

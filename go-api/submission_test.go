@@ -150,7 +150,11 @@ func TestSubmissionSessionUsesExistingFlaskAuthority(t *testing.T) {
 			t.Error("incorrect bridge request")
 		}
 		if r.Header.Get("Cookie") == "session=valid" {
-			fmt.Fprintf(w, `{"authenticated":true,"actor_id":%q}`, id.Hex())
+			fmt.Fprintf(w, `{"authenticated":true,"actor_id":%q,"forced":{"password":false,"identity":false}}`, id.Hex())
+		} else if r.Header.Get("Cookie") == "session=forcedpw" {
+			fmt.Fprintf(w, `{"authenticated":true,"actor_id":%q,"forced":{"password":true,"identity":true}}`, id.Hex())
+		} else if r.Header.Get("Cookie") == "session=forcedid" {
+			fmt.Fprintf(w, `{"authenticated":true,"actor_id":%q,"forced":{"password":false,"identity":true}}`, id.Hex())
 		} else {
 			fmt.Fprint(w, `{"authenticated":false}`)
 		}
@@ -164,6 +168,14 @@ func TestSubmissionSessionUsesExistingFlaskAuthority(t *testing.T) {
 		actor, err := submissionActor(context.Background(), r, config)
 		if err != nil || (cookie == "session=valid" && actor != id) || (cookie != "session=valid" && !actor.IsZero()) {
 			t.Fatal(cookie, actor, err)
+		}
+	}
+	for cookie, want := range map[string]string{"session=forcedpw": passwordChangePath, "session=forcedid": identityChangePath} {
+		r := httptest.NewRequest("POST", "/api/submissions", nil)
+		r.Header.Set("Cookie", cookie)
+		actor, err := submissionActor(context.Background(), r, config)
+		if !actor.IsZero() || forcedStepPath(err) != want {
+			t.Fatal("flagged account accepted as signed in", cookie, actor, err)
 		}
 	}
 }
@@ -347,6 +359,25 @@ func TestSubmissionErrorsNameTheFailedCheck(t *testing.T) {
 		reason, ok := err.(submissionError)
 		if !ok || reason.Code != c.code || !strings.Contains(reason.Message, c.mention) {
 			t.Fatalf("%v: got %#v", c.override, err)
+		}
+	}
+}
+
+func TestSubmissionEndDate(t *testing.T) {
+	token := "0123456789abcdef0123456789abcdef"
+	locales := map[string]bool{"fi": true}
+	stored := map[string]any{"": nil, "2099-01-01": nil, "2099-01-03": "2099-01-03", "2099-01-14": "2099-01-14"}
+	for value, want := range stored {
+		input, err := readSubmission(httptest.NewRecorder(), submissionRequest(token, "Title", map[string]string{"end_date": value}), locales)
+		if err != nil || input.Event["end_date"] != want {
+			t.Fatalf("end_date %q: got %v, %v", value, input.Event["end_date"], err)
+		}
+	}
+	for _, value := range []string{"2098-12-31", "2099-01-15", "2099-02-30", "2099-1-3", "<script>"} {
+		_, err := readSubmission(httptest.NewRecorder(), submissionRequest(token, "Title", map[string]string{"end_date": value}), locales)
+		reason, ok := err.(submissionError)
+		if !ok || reason.Code != "SUBMIT_INVALID_FIELD" || !strings.Contains(reason.Message, "Päättymispäivä ei voi") {
+			t.Fatalf("end_date %q accepted: %#v", value, err)
 		}
 	}
 }

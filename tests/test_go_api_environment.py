@@ -111,10 +111,13 @@ def test_account_settings_writes_need_the_bridge_and_the_reads(tmp_path):
     spec.loader.exec_module(module)
     bridge = {"AUTH_BRIDGE_SCOPES": True}
     cases = (
+        ({}, False),  # no bridge
         ({"ACCOUNT_SETTINGS_WRITES": True}, False),
-        ({**bridge, "ACCOUNT_SETTINGS_WRITES": True}, False),  # no reads
+        ({**bridge}, True),  # on by default with the bridge and the (default) reads
+        ({**bridge, "ACCOUNT_SETTINGS_WRITES": True}, True),
+        ({**bridge, "ACCOUNT_SETTINGS_READS": False, "ACCOUNT_SETTINGS_WRITES": True}, False),  # no reads
         ({"ACCOUNT_SETTINGS_READS": True, "ACCOUNT_SETTINGS_WRITES": True}, False),  # no bridge
-        ({**bridge, "ACCOUNT_SETTINGS_READS": True}, False),
+        ({**bridge, "ACCOUNT_SETTINGS_READS": True}, True),
         ({**bridge, "ACCOUNT_SETTINGS_READS": True, "ACCOUNT_SETTINGS_WRITES": False}, False),
         ({**bridge, "ACCOUNT_SETTINGS_READS": True, "ACCOUNT_SETTINGS_WRITES": True}, True),
     )
@@ -306,3 +309,34 @@ def test_suggestion_routing_is_guarded_by_the_release_check():
     assert 'RewriteRule "^/organization/[a-fA-F0-9]{24}/save_suggestion$" "http://127.0.0.1:8091%{REQUEST_URI}" [P,L]' in routing
     assert 'RewriteRule "^/suggest_change/[a-fA-F0-9]{24}$" "http://127.0.0.1:8091%{REQUEST_URI}" [P,L]' in routing
     assert "Sec-Fetch-Site: cross-site" in release and "suggest_change/000000000000000000000000" in release
+
+
+def test_token_confirm_flags_follow_public_submissions_and_default_on(tmp_path):
+    from mielenosoitukset_fi.utils.auth import derive_confirmation_key
+
+    path = Path(__file__).resolve().parents[1] / "deploy/go-api/configure_environment.py"
+    spec = importlib.util.spec_from_file_location("go_environment_token_confirm", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    secret = "test-secret-not-for-production-" * 2
+    cases = (
+        ({}, False, False),
+        ({"VOLUNTEER_CONFIRM_GO": True, "EMAIL_CONFIRM_GO": True}, False, False),  # no public submissions
+        ({"GO_SUBMIT_ENABLED": True}, True, True),
+        ({"GO_SUBMIT_ENABLED": True, "VOLUNTEER_CONFIRM_GO": False}, False, True),
+        ({"GO_SUBMIT_ENABLED": True, "EMAIL_CONFIRM_GO": False}, True, False),
+    )
+    for index, (extra, volunteer, email) in enumerate(cases):
+        source, target = tmp_path / f"t{index}.yaml", tmp_path / f"te{index}"
+        source.write_text(yaml.safe_dump({"MONGO_URI": "mongodb://127.0.0.1/isolated", "MONGO_DBNAME": "isolated",
+                                          "SECRET_KEY": secret, **extra}))
+        module.configure(source, target)
+        text = target.read_text()
+        values = dict(line.split("=", 1) for line in text.splitlines())
+        assert ("VOLUNTEER_CONFIRM_GO_ENABLED" in values) is volunteer
+        assert ("EMAIL_CONFIRM_GO_ENABLED" in values) is email
+        assert ("EMAIL_CONFIRM_JWT_KEY" in values) is email
+        # Go gets the derived key Flask signs with, never SECRET_KEY itself.
+        assert secret not in text
+        if email:
+            assert json.loads(values["EMAIL_CONFIRM_JWT_KEY"]) == derive_confirmation_key(secret)

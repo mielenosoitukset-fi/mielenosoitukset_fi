@@ -1,0 +1,1 @@
+- Ylläpidon näkymät näyttävät koodien sijaan suomenkieliset nimet (tehtävien tila, tapaustyyppi, kiireellisyys, tapahtumien toiminnot, tapahtumatyyppi, toistuvuus kuten "Joka 2. viikko, perjantaisin"), ja ajat näytetään Suomen aikaa (aiemmin UTC). Sivupalkin odottavat mielenosoitukset avaavat tapauksen.

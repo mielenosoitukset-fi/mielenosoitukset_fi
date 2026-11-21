@@ -205,6 +205,10 @@ func cityAdminApplicationHandler(next http.Handler, db *mongo.Database, config s
 		ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 		defer cancel()
 		actor, err := submissionActor(ctx, r, config)
+		if forcedStepPath(err) != "" {
+			applicationFailure(w, 403, "APPLY_ACCOUNT_STEP", "Viimeistele tilisi pakollinen muutos ennen hakemista.")
+			return
+		}
 		if err != nil {
 			applicationFailure(w, 503, "APPLY_SESSION", "Istunnon tarkistaminen epäonnistui. Yritä uudelleen.")
 			return

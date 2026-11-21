@@ -1,0 +1,22 @@
+{#- Staff preview of the public detail page: the same React screen, same styles,
+    with the public API payload preloaded (utils/react_detail.render_demo_preview). -#}
+{% extends 'base.html' %}
+{% from '_macros/frontend.html' import frontend_entry %}
+{% block main_class %}public-detail-main{% if embed %} demo-preview-embed{% endif %}{% endblock %}
+{% block title %}{{ metadata_title }} | Mielenosoitukset.fi{% endblock %}
+{% block robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/public-detail.css', v='20261110-detail-buttons-1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/demo-preview.css', v='20261120-2') }}">{% endblock %}
+{% block content %}
+{% if not embed %}
+{#- Staff-only, outside the previewed page; the case embed shows the state itself. -#}
+<p class="staff-preview-bar" role="status">
+  <strong>{{ _('Esikatselu') }}</strong> · {{ preview_state }}
+</p>
+{% endif %}
+<div data-react-island="demonstration-detail" data-props-id="demonstration-detail-props">
+  <div class="public-detail public-detail-boot" role="status"><p>{{ props.messages.loading }}</p></div>
+</div>
+<script type="application/json" id="demonstration-detail-props">{{ props|tojson }}</script>
+{{ frontend_entry('src/entries/detail.tsx') }}
+{% endblock %}

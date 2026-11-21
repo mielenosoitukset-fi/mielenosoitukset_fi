@@ -23,8 +23,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='fa/css/all.css') }}">
     {% block styles %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/product-tokens.css', v='20261110-pride-contrast-1') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/workspace.css', v='20261110-admin-ui-86') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/analytics.css', v='20261001-analytics-58') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/workspace.css', v='20261121-admin-ui-95') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/analytics.css', v='20261120-analytics-61') }}">
 </head>
 
 <body class="min-vh-100 d-flex flex-column bg-body-tertiary">
@@ -101,7 +101,7 @@
           {% endif %}
           {{ next_task.title }}
         </a>
-        <span class="badge bg-secondary text-uppercase">{{ next_task.status }}</span>
+        <span class="badge bg-secondary">{{ next_task.status|task_status_label }}</span>
       </div>
     </div>
 
@@ -118,7 +118,7 @@
             {% endif %}
             {{ task.title }}
           </a>
-          <span class="badge bg-secondary">{{ task.status }}</span>
+          <span class="badge bg-secondary">{{ task.status|task_status_label }}</span>
         </li>
         {% endfor %}
       </ul>
@@ -137,9 +137,6 @@
 {% if current_user.global_admin %}
 <div class="card admin-sidebar-card mb-3">
   <div class="card-body d-grid gap-2">
-    <a href="{{ url_for('admin.logs') }}" class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center">
-      <i class="fa-solid fa-list-check me-2"></i>{{ _('Lokit ja tapahtumat') }}
-    </a>
     <a href="{{ url_for('admin_demo.manage_magic_tokens') }}" class="btn btn-outline-light btn-sm d-flex align-items-center justify-content-center">
       <i class="fa-solid fa-link-slash me-2"></i>{{ _('Tokenit') }}
     </a>
@@ -289,13 +286,8 @@ function confirmAction(action, taskId) {
 
       {% if current_user.has_permission("VIEW_ANALYTICS") %}
         <li class="nav-item">
-          <a class="nav-link admin-sidebar-link {% if admin_endpoint == 'admin.stats' %}active{% endif %}" href="{{ url_for('admin.stats') }}">
-            <i class="fas fa-chart-line me-2"></i>{{ _('Tilastot') }}
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link admin-sidebar-link {% if admin_endpoint in ['admin_site_analytics.site_overview', 'admin_site_analytics.site_demo_analytics'] %}active{% endif %}" href="{{ url_for('admin_site_analytics.site_overview') }}">
-            <i class="fas fa-chart-simple me-2"></i>{{ _('Palvelun analytiikka') }}
+          <a class="nav-link admin-sidebar-link {% if admin_endpoint in ['admin.stats', 'admin.analytics_overall_24h', 'admin_site_analytics.site_overview', 'admin_site_analytics.site_demo_analytics'] %}active{% endif %}" href="{{ url_for('admin.stats') }}">
+            <i class="fas fa-chart-line me-2"></i>{{ _('Analytiikka') }}
           </a>
         </li>
       {% endif %}

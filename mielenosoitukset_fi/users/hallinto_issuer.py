@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import re
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, timedelta
 from hmac import compare_digest
@@ -25,6 +26,14 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from mielenosoitukset_fi.users.hallinto_sessions import AccountVersion, issue_marker, revoke_marker
 from mielenosoitukset_fi.users.models import User
+from mielenosoitukset_fi.utils.auth import generate_reset_token
+from mielenosoitukset_fi.utils.validators import (
+    is_reserved_identity_name,
+    normalize_email,
+    normalize_username,
+    valid_email,
+    validate_username,
+)
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from mielenosoitukset_fi.utils.webauthn_utils import PASSKEY_COLLECTION
 
@@ -65,13 +74,13 @@ def _account_version(db, subject: str, authenticated_user: User | None = None) -
     return AccountVersion(account_id, user.auth_epoch, version)
 
 
-def _live_marker(db, reference: str, subject: str) -> dict | None:
+def _live_marker(db, markers, reference: str, subject: str) -> dict | None:
     if not isinstance(reference, str) or not _REFERENCE.fullmatch(reference):
         return None
     account = _account_version(db, subject)
     if account is None:
         return None
-    return db.hallinto_login_markers.find_one(
+    return markers.find_one(
         {
             "_id": reference, "user_id": account.user_id,
             "auth_epoch": account.auth_epoch, "credential_version": account.credential_version,
@@ -79,6 +88,36 @@ def _live_marker(db, reference: str, subject: str) -> dict | None:
         },
         {"issued_at": 1},
     )
+
+
+# Hallinto links group memberships to accounts. Only admins signed in to
+# Hallinto may search, and they see only a name, username and status.
+_ACCOUNT_LOOKUP_ROLES = {"admin", "global_admin"}
+_ACCOUNT_FIELDS = {"username": 1, "displayname": 1, "active": 1, "confirmed": 1, "banned": 1, "security_suspension": 1}
+_ACCOUNT_ID = re.compile(r"[0-9a-f]{24}\Z")
+_ACCOUNT_SEARCH_LIMIT = 10
+_ACCOUNT_LOOKUP_LIMIT = 100
+_invite_sender = None
+
+
+def invite_sender():
+    """The emailer for account invites, created on first use."""
+    global _invite_sender
+    if _invite_sender is None:
+        from mielenosoitukset_fi.emailer.EmailSender import EmailSender
+        _invite_sender = EmailSender()
+    return _invite_sender
+
+
+def _account_view(doc: dict) -> dict:
+    suspended = bool((doc.get("security_suspension") or {}).get("active"))
+    return {
+        "sub": str(doc["_id"]),
+        "username": doc.get("username", ""),
+        "name": doc.get("displayname") or doc.get("username", ""),
+        "active": bool(doc.get("active", True) and doc.get("confirmed", False)
+                       and not doc.get("banned") and not suspended),
+    }
 
 
 @dataclass(frozen=True)
@@ -156,7 +195,7 @@ def _https_url(value: str):
     return parsed
 
 
-def register_hallinto_issuer(app, db, settings: dict) -> None:
+def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
     issuer = settings["issuer"]
     origin = _https_url(issuer)
     if origin.path != ISSUER_PATH:
@@ -175,13 +214,14 @@ def register_hallinto_issuer(app, db, settings: dict) -> None:
         query_client=lambda identifier: client if identifier == client.client_id else None,
         save_token=lambda *_: None,
     )
-    codes = db.hallinto_oidc_codes
+    codes = state_db.hallinto_oidc_codes
+    markers = state_db.hallinto_login_markers
 
     class Grant(AuthorizationCodeGrant):
         def save_authorization_code(self, code, oauth_request):
             payload = oauth_request.payload.data
             reference = _digest(session[SESSION_MARKER])
-            marker = _live_marker(db, reference, current_user.get_id())
+            marker = _live_marker(db, markers, reference, current_user.get_id())
             if not marker:
                 raise InvalidGrantError("Owner login ended")
             try:
@@ -214,7 +254,7 @@ def register_hallinto_issuer(app, db, settings: dict) -> None:
                 {"_id": doc["_id"], "used_at": None, "expires_at": {"$gt": now}},
                 {"$set": {"used_at": now}},
             )
-            if consumed.matched_count != 1 or not _live_marker(db, doc["sid"], doc["subject"]):
+            if consumed.matched_count != 1 or not _live_marker(db, markers, doc["sid"], doc["subject"]):
                 return None
             return doc["subject"]
 
@@ -249,34 +289,53 @@ def register_hallinto_issuer(app, db, settings: dict) -> None:
 
     @user_logged_in.connect_via(app)
     def start_owner_login(sender, user, **kwargs):
-        previous = session.pop(SESSION_MARKER, None)
-        if previous is not None:
-            # The previous account ID is independent of Flask's overwritten
-            # _user_id when the browser signs in as a different account.
-            old = db.hallinto_login_markers.find_one({"_id": _digest(previous)}, {"user_id": 1})
-            if old:
-                revoke_marker(db.hallinto_login_markers, previous, old["user_id"])
-        account = _account_version(db, user.get_id(), user)
-        if account:
-            session[SESSION_MARKER] = issue_marker(
-                db.hallinto_login_markers, account, utcnow() + app.permanent_session_lifetime,
-            )
+        previous = session.get(SESSION_MARKER)
+        try:
+            if previous:
+                # A fresh login can replace the account ID in Flask's cookie.
+                # Find the prior binding before removing the browser marker.
+                old = markers.find_one({"_id": _digest(previous)}, {"user_id": 1})
+                if old:
+                    revoke_marker(markers, previous, old["user_id"])
+                session.pop(SESSION_MARKER, None)
+                session.pop("hallinto_owner_revocation_pending", None)
+            account = _account_version(db, user.get_id(), user)
+            if account:
+                session[SESSION_MARKER] = issue_marker(
+                    markers, account, utcnow() + app.permanent_session_lifetime,
+                )
+        except PyMongoError:
+            # Hallinto downtime must not block first-party login. Retain an
+            # old binding only for a later revocation attempt, never issuance.
+            if session.get(SESSION_MARKER):
+                session["hallinto_owner_revocation_pending"] = True
+            app.logger.warning("Hallinto owner login marker unavailable")
 
     def end_owner_login(subject):
         marker = session.get(SESSION_MARKER)
         if marker:
             try:
-                revoke_marker(db.hallinto_login_markers, marker, ObjectId(subject))
+                if session.get("hallinto_owner_revocation_pending"):
+                    old = markers.find_one({"_id": _digest(marker)}, {"user_id": 1})
+                    if old:
+                        revoke_marker(markers, marker, old["user_id"])
+                else:
+                    revoke_marker(markers, marker, ObjectId(subject))
             except PyMongoError:
                 return False
             session.pop(SESSION_MARKER, None)
+            session.pop("hallinto_owner_revocation_pending", None)
         return True
 
     app.extensions["hallinto_owner_logout"] = end_owner_login
 
     @bp.before_request
     def require_canonical_origin():
-        if not request.is_secure or request.host != origin.netloc:
+        original = request.environ.get("werkzeug.proxy_fix.orig", {})
+        # Require TLS confirmation at the trusted WSGI server/proxy hop.
+        # ProxyFix's request scheme alone follows a forwarded header.
+        if (original.get("wsgi.url_scheme", request.scheme) != "https"
+                or not request.is_secure or request.host != origin.netloc):
             return jsonify(error="invalid_request"), 400
 
     @bp.after_request
@@ -318,7 +377,7 @@ def register_hallinto_issuer(app, db, settings: dict) -> None:
         if not subject:
             return redirect(url_for("users.auth.login", next=request.full_path))
         marker = session.get(SESSION_MARKER)
-        if not marker or not _live_marker(db, _digest(marker), subject):
+        if session.get("hallinto_owner_revocation_pending") or not marker or not _live_marker(db, markers, _digest(marker), subject):
             return jsonify(error="access_denied", error_description="Sign out and sign in again"), 403
         return auth.create_authorization_response(oauth_request, grant_user=subject, grant=grant)
 
@@ -327,17 +386,124 @@ def register_hallinto_issuer(app, db, settings: dict) -> None:
         request.max_content_length = 4096
         return auth.create_token_response()
 
-    @bp.post("/session")
-    def owner_session():
+    def client_payload():
+        """Authenticate the Hallinto client and read its JSON object body."""
         request.max_content_length = 4096
         credentials = request.authorization
         if (not credentials or credentials.type != "basic"
                 or unquote_plus(credentials.username or "") != client.client_id
                 or not client.check_client_secret(unquote_plus(credentials.password or ""))):
-            return jsonify(error="invalid_client"), 401, {"WWW-Authenticate": "Basic"}
+            return None, (jsonify(error="invalid_client"), 401, {"WWW-Authenticate": "Basic"})
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
+            return None, (jsonify(error="invalid_request"), 400)
+        return payload, None
+
+    @bp.post("/session")
+    def owner_session():
+        payload, error = client_payload()
+        if error:
+            return error
+        return jsonify(active=bool(_live_marker(db, markers, payload.get("sid"), payload.get("sub"))))
+
+    def admin_payload():
+        """Require the client and a live Hallinto sign-in of an admin account."""
+        payload, error = client_payload()
+        if error:
+            return None, error
+        if not _live_marker(db, markers, payload.get("sid"), payload.get("sub")):
+            return None, (jsonify(error="access_denied"), 403)
+        actor = db.users.find_one({"_id": ObjectId(payload["sub"])}, {"role": 1, "global_admin": 1})
+        if not actor or not (actor.get("global_admin") or actor.get("role") in _ACCOUNT_LOOKUP_ROLES):
+            return None, (jsonify(error="access_denied"), 403)
+        return payload, None
+
+    @bp.post("/accounts/search")
+    def account_search():
+        payload, error = admin_payload()
+        if error:
+            return error
+        query = payload.get("q")
+        if not isinstance(query, str) or not 3 <= len(query.strip()) <= 64:
             return jsonify(error="invalid_request"), 400
-        return jsonify(active=bool(_live_marker(db, payload.get("sid"), payload.get("sub"))))
+        prefix = "^" + re.escape(query.strip())
+        rows = db.users.find(
+            {"$or": [{"username": {"$regex": prefix, "$options": "i"}},
+                     {"displayname": {"$regex": prefix, "$options": "i"}}]},
+            _ACCOUNT_FIELDS,
+        ).sort("username", 1).limit(_ACCOUNT_SEARCH_LIMIT)
+        return jsonify(items=[_account_view(row) for row in rows])
+
+    @bp.post("/accounts/lookup")
+    def account_lookup():
+        payload, error = admin_payload()
+        if error:
+            return error
+        ids = payload.get("ids")
+        if (not isinstance(ids, list) or not 0 < len(ids) <= _ACCOUNT_LOOKUP_LIMIT
+                or not all(isinstance(i, str) and _ACCOUNT_ID.fullmatch(i) for i in ids)):
+            return jsonify(error="invalid_request"), 400
+        rows = db.users.find({"_id": {"$in": [ObjectId(i) for i in set(ids)]}}, _ACCOUNT_FIELDS)
+        return jsonify(items=[_account_view(row) for row in rows])
+
+    @bp.post("/accounts/invite")
+    def account_invite():
+        """Create an ordinary account for a person who has none and email
+        them a link to set their password. The admin signed in to Hallinto
+        is recorded as the creator."""
+        from mielenosoitukset_fi.admin.user_history import (
+            PENDING_HISTORY, flush_user_history, history_event, user_snapshot)
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        actor_doc = db.users.find_one({"_id": ObjectId(payload["sub"])})
+        actor = User.from_db(actor_doc)
+        if not (actor.has_full_permissions() or "CREATE_USER" in (actor.global_permissions or [])):
+            return jsonify(error="access_denied"), 403
+        email, username, name = (payload.get(k) for k in ("email", "username", "name"))
+        if not all(isinstance(v, str) for v in (email, username)) or not isinstance(name or "", str):
+            return jsonify(error="invalid_request"), 400
+        email, username = normalize_email(email), normalize_username(username)
+        name = (name or "").strip() or username
+        if (len(email) > 254 or not valid_email(email) or not validate_username(username)[0]
+                or len(name) > 64 or is_reserved_identity_name(name)):
+            return jsonify(error="invalid_request"), 400
+        existing = db.users.find_one({"email_canonical": email}, _ACCOUNT_FIELDS) or db.users.find_one(
+            {"email": {"$regex": "^" + re.escape(email) + "$", "$options": "i"}}, _ACCOUNT_FIELDS)
+        if existing:
+            return jsonify(error="email_in_use", account=_account_view(existing)), 409
+        if db.users.find_one({"$or": [{"username_canonical": username},
+                                      {"username": {"$regex": "^" + re.escape(username) + "$", "$options": "i"}}]},
+                             {"_id": 1}):
+            return jsonify(error="username_in_use"), 409
+
+        user_doc = User.create_user(username, secrets.token_urlsafe(48), email, name)
+        user_doc.update({"_id": ObjectId(), "active": True, "created_via": "hallinto"})
+        creator = {"id": str(actor._id), "username": actor.username, "role": actor.role, "via": "hallinto"}
+        user_doc[PENDING_HISTORY] = [history_event(user_doc["_id"], {}, user_snapshot(user_doc, {}),
+                                                   creator, "user_created")]
+        try:
+            db.users.insert_one(user_doc)
+        except DuplicateKeyError:
+            return jsonify(error="username_in_use"), 409
+        flush_user_history(db, user_doc["_id"])
+
+        reset_url = f"{origin.scheme}://{origin.netloc}" + url_for(
+            "users.auth.password_reset", token=generate_reset_token(email))
+        try:
+            invite_sender().queue_email(
+                template_name="hallinto_account_invite.html",
+                subject="Sinulle on luotu tili mielenosoitukset.fi-palveluun",
+                recipients=[email],
+                context={"user_name": name, "username": username, "reset_url": reset_url,
+                         "reset_request_url": f"{origin.scheme}://{origin.netloc}"
+                                              + url_for("users.auth.password_reset_request")},
+            )
+            sent = True
+        except Exception:  # The account exists; the person can still use "forgot password".
+            logging.getLogger(__name__).exception("Hallinto account invite email failed")
+            sent = False
+        return jsonify(account=_account_view(user_doc), invited=sent), 201
 
     app.register_blueprint(bp)

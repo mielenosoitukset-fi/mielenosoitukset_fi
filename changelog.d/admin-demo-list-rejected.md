@@ -1,0 +1,1 @@
+- Admin: the demonstration list can show rejected demonstrations. "Kaikki" now includes them in their own group, and the status filter has a "Hylätty" option. A note under the filters says that hidden and cancelled ones are chosen in the extra filters.

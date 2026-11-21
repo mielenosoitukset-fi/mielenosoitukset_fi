@@ -75,6 +75,12 @@
     </section>
     {% endif %}
 
+    {% if copy_source %}
+    <div class="alert alert-info" role="status" data-copy-source="{{ copy_source.id }}">
+        <i class="fa-solid fa-copy me-2" aria-hidden="true"></i>
+        {{ _('Pohjana on mielenosoitus %(title)s. Mitään ei ole vielä tallennettu: valitse uusi päivämäärä, tarkista tiedot ja paina Luo.', title=copy_source.title) }}
+    </div>
+    {% endif %}
     <form id="demo-form" class="admin-editor-form" method="POST" action="{{ form_action }}" novalidate enctype="multipart/form-data">
         {% if edit_demo_with_token %}<input type="hidden" name="csrf_token" value="{{ edit_link_csrf_token }}">{% endif %}
 
@@ -106,6 +112,13 @@
                 <label for="date">{{ _('Päivämäärä (pp.kk.vvvv)') }} <span class="admin-required" aria-hidden="true">*</span></label>
                 <input type="text" id="date" name="date" class="form-control" value="{{ demo.date if demo else '' }}"
                     required>
+            </div>
+
+            <div class="form-group">
+                <label for="end_date">{{ _('Päättymispäivä (pp.kk.vvvv), jos kestää useamman päivän') }}</label>
+                <input type="text" id="end_date" name="end_date" class="form-control"
+                    value="{{ demo.end_date if demo and demo.end_date else '' }}" aria-describedby="end_date_help">
+                <small id="end_date_help" class="admin-field__help">{{ _('Jätä tyhjäksi, jos mielenosoitus on yhden päivän. Enintään 14 päivää.') }}</small>
             </div>
 
             <div class="form-group">
@@ -550,30 +563,41 @@
         </section>
 
         <!-- Approval Section -->
-        {% if can_approve_demo|default(false) %}
+        {% if demo and demo._id %}
+        {# Maintainer decision (20 Nov 2026): the edit form never changes the status. #}
+        <section id="approval-info" class="form-section mb-8" aria-labelledby="approval-status-title">
+            <div class="admin-field">
+                <h2 id="approval-status-title" class="text-xl font-semibold mb-2">{{ _('Julkaisun tila') }}</h2>
+                <p class="mb-2">
+                    {% if demo.taken_down %}{{ _('Poistettu julkaisusta') }}
+                    {% elif demo.approved %}{{ _('Hyväksytty ja julkaistu') }}
+                    {% elif demo.rejected %}{{ _('Hylätty') }}
+                    {% else %}{{ _('Odottaa käsittelyä') }}{% endif %}
+                </p>
+                <p class="admin-field__help mb-2">{{ _('Tallentaminen ei muuta tilaa. Hyväksyntä, hylkäys ja julkaisusta poistaminen tehdään tapauksessa, jossa näet niiden seuraukset ennen vahvistusta.') }}</p>
+                {% if decision_url %}<a class="btn btn-outline-primary btn-sm" href="{{ decision_url }}"><i class="fa-solid fa-scale-balanced me-1" aria-hidden="true"></i>{{ _('Avaa tapaus') }}</a>{% endif %}
+            </div>
+        </section>
+        {% elif can_approve_demo|default(false) %}
         <section id="approval-info" class="form-section mb-8">
             <div class="form-group admin-boolean-field" id="approval-container">
                 <label class="admin-check-row" for="approved">
                     <input type="checkbox" id="approved" name="approved" class="form-check-input"
-                        data-admin-boolean aria-describedby="approval-help approval-status"
-                        {% if demo and demo.approved %}checked{% endif %}>
+                        data-admin-boolean aria-describedby="approval-help approval-status">
                     <span class="admin-check-row__content">
-                        <strong class="admin-check-row__label">{{ _('Hyväksytty') }}</strong>
-                        <span id="approval-help" class="admin-check-row__help">{{ _('Hyväksytty mielenosoitus voidaan näyttää julkisissa näkymissä.') }}</span>
+                        <strong class="admin-check-row__label">{{ _('Julkaise heti') }}</strong>
+                        <span id="approval-help" class="admin-check-row__help">{{ _('Mielenosoitus hyväksytään tallennettaessa samalla tavalla kuin tapauksessa, ja se näkyy julkisissa näkymissä.') }}</span>
                         <span id="approval-status" class="admin-check-row__status" aria-live="polite"
-                            data-true-label="{{ _('Kyllä') }}" data-false-label="{{ _('Ei') }}">{% if demo and demo.approved %}{{ _('Kyllä') }}{% else %}{{ _('Ei') }}{% endif %}</span>
+                            data-true-label="{{ _('Kyllä') }}" data-false-label="{{ _('Ei') }}">{{ _('Ei') }}</span>
                     </span>
                 </label>
             </div>
         </section>
-        {% else %}
-        <input type="hidden" id="approved" name="approved"
-            value="{{ 'on' if demo and demo.approved else '' }}">
         {% endif %}
 
         <!-- Submit Section -->
         <section class="editor-save-bar">
-            <span>{{ _('Tallentaminen päivittää tämän mielenosoituksen tiedot.') }}</span>
+            <span>{% if demo and demo._id %}{{ _('Tallentaminen päivittää tämän mielenosoituksen tiedot.') }}{% else %}{{ _('Luo-painike tallentaa uuden mielenosoituksen.') }}{% endif %}</span>
             <button type="submit" class="btn btn-primary">{{ submit_button_text }}</button>
         </section>
     </form>
@@ -651,7 +675,7 @@
 {% endif %}
 
 
-<!-- Edit-link lifecycle and duplicate controls -->
+<!-- Edit-link lifecycle and copy controls -->
 {% if current_user.is_authenticated and demo and demo._id %}
      
     <section class="admin-form-section">
@@ -666,7 +690,9 @@
                 <i class="fas fa-link me-1" aria-hidden="true"></i>{{ _('Luo muokkauslinkki') }}
             </button>
             {% endif %}
-            <button type="button" class="btn btn-warning" id="duplicate-demo-btn">{{ _('Luo kopio mielenosoituksesta') }}</button>
+            {% if current_user.has_permission("CREATE_DEMO") %}
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin_demo.create_demo', pohja=demo._id|string) }}">{{ _('Kopioi uuden pohjaksi') }}</a>
+            {% endif %}
         </div>
     </div>
 
@@ -713,26 +739,6 @@
     {% endif %}
 </section>
 
-<script>
-    document.addEventListener("DOMContentLoaded", (event) => {
-        const demoId = {{ (demo._id|string)|tojson }};
-        const duplicateButton = document.getElementById('duplicate-demo-btn');
-
-        duplicateButton?.addEventListener('click', async () => {
-            if (!confirm('{{ _('Haluatko varmasti luoda kopion tästä mielenosoituksesta?') }}')) return;
-            const response = await fetch(`/admin/demo/duplicate/${demoId}`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'}
-            });
-            const data = await response.json();
-            if (response.ok && data.status === 'OK' && data.new_demo_id) {
-                window.open(`/admin/demo/edit_demo/${data.new_demo_id}`, '_blank', 'width=1000,height=800,noopener');
-            } else {
-                alert(data.message || '{{ _("Kopion luominen epäonnistui.") }}');
-            }
-        });
-    });
-</script>
 {% endif %}
 
 <script>

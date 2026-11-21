@@ -44,6 +44,10 @@ var (
 	// errIdentityChangeRequired is Flask's 428: the account must finish the forced identity change
 	// before using anything else, so Go routes refuse it too (403) instead of looking broken (503).
 	errIdentityChangeRequired = errors.New("identity change required")
+	// errPasswordChangeRequired: an administrator requires a new password first. Flask answers
+	// /api/session with 200 for flagged accounts (the flow's own pages need it), so the bridge
+	// reads the forced flags from that answer.
+	errPasswordChangeRequired = errors.New("password change required")
 )
 
 type authBridgeConfig struct {
@@ -288,7 +292,11 @@ func (r *sessionResolver) fetch(ctx context.Context, request *http.Request, cook
 		HasAdminAccess bool            `json:"has_admin_access"`
 		Unread         int             `json:"unread"`
 		Permissions    map[string]bool `json:"permissions"`
-		Organization   *struct {
+		Forced         struct {
+			Password bool `json:"password"`
+			Identity bool `json:"identity"`
+		} `json:"forced"`
+		Organization *struct {
 			ID          string          `json:"id"`
 			Following   bool            `json:"following"`
 			Invited     bool            `json:"invited"`
@@ -306,6 +314,13 @@ func (r *sessionResolver) fetch(ctx context.Context, request *http.Request, cook
 	}
 	if !*raw.Authenticated {
 		return p, nil
+	}
+	// A flagged account may use nothing but the forced steps; the password comes first, like Flask.
+	if raw.Forced.Password {
+		return Principal{}, errPasswordChangeRequired
+	}
+	if raw.Forced.Identity {
+		return Principal{}, errIdentityChangeRequired
 	}
 	if !authObjectID.MatchString(raw.ActorID) {
 		return Principal{}, errAuthUnavailable
@@ -368,11 +383,19 @@ func authDenied(w http.ResponseWriter, status int, message string) {
 // name. It is a constant, never copied from Flask's answer, so the redirect cannot be steered.
 const identityChangePath = "/users/auth/forced_identity_change/"
 
+// passwordChangePath is where Flask sends an account that must choose a new password first.
+const passwordChangePath = "/users/auth/forced_pwd_reset/"
+
 // identityChangeDenied answers 403 for an account in the forced identity change flow.
 func identityChangeDenied(w http.ResponseWriter) {
+	forcedStepDenied(w, "identity change required", identityChangePath)
+}
+
+// forcedStepDenied answers 403 with a fixed message and a constant redirect.
+func forcedStepDenied(w http.ResponseWriter, message, path string) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Vary", "Cookie")
-	writeJSON(w, http.StatusForbidden, map[string]string{"error": "identity change required", "redirect": identityChangePath})
+	writeJSON(w, http.StatusForbidden, map[string]string{"error": message, "redirect": path})
 }
 
 // resolveFor resolves the principal or answers 503. It never runs the wrapped
@@ -383,6 +406,10 @@ func (r *sessionResolver) resolveFor(w http.ResponseWriter, request *http.Reques
 	p, err := r.Resolve(ctx, request, scope)
 	if errors.Is(err, errIdentityChangeRequired) {
 		identityChangeDenied(w)
+		return nil, false
+	}
+	if errors.Is(err, errPasswordChangeRequired) {
+		forcedStepDenied(w, "password change required", passwordChangePath)
 		return nil, false
 	}
 	if err != nil {
@@ -481,6 +508,8 @@ func authBridgeHandler(next http.Handler, config authBridgeConfig, db *mongo.Dat
 	}
 	// Account settings reads (docs/account-pages-react.md) share the bridge and have their own flag.
 	next = accountSettingsReadHandler(next, db, resolver, config.Origin)
+	// Accepting an organization invitation (docs/org-invite-react.md): its own flag, off by default.
+	next = orgInviteFromEnv(next, db, resolver, config.Origin)
 	return authBridgeHandlerWith(developerHandlerWith(next, mongoDeveloperStore{db}, resolver, writes), resolver)
 }
 

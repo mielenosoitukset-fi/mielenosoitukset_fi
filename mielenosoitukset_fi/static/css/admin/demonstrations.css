@@ -291,6 +291,8 @@
 
   .action-sidebar {
     position: static;
+    /* On narrow screens the actions come before the long detail cards. */
+    order: -1;
   }
 }
 

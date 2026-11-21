@@ -1,0 +1,1 @@
+- "Kopioi uuden pohjaksi" in the admin now opens the create form filled in from the original demo (without its date, state or links). Nothing is saved until you press "Luo", so abandoned copies no longer pile up as hidden draft demos. The broken copy button on the recurring series form is gone.
