@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"image"
+	"image/jpeg"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -201,5 +205,73 @@ func TestOrgRequestSignedIn(t *testing.T) {
 	r = orgCall(h, "GET", orgRequestsMinePath, "")
 	if r.Code != 200 || !strings.Contains(r.Body.String(), `"access":"own_account"`) {
 		t.Fatalf("%d %s", r.Code, r.Body.String())
+	}
+}
+
+func TestOrgRequestCity(t *testing.T) {
+	input := validOrgRequest()
+	input.City = "Tampere"
+	fields, err := validateOrgRequest(input, false)
+	if err != nil || fields["organization"].(bson.M)["city"] != "tampere" {
+		t.Fatalf("%v %v", fields, err)
+	}
+	input.City = "Atlantis"
+	if _, err := validateOrgRequest(input, false); err == nil || err.(applicationError).code != "ORG_CITY" {
+		t.Fatalf("unknown city: %v", err)
+	}
+}
+
+func orgMultipart(t *testing.T, request string, logo []byte) (*bytes.Buffer, string) {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, _ := writer.CreateFormField("request")
+	part.Write([]byte(request))
+	if logo != nil {
+		file, _ := writer.CreateFormFile("logo", "logo.jpg")
+		file.Write(logo)
+	}
+	writer.Close()
+	return &body, writer.FormDataContentType()
+}
+
+func TestOrgRequestLogo(t *testing.T) {
+	o, h := orgRequestRig(t, bson.NilObjectID)
+	ctx := context.Background()
+	picture := image.NewRGBA(image.Rect(0, 0, 40, 20))
+	var jpg bytes.Buffer
+	if err := jpeg.Encode(&jpg, picture, nil); err != nil {
+		t.Fatal(err)
+	}
+	send := func(logo []byte) *httptest.ResponseRecorder {
+		body, contentType := orgMultipart(t, orgRequestBody, logo)
+		r := httptest.NewRequest("POST", orgRequestsPath, body)
+		r.Header.Set("Origin", "https://example.test")
+		r.Header.Set("Content-Type", contentType)
+		r.RemoteAddr = "192.0.2.9:1"
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w
+	}
+	if r := send(append([]byte("GIF89a"), make([]byte, 20)...)); r.Code != 400 || !strings.Contains(r.Body.String(), "ORG_LOGO") {
+		t.Fatalf("gif: %d %s", r.Code, r.Body.String())
+	}
+	if r := send(make([]byte, orgRequestLogoMax+10)); r.Code != 400 {
+		t.Fatalf("too big: %d %s", r.Code, r.Body.String())
+	}
+	if r := send(jpg.Bytes()); r.Code != 201 {
+		t.Fatalf("jpeg: %d %s", r.Code, r.Body.String())
+	}
+	var stored struct {
+		Logo struct {
+			ContentType string `bson:"content_type"`
+			Data        []byte `bson:"data"`
+		} `bson:"logo"`
+	}
+	if err := o.db.Collection("organization_requests").FindOne(ctx, bson.M{}).Decode(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored.Logo.ContentType != "image/png" || !bytes.HasPrefix(stored.Logo.Data, []byte("\x89PNG")) {
+		t.Fatalf("logo=%v", stored.Logo.ContentType)
 	}
 }

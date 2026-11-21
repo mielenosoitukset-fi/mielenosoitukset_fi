@@ -17,6 +17,7 @@ export function orgRequestBody(form: FormData, startedAt: number) {
     organization_email: String(form.get('organization_email') ?? ''),
     links: splitLinks(String(form.get('links') ?? '')),
     business_id: String(form.get('business_id') ?? ''),
+    city: String(form.get('city') ?? '').trim(),
     description: String(form.get('description') ?? ''),
     applicant_name: String(form.get('applicant_name') ?? ''),
     applicant_email: String(form.get('applicant_email') ?? ''),
@@ -56,4 +57,23 @@ export async function readStatus(token: string, fetcher: typeof fetch = fetch): 
   } catch {
     return { kind: 'error', message: 'Tilaa ei voitu hakea. Tarkista yhteys ja yritä uudelleen.' };
   }
+}
+
+/** The logo the visitor picked, or null; refused when it is not a small PNG or JPEG. */
+export function pickedLogo(form: FormData): { file: File | null; problem: string } {
+  const file = form.get('logo');
+  if (!(file instanceof File) || file.size === 0) return { file: null, problem: '' };
+  if (!['image/png', 'image/jpeg'].includes(file.type)) return { file: null, problem: 'Logon pitää olla PNG- tai JPEG-kuva.' };
+  if (file.size > 1024 * 1024) return { file: null, problem: 'Logo voi olla enintään 1 Mt.' };
+  return { file, problem: '' };
+}
+
+/** JSON alone, or multipart with the JSON in "request" and the logo in "logo" (go-api/org_request.go). */
+export function requestPayload(body: ReturnType<typeof orgRequestBody>, logo: File | null): { body: string | FormData; headers: Record<string, string> } {
+  const headers: Record<string, string> = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
+  if (!logo) return { body: JSON.stringify(body), headers: { ...headers, 'Content-Type': 'application/json' } };
+  const data = new FormData();
+  data.append('request', JSON.stringify(body));
+  data.append('logo', logo);
+  return { body: data, headers };
 }

@@ -6,7 +6,8 @@ import {
   orgRequestSubmitPath,
 } from './org-request-route';
 import type { OrgRequestSummary } from './org-request-route';
-import { orgRequestBody } from './org-request';
+import { orgRequestBody, pickedLogo, requestPayload } from './org-request';
+import { cityCatalog, findCity } from './cities';
 import './information/information.css';
 import './contact/contact.css';
 import './city-admin/city-admin.css';
@@ -55,13 +56,21 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
     const form = new FormData(event.currentTarget);
     const body = orgRequestBody(form, startedAt);
     if (!body.links.length) { setResult({ kind: 'error', message: 'Anna vähintään yksi linkki organisaation verkkosivuille tai someen.' }); return; }
+    if (body.city) {
+      const city = findCity(body.city);
+      if (!city) { setResult({ kind: 'error', message: 'Valitse paikkakunta listasta tai jätä kenttä tyhjäksi.' }); return; }
+      body.city = city.key;
+    }
+    const logo = pickedLogo(form);
+    if (logo.problem) { setResult({ kind: 'error', message: logo.problem }); return; }
+    const payload = requestPayload(body, logo.file);
     setSending(true);
     setResult(null);
     try {
       const response = await fetch(orgRequestSubmitPath, {
         method: 'POST', credentials: 'same-origin', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        body: JSON.stringify(body),
+        headers: payload.headers,
+        body: payload.body,
       });
       const data = await response.json().catch(() => ({}));
       if (response.ok && data.success) {
@@ -136,6 +145,13 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
             <p className="city-admin-hint" id="org-request-links-hint">1–5 osoitetta, kukin omalle rivilleen.</p>
             <textarea id="org-request-links" name="links" rows={3} required aria-describedby="org-request-links-hint"
               placeholder="https://esimerkki.fi" />
+            <label htmlFor="org-request-city">Paikkakunta (vapaaehtoinen)</label>
+            <p className="city-admin-hint" id="org-request-city-hint">Täytä, jos kyse on paikallisosastosta tai organisaatio toimii vain yhdellä paikkakunnalla.</p>
+            <input id="org-request-city" name="city" list="org-request-city-options" autoComplete="off" aria-describedby="org-request-city-hint" />
+            <datalist id="org-request-city-options">{cityCatalog.map(city => <option key={city.key} value={city.name} />)}</datalist>
+            <label htmlFor="org-request-logo">Logo (vapaaehtoinen)</label>
+            <p className="city-admin-hint" id="org-request-logo-hint">PNG- tai JPEG-kuva, enintään 1 Mt.</p>
+            <input id="org-request-logo" name="logo" type="file" accept="image/png,image/jpeg" aria-describedby="org-request-logo-hint" />
             <label htmlFor="org-request-business-id">Y-tunnus (vapaaehtoinen)</label>
             <input id="org-request-business-id" name="business_id" inputMode="numeric" pattern="[0-9]{7}-[0-9]" placeholder="1234567-8" />
             <label htmlFor="org-request-description">Kerro lyhyesti organisaation toiminnasta</label>

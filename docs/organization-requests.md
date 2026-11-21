@@ -19,7 +19,7 @@ the owner invitation stay with Flask (O4). Nothing in this slice grants access.
 | Browser path | Method | Served by | Purpose |
 | --- | --- | --- | --- |
 | `/organisaatiot/hae` | GET | React host | Form; signed-in visitors also see their requests |
-| `/organisaatiot/hae` | POST | Go `POST /api/organization-requests` | Submit (JSON) |
+| `/organisaatiot/hae` | POST | Go `POST /api/organization-requests` | Submit (JSON, or multipart with a logo) |
 | `/organisaatiot/hakemukset` | GET | Go `GET /api/organization-requests/mine` | Signed-in account's requests |
 | `/organisaatiot/hakemus` | GET | React host | Status page; token in the URL fragment |
 | `/organisaatiot/hakemus` | POST | Go `POST /api/organization-requests/status` | Read one request by token (`{"token"}`) |
@@ -42,7 +42,8 @@ RewriteRule "^/organisaatiot/(hae|hakemus)$" "http://127.0.0.1:8090$0" [P,L]
 ## Request body
 
 `represents`, `organization_name` (2–120), `organization_email` (required when
-representing), `links` (1–5 http(s) links), `business_id` (optional, `1234567-8`),
+representing), `links` (1–5 http(s) links), `city` (optional, a city from the city catalogue, stored as its key),
+`business_id` (optional, `1234567-8`),
 `description` (≤1 500), `applicant_name`, `applicant_email` (anonymous only; a
 signed-in account's own address is used), `applicant_role`, `access`
 (`organization_account` | `own_account` (signed in only) | `invite`, only when
@@ -50,9 +51,14 @@ representing), `invite_email` (for `invite`), `onboarding`, `consent`, plus the
 bot traps `homepage` (must be empty) and `started_at` (ms; under 2 s is a bot).
 Unknown fields are refused.
 
+With a logo the body is `multipart/form-data`: the JSON above in the `request`
+part and the image in `logo` (PNG or JPEG, at most 1 MB and 2000×2000 px). Go
+decodes and re-encodes it as PNG, so only pixel data is stored.
+
 ## Stored document
 
-`organization_requests`: `organization{name,email,links,business_id,description}`,
+`organization_requests`: `organization{name,email,links,city?,business_id,description}`, `logo?{content_type,data,size}`
+(copied to the organization when it is created in O4),
 `applicant{name,email,role,user_id?}`, `represents`, `access`, `invite_email`,
 `onboarding`, `status`, `status_message`, `status_token_hash` (SHA-256; the token
 itself is only in the mail), `source`, `consent_at`, `created_at`, `updated_at`,

@@ -24,6 +24,9 @@ import (
 	"encoding/json"
 	"errors"
 	"html"
+	"image"
+	_ "image/jpeg"
+	"image/png"
 	"io"
 	"log"
 	"net/http"
@@ -45,6 +48,8 @@ const (
 	orgRequestsMinePath   = "/api/organization-requests/mine"
 	orgRequestsStatusPath = "/api/organization-requests/status"
 	orgRequestMaxBody     = 16 << 10
+	orgRequestLogoMax     = 1 << 20
+	orgRequestLogoSide    = 2000
 	orgRequestStatusPage  = "/organisaatiot/hakemus#"
 	orgRequestMailSubject = "Organisaatiohakemuksesi Mielenosoitukset.fi-palvelussa"
 	orgRequestCapRoute    = "org-request"
@@ -68,6 +73,7 @@ type orgRequestInput struct {
 	OrgEmail    string   `json:"organization_email"`
 	Links       []string `json:"links"`
 	BusinessID  string   `json:"business_id"`
+	City        string   `json:"city"`
 	Description string   `json:"description"`
 	Applicant   string   `json:"applicant_name"`
 	Email       string   `json:"applicant_email"`
@@ -145,6 +151,13 @@ func validateOrgRequest(input orgRequestInput, signedIn bool) (bson.M, error) {
 		}
 		org["business_id"] = id
 	}
+	if city := strings.TrimSpace(input.City); city != "" {
+		key := normalizeCityKey(city)
+		if _, known := cityCatalog[key]; !known {
+			return nil, applicationError{"ORG_CITY", "Valitse paikkakunta listasta tai jätä kenttä tyhjäksi."}
+		}
+		org["city"] = key
+	}
 	if org["description"], err = orgRequestText(input.Description, 0, 1500, "ORG_DESCRIPTION", "Kuvaus voi olla enintään 1 500 merkkiä."); err != nil {
 		return nil, err
 	}
@@ -183,6 +196,76 @@ func validateOrgRequest(input orgRequestInput, signedIn bool) (bson.M, error) {
 		return nil, applicationError{"ORG_CONSENT", "Hyväksy tietojen käsittely, jotta voimme käsitellä hakemuksen."}
 	}
 	return fields, nil
+}
+
+// readOrgRequest reads the form: plain JSON, or multipart/form-data with the JSON in a
+// "request" part and an optional "logo" file. The logo comes back re-encoded as PNG.
+func readOrgRequest(w http.ResponseWriter, r *http.Request, into *orgRequestInput) ([]byte, error) {
+	if !strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		return nil, readOrgRequestJSON(w, r, into)
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, orgRequestLogoMax+orgRequestMaxBody+4<<10)
+	reader, err := r.MultipartReader()
+	if err != nil {
+		return nil, applicationError{"ORG_FORMAT", "Hakemusta ei voitu lukea."}
+	}
+	var logo []byte
+	seen := map[string]bool{}
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, applicationError{"ORG_LOGO_SIZE", "Logo voi olla enintään 1 Mt."}
+		}
+		name := part.FormName()
+		if seen[name] || (name != "request" && name != "logo") {
+			return nil, applicationError{"ORG_FORMAT", "Hakemusta ei voitu lukea."}
+		}
+		seen[name] = true
+		if name == "request" {
+			decoder := json.NewDecoder(io.LimitReader(part, orgRequestMaxBody))
+			decoder.DisallowUnknownFields()
+			if err := decoder.Decode(into); err != nil {
+				return nil, applicationError{"ORG_FORMAT", "Hakemusta ei voitu lukea."}
+			}
+			continue
+		}
+		data, err := io.ReadAll(io.LimitReader(part, orgRequestLogoMax+1))
+		if err != nil || len(data) > orgRequestLogoMax {
+			return nil, applicationError{"ORG_LOGO_SIZE", "Logo voi olla enintään 1 Mt."}
+		}
+		if len(data) > 0 {
+			if logo, err = orgRequestLogo(data); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if !seen["request"] {
+		return nil, applicationError{"ORG_FORMAT", "Hakemusta ei voitu lukea."}
+	}
+	return logo, nil
+}
+
+// orgRequestLogo accepts a PNG or JPEG of at most 2000×2000 pixels and re-encodes it
+// as PNG, which drops metadata and anything hidden after the image data.
+func orgRequestLogo(data []byte) ([]byte, error) {
+	invalid := applicationError{"ORG_LOGO", "Logon pitää olla PNG- tai JPEG-kuva, enintään 2000 × 2000 pikseliä."}
+	config, format, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil || (format != "png" && format != "jpeg") || config.Width < 1 || config.Height < 1 ||
+		config.Width > orgRequestLogoSide || config.Height > orgRequestLogoSide {
+		return nil, invalid
+	}
+	decoded, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, invalid
+	}
+	var out bytes.Buffer
+	if err := png.Encode(&out, decoded); err != nil {
+		return nil, invalid
+	}
+	return out.Bytes(), nil
 }
 
 func readOrgRequestJSON(w http.ResponseWriter, r *http.Request, into any) error {
@@ -421,7 +504,7 @@ func (o *orgRequests) serveSubmit(ctx context.Context, w http.ResponseWriter, r 
 		return
 	}
 	var input orgRequestInput
-	err = readOrgRequestJSON(w, r, &input)
+	logo, err := readOrgRequest(w, r, &input)
 	var fields bson.M
 	if err == nil {
 		fields, err = validateOrgRequest(input, !actor.IsZero())
@@ -499,6 +582,10 @@ func (o *orgRequests) serveSubmit(ctx context.Context, w http.ResponseWriter, r 
 	fields["created_at"] = now
 	fields["updated_at"] = now
 	fields["source"] = "public-form"
+	if logo != nil {
+		// Kept with the request for the reviewers; O4 copies it to the organization.
+		fields["logo"] = bson.M{"content_type": "image/png", "data": bson.Binary{Subtype: 0, Data: logo}, "size": len(logo)}
+	}
 	if status == "unconfirmed" {
 		fields["expires_at"] = now.Add(orgRequestUnconfirmedLife)
 	} else {
