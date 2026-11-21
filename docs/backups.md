@@ -122,7 +122,39 @@ gentle enough. **Weekly full dump:** it reads the 13.6 GB audit logs; if the
 measured run is still not gentle, change `OnCalendar` of the full timer to the
 first Sunday of the month (`Sun *-*-1..7 01:30:00 UTC`).
 
-## Off-site copy (decided by the maintainer on 17 November 2026)
+## Off-site copy, pull model (production since 21 November 2026)
+
+Production moved from lc-main to **lc-moso-01** (`moso-prod`, 10.20.0.20 behind the
+AX41 jump host) on 20 November 2026; the deploy and these units now run there. The
+off-site machine (the maintainer's homelab) has no inbound port and lc-moso-01 is
+not on its private network, so production cannot push. The homelab **pulls**
+instead, the same way it already pulls the Hallinto backups:
+
+1. After each verified dump, `offsite-copy.sh` runs in outbox mode
+   (`OFFSITE_OUTBOX`, set in `mielenosoitukset-offsite-copy.service`): it encrypts the
+   archive with age to the public recipients in `deploy/backup/offsite-recipients.txt`
+   (either of the maintainer's two offline keys decrypts), writes the `.sha256` and
+   puts both, mode 0640, in `/var/backups/mielenosoitukset-outbox`. It keeps them
+   there for 3 days (`OFFSITE_OUTBOX_DAYS`): the puller re-reads the whole outbox daily. Nothing unencrypted leaves the host.
+2. `install_units.sh` (every deploy) installs the recipients file, creates the
+   locked system user `moso-offsite`, and installs its root-owned
+   `authorized_keys` from `deploy/backup/offsite-pull.authorized_keys`: the homelab's
+   existing pull key, restricted to `rrsync -ro` on the outbox. That key can only
+   read encrypted files; it cannot write, list anything else or get a shell. It also
+   installs `age` and `rsync` (for `rrsync`) when missing, and warns in the deploy
+   log if sshd's `AllowUsers`/`AllowGroups` would refuse `moso-offsite`.
+3. The homelab pulls daily through the existing restricted jump hop into its
+   `incoming/`, and `offsite-housekeeping.sh` moves verified files into the vault and
+   alerts (Bark) when no fresh archive arrives. The homelab side is set up outside
+   this repository.
+
+Revoke: remove the key line from `offsite-pull.authorized_keys` (next deploy), or
+`usermod -L -e 1 moso-offsite`. The 20 November push setup on lc-main (upload key,
+`backup.env`, the homelab's port 2222 and the `mosobackup` upload key) is no longer
+used. lc-main's `moso-offsite-pull` timer (incident stage 1, unencrypted pull of
+lc-moso-01's archives to lc-main) is separate and outside this repository.
+
+## Off-site copy (decided by the maintainer on 17 November 2026; push mode)
 
 Decisions: the off-site copy is an **encrypted copy to the maintainer's homelab**;
 the **maintainer holds the encryption key**; backup failures **alert by e-mail

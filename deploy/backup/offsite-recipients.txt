@@ -1,0 +1,6 @@
+# Public age recipients for the encrypted off-site copy (OPS-01, docs/backups.md).
+# Public keys only: either matching private key, kept offline by the maintainer,
+# decrypts. install_units.sh installs this file as
+# /etc/mielenosoitukset/backup-recipients.txt on the production host.
+age1q7wdh8qm4ve09xmjnc8ns5hsdchyucs927qw3pjkucle86fxxyuqv43f6y
+age1sq0z5z5k6spr8feclkcqnkqq04h39telts7kehm6yke7sw7hdu2qd0m35q

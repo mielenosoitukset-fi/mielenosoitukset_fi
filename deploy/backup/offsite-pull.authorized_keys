@@ -1,0 +1,1 @@
+restrict,command="rrsync -ro /var/backups/mielenosoitukset-outbox" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMwuOP/iZm+7+K+qBJ61WAHRGYHJ3jAH5OA5449PEccc hallinto-offsite-pull

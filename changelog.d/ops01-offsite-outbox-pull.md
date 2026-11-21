@@ -1,0 +1,1 @@
+- Backups: the encrypted off-site copy now works with the new production host. Each verified backup is encrypted on the server and placed in an outbox that the off-site machine pulls with a read-only key, so production never needs to reach it. Operator-only; nothing changes for visitors (docs/backups.md).

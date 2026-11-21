@@ -102,6 +102,40 @@ def test_copy_encrypts_uploads_and_records_the_stamp(tmp_path):
     assert not (tmp_path / "argv.log").exists()
 
 
+def test_outbox_mode_encrypts_into_the_outbox_without_uploading(tmp_path):
+    import grp
+    _setup(tmp_path)
+    _archive(tmp_path)
+    outbox = tmp_path / "outbox"
+    outbox.mkdir()
+    old = outbox / "mielenosoitukset-core-20260101T000000Z.archive.gz.age"
+    old.write_bytes(b"old")
+    stamp = time.time() - 20 * 86400
+    os.utime(old, (stamp, stamp))
+    group = grp.getgrgid(os.getgid()).gr_name
+
+    result = _copy(tmp_path, OFFSITE_OUTBOX=str(outbox), OFFSITE_OUTBOX_GROUP=group,
+                   OFFSITE_TARGET="", OFFSITE_SSH_KEY="/nonexistent", OFFSITE_KNOWN_HOSTS="/nonexistent")
+
+    assert result.returncode == 0, result.stderr
+    placed = outbox / f"{NAME}.age"
+    assert placed.read_bytes().startswith(b"age-encryption.org/v1\n")
+    assert placed.stat().st_mode & 0o777 == 0o640
+    checksum = (outbox / f"{NAME}.age.sha256").read_text().split()
+    assert checksum == [hashlib.sha256(placed.read_bytes()).hexdigest(), f"{NAME}.age"]
+    assert "rsync" not in (tmp_path / "argv.log").read_text().splitlines()[0]
+    assert not list((tmp_path / "dest").iterdir())
+    assert not old.exists()
+    assert (tmp_path / "state/last-core").read_text().split()[1] == NAME
+    assert not list((tmp_path / "backups/offsite-staging").iterdir())
+
+
+def test_outbox_mode_refuses_a_missing_outbox(tmp_path):
+    _setup(tmp_path)
+    result = _copy(tmp_path, OFFSITE_OUTBOX=str(tmp_path / "nope"))
+    assert result.returncode == 2 and "does not exist" in result.stderr
+
+
 def test_copy_skips_old_partial_and_unrelated_files(tmp_path):
     _setup(tmp_path)
     _archive(tmp_path, "mielenosoitukset-core-20260101T000000Z.archive.gz", age_hours=24 * 10)
