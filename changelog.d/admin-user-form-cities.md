@@ -1,0 +1,1 @@
+- Käyttäjälomakkeen paikkakunnat valitaan valintaruuduilla ja suodatinkentällä (ei enää Ctrl-klikkausta), paikkakuntaoikeudet näkyvät suomeksi koodien sijaan, ja käyttäjälistassa erotetaan koko sivuston adminit ja vain paikkakuntiin rajatut adminit.

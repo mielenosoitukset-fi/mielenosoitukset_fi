@@ -86,7 +86,11 @@ def test_user_city_scope_picker_prioritizes_enabled_cities(app, db, seeded_data)
     assert response.status_code == 200
     page = response.get_data(as_text=True)
     assert "Tampere" in page
-    assert "Varkaus (ei käytössä)" in page
+    assert "<span>Varkaus <small>ei käytössä</small></span>" in page
+    assert page.index(">Tampere<") < page.index("<span>Varkaus <small>")
+    # Checkboxes, not a Ctrl-click multi-select.
+    assert 'type="checkbox" name="admin_scope_cities[]" value="varkaus"' in page
+    assert "Ctrl" not in page
 
 
 def test_create_city_admin_auto_activates_inactive_city(app, db, seeded_data):

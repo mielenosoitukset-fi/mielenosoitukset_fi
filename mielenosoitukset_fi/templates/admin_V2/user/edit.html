@@ -23,12 +23,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 globalAdminOption.disabled = false;
 
                 // Show info about who granted it and when
-                const grantedBy = data.granted_by || "N/A";
-                const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleString() : "N/A";
-                clearanceInfoEl.innerHTML = `
-                    <strong>{{ _('Hallituksen hyväksyntä myönnetty') }}:</strong> ${grantedBy} <br>
-                    <strong>{{ _('Päivämäärä') }}:</strong> ${timestamp}
-                `;
+                const grantedBy = data.granted_by || "-";
+                const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleString('fi-FI', { timeZone: 'Europe/Helsinki' }) : "-";
+                // Built with text nodes: the values come from stored records.
+                clearanceInfoEl.replaceChildren();
+                [[{{ _('Hallituksen hyväksyntä myönnetty')|tojson }}, grantedBy], [{{ _('Päivämäärä')|tojson }}, timestamp]].forEach(([label, value], index) => {
+                    if (index) clearanceInfoEl.appendChild(document.createElement('br'));
+                    const strong = document.createElement('strong');
+                    strong.textContent = label + ': ';
+                    clearanceInfoEl.append(strong, String(value));
+                });
                 clearanceInfoEl.hidden = false;
             } else {
                 globalAdminOption.disabled = true;
@@ -164,26 +168,48 @@ document.addEventListener('DOMContentLoaded', () => {
         <section class="permissions-panel admin-form-section">
             <div class="admin-form-section__header"><h2>{{ _('Paikkakuntakohtainen ylläpito') }}</h2><p>{{ _('Valitse paikkakunnat ja oikeudet, joilla käyttäjä voi käsitellä niiden mielenosoituksia.') }}</p></div>
 
-            <div class="form-group admin-field">
-                <label for="admin_scope_cities">{{ _('Paikkakunnat') }}</label>
-                <select id="admin_scope_cities" name="admin_scope_cities[]" class="form-control" multiple size="10" aria-describedby="admin-scope-cities-help">
+            <fieldset class="form-group admin-field admin-city-picker" aria-describedby="admin-scope-cities-help">
+                <legend>{{ _('Paikkakunnat') }}</legend>
+                <p class="admin-city-picker__selected" id="admin_scope_city_selected" aria-live="polite">{{ _('Valittu') }}: <strong>{{ city_scope_names|join(', ') if city_scope_names else _('ei yhtään') }}</strong></p>
+                <input type="search" class="form-control admin-city-picker__filter" id="admin_scope_city_filter"
+                       placeholder="{{ _('Suodata paikkakuntia') }}" aria-label="{{ _('Suodata paikkakuntia') }}" autocomplete="off">
+                <div class="admin-city-picker__list" id="admin_scope_cities">
                     {% for city in enabled_city_list %}
                     {% set city_key = city_name_to_key[city] %}
-                    <option value="{{ city_key }}" {% if city_key in city_scope_grant.scope_keys %}selected{% endif %}>
-                        {{ city }}
-                    </option>
+                    <label class="admin-city-picker__item" data-city="{{ city|lower }}" data-name="{{ city }}">
+                        <input type="checkbox" name="admin_scope_cities[]" value="{{ city_key }}" {% if city_key in city_scope_grant.scope_keys %}checked{% endif %}>
+                        <span>{{ city }}</span>
+                    </label>
                     {% endfor %}
                     {% for city in city_list %}
                     {% if city not in enabled_city_list %}
                     {% set city_key = city_name_to_key[city] %}
-                    <option value="{{ city_key }}" {% if city_key in city_scope_grant.scope_keys %}selected{% endif %}>
-                        {{ city }}{% if city_key not in city_scope_grant.scope_keys %} {{ _('(ei käytössä)') }}{% endif %}
-                    </option>
+                    <label class="admin-city-picker__item admin-city-picker__item--off" data-city="{{ city|lower }}" data-name="{{ city }}">
+                        <input type="checkbox" name="admin_scope_cities[]" value="{{ city_key }}" {% if city_key in city_scope_grant.scope_keys %}checked{% endif %}>
+                        <span>{{ city }}{% if city_key not in city_scope_grant.scope_keys %} <small>{{ _('ei käytössä') }}</small>{% endif %}</span>
+                    </label>
                     {% endif %}
                     {% endfor %}
-                </select>
-                <small class="muted" id="admin-scope-cities-help">{{ _('Useita paikkakuntia voi valita näppäimistöllä pitämällä Ctrl- tai Command-näppäintä painettuna. Oikeudet koskevat vain valittujen paikkakuntien mielenosoituksia. Jos valitset paikkakunnan, joka ei ole käytössä, ja vähintään yhden oikeuden, paikkakunta otetaan tallennettaessa käyttöön koko sivustolla.') }}</small>
-            </div>
+                </div>
+                <small class="muted" id="admin-scope-cities-help">{{ _('Oikeudet koskevat vain valittujen paikkakuntien mielenosoituksia. Käytössä olevat paikkakunnat ovat ensin. Jos valitset paikkakunnan, joka ei ole käytössä, ja vähintään yhden oikeuden, paikkakunta otetaan tallennettaessa käyttöön koko sivustolla.') }}</small>
+            </fieldset>
+            <script>
+            (() => {
+                const filter = document.getElementById('admin_scope_city_filter');
+                const items = document.querySelectorAll('#admin_scope_cities .admin-city-picker__item');
+                const summary = document.querySelector('#admin_scope_city_selected strong');
+                const none = {{ _('ei yhtään')|tojson }};
+                document.getElementById('admin_scope_cities').addEventListener('change', () => {
+                    const names = [...document.querySelectorAll('#admin_scope_cities input:checked')]
+                        .map(box => box.closest('label').dataset.name);
+                    summary.textContent = names.length ? names.join(', ') : none;
+                });
+                filter.addEventListener('input', () => {
+                    const query = filter.value.trim().toLowerCase();
+                    items.forEach(item => { item.hidden = Boolean(query) && !item.dataset.city.includes(query); });
+                });
+            })();
+            </script>
 
             <div class="permissions-group">
                 <div class="permission-category">
@@ -196,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                    name="admin_scope_permissions[city][]"
                                    value="{{ permission }}"
                                    {% if permission in city_scope_grant.permissions %}checked{% endif %}>
-                            <label for="perm_city_{{ permission }}">{{ permission }}</label>
+                            <label for="perm_city_{{ permission }}">{{ city_permission_labels.get(permission, permission) }}</label>
                         </div>
                         {% endfor %}
                     </div>

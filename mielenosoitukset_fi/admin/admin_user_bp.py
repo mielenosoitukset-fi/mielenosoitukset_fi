@@ -174,6 +174,10 @@ def user_control():
     for user in users:
         if user.get("role") in {None, "user"} and str(user["_id"]) in scoped_user_ids:
             user["role"] = "city_admin"
+        # An admin without site-wide rights only works in granted cities.
+        user["admin_city_only"] = (
+            user.get("role") == "admin" and not user.get("global_permissions") and str(user["_id"]) in scoped_user_ids
+        )
         user["can_change_status"] = can_change_account_status(
             current_user, SimpleNamespace(_id=user["_id"], role=user.get("role") or "user",
                                           global_admin=user.get("global_admin", False))
@@ -690,7 +694,11 @@ def edit_user(user_id):
         enabled_city_list=enabled_city_names(mongo),
         city_name_to_key=CITY_NAME_TO_KEY,
         city_scope_grant=city_scope_grant,
+        city_scope_names=[CITY_KEY_TO_NAME.get(key, key) for key in (city_scope_grant or {}).get("scope_keys", [])],
         city_admin_permissions=CITY_ADMIN_AVAILABLE_PERMISSIONS,
+        city_permission_labels={
+            name: _(PERMISSION_DESCRIPTIONS[name]) for name in CITY_ADMIN_AVAILABLE_PERMISSIONS if name in PERMISSION_DESCRIPTIONS
+        },
     )
 
 
