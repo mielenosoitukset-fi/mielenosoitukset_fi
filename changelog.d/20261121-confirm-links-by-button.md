@@ -1,0 +1,1 @@
+- Campaign volunteer and e-mail confirmation links now open a page with a confirm button instead of confirming on opening, so a mail scanner or link preview can no longer confirm a signup or an account by itself.
