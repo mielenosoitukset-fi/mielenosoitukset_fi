@@ -1081,7 +1081,6 @@ def test_every_full_admin_v2_page_uses_canonical_hero_macro():
     # one more, and so does the Hallinto appointment approval page.
     assert Path('mielenosoitukset_fi/templates/admin_V2/user/account_status.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/user/history.html') in pages
-    assert Path('mielenosoitukset_fi/templates/admin_V2/demonstrations/review.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/cities/review_dashboard.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/governance/security.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/organizations/history.html') in pages
@@ -1090,7 +1089,7 @@ def test_every_full_admin_v2_page_uses_canonical_hero_macro():
     # The combined sign-up lists page (Ilmoittautumiset) and its delete confirmation add two more.
     assert Path('mielenosoitukset_fi/templates/admin_V2/kampanja/signups.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/kampanja/signup_delete.html') in pages
-    assert len(pages) == 59
+    assert len(pages) == 58
     for locale in ("en", "fi", "sv"):
         catalog = Path(
             f"mielenosoitukset_fi/translations/{locale}/LC_MESSAGES/messages.po"

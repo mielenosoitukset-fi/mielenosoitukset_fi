@@ -1,9 +1,9 @@
 from mielenosoitukset_fi.scripts.auto_close_cases import _resolve as resolve_auto_close_cases
 
 
-def test_accept_demo_closes_linked_support_case(admin_client, db, seeded_data):
+def test_approving_closes_linked_support_case(admin_client, db, seeded_data):
     response = admin_client.post(
-        f"/admin/demo/accept_demo/{seeded_data['pending_demo_id']}",
+        f"/api/admin/demo/{seeded_data['pending_demo_id']}/approve",
         json={},
         headers={"Content-Type": "application/json"},
     )

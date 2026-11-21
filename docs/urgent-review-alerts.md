@@ -50,10 +50,10 @@ metadata, edit/approve/reject bearer links or arbitrary document fields. Invalid
 IDs cannot produce links. Use Telegram HTML parse mode; do not interpolate raw
 fields in another transport formatter.
 
-The link targets `/admin/demo/review/<id>`, requiring authenticated admin access
-and `ACCEPT_DEMO` for that specific demonstration. Its content-only review page
-does not grant `EDIT_DEMO`, command-center/analytics or submitter access. Decisions
-require a session CSRF token and use the existing canonical decision service;
+The link targets `/admin/demo/<id>/decide` (older messages used `/admin/demo/review/<id>`, which redirects
+there), requiring authenticated admin access and `ACCEPT_DEMO` for that specific demonstration. It ends in
+the demonstration's case page, the one place where everyone decides; it does not grant `EDIT_DEMO`,
+command-center/analytics access. Decisions use the existing canonical decision service;
 GET never approves or rejects. Existing editor/command-center guards are unchanged.
 
 `text_sha256` changes with actual displayed state/content, not each minute or

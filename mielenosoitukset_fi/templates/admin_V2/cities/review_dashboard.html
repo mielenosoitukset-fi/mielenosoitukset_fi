@@ -35,7 +35,7 @@
               {% elif row.state == 'overdue' %}<p class="admin-status-badge admin-status-badge--warning">{{ _('Määräaika päättynyt – odottaa siirtoa kansalliselle tiimille') }}</p>
               {% else %}<p class="admin-field__help" data-deadline="{{ row.deadline_iso }}" aria-hidden="true">{{ _('Käsittelyaikaa jäljellä') }}: {{ row.remaining_minutes // 60 }} h {{ row.remaining_minutes % 60 }} min</p>{% endif %}
             </td>
-            <td><span class="admin-table-cell-label" aria-hidden="true">{{ _('Toiminnot') }}</span>{% if row.can_review %}<a class="btn btn-primary" href="{{ url_for('admin_demo.review_demo', demo_id=row.id) }}">{{ _('Käsittele') }}</a>
+            <td><span class="admin-table-cell-label" aria-hidden="true">{{ _('Toiminnot') }}</span>{% if row.can_review %}<a class="btn btn-primary" href="{{ url_for('admin_demo.open_demo_decision', demo_id=row.id) }}">{{ _('Käsittele') }}</a>
             {% elif row.can_view %}<a class="btn btn-outline-primary" href="{{ url_for('admin_demo.demo_command_center', demo_id=row.id) }}">{{ _('Näytä') }}</a>{% else %}—{% endif %}</td>
           </tr>
         {% endfor %}</tbody>

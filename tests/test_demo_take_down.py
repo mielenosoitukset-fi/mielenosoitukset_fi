@@ -130,21 +130,13 @@ def test_case_page_offers_the_right_button_per_state(admin_client, db, seeded_da
     assert 'onclick="takeDownDemo()"' not in taken_down
 
 
-def test_bulk_approve_skips_taken_down_without_rights(app, admin_client, db, seeded_data):
+def test_approve_does_not_republish_taken_down_without_rights(app, admin_client, db, seeded_data):
     demo_id = seeded_data["pending_demo_id"]
     _approve(admin_client, demo_id)
     _take_down(admin_client, demo_id)
     city_admin = _client_for_user(
         app, _create_scoped_admin(db, ["helsinki"], ["LIST_DEMOS", "VIEW_DEMO", "ACCEPT_DEMO"])
     )
-    with city_admin.session_transaction() as session:
-        token = session.get("demo_edit_link_csrf_token") or "x"
-        session["demo_edit_link_csrf_token"] = token
-    response = city_admin.post(
-        "/api/admin/demo/bulk_decide",
-        json={"demo_ids": [str(demo_id)], "decision": "approved"},
-        headers={"X-CSRF-Token": token},
-    )
-    assert response.status_code == 200, response.get_data(as_text=True)[:300]
-    assert response.get_json()["results"][0]["status"] == "forbidden"
+    response = city_admin.post(f"/api/admin/demo/{demo_id}/approve")
+    assert response.status_code == 403, response.get_data(as_text=True)[:300]
     assert db.demonstrations.find_one({"_id": demo_id})["taken_down"] is True

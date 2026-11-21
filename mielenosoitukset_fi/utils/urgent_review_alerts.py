@@ -134,7 +134,7 @@ def build_urgent_review_alert(
         lines.append(f"Käsittelyn määräaika: {_local_time(deadline)}")
     if handled_at:
         lines.append(f"Käsitelty: {_local_time(handled_at)}")
-    lines.append(f'<a href="https://mielenosoitukset.fi/admin/demo/review/{demo_id}">Avaa adminissa</a>')
+    lines.append(f'<a href="https://mielenosoitukset.fi/admin/demo/{demo_id}/decide">Avaa adminissa</a>')
     text = "\n".join(lines)
     return {
         "demo_id": demo_id, "state": state, "urgency": urgency, "threshold_hours": threshold,
