@@ -29,6 +29,16 @@
     <li>{{ _('käyttämättömät esikatselu-, hyväksymis-, hylkäämis- ja muokkauslinkit mitätöidään') }}</li>
     <li>{{ _('kaupunkiadminin käsittelyjonon määräaika poistuu') }}</li>
   </ul>
+  <p>{{ _('Muokkauslomake ei muuta tilaa. Se näyttää kohdassa') }} {{ m.ui(_('Julkaisun tila')) }} {{ _('nykyisen tilan ja linkin') }} {{ m.ui(_('Avaa tapaus')) }}. {{ _('Vain uuden mielenosoituksen luontilomakkeessa on') }} {{ m.ui(_('Julkaise heti')) }}{{ _(', joka hyväksyy tallennettaessa samalla tavalla kuin tapaus.') }}</p>
+  <h3 id="poista-julkaisusta">{{ _('Poista julkaisusta') }}</h3>
+  <p>{{ _('Hyväksytyn mielenosoituksen voi ottaa pois sivustolta poistamatta sitä. Valitse tapauksessa') }} {{ m.ui(_('Poista julkaisusta')) }} {{ _('ja kirjoita syy. Syy on pakollinen ja näkyy julkisesti.') }}</p>
+  <ul>
+    <li>{{ _('mielenosoitus poistuu listoilta, hausta ja kartalta, ja sen sivulla näkyy lyhyt ilmoitus syineen') }}</li>
+    <li>{{ _('ilmoittaja saa sähköpostin, jossa on syy') }}</li>
+    <li>{{ _('tekijä ja aika tallentuvat, ja komentokeskus näyttää tilan') }} {{ m.ui(_('Poistettu julkaisusta')) }}</li>
+    <li>{{ m.ui(_('Julkaise uudelleen')) }} {{ _('samassa tapauksessa palauttaa mielenosoituksen sivustolle') }}</li>
+  </ul>
+  <p>{{ _('Toistaiseksi vain superkäyttäjä voi poistaa julkaisusta tai julkaista uudelleen.') }}</p>
   {% call m.callout('tip') %}
   <p>{{ _('Kaupunkiadminin etusivulla on oma käsittelyjono. Katso') }} <a href="{{ manual_url('dashboard', 'kaupunkiadmin') }}">{{ _('kaupunkiadminin käsittelyjono') }}</a>.</p>
   {% endcall %}

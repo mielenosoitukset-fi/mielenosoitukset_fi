@@ -1,0 +1,56 @@
+{% extends 'admin_base.html' %}
+{% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
+{% from 'admin_V2/_audit_history.html' import audit_history_table %}
+
+{% block title %}{{ _('Muutoshistoria') }} – {{ organization.name }}{% endblock %}
+
+{% block main_content %}
+<div class="admin-page admin-workspace">
+  {{ admin_page_hero(
+    organization.name,
+    _('Kuka loi organisaation ja kuka on muuttanut sitä, milloin ja mitä kautta. Jokainen muutos näkyy kentittäin.'),
+    _('Muutoshistoria'),
+    [
+      (_('Hallintapaneeli'), url_for('admin.admin_dashboard')),
+      (_('Organisaatiot'), url_for('admin_org.organization_control')),
+      (organization.name, url_for('admin_org.view_organization', org_id=organization._id)),
+      (_('Muutoshistoria'), none),
+    ],
+    back_url=url_for('admin_org.view_organization', org_id=organization._id),
+    back_label=_('Takaisin organisaatioon'),
+    metric_value=total_count,
+    metric_label=_('kirjattua muutosta'),
+  ) }}
+
+  <section class="admin-data-view admin-data-view--scrollable admin-audit-history" aria-labelledby="history-heading">
+    <div class="admin-data-view__header admin-result-summary">
+      <div>
+        <strong id="history-heading">{{ _('Kirjatut muutokset') }}</strong>
+        <span class="d-block text-muted">
+          {% if total_count %}{{ _('Näytetään %(start)s–%(end)s / %(total)s muutoksesta', start=range_start, end=range_end, total=total_count) }}{% endif %}
+          {% if not has_create %}
+            {% if trail_started_at %}{{ _('Muutoshistoria kirjataan %(date)s alkaen; organisaatio on luotu tätä ennen.', date=trail_started_at) }}{% else %}{{ _('Muutoshistoria kirjataan vasta tästä eteenpäin; organisaatio on luotu tätä ennen.') }}{% endif %}
+          {% endif %}
+          {% if truncated %}{{ _('Vain 500 uusinta muutosta näytetään.') }}{% endif %}
+        </span>
+      </div>
+    </div>
+    {{ audit_history_table(rows, 'history-heading', _('Tälle organisaatiolle ei ole kirjattu muutoksia sen jälkeen, kun muutoshistorian kirjaus alkoi.')) }}
+    {% if total_count %}
+    {{ admin_pagination(
+      current_page,
+      total_pages,
+      per_page=per_page,
+      prev_page=prev_page,
+      next_page=next_page,
+      prev_page_url=prev_page_url,
+      next_page_url=next_page_url,
+      visible_pages=visible_pages,
+      first_page_url=first_page_url,
+      last_page_url=last_page_url,
+      aria_label=_('Muutoshistorian sivutus'),
+    ) }}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -229,7 +229,7 @@ ${options.jsonLd ? `<script type="application/ld+json">${serialize(options.jsonL
 <noscript><link rel="stylesheet" href="https://cdn2.mielenosoitukset.fi/vendor/bootstrap/5.3.0/bootstrap.min.css" crossorigin></noscript>
 <link rel="stylesheet" href="/static/css/home.css?v=20261112-quick-picks">
 <link rel="stylesheet" href="/static/css/product-tokens.css?v=20261110-pride-contrast-1">
-<link rel="stylesheet" href="/static/css/user-workspace.css?v=20261110-user-workspace-8">
+<link rel="stylesheet" href="/static/css/user-workspace.css?v=20261120-user-workspace-9">
 <link rel="stylesheet" href="/static/css/public-header.css?v=20261027-react-header-1">
 <link rel="stylesheet" href="/static/css/flash.css?v=20261110-inline-spacing-1">
 <link rel="stylesheet" href="/static/css/public_hero.css?v=20261015-hero-width-1">
@@ -341,7 +341,7 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
   let fundraisingData: Record<string, unknown> | null | undefined;
   let campaignVisible: boolean | undefined;
   if (route.name === 'api-docs') {
-    extraHead = '<link rel="stylesheet" href="/static/css/public-api-docs.css?v=20261110-2">';
+    extraHead = '<link rel="stylesheet" href="/static/css/public-api-docs.css?v=20261120-plain-headers-1">';
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<div id="api-docs-page" dangerouslySetInnerHTML={{ __html: renderToStaticMarkup(<ApiDocsScreen {...apiDocs} />) }} />} />);

@@ -892,6 +892,46 @@ def view_organization(org_id):
     )
 
 
+@admin_org_bp.route("/history/<org_id>")
+@login_required
+@admin_required
+@permission_required("EDIT_ORGANIZATION")
+def organization_history(org_id):
+    """Who created the organization and every later change, from audit_events."""
+    from mielenosoitukset_fi.admin.audit_history import first_event_at, helsinki_time, load_history
+    from mielenosoitukset_fi.admin.pagination import build_admin_pagination, parse_admin_pagination
+
+    if not ObjectId.is_valid(org_id):
+        abort(404)
+    organization_doc = mongo.organizations.find_one({"_id": ObjectId(org_id)})
+    if not organization_doc:
+        abort(404)
+    if not _can_edit_organization(current_user, organization_doc):
+        abort(403)
+
+    history = load_history(mongo, "organizations", organization_doc["_id"])
+    page, per_page = parse_admin_pagination(request.args)
+    pagination = build_admin_pagination(
+        "admin_org.organization_history",
+        total_count=len(history["rows"]),
+        page=page,
+        per_page=per_page,
+        query_args={"org_id": org_id},
+    )
+    started = first_event_at(mongo)
+    _log_org_event("organization_history_view", org_id=org_id)
+    return render_template(
+        f"{_ADMIN_TEMPLATE_FOLDER}organizations/history.html",
+        organization=organization_doc,
+        rows=history["rows"][pagination["slice_start"]:pagination["slice_end"]],
+        total_count=len(history["rows"]),
+        truncated=history["truncated"],
+        has_create=history["has_create"],
+        trail_started_at=helsinki_time(started, seconds=False) if started else None,
+        **pagination,
+    )
+
+
 # API STUFF
 
 @admin_org_bp.route("/api/delete_membership/", methods=["POST"])

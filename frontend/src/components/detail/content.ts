@@ -37,6 +37,15 @@ export function dateLabel(value: string | null, locale: string): string {
   if (!Number.isFinite(date.getTime())) return value;
   return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Helsinki' }).format(date);
 }
+/** A multi-day range such as "1.–3. joulukuuta 2026"; one day when end is missing or not later. */
+export function dateRangeLabel(start: string | null, end: string | null | undefined, locale: string): string {
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  if (!start || !end || !iso.test(start) || !iso.test(end) || end <= start) return dateLabel(start, locale);
+  const from = new Date(`${start}T12:00:00Z`);
+  const to = new Date(`${end}T12:00:00Z`);
+  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) return dateLabel(start, locale);
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Helsinki' }).formatRange(from, to);
+}
 export function clockLabel(value: string | null | undefined): string {
   const clock = typeof value === 'string' ? value.trim() : '';
   return /^\d{2}:\d{2}(?::\d{2})?$/.test(clock) ? clock.slice(0, 5).replace(':', '.') : '';

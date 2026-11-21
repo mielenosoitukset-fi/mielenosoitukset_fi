@@ -77,6 +77,7 @@ from mielenosoitukset_fi.utils.database import stringify_object_ids
 
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from mielenosoitukset_fi.demonstrations.audit import (
+    meaningful_history_query,
     record_demo_change,
     log_demo_audit_entry,
     save_demo_history,
@@ -760,6 +761,9 @@ def unrecommend_demo(demo_id):
     return jsonify({"status": "OK", "message": _(u"Suositus poistettu.")})
 
 
+AUDIT_ROWS_ON_DEMO_HISTORY = 50
+
+
 @admin_demo_bp.route("/edit_history/<demo_id>", methods=["GET"])
 @login_required
 @admin_required
@@ -786,7 +790,7 @@ def demo_edit_history(demo_id):
 
     if not flush_rollback_history(mongo, demo_data["_id"]):
         abort(503)
-    history_query = {"demo_id": str(demo_data["_id"])}
+    history_query = meaningful_history_query(demo_data["_id"])
     page, per_page = parse_admin_pagination(request.args)
     total_count = mongo.demo_edit_history.count_documents(history_query)
     pagination = build_admin_pagination(
@@ -804,8 +808,17 @@ def demo_edit_history(demo_id):
     )
     demo = Demonstration.from_dict(demo_data)
     demo_name = demo.title
+    # Every write from any path (Go API, jobs, links, scripts), not only the
+    # saves that store a full version above.
+    from mielenosoitukset_fi.admin.audit_history import helsinki_time, load_history
+
+    audit = load_history(mongo, "demonstrations", demo_data["_id"])
     return render_template(
         "admin/demonstrations/edit_history.html",
+        helsinki_time=helsinki_time,
+        audit_rows=audit["rows"][:AUDIT_ROWS_ON_DEMO_HISTORY],
+        audit_total=len(audit["rows"]),
+        audit_limit=AUDIT_ROWS_ON_DEMO_HISTORY,
         history=history,
         demo_id=str(demo_data["_id"]),
         demo_name=demo_name,
@@ -1971,6 +1984,7 @@ def reject_demo_with_token(token):
     )
     return redirect(url_for("index"))
 from flask import request, render_template
+from mielenosoitukset_fi.utils.multi_day import normalize_end_date
 from flask_login import login_required, current_user
 from datetime import datetime, date
 from bson.objectid import ObjectId as BsonObjectId
@@ -2119,44 +2133,66 @@ def demo_control():
     filter_query = query_from(filter_clauses)
 
     # --- Count total documents ---
+    # The four filtered counts come from one pass over the filtered rows
+    # instead of one collection scan each.
     total_count = mongo.demonstrations.count_documents(scope_query)
-    filtered_count = mongo.demonstrations.count_documents(filter_query)
-    pending_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"approved": False}]))
-    approved_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"approved": True}]))
-    recurring_count = mongo.demonstrations.count_documents(query_from(filter_clauses + [{"recurs": True}]))
+    counts = next(
+        mongo.demonstrations.aggregate(
+            [
+                {"$match": filter_query},
+                {
+                    "$group": {
+                        "_id": None,
+                        "filtered": {"$sum": 1},
+                        "pending": {"$sum": {"$cond": [{"$eq": ["$approved", False]}, 1, 0]}},
+                        "approved": {"$sum": {"$cond": [{"$eq": ["$approved", True]}, 1, 0]}},
+                        "recurring": {"$sum": {"$cond": [{"$eq": ["$recurs", True]}, 1, 0]}},
+                    }
+                },
+            ]
+        ),
+        {},
+    )
+    filtered_count = counts.get("filtered", 0)
+    pending_count = counts.get("pending", 0)
+    approved_count = counts.get("approved", 0)
+    recurring_count = counts.get("recurring", 0)
     total_pages = max(1, (filtered_count + per_page - 1) // per_page)
     page = min(page, total_pages)
     # --- Fetch current page ---
     skip_count = (page - 1) * per_page
 
-    # Use aggregation to sort unapproved demos first, then approved, all within MongoDB
-    # (avoids loading entire collection into Python memory)
-    sort_key_stage = {
-        "$addFields": {
-            "_sort_priority": {
-                "$cond": [{"$eq": ["$approved", False]}, 0, 1]
-            }
-        }
-    }
+    # "priority" lists demos waiting for approval first, then the rest, each
+    # by date. It is read as two date-ordered queries so MongoDB can walk the
+    # date index and stop at the page instead of sorting every matching row.
     sort_specs = {
-        "priority": {"_sort_priority": 1, "date": 1, "_id": 1},
-        "date_asc": {"date": 1, "_id": 1},
-        "date_desc": {"date": -1, "_id": -1},
-        "title_asc": {"title": 1, "_id": 1},
+        "priority": [("date", 1), ("_id", 1)],
+        "date_asc": [("date", 1), ("_id", 1)],
+        "date_desc": [("date", -1), ("_id", -1)],
+        "title_asc": [("title", 1), ("_id", 1)],
     }
-    sort_stage = {"$sort": sort_specs[sort_filter]}
-    project_stage = {"$project": {"_sort_priority": 0}}
-
-    pipeline = [
-        {"$match": filter_query},
-        sort_key_stage,
-        sort_stage,
-        {"$skip": skip_count},
-        {"$limit": per_page},
-        project_stage,
-    ]
-
-    demos = list(mongo.demonstrations.aggregate(pipeline))
+    order = sort_specs[sort_filter]
+    if sort_filter == "priority":
+        demos = []
+        if skip_count < pending_count:
+            demos = list(
+                mongo.demonstrations.find(query_from(filter_clauses + [{"approved": False}]))
+                .sort(order)
+                .skip(skip_count)
+                .limit(per_page)
+            )
+        remaining = per_page - len(demos)
+        if remaining > 0:
+            demos += list(
+                mongo.demonstrations.find(query_from(filter_clauses + [{"approved": {"$ne": False}}]))
+                .sort(order)
+                .skip(max(0, skip_count - pending_count))
+                .limit(remaining)
+            )
+    else:
+        demos = list(
+            mongo.demonstrations.find(filter_query).sort(order).skip(skip_count).limit(per_page)
+        )
 
     recommended_lookup = {
         doc.get("demo_id"): True for doc in mongo.recommended_demos.find({}, {"demo_id": 1})
@@ -4343,6 +4379,10 @@ def handle_demo_form(
                     abort(403)
                 demonstration_data.pop("approved", None)
                 merged_data = _deep_merge(prev_demo, demonstration_data)
+                # An emptied end date makes the demonstration one day again;
+                # _deep_merge would otherwise keep the old value.
+                if "end_date" in demonstration_data:
+                    merged_data["end_date"] = demonstration_data["end_date"]
                 demo = Demonstration.from_dict(merged_data)
                 # The status is whatever the database holds now.
                 demo.save(write_approval=False)
@@ -4731,6 +4771,7 @@ def collect_demo_data(request, existing_organizers=None):
     # Validate required fields
     if not title or not date or not city:
         raise ValueError(_("Otsikko, päivämäärä ja kaupunki ovat pakollisia kenttiä."))
+    end_date = normalize_end_date(date, request.form.get("end_date"))
 
     # Process organizers and tags
     organizers = collect_organizers(
@@ -4779,6 +4820,7 @@ def collect_demo_data(request, existing_organizers=None):
     return {
         "title": title,
         "date": date,
+        "end_date": end_date,
         "start_time": start_time,
         "end_time": end_time,
         "facebook": facebook,
@@ -5837,35 +5879,74 @@ def reject_demo(demo_id):
     )
 
 
+_TAKE_DOWN_ERRORS = {
+    "reason": (400, "Kirjoita syy. Se näytetään mielenosoituksen sivulla ja lähetetään ilmoittajalle."),
+    "not_public": (409, "Vain julkaistun mielenosoituksen voi poistaa julkaisusta."),
+    "open": (409, "Mielenosoituksella on jo avoin poistopyyntö."),
+    "same_admin": (409, "Toisen ylläpitäjän pitää vahvistaa poisto. Et voi vahvistaa omaa pyyntöäsi."),
+    "no_request": (409, "Vahvistettavaa poistopyyntöä ei ole."),
+    "not_found": (404, "Mielenosoitusta ei löytynyt"),
+}
+
+
+def _take_down_action(demo_id, data, source):
+    """One path for take-down requests, confirmations and withdrawals.
+
+    Returns (json body, status). Rights: ``can_take_down_demo``; the
+    second-admin rule lives in ``utils.demo_takedown``.
+    """
+    from mielenosoitukset_fi.demonstrations.decisions import DemoNotPublished
+    from mielenosoitukset_fi.utils import demo_takedown
+
+    if not ObjectId.is_valid(str(demo_id)):
+        return {"success": False, "error": _("Mielenosoitusta ei löytynyt")}, 404
+    demo = mongo.demonstrations.find_one({"_id": ObjectId(str(demo_id))}, {"approved": 1, "taken_down": 1})
+    if not demo:
+        return {"success": False, "error": _("Mielenosoitusta ei löytynyt")}, 404
+    if not demo_takedown.can_take_down_demo(current_user, demo):
+        return {"success": False, "error": _("Käyttöoikeutesi eivät riitä poistamaan mielenosoitusta julkaisusta.")}, 403
+
+    def apply(reason):
+        return _apply_demo_decision(demo_id, "taken_down", source=source, reason=reason)
+
+    action = data.get("action") or "take_down"
+    actor = capture_actor_context()
+    try:
+        if action == "confirm_take_down":
+            status = demo_takedown.confirm_take_down(mongo, demo_id, current_user, apply=apply, actor=actor)
+        elif action == "cancel_take_down":
+            status = demo_takedown.cancel_take_down_request(mongo, demo_id, current_user, actor=actor)
+        else:
+            status = demo_takedown.request_take_down(
+                mongo, demo_id, current_user, str(data.get("reason") or ""),
+                urgent=data.get("urgent") is True, apply=apply, actor=actor,
+            )
+    except DemoNotPublished:
+        code, message = _TAKE_DOWN_ERRORS["not_public"]
+        return {"success": False, "error": _(message)}, code
+    except demo_takedown.TakeDownReviewError as error:
+        code, message = _TAKE_DOWN_ERRORS.get(error.code, (409, "Toimintoa ei voitu tehdä."))
+        return {"success": False, "error": _(message)}, code
+    messages = {
+        "taken_down": _("Mielenosoitus poistettiin julkaisusta."),
+        "requested": _("Poistopyyntö odottaa toisen ylläpitäjän vahvistusta."),
+        "public": _("Poistopyyntö peruttiin. Mielenosoitus pysyy julkisena."),
+    }
+    return {"success": True, "status": status, "message": messages[status]}, 200
+
+
 @admin_demo_api_bp.route("/<demo_id>/take_down", methods=["POST"])
 @login_required
 @admin_required
 def take_down_demo(demo_id):
-    """Take an approved demo off the public site without deleting it."""
-    from mielenosoitukset_fi.demonstrations.decisions import DemoNotPublished
-    from mielenosoitukset_fi.utils.demo_takedown import can_take_down_demo
+    """Take an approved demo off the public site without deleting it.
 
+    JSON: {"reason": str, "urgent": bool} or {"action": "confirm_take_down"|"cancel_take_down"}.
+    """
     if not request.is_json:
         return jsonify({"success": False, "error": _("Virheellinen pyyntö.")}), 415
-    if not ObjectId.is_valid(demo_id):
-        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
-    demo = mongo.demonstrations.find_one({"_id": ObjectId(demo_id)}, {"approved": 1, "taken_down": 1})
-    if not demo:
-        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
-    if not can_take_down_demo(current_user, demo):
-        return jsonify({"success": False, "error": _("Käyttöoikeutesi eivät riitä poistamaan mielenosoitusta julkaisusta.")}), 403
-    reason = str((request.get_json(silent=True) or {}).get("reason") or "").strip()
-    if not reason:
-        return jsonify({"success": False, "error": _("Kirjoita syy. Se näytetään mielenosoituksen sivulla ja lähetetään ilmoittajalle.")}), 400
-    try:
-        result = _apply_demo_decision(demo_id, "taken_down", source="admin_take_down", reason=reason)
-    except DemoNotPublished:
-        return jsonify({"success": False, "error": _("Vain julkaistun mielenosoituksen voi poistaa julkaisusta.")}), 409
-    return jsonify({
-        "success": True,
-        "changed": result.changed,
-        "message": _("Mielenosoitus poistettiin julkaisusta.") if result.changed else _("Mielenosoitus on jo poistettu julkaisusta."),
-    })
+    body, code = _take_down_action(demo_id, request.get_json(silent=True) or {}, source="admin_take_down")
+    return jsonify(body), code
 
 
 @admin_demo_api_bp.route("/bulk_decide", methods=["POST"])

@@ -1,5 +1,7 @@
 export type DetailEvent = {
   _id: string; title: string; description: string; date: string | null;
+  /** Last day of a multi-day demonstration (YYYY-MM-DD); null for one day. */
+  end_date?: string | null;
   start_time: string | null; end_time: string | null; city: string | null; address: string | null;	latitude: number | null; longitude: number | null; tags: string[]; route: string[];
 	/** Public attendance total; null when the stored counter is absent. */
 	likes: number | null;
