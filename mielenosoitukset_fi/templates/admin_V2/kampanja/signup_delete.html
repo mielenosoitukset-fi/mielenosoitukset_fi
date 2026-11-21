@@ -1,0 +1,43 @@
+{% extends 'admin_base.html' %}
+{% from 'admin_V2/macros.html' import admin_page_hero %}
+
+{% block title %}{{ _('Poista ilmoittautuminen') }} – Mielenosoitukset.fi{% endblock %}
+
+{% block main_content %}
+    <div class="admin-page campaign-admin-page">
+        {{ admin_page_hero(
+            _('Poista ilmoittautuminen'),
+            source.label,
+            _('Kampanjat'),
+            [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Kampanjan hallinta'), url_for('admin_kampanja.index')), (_('Ilmoittautumiset'), url_for('admin_kampanja.signups', lahde=source.key)), (_('Poista'), none)],
+            back_url=url_for('admin_kampanja.signups', lahde=source.key)
+        ) }}
+        <section class="admin-section-card" aria-labelledby="deleteSignupTitle">
+            <header class="admin-section-card__header"><div class="admin-section-card__title">
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                <h2 id="deleteSignupTitle">{{ _('Tämä rivi poistetaan pysyvästi') }}</h2>
+            </div></header>
+            <div class="admin-section-card__body">
+                <dl class="admin-data-list">
+                    {% for header, _field in source.columns %}
+                    <dt>{{ header }}</dt><dd>{{ row.cells[loop.index0] or '-' }}</dd>
+                    {% endfor %}
+                    <dt>{{ _('Tila') }}</dt><dd>{{ status_labels[row.status] }}</dd>
+                    <dt>{{ _('Ilmoittautunut') }}</dt><dd>{{ row.created_at.strftime('%-d.%-m.%Y') if row.created_at else '-' }}</dd>
+                </dl>
+                <p>{{ _('Poistoa ei voi perua. Poiston syy, tekijä ja aika tallennetaan; henkilön nimeä tai sähköpostia ei tallenneta lokiin.') }}</p>
+                <form method="post" class="admin-form" action="{{ url_for('admin_kampanja.signup_delete', source_key=source.key, row_id=row.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="admin-field">
+                        <label for="delete-reason">{{ _('Poiston syy') }}</label>
+                        <input type="text" id="delete-reason" name="reason" required minlength="{{ min_reason }}" maxlength="{{ max_reason }}" autofocus>
+                    </div>
+                    <div class="admin-row-actions">
+                        <button type="submit" class="btn btn-danger">{{ _('Poista pysyvästi') }}</button>
+                        <a class="btn btn-outline-secondary" href="{{ url_for('admin_kampanja.signups', lahde=source.key) }}">{{ _('Peruuta') }}</a>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+{% endblock %}
