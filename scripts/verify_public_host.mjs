@@ -942,9 +942,10 @@ try {
   } finally {
     globalThis.fetch = volunteerFetch;
   }
-  assert(!/^RewriteRule .*\/kampanja\/confirm/m.test(apacheRouting), 'The volunteer confirm route stays unrouted until the maintainer activates it');
-  assert(apacheRouting.includes('#RewriteRule "^/kampanja/confirm/[A-Za-z0-9_-]{1,128}$" "http://127.0.0.1:8090$0" [P,L]'));
-  console.log('PASS: volunteer confirmation page is read-only, noindex, no referrer, and unrouted');
+  // Routed since 21 November 2026: GET/HEAD of the page to the app host, only POST of the confirm route to Go.
+  assert(/^RewriteCond %\{REQUEST_METHOD\} "\^\(GET\|HEAD\)\$"\nRewriteRule "\^\/kampanja\/confirm\/\[A-Za-z0-9_-\]\{1,128\}\$" "http:\/\/127\.0\.0\.1:8090\$0" \[P,L\]$/m.test(apacheRouting), 'The volunteer confirm page routes GET/HEAD to the app host');
+  assert(/^RewriteCond %\{REQUEST_METHOD\} "\^POST\$"\nRewriteRule "\^\/api\/campaign-volunteers\/confirm\$" "http:\/\/127\.0\.0\.1:8091\$0" \[P,L\]$/m.test(apacheRouting), 'Only POST of the volunteer confirm route goes to Go');
+  console.log('PASS: volunteer confirmation page is read-only, noindex, no referrer, and routed');
 
   // E-mail confirmation: same shape, signed token in the path, nothing read or written on GET.
   const emailToken = 'aaaaaaaa.bbbbbbbb.cccccccc';
@@ -974,9 +975,9 @@ try {
   } finally {
     globalThis.fetch = emailFetch;
   }
-  assert(!/^RewriteRule .*confirm_email/m.test(apacheRouting) && !/^RewriteRule .*confirm-email/m.test(apacheRouting), 'The e-mail confirm route stays unrouted until the maintainer activates it');
-  assert(apacheRouting.includes('#RewriteRule "^/api/account/confirm-email$" "http://127.0.0.1:8091$0" [P,L]'));
-  console.log('PASS: e-mail confirmation page is read-only, noindex, no referrer, and unrouted');
+  assert(/^RewriteCond %\{REQUEST_METHOD\} "\^\(GET\|HEAD\)\$"\nRewriteRule "\^\/users\/auth\/confirm_email\/\[A-Za-z0-9_.-\]\{5,3100\}\$" "http:\/\/127\.0\.0\.1:8090\$0" \[P,L\]$/m.test(apacheRouting), 'The e-mail confirm page routes GET/HEAD to the app host');
+  assert(/^RewriteCond %\{REQUEST_METHOD\} "\^POST\$"\nRewriteRule "\^\/api\/account\/confirm-email\$" "http:\/\/127\.0\.0\.1:8091\$0" \[P,L\]$/m.test(apacheRouting), 'Only POST of the e-mail confirm route goes to Go');
+  console.log('PASS: e-mail confirmation page is read-only, noindex, no referrer, and routed');
 
   // Organization invitation: the shell is rendered, the invitation is read in the browser, nothing joins on GET.
   const inviteOrg = 'abcdefabcdefabcdefabcdef';

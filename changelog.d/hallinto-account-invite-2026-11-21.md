@@ -1,0 +1,1 @@
+- Admins appointing city admins in Hallinto can create a mielenosoitukset.fi account for a person who has none. The person gets an email with a link to set their password, and setting it confirms the address. Using any password reset link now also confirms an unconfirmed address.
