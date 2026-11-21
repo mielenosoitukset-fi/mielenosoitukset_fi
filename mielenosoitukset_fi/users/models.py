@@ -22,12 +22,11 @@ def _get_mongo():
     return DatabaseManager().get_instance().get_db()
 
 DEFAULT_ROLE = "user"
+# City admins only see organizations. New organizations and access go through
+# the organization request form and a Hallinto decision (21 Nov 2026).
 CITY_ADMIN_ORGANIZATION_PERMISSIONS = {
     "LIST_ORGANIZATIONS",
     "VIEW_ORGANIZATION",
-    "CREATE_ORGANIZATION",
-    "EDIT_ORGANIZATION",
-    "INVITE_TO_ORGANIZATION",
 }
 
 class User(UserMixin):
