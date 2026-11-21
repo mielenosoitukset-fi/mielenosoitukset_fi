@@ -316,7 +316,7 @@
             {% if not case.meta.superior_needed and not demo.approved and not demo.rejected %}
 {% if global_case_controls %}
             <button class="btn btn-secondary" type="button" onclick="escalateDemo()">
-              <i class="fa-solid fa-arrow-up-right-dots me-1"></i>{{ _('Eskaloi esihenkilölle') }}
+              <i class="fa-solid fa-arrow-up-right-dots me-1"></i>{{ _('Pyydä toista tarkistajaa') }}
             </button>
 {% endif %}
             {% endif %}

@@ -158,3 +158,49 @@ def test_unknown_recipient_gets_the_login_link(app, seeded_data):
 
 def test_forged_token_is_unknown(app, seeded_data):
     assert app.test_client().get(f"/admin/demo/case_link/{ObjectId()}").status_code == 404
+
+
+def _case(db, seeded_data):
+    case = db.cases.find_one({"type": "new_demo", "demo_id": {"$in": [seeded_data["pending_demo_id"], str(seeded_data["pending_demo_id"])]}})
+    if not case:
+        db.cases.insert_one({"type": "new_demo", "demo_id": seeded_data["pending_demo_id"], "status": "open", "meta": {}})
+        case = db.cases.find_one({"type": "new_demo", "demo_id": seeded_data["pending_demo_id"]})
+    return case
+
+
+def test_escalate_through_link_needs_reason_and_keeps_demo_pending(app, db, seeded_data):
+    _case(db, seeded_data)
+    path = _link(app, db, seeded_data)
+    browser = app.test_client()
+    csrf = _csrf(_open(browser, path).get_data(as_text=True))
+
+    assert browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": " "}).status_code == 400
+    ok = browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": "En tunne järjestäjää"})
+    assert ok.status_code == 200, ok.get_data(as_text=True)[:500]
+
+    case = _case(db, seeded_data)
+    assert case["meta"]["superior_needed"] is True
+    entry = case["case_history"][-1]
+    assert entry["metadata"]["authentication"] == "case_link" and entry["metadata"]["reason"] == "En tunne järjestäjää"
+    demo = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
+    assert not demo.get("approved") and not demo.get("rejected")
+    # Twice is refused, not duplicated.
+    again = browser.post(path, data={"csrf": csrf, "decision": "escalate", "escalate_reason": "Toinen kerta"})
+    assert again.status_code == 409
+    assert len(_case(db, seeded_data)["case_history"]) == len(case["case_history"])
+
+
+def test_escalate_through_link_needs_code_and_refuses_passkey_only(app, db, seeded_data):
+    _case(db, seeded_data)
+    secret = pyotp.random_base32()
+    db.users.update_one({"_id": seeded_data["admin_id"]}, {"$set": {"mfa_enabled": True}})
+    db.mfas.insert_one({"user_id": seeded_data["admin_id"], "secret": secret})
+    path = _link(app, db, seeded_data)
+    browser = app.test_client()
+    body = _open(browser, path).get_data(as_text=True)
+    csrf = _csrf(body)
+    form = {"csrf": csrf, "decision": "escalate", "escalate_reason": "Tarvitsen apua"}
+    assert browser.post(path, data=form).status_code == 400
+    assert not _case(db, seeded_data).get("meta", {}).get("superior_needed")
+    assert browser.post(path, data={**form, "code": pyotp.TOTP(secret).now()}).status_code == 200
+    assert _case(db, seeded_data)["meta"]["superior_needed"] is True

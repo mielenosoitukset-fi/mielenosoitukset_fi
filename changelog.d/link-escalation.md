@@ -1,0 +1,1 @@
+- Sähköpostilinkin lomakkeella voi nyt pyytää toista tarkistajaa (eskalointi) hyväksymisen ja hylkäämisen lisäksi, jotta tapaukset eivät jää käsittelemättä. Syy on pakollinen ja todennussovelluksen koodi vaaditaan kuten päätöksissä. Painikkeen nimi on kaikkialla "Pyydä toista tarkistajaa" (aiemmin "Eskaloi esihenkilölle").

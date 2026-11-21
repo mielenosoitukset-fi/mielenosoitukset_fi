@@ -2083,15 +2083,17 @@ def case_link_decide(token):
     except case_links.CaseLinkError:
         return _case_link_page(token)
     decision = request.form.get("decision")
+    if decision == "escalate":
+        return _case_link_escalate(token, doc, demo, user)
     if decision not in {"approved", "rejected"}:
-        return _case_link_page(token, status=400, error=_("Valitse hyväksy tai hylkää."))
+        return _case_link_page(token, status=400, error=_("Valitse hyväksy, hylkää tai eskaloi."))
     if demo.get("approved") or demo.get("rejected"):
         return _case_link_page(token, status=409, error=_("Mielenosoituksesta on jo tehty päätös."))
     case_doc = mongo.cases.find_one(
         {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}
     ) or {}
     if (case_doc.get("meta") or {}).get("superior_needed") and not getattr(user, "global_admin", False):
-        return _case_link_page(token, status=403, error=_("Tapaus on eskaloitu. Päätöksen tekee esihenkilö."))
+        return _case_link_page(token, status=403, error=_("Tapaus on eskaloitu. Päätöksen tekee toinen tarkistaja."))
     factor = case_links.second_factor(mongo, user)
     if factor == "passkey_only":
         return _case_link_page(token, status=403, error=_("Tilisi käyttää pääsyavainta. Kirjaudu sisään tehdäksesi päätöksen."))
@@ -2129,6 +2131,75 @@ def case_link_decide(token):
         })
     label = _("Hyväksytty ja julkaistu.") if decision == "approved" else _("Hylätty.")
     page = render_template("case_link.html", result=label, login_url=url_for("users.auth.login"))
+    response = make_response(page, 200)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+def _case_link_escalate(token, doc, demo, user):
+    """Ask a superior to decide, through a scoped case link.
+
+    Same rules as a decision (second factor, no passkey-only bypass) but the
+    demonstration stays pending and the link stays usable, so that a person
+    who cannot decide still has a recorded way out instead of leaving the case
+    unprocessed. A short reason is required.
+    """
+    from mielenosoitukset_fi.utils import case_links
+
+    if demo.get("approved") or demo.get("rejected"):
+        return _case_link_page(token, status=409, error=_("Mielenosoituksesta on jo tehty päätös."))
+    case_doc = mongo.cases.find_one(
+        {"type": "new_demo", "demo_id": {"$in": [demo["_id"], str(demo["_id"])]}}
+    )
+    if not case_doc:
+        return _case_link_page(token, status=404, error=_("Tapausta ei löytynyt. Avaa mielenosoitus kirjautumalla."))
+    if (case_doc.get("meta") or {}).get("superior_needed"):
+        return _case_link_page(token, status=409, error=_("Tapaus on jo siirretty toisen tarkistajan arvioitavaksi."))
+    factor = case_links.second_factor(mongo, user)
+    if factor == "passkey_only":
+        return _case_link_page(token, status=403, error=_("Tilisi käyttää pääsyavainta. Kirjaudu sisään tehdäksesi päätöksen."))
+    reason = " ".join((request.form.get("escalate_reason") or "").split())
+    if len(reason) < 5:
+        return _case_link_page(token, status=400, error=_("Kirjoita lyhyt syy (vähintään 5 merkkiä)."))
+    if len(reason) > 500:
+        return _case_link_page(token, status=400, error=_("Syy on liian pitkä (enintään 500 merkkiä)."))
+    if factor == "totp":
+        try:
+            case_links.check_code(mongo, doc, user, request.form.get("code"))
+        except case_links.CaseLinkError as exc:
+            code, message = _CASE_LINK_ERRORS.get(exc.code, (400, "Vahvistus epäonnistui."))
+            return _case_link_page(token, status=code, error=_(message))
+    now = _now_utc()
+    updated = mongo.cases.update_one(
+        {"_id": case_doc["_id"], "meta.superior_needed": {"$ne": True}},
+        {
+            "$set": {"meta.superior_needed": True, "updated_at": now},
+            "$push": {
+                "case_history": {
+                    "timestamp": now,
+                    "action": "Eskaloitu toisen tarkistajan arvioitavaksi",
+                    "user": user.username,
+                    "mech_action": "escalate_demo",
+                    "metadata": {"reason": reason, "authentication": "case_link", "second_factor": factor or "none"},
+                    "meta_schema": {"reason": "string", "authentication": "string", "second_factor": "string"},
+                },
+                "action_logs": {
+                    "user": user.username,
+                    "action_type": "escalate_demo",
+                    "reason": reason,
+                    "source": "case_link",
+                    "timestamp": now,
+                },
+            },
+        },
+    )
+    if not updated.modified_count:
+        return _case_link_page(token, status=409, error=_("Tapaus on jo siirretty toisen tarkistajan arvioitavaksi."))
+    page = render_template(
+        "case_link.html",
+        result=_("Tapaus siirretty toisen tarkistajan arvioitavaksi. Se ei jää odottamaan sinua."),
+        login_url=url_for("users.auth.login"),
+    )
     response = make_response(page, 200)
     response.headers["Cache-Control"] = "no-store"
     return response

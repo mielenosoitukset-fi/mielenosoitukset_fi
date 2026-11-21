@@ -1354,7 +1354,7 @@ def demo_escalate(case_id):
             "$push": {
                 "case_history": {
                     "timestamp": timestamp,
-                    "action": "Eskaloitu esihenkilolle",
+                    "action": "Eskaloitu toisen tarkistajan arvioitavaksi",
                     "user": current_user.username,
                     "metadata": {},
                 },
