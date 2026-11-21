@@ -47,6 +47,33 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unsupported' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /internal/hallinto/v1/city-appointment-ends:
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      operationId: endCityAppointment
+      summary: Revoke or freeze a confirmed appointment at once. Idempotent.
+      security: [{ workload: [], actorProof: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/End' }
+      responses:
+        '200':
+          description: Effective access after the end, or replay of a durable receipt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EndReceipt' }
+        '202':
+          description: Durable pending result, including an unresolved partial operation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EndPendingReceipt' }
+        '403': { $ref: '#/components/responses/Denied' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unsupported' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /internal/hallinto/v1/operations/by-key:
     parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
@@ -194,4 +221,52 @@ components:
             checked_at: { type: string, format: date-time }
             effective: { $ref: '#/components/schemas/Scope' }
             resulted_in_city_enablement: { type: boolean }
+      unevaluatedProperties: false
+    End:
+      type: object
+      additionalProperties: false
+      required: [appointment_id, kind, account_id, city, template, decision_id, decision_revision, authority_attestation]
+      properties:
+        appointment_id: { $ref: '#/components/schemas/NonEmptyID', description: Idempotency-Key of the original appointment }
+        kind: { enum: [revoke, freeze] }
+        account_id: { $ref: '#/components/schemas/AccountID' }
+        city: { $ref: '#/components/schemas/CityKey' }
+        template: { const: city_admin_v1 }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        authority_attestation: { type: string, minLength: 1, maxLength: 16384 }
+    EndReceiptIdentity:
+      type: object
+      required: [operation_id, account_id, decision_id, decision_revision, appointment_id, kind]
+      properties:
+        operation_id: { $ref: '#/components/schemas/NonEmptyID' }
+        account_id: { $ref: '#/components/schemas/AccountID' }
+        decision_id: { $ref: '#/components/schemas/NonEmptyID' }
+        decision_revision: { type: integer, minimum: 1 }
+        appointment_id: { $ref: '#/components/schemas/NonEmptyID' }
+        kind: { enum: [revoke, freeze] }
+    EndPendingReceipt:
+      allOf:
+        - $ref: '#/components/schemas/EndReceiptIdentity'
+        - type: object
+          required: [status]
+          properties:
+            status: { enum: [pending, reconciliation_required] }
+      unevaluatedProperties: false
+    EndReceipt:
+      allOf:
+        - $ref: '#/components/schemas/EndReceiptIdentity'
+        - type: object
+          required: [status, checked_at, effective]
+          properties:
+            status: { const: confirmed }
+            checked_at: { type: string, format: date-time }
+            effective:
+              type: object
+              description: What the account still has. Hallinto confirms its end only when all three are empty.
+              required: [cities, permissions, role]
+              properties:
+                cities: { type: array, items: { $ref: '#/components/schemas/CityKey' } }
+                permissions: { type: array, items: { type: string } }
+                role: { type: [string, 'null'] }
       unevaluatedProperties: false

@@ -15,7 +15,9 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from cryptography.x509.oid import NameOID
 
 from mielenosoitukset_fi.admin import city_grants, grant_proofs
-from mielenosoitukset_fi.admin.hallinto_city_grant_api import AUDIENCE, attestation_message
+from mielenosoitukset_fi.admin.hallinto_city_grant_api import (
+    AUDIENCE, attestation_message, end_attestation_message,
+)
 from mielenosoitukset_fi.utils.city_settings import upsert_city_setting
 from tests.conftest import _seed_database, _user_doc
 
@@ -248,3 +250,124 @@ def test_approval_without_any_strong_factor_points_to_settings(api):
         "/admin/hallinto/approve", query_string={"r": _terms(body), "state": STATE})
     text = page.get_data(as_text=True)
     assert "Lisää passkey asetuksissa" in text and 'href="https://hallinto.example.test/"' in text
+
+
+# --- ending an appointment (revoke or freeze) ---------------------------------
+
+END_KEY = "hallinto-end-0000000000001"
+
+
+def _end_body(target, kind="revoke", appointment=KEY, signer=SIGNER, message=end_attestation_message, **over):
+    body = {"appointment_id": appointment, "kind": kind, "account_id": str(target), "city": "kuopio",
+            "template": "city_admin_v1", "decision_id": "synthetic-end", "decision_revision": 1,
+            "authority_attestation": "placeholder", **over}
+    digest = city_grants.end_digest(body)
+    body["authority_attestation"] = _b64url(signer.sign(message(digest)))
+    return body, digest
+
+
+def _end_proof(app, db, seeded, digest, target, action=grant_proofs.ACTION_CITY_ADMIN_END_V1):
+    with app.app_context():
+        return grant_proofs.issue_proof(db, actor_id=seeded["admin_id"], audience=AUDIENCE, action=action,
+                                        intent_digest=digest, factor="passkey", subject=str(target))
+
+
+def _appointed(api):
+    app, client, db, body, digest, proof, seeded, target = api
+    assert client.post("/internal/hallinto/v1/city-appointments", json=body,
+                       headers=_headers(proof=proof)).status_code == 200
+    return app, client, db, seeded, target
+
+
+@pytest.mark.parametrize("kind,reason", [("revoke", "hallinto_revoked"), ("freeze", "hallinto_frozen")])
+def test_end_removes_access_at_once_and_is_idempotent(api, kind, reason):
+    app, client, db, seeded, target = _appointed(api)
+    end, end_digest = _end_body(target, kind)
+    proof = _end_proof(app, db, seeded, end_digest, target)
+    response = client.post("/internal/hallinto/v1/city-appointment-ends", json=end,
+                           headers=_headers(proof=proof, key=END_KEY))
+    assert response.status_code == 200, response.get_json()
+    receipt = response.get_json()
+    assert receipt["status"] == "confirmed" and receipt["kind"] == kind and receipt["appointment_id"] == KEY
+    assert receipt["effective"] == {"cities": [], "permissions": [], "role": "user"}
+    grant = db.admin_scope_grants.find_one({"user_id": target})
+    assert grant["revoked_reason"] == reason and bool(grant.get("frozen")) == (kind == "freeze")
+    assert db.users.find_one({"_id": target})["role"] == "user"
+    # The same command replays the receipt; the owner state shows no scope.
+    again = client.post("/internal/hallinto/v1/city-appointment-ends", json=end,
+                        headers=_headers(proof=proof, key=END_KEY))
+    assert again.get_json() == receipt
+    lookup = client.get("/internal/hallinto/v1/operations/by-key", headers=_headers(proof=proof, key=END_KEY))
+    assert lookup.get_json() == receipt
+    state = client.get(f"/internal/hallinto/v1/city-grants/{target}", headers=_headers(proof=proof, key=None))
+    assert state.get_json()["scopes"] == []
+    events = list(db.audit_events.find({"via.operation_id": receipt["operation_id"]}))
+    assert all(e["actor"].get("user_id") == str(seeded["admin_id"]) for e in events)
+
+
+def test_a_new_end_for_an_ended_grant_is_a_confirmed_no_op(api):
+    app, client, db, seeded, target = _appointed(api)
+    for key, kind in (("hallinto-end-0000000000001", "revoke"), ("hallinto-end-0000000000002", "freeze")):
+        end, end_digest = _end_body(target, kind)
+        proof = _end_proof(app, db, seeded, end_digest, target)
+        response = client.post("/internal/hallinto/v1/city-appointment-ends", json=end,
+                               headers=_headers(proof=proof, key=key))
+        assert response.status_code == 200 and response.get_json()["effective"]["cities"] == []
+
+
+def test_end_needs_its_own_attestation_and_proof_action(api):
+    app, client, db, seeded, target = _appointed(api)
+    post = lambda end, proof: client.post("/internal/hallinto/v1/city-appointment-ends", json=end,
+                                          headers=_headers(proof=proof, key=END_KEY))
+    # An appointment-context signature cannot end a grant.
+    end, end_digest = _end_body(target, message=attestation_message)
+    assert post(end, _end_proof(app, db, seeded, end_digest, target)).status_code == 403
+    # A forged signature, and a proof issued for appointing, are refused too.
+    forged, forged_digest = _end_body(target, signer=Ed25519PrivateKey.generate())
+    assert post(forged, _end_proof(app, db, seeded, forged_digest, target)).status_code == 403
+    end, end_digest = _end_body(target)
+    assert post(end, _end_proof(app, db, seeded, end_digest, target,
+                                action=grant_proofs.ACTION_CITY_ADMIN_V1)).status_code == 403
+    assert db.admin_scope_grants.count_documents({"user_id": target, "revoked_at": None}) == 1
+
+
+def test_end_must_refer_to_a_confirmed_appointment_of_that_account(api):
+    app, client, db, seeded, target = _appointed(api)
+    for number, over in enumerate(({"appointment_id": "hallinto-unknown-000000001"}, {"city": "helsinki"})):
+        end, end_digest = _end_body(target, **over)
+        proof = _end_proof(app, db, seeded, end_digest, target)
+        response = client.post("/internal/hallinto/v1/city-appointment-ends", json=end,
+                               headers=_headers(proof=proof, key=f"hallinto-end-refer-{number:08d}"))
+        assert response.status_code == 422
+    assert db.admin_scope_grants.count_documents({"user_id": target, "revoked_at": None}) == 1
+
+
+def test_end_is_denied_for_a_demoted_actor_and_a_different_intent(api):
+    app, client, db, seeded, target = _appointed(api)
+    end, end_digest = _end_body(target)
+    proof = _end_proof(app, db, seeded, end_digest, target)
+    changed = {**end, "kind": "freeze"}
+    assert client.post("/internal/hallinto/v1/city-appointment-ends", json=changed,
+                       headers=_headers(proof=proof, key=END_KEY)).status_code == 403
+    db.users.update_one({"_id": seeded["admin_id"]}, {"$set": {"global_admin": False, "role": "user"}})
+    assert client.post("/internal/hallinto/v1/city-appointment-ends", json=end,
+                       headers=_headers(proof=proof, key=END_KEY)).status_code == 403
+    assert db.admin_scope_grants.count_documents({"user_id": target, "revoked_at": None}) == 1
+
+
+def test_approval_page_and_proof_for_ending(api):
+    from urllib.parse import parse_qs, urlsplit
+    app, client, db, seeded, target = _appointed(api)
+    end, end_digest = _end_body(target, "freeze")
+    fields = {k: v for k, v in end.items() if k != "authority_attestation"}
+    verifier = _verifier(app, seeded["admin_id"], strong=True, age=60)
+    page = verifier.get("/admin/hallinto/approve", query_string={"r": _terms(fields), "state": STATE})
+    text = page.get_data(as_text=True)
+    assert page.status_code == 200 and "Nimityksen jäädytys" in text and "Vahvista päättäminen" in text
+    response = verifier.post("/admin/hallinto/approve", data={"r": _terms(fields), "state": STATE},
+                             headers={"Origin": "http://localhost"})
+    assert response.status_code == 303
+    returned = parse_qs(urlsplit(response.headers["Location"]).fragment)
+    assert "expected_state" not in returned and returned["state"] == [STATE]
+    assert client.post("/internal/hallinto/v1/city-appointment-ends", json=end,
+                       headers=_headers(proof=returned["proof"][0], key=END_KEY)).status_code == 200

@@ -39,11 +39,17 @@ HELSINKI = ZoneInfo("Europe/Helsinki")
 INTEGRATION = "hallinto"
 AUDIENCE = "hallinto-city-grants"
 ATTESTATION_CONTEXT = b"hallinto-city-admin-v1-attestation\n"
+END_ATTESTATION_CONTEXT = b"hallinto-city-admin-end-v1-attestation\n"
 
 
 def attestation_message(intent_digest: str) -> bytes:
     """Bytes Hallinto signs: a fixed context line and the canonical intent digest."""
     return ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def end_attestation_message(intent_digest: str) -> bytes:
+    """Ending signs a different context, so an appointment signature never ends a grant."""
+    return END_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def _b64url(value: str) -> bytes:
@@ -101,9 +107,9 @@ def _bearer() -> str:
     return header[7:].strip() if header.startswith("Bearer ") else ""
 
 
-def _attestation_ok(signature: str, intent_digest: str) -> bool:
+def _attestation_ok(signature: str, intent_digest: str, message=attestation_message) -> bool:
     try:
-        _settings()["attestation_key"].verify(_b64url(signature), attestation_message(intent_digest))
+        _settings()["attestation_key"].verify(_b64url(signature), message(intent_digest))
         return True
     except (InvalidSignature, ValueError, TypeError):
         return False
@@ -139,6 +145,23 @@ def build_blueprint(db) -> Blueprint:
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
         ))
 
+    @bp.post("/city-appointment-ends")
+    def end_city_appointment():
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = city_grants.end_digest(body)
+        if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key):
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_CITY_ADMIN_END_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, end_attestation_message):
+            return _error("denied")
+        return _reply(city_grants.apply_city_admin_end_v1(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
     @bp.get("/operations/by-key")
     def read_receipt():
         key = request.headers.get("Idempotency-Key", "")
@@ -164,6 +187,8 @@ def build_blueprint(db) -> Blueprint:
 APPROVAL_WINDOW_SECONDS = 15 * 60  # Maintainer decision, 21 November 2026.
 APPROVAL_FIELDS = {"account_id", "city", "template", "allow_city_enablement", "decision_id",
                    "decision_revision", "application_id", "valid_until"}
+END_APPROVAL_FIELDS = {"appointment_id", "kind", "account_id", "city", "template", "decision_id",
+                       "decision_revision"}
 STATE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 
 
@@ -173,9 +198,11 @@ def _decode_fields(raw: str):
         fields = json.loads(_b64url(raw or "").decode("utf-8")) if raw and len(raw) <= 4096 else None
     except (ValueError, UnicodeDecodeError):
         return None
-    if not isinstance(fields, dict) or set(fields) - APPROVAL_FIELDS:
+    if not isinstance(fields, dict):
         return None
-    return fields
+    if "kind" in fields:
+        return fields if set(fields) == END_APPROVAL_FIELDS else None
+    return fields if not set(fields) - APPROVAL_FIELDS else None
 
 
 def _same_origin() -> bool:
@@ -223,8 +250,13 @@ def build_approval_blueprint(db) -> Blueprint:
         state = city_grants.read_city_grant_state(db, str(fields.get("account_id", "")))
         if state is None:
             abort(400)
-        intent = {**fields, "expected_state": state["expected_state"], "authority_attestation": "-"}
-        digest = city_grants.intent_digest(intent)
+        if "kind" in fields:
+            # Ending needs no owner-state check: it is idempotent and removes access.
+            digest = city_grants.end_digest({**fields, "authority_attestation": "-"})
+            state = {**state, "eligible": True}
+        else:
+            intent = {**fields, "expected_state": state["expected_state"], "authority_attestation": "-"}
+            digest = city_grants.intent_digest(intent)
         if digest is None:
             abort(400)
         return fields, state_param, state, digest
@@ -234,15 +266,19 @@ def build_approval_blueprint(db) -> Blueprint:
     def approve_page():
         fields, state_param, state, digest = prepare()
         account = db.users.find_one({"_id": ObjectId(fields["account_id"])}, {"username": 1, "displayname": 1})
-        end = city_grants.parse_valid_until(fields["valid_until"])
-        last_day = end.replace(tzinfo=timezone.utc).astimezone(HELSINKI) - timedelta(seconds=1)
+        is_end = "kind" in fields
+        last_day = ""
+        if not is_end:
+            end = city_grants.parse_valid_until(fields["valid_until"])
+            last_day = (end.replace(tzinfo=timezone.utc).astimezone(HELSINKI)
+                        - timedelta(seconds=1)).strftime("%-d.%-m.%Y")
         from mielenosoitukset_fi.users.BPs.passkeys import _user_requires_totp
         from mielenosoitukset_fi.utils import webauthn_utils as webauthn
         response = current_app.make_response(render_template(
             "admin_V2/hallinto/approve.html",
             fields=fields, state_param=state_param, raw=request.values.get("r", ""),
             account=account or {}, city_name=CITY_KEY_TO_NAME.get(fields["city"], fields["city"]),
-            last_day=last_day.strftime("%-d.%-m.%Y"), eligible=state["eligible"],
+            last_day=last_day, is_end=is_end, eligible=state["eligible"],
             elevated=has_strong_elevation(APPROVAL_WINDOW_SECONDS),
             has_passkey=webauthn.passkey_count(current_user._id) > 0,
             has_totp=_user_requires_totp(), hallinto_url=_hallinto_home(),
@@ -258,11 +294,16 @@ def build_approval_blueprint(db) -> Blueprint:
         if not has_strong_elevation(APPROVAL_WINDOW_SECONDS):
             return redirect(url_for(".approve_page", r=request.values.get("r"), state=state_param), code=303)
         factor = "passkey" if elevation_method() == "webauthn" else "password_totp"
+        is_end = "kind" in fields
         proof = grant_proofs.issue_proof(
-            db, actor_id=current_user._id, audience=AUDIENCE, action=grant_proofs.ACTION_CITY_ADMIN_V1,
+            db, actor_id=current_user._id, audience=AUDIENCE,
+            action=grant_proofs.ACTION_CITY_ADMIN_END_V1 if is_end else grant_proofs.ACTION_CITY_ADMIN_V1,
             intent_digest=digest, factor=factor, subject=str(fields["account_id"]),
         )
-        fragment = urlencode({"state": state_param, "proof": proof, "expected_state": state["expected_state"]})
+        returned = {"state": state_param, "proof": proof}
+        if not is_end:
+            returned["expected_state"] = state["expected_state"]
+        fragment = urlencode(returned)
         response = _no_framing(redirect(_settings()["return_url"] + "#" + fragment, code=303))
         response.headers["Referrer-Policy"] = "no-referrer"
         return response

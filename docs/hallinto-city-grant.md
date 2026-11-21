@@ -70,3 +70,16 @@ Apache (internal vhost only, production activation needs Olivia's go-ahead): `SS
     RequestHeader set X-Hallinto-Proxy-Secret "<secret from a root-only include>"
 
 Route only `/internal/hallinto/` through that vhost. Include `deploy/apache/hallinto-public-vhost-guard.conf` in every public vhost: it strips all three headers and denies `/internal/`.
+
+## Ending an appointment (Hallinto B3c)
+
+`POST /internal/hallinto/v1/city-appointment-ends` revokes or freezes a confirmed appointment at once. It needs the same three things as an appointment: mTLS workload identity, an actor proof and Hallinto's attestation.
+
+Body: `appointment_id` (the Idempotency-Key of the original appointment), `kind` (`revoke` or `freeze`), `account_id`, `city`, `template` (`city_admin_v1`), `decision_id`, `decision_revision` and `authority_attestation`. The `Idempotency-Key` header is the end's own id.
+
+- **Different signature.** The attestation signs `"hallinto-city-admin-end-v1-attestation\n" + end_digest`, so an appointment signature can never end a grant. The digest is built like the appointment digest from the body without `authority_attestation` (sorted keys, no whitespace, no `permissions`).
+- **Different proof.** Flask issues the proof for the action `city_admin_end_v1`. Send the verifier to `/admin/hallinto/approve` with `r` holding the end terms (`appointment_id`, `kind`, `account_id`, `city`, `template`, `decision_id`, `decision_revision`). There is no `expected_state` in the end fragment, because ending is idempotent and only removes access.
+- **What it does.** Flask checks that `appointment_id` is a confirmed appointment of the same account and city, then ends every live city grant of the account under the account fence and returns the role `city_admin` to `user`. Both kinds remove access immediately. A freeze marks the grant `frozen` and `revoked_reason: hallinto_frozen`; a revoke uses `hallinto_revoked`. Neither is lifted except by a new appointment, which needs a new decision.
+- **Idempotent.** The same key and body replays the receipt. A new key for a grant that is already ended is a confirmed no-op.
+- **Receipt.** `effective` is what the account still has: `cities`, `permissions` and `role`. Flask only reports it. Hallinto confirms its end when all three are empty. If a city grant for the city is still live after the write, the operation is `reconciliation_required`.
+- **Errors.** Unknown appointment, a different city or an unconfirmed appointment give 422. A missing or demoted actor, a bad proof or a bad signature give 403. The target is never revealed.
