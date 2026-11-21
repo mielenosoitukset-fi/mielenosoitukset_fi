@@ -387,6 +387,8 @@ def test_user_role_forms_use_shared_admin_contract():
 def test_demo_collection_uses_server_side_filter_and_pagination_contract():
     template = Path(
         "mielenosoitukset_fi/templates/admin_V2/demonstrations/dashboard.html"
+    ).read_text(encoding="utf-8") + Path(
+        "mielenosoitukset_fi/templates/admin_V2/demonstrations/_demo_row.html"
     ).read_text(encoding="utf-8")
     route = Path(
         "mielenosoitukset_fi/admin/admin_demo_bp.py"

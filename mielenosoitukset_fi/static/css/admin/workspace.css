@@ -4723,6 +4723,19 @@ th.sortable.desc::after {
   border-radius: 0.375rem;
 }
 
+/* List rows: the item's name is the link to its main admin page. */
+.admin-entity-title-link {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+.admin-entity-title-link:hover,
+.admin-entity-title-link:focus-visible {
+  color: var(--admin-workspace-blue-dark);
+}
+
 /* Tables in the main column of a detail page (organisation members and
    invites) share the row with a side panel, so they size to that column and
    scroll inside it instead of running under the panel. */
