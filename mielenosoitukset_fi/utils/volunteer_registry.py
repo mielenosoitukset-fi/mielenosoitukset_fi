@@ -59,6 +59,11 @@ class Source:
     pending_query: Dict[str, Any]
     confirmed_query: Dict[str, Any]
     purge_after: datetime  # UTC instant when the retention job deletes everything
+    csv_only: Tuple[str, ...] = ()  # long free-text fields: in the CSV and delete page, not the table
+
+    @property
+    def table_columns(self) -> Tuple[Tuple[str, str], ...]:
+        return tuple(c for c in self.columns if c[1] not in self.csv_only)
 
 
 def _sources() -> Dict[str, Source]:
@@ -70,13 +75,13 @@ def _sources() -> Dict[str, Source]:
         Source(
             "kampanja", "Kampanjan vapaaehtoiset", "volunteers",
             (("Nimi", "name"), ("Sähköposti", "email"), ("Kaupunki", "city"), ("Tehtävät", "roles"),
-             ("Alue", "area"), ("Huomiot", "notes")),
-            _campaign_status, {"confirmed": {"$ne": True}}, {"confirmed": True}, campaign_purge,
+             ("Huomiot", "notes")),
+            _campaign_status, {"confirmed": {"$ne": True}}, {"confirmed": True}, campaign_purge, ("notes",),
         ),
         Source(
             "pride", "Pride-banderollin kantajat", "pride_banner_volunteers",
             (("Nimi", "name"), ("Sähköposti", "email"), ("Alue", "city"), ("Pride", "pride"), ("Huomiot", "note")),
-            _status_field, {"status": "pending"}, {"status": "confirmed"}, pride_purge,
+            _status_field, {"status": "pending"}, {"status": "confirmed"}, pride_purge, ("note",),
         ),
         Source(
             "avajaiset", "Avajaisten ilmoittautumiset", "campaign_opening_interest",
@@ -155,7 +160,7 @@ def rows(db, source: Source, status: str = "", limit: int = 500) -> List[Dict[st
             "id": str(doc["_id"]),
             "status": source.status_of(doc),
             "created_at": _created(doc),
-            "cells": [_shorten(_join(doc.get(field))) for _, field in source.columns],
+            "cells": [_shorten(_join(doc.get(field)), 40) for _, field in source.table_columns],
         })
     return result
 

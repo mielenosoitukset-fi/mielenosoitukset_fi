@@ -19,8 +19,7 @@
                href="{{ url_for('admin_kampanja.signups', lahde=item.key) }}"
                {% if item.key == source.key %}aria-current="page"{% endif %}>
                 <span class="admin-workspace-summary-icon"><i class="fa-solid fa-user-check"></i></span>
-                <div><strong>{{ item.total }}</strong><span>{{ item.label }}</span>
-                    <span>{{ item.confirmed }} {{ _('vahvistettua') }} · {{ item.pending }} {{ _('odottaa') }}</span></div>
+                <div><strong>{{ item.total }}</strong><span>{{ item.label }} ({{ item.confirmed }} {{ _('vahvistettua') }}, {{ item.pending }} {{ _('odottaa') }})</span></div>
             </a>
             {% endfor %}
         </div>
@@ -60,24 +59,24 @@
                 <table class="admin-data-view__table">
                     <thead>
                         <tr>
-                            {% for header, _field in source.columns %}<th scope="col">{{ header }}</th>{% endfor %}
+                            <th scope="col">{{ _('Toiminnot') }}</th>
+                            {% for header, _field in source.table_columns %}<th scope="col">{{ header }}</th>{% endfor %}
                             <th scope="col">{{ _('Tila') }}</th>
                             <th scope="col">{{ _('Ilmoittautunut') }}</th>
-                            <th scope="col">{{ _('Toiminnot') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for row in rows %}
                         <tr>
-                            {% for cell in row.cells %}<td>{{ cell or '-' }}</td>{% endfor %}
-                            <td><span class="admin-status-badge {{ 'admin-status-badge--success' if row.status == 'confirmed' else 'admin-status-badge--warning' }}">{{ status_labels[row.status] }}</span></td>
-                            <td>{{ row.created_at.strftime('%-d.%-m.%Y') if row.created_at else '-' }}</td>
                             <td>
                                 <a class="btn btn-sm btn-outline-danger" href="{{ url_for('admin_kampanja.signup_delete_confirm', source_key=source.key, row_id=row.id) }}">{{ _('Poista') }}</a>
                             </td>
+                            {% for cell in row.cells %}<td>{{ cell or '-' }}</td>{% endfor %}
+                            <td><span class="admin-status-badge {{ 'admin-status-badge--success' if row.status == 'confirmed' else 'admin-status-badge--warning' }}">{{ status_labels[row.status] }}</span></td>
+                            <td>{{ row.created_at.strftime('%-d.%-m.%Y') if row.created_at else '-' }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="{{ source.columns|length + 3 }}">{{ _('Ei ilmoittautumisia.') }}</td></tr>
+                        <tr><td colspan="{{ source.table_columns|length + 4 }}">{{ _('Ei ilmoittautumisia.') }}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

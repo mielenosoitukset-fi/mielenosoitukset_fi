@@ -30,7 +30,7 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <div class="admin-field">
                         <label for="delete-reason">{{ _('Poiston syy') }}</label>
-                        <input type="text" id="delete-reason" name="reason" required minlength="{{ min_reason }}" maxlength="{{ max_reason }}" autofocus>
+                        <input type="text" id="delete-reason" name="reason" required minlength="{{ min_reason }}" maxlength="{{ max_reason }}">
                     </div>
                     <div class="admin-row-actions">
                         <button type="submit" class="btn btn-danger">{{ _('Poista pysyvästi') }}</button>

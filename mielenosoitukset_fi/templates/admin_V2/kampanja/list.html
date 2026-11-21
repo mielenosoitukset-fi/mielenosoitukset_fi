@@ -46,18 +46,16 @@
                 <h2 id="signupListsTitle">{{ _('Ilmoittautumiset ja vapaaehtoiset') }}</h2>
             </div></header>
             <div class="admin-section-card__body">
-                <p>{{ _('Kaikki vapaaehtois- ja ilmoittautumislomakkeet ovat samalla sivulla.') }}</p>
+                <p>{{ _('Kaikki vapaaehtois- ja ilmoittautumislomakkeet ovat samalla sivulla. Avaa lista alta.') }}</p>
                 <div class="admin-workspace-summary">
                     {% for item in sources %}
                     <a class="admin-workspace-summary-card" href="{{ url_for('admin_kampanja.signups', lahde=item.key) }}">
                         <span class="admin-workspace-summary-icon"><i class="fa-solid fa-user-check"></i></span>
-                        <div><strong>{{ item.total }}</strong><span>{{ item.label }} · {{ item.confirmed }} {{ _('vahvistettua') }}</span></div>
+                        <div><strong>{{ item.total }}</strong><span>{{ item.label }} ({{ item.confirmed }} {{ _('vahvistettua') }})</span></div>
                     </a>
                     {% endfor %}
                 </div>
-                <div class="admin-row-actions">
-                    <a class="btn btn-primary" href="{{ url_for('admin_kampanja.signups') }}">{{ _('Avaa ilmoittautumiset') }}</a>
-                </div>
+
             </div>
         </section>
     </div>
