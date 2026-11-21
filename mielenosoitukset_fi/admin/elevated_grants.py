@@ -220,6 +220,12 @@ def apply_elevated_v1(db, *, integration: str, actor_id, idempotency_key: str, r
             return _error("idempotency_conflict")
         return _settle(db, existing)
 
+    # A decision grants once. An expired grant needs a new decision, so the
+    # same decision cannot be re-sent with a later end.
+    if db[OPERATIONS].count_documents({"_id": {"$ne": operation["_id"]}, "intent.template": intent["template"],
+                                       "intent.decision_id": intent["decision_id"],
+                                       "status": {"$ne": "rejected"}}, limit=1):
+        return _outcome(_reject(db, operation, "unsupported_scope"))
     account_id = ObjectId(intent["account_id"])
     try:
         with account_fence(db, account_id) as fence:

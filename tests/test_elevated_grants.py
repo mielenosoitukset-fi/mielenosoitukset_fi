@@ -150,3 +150,25 @@ def test_god_waits_for_enrollment_and_confirms_on_lookup(app, db, ctx):
     assert db.users.find_one({"_id": candidate})["active"] is False
     lookup = read_elevated_receipt(db, integration="hallinto", actor_id=ctx["admin_id"], idempotency_key=KEY)
     assert lookup.status_code == 202
+
+
+def test_a_decision_grants_only_once(app, db, ctx):
+    assert _apply(db, ctx["admin_id"], _request(db, ctx["target"])).status_code == 200
+    db.board_clearances.update_one({"user_id": str(ctx["target"])},
+                                   {"$set": {"team_requests.national.valid_until": elevated_grants.utcnow() - timedelta(seconds=1)}})
+    again = _request(db, ctx["target"], valid_until=_valid_until(200))
+    assert _apply(db, ctx["admin_id"], again, key="hallinto-elevated-000009").status_code == 422
+    assert not clearance_approved(db, ctx["target"])
+
+
+def test_legacy_god_votes_cannot_replace_the_decision(app, db, ctx):
+    from mielenosoitukset_fi.utils.god_appointments import cast_appointment_vote
+    from mielenosoitukset_fi.utils.team_governance import GovernanceConflict
+
+    candidate = db.users.insert_one({**_user_doc("godvote", "godv@example.test", "not-a-login"),
+                                     "active": False, "confirmed": False, "god_candidate": True}).inserted_id
+    assert _apply(db, ctx["admin_id"], _request(db, candidate, template="god_v1")).status_code == 202
+    with pytest.raises(GovernanceConflict):
+        cast_appointment_vote(db, candidate, User.from_OID(ctx["friend_id"]), True)
+    god = db.board_clearances.find_one({"user_id": str(candidate)})["team_requests"]["god"]
+    assert god["method"] == "hallinto_decision"
