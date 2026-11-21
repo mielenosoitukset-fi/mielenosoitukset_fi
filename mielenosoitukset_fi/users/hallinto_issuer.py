@@ -701,6 +701,8 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             "represents": bool(row.get("represents")), "access": row.get("access"),
             "invite_email": row.get("invite_email"), "onboarding": bool(row.get("onboarding")),
             "status_message": row.get("status_message"), "case": row.get("hallinto_case"),
+            # The outbound invitation (O6) this request answers, if it came from one.
+            "invitation_case": row.get("invitation_case"),
             "organization_id": str(row["organization_id"]) if row.get("organization_id") else None,
             "owner_state": row.get("owner_state"), "logo_state": row.get("logo_state"),
             "created_at": stamp(row.get("created_at")), "updated_at": stamp(row.get("updated_at")),

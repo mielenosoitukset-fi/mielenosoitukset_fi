@@ -275,3 +275,34 @@ func TestOrgRequestLogo(t *testing.T) {
 		t.Fatalf("logo=%v", stored.Logo.ContentType)
 	}
 }
+
+// Needs a disposable MongoDB (REMINDER_TEST_MONGO). An invitation token links the request
+// to the invitation's case once; a wrong, spent or expired token changes nothing.
+func TestOrgRequestInvitationToken(t *testing.T) {
+	o, h := orgRequestRig(t, bson.NilObjectID)
+	ctx := context.Background()
+	token := strings.Repeat("k", 43)
+	now := time.Now().UTC()
+	_, err := o.db.Collection("org_invitations").InsertMany(ctx, []any{
+		bson.M{"invitation_id": "inv-1", "case_id": "case-1", "token_hash": campaignDigest(token), "status": "sent", "expires_at": now.Add(time.Hour)},
+		bson.M{"invitation_id": "inv-2", "case_id": "case-2", "token_hash": campaignDigest(strings.Repeat("e", 43)), "status": "sent", "expires_at": now.Add(-time.Hour)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	with := func(value string) string {
+		return strings.Replace(orgRequestBody, `"started_at":0}`, `"started_at":0,"invitation":"`+value+`"}`, 1)
+	}
+	for _, value := range []string{token, token, strings.Repeat("e", 43)} { // three posts: the form allows three in ten minutes
+		if r := orgCall(h, "POST", orgRequestsPath, with(value)); r.Code != 201 {
+			t.Fatalf("%s: %d %s", value, r.Code, r.Body.String())
+		}
+	}
+	linked, err := o.db.Collection("organization_requests").CountDocuments(ctx, bson.M{"invitation_case": "case-1", "invitation_id": "inv-1"})
+	if err != nil || linked != 1 {
+		t.Fatalf("linked=%d err=%v", linked, err)
+	}
+	if n, _ := o.db.Collection("organization_requests").CountDocuments(ctx, bson.M{"invitation_case": bson.M{"$exists": true}}); n != 1 {
+		t.Fatalf("only the first use links: %d", n)
+	}
+}

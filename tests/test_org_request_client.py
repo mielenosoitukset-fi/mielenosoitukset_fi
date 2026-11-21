@@ -8,7 +8,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = """
-import { splitLinks, orgRequestBody, statusToken, readStatus } from './frontend/src/app/org-request.ts';
+import { splitLinks, orgRequestBody, statusToken, readStatus, invitationToken } from './frontend/src/app/org-request.ts';
 const reply = (status, body) => async (url, init) => { calls.push([url, init]); return { ok: status < 300, status, json: async () => body }; };
 const calls = [];
 const form = entries => { const f = new FormData(); for (const [k, v] of entries) f.append(k, v); return f; };
@@ -18,6 +18,8 @@ const out = {
   represent: orgRequestBody(form([['represents', 'yes'], ['access', 'invite'], ['invite_email', 'pj@a.fi'], ['links', 'a.fi'], ['consent', 'on'], ['applicant_role', 'pj']]), 5),
   suggest: orgRequestBody(form([['represents', 'no'], ['access', 'invite'], ['invite_email', 'pj@a.fi'], ['applicant_role', 'pj'], ['onboarding', 'on']]), 0),
   ownAccess: orgRequestBody(form([['represents', 'yes'], ['access', 'own_account'], ['invite_email', 'x@a.fi']]), 0),
+  invited: orgRequestBody(form([['represents', 'yes']]), 0, 'abcdefghijklmnopqrstuv'),
+  kutsu: [invitationToken('?kutsu=abcdefghijklmnopqrstuv'), invitationToken('?kutsu=short'), invitationToken('?x=1'), invitationToken('?kutsu=abcdefghijklmnop/../x')],
   token: statusToken('#abcdefghijklmnopqrstuv'),
   noHash: statusToken(''),
   shortToken: statusToken('#abc'),
@@ -54,3 +56,6 @@ def test_org_request_helpers():
     assert out["limited"] == {"kind": "error", "message": "Liian monta yritystä."}
     assert out["html"]["kind"] == out["network"]["kind"] == "error"
     assert out["init"] == ["/organisaatiot/hakemus", "POST", "same-origin", '{"token":"tok"}']
+    # The ?kutsu= token travels with the form, and anything that is not shaped like one is dropped.
+    assert out["invited"]["invitation"] == "abcdefghijklmnopqrstuv" and out["represent"]["invitation"] == ""
+    assert out["kutsu"] == ["abcdefghijklmnopqrstuv", "", "", ""]

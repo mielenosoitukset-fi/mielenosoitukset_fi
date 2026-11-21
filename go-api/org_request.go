@@ -84,6 +84,9 @@ type orgRequestInput struct {
 	Consent     bool     `json:"consent"`
 	Honeypot    string   `json:"homepage"`
 	StartedAtMS int64    `json:"started_at"`
+	// Invitation is the ?kutsu= token of an outbound invitation mail (O6). It only links
+	// the request to the invitation's case; it proves nothing about the organization.
+	Invitation string `json:"invitation"`
 }
 
 func orgRequestText(value string, min, max int, code, message string) (string, error) {
@@ -598,6 +601,7 @@ func (o *orgRequests) serveSubmit(ctx context.Context, w http.ResponseWriter, r 
 		applicationFailure(w, 503, "ORG_SAVE_FAILED", "Hakemusta ei voitu tallentaa. Yritä uudelleen.")
 		return
 	}
+	o.linkInvitation(ctx, id, input.Invitation, now)
 	if status == "unconfirmed" {
 		link := strings.TrimRight(o.config.Origin, "/") + orgRequestStatusPage + token
 		body, err := renderOrgRequestMail(applicant["name"].(string), fields["organization"].(bson.M)["name"].(string), link)
@@ -613,4 +617,32 @@ func (o *orgRequests) serveSubmit(ctx context.Context, w http.ResponseWriter, r 
 		}
 	}
 	writeJSON(w, 201, bson.M{"success": true, "id": id.Hex(), "status": status})
+}
+
+// linkInvitation ties a stored request to the outbound invitation its token belongs to
+// (docs/hallinto-city-grant.md, O6). The token is single use: the first request to claim
+// it records the invitation id and case, so Hallinto can link the two. A wrong, spent or
+// expired token changes nothing and says nothing, so it cannot be probed. Best effort.
+func (o *orgRequests) linkInvitation(ctx context.Context, request bson.ObjectID, token string, now time.Time) {
+	if !orgRequestToken.MatchString(token) {
+		return
+	}
+	var invitation struct {
+		InvitationID string `bson:"invitation_id"`
+		CaseID       string `bson:"case_id"`
+	}
+	err := o.db.Collection("org_invitations").FindOneAndUpdate(ctx,
+		bson.M{"token_hash": campaignDigest(token), "status": "sent", "expires_at": bson.M{"$gt": now}, "used_at": bson.M{"$exists": false}},
+		bson.M{"$set": bson.M{"used_at": now, "used_request": request}},
+		options.FindOneAndUpdate().SetProjection(bson.M{"invitation_id": 1, "case_id": 1})).Decode(&invitation)
+	if err != nil {
+		if !errors.Is(err, mongo.ErrNoDocuments) {
+			log.Print("Organization invitation could not be claimed")
+		}
+		return
+	}
+	if _, err := o.db.Collection("organization_requests").UpdateOne(context.WithoutCancel(ctx), bson.M{"_id": request},
+		bson.M{"$set": bson.M{"invitation_id": invitation.InvitationID, "invitation_case": invitation.CaseID}}); err != nil {
+		log.Print("Organization invitation could not be linked")
+	}
 }
