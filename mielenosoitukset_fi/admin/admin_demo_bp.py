@@ -6180,6 +6180,58 @@ def admin_cancel_demo(demo_id):
     return jsonify({"success": True, "message": "Mielenosoitus merkitty perutuksi."})
 
 
+@admin_demo_api_bp.route("/<demo_id>/restore", methods=["POST"])
+@login_required
+@admin_required
+@permission_required("EDIT_DEMO", _type="DEMONSTRATION")
+def admin_restore_demo(demo_id):
+    """Undo a cancellation. A reason is required and kept in the history."""
+    from mielenosoitukset_fi.utils.demo_cancellation import RestoreRefused, restore_demo
+
+    try:
+        demo_oid = _require_valid_objectid(demo_id)
+    except ValueError:
+        return jsonify({"success": False, "error": "Virheellinen tunniste"}), 400
+
+    demo = mongo.demonstrations.find_one({"_id": demo_oid})
+    if not demo:
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
+    _abort_if_demo_forbidden(demo["_id"], "EDIT_DEMO")
+
+    payload = request.get_json(silent=True) if request.is_json else request.form
+    reason = ((payload or {}).get("reason") or "").strip()
+    if len(reason) < 3:
+        return jsonify({"success": False, "error": _("Kerro lyhyesti, miksi peruutus kumotaan.")}), 400
+    reason = reason[:500]
+
+    try:
+        restored = restore_demo(
+            demo,
+            restored_by={
+                "user_id": str(current_user.id),
+                "source": "admin_api",
+                "username": getattr(current_user, "username", None),
+            },
+            reason=reason,
+        )
+    except RestoreRefused as exc:
+        return jsonify({"success": False, "error": str(exc)}), 409
+
+    if not restored:
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei ole merkitty perutuksi.")}), 409
+
+    updated_demo = mongo.demonstrations.find_one({"_id": demo_oid}) or demo
+    record_demo_change(
+        demo_id,
+        demo,
+        updated_demo,
+        action="restore_demo",
+        message=_("%(user)s kumosi mielenosoituksen peruutuksen") % {"user": _get_actor_label()},
+        extra_details={"reason": reason},
+    )
+    return jsonify({"success": True, "message": _("Peruutus kumottu. Mielenosoitus näkyy taas tulevana.")})
+
+
 @admin_demo_api_bp.route("/bulk_cancel", methods=["POST"])
 @login_required
 @admin_required
