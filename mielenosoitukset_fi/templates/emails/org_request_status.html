@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organisaatiotilihakemus</title>
+    <style>
+        body { background: #f4f4f4; color: #333333; margin: 0; padding: 0; }
+        .container { width: 100%; max-width: 600px; padding: 20px; background: #ffffff; margin: 0 auto; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); }
+        .header { text-align: center; padding: 10px 0; background: #0033A0; color: #ffffff; border-radius: 8px 8px 0 0; }
+        .content { margin: 20px; }
+        .reason { border-left: 4px solid #0033A0; padding: 4px 12px; background: #f4f4f4; white-space: pre-wrap; }
+        .footer { margin-top: 20px; text-align: center; font-size: 0.9em; color: #888888; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Organisaatiotilihakemus</h1>
+        </div>
+        <div class="content">
+            <p>Hei {{ applicant_name }},</p>
+            {% if status == "approved" %}
+            <p>Hakemuksesi organisaatiolle <strong>{{ organization_name }}</strong> on hyväksytty. Saat erillisen viestin, kun organisaatiotili on valmis.</p>
+            {% elif status == "rejected" %}
+            <p>Hakemuksesi organisaatiolle <strong>{{ organization_name }}</strong> on hylätty. Tiliä ei luotu.</p>
+            {% if message %}<p>Perustelu:</p><p class="reason">{{ message }}</p>{% endif %}
+            <p>Voit hakea uudelleen, kun hylkäyksen syy on korjattu.</p>
+            {% else %}
+            <p>Hakemuksesi organisaatiolle <strong>{{ organization_name }}</strong> tarvitsee lisätietoja.</p>
+            {% if message %}<p class="reason">{{ message }}</p>{% endif %}
+            <p>Vastaa tähän viestiin liittyvän hakemuksen tilasivun kautta tai lähetä uusi hakemus.</p>
+            {% endif %}
+            <p>Ystävällisin terveisin<br>Tiimimme</p>
+        </div>
+        <div class="footer">
+            <p>Tämä on automaattinen viesti. Älä vastaa tähän sähköpostiin.</p>
+        </div>
+    </div>
+</body>
+</html>

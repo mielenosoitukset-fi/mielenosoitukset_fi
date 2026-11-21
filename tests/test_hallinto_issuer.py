@@ -459,6 +459,40 @@ def test_organization_request_typed_in_by_a_member(owner, db):
         db.organization_requests.delete_many({"_id": {"$in": created}})
 
 
+def test_organization_request_status_mail_once(owner, db, monkeypatch):
+    from datetime import datetime, timezone
+    from mielenosoitukset_fi.users import hallinto_issuer
+    app, subject = owner
+    mails = []
+
+    class Sender:
+        def queue_email(self, **kwargs):
+            mails.append(kwargs)
+
+    monkeypatch.setattr(hallinto_issuer, "invite_sender", lambda: Sender())
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+    now = datetime.now(timezone.utc)
+    rid = db.organization_requests.insert_one({
+        "organization": {"name": "Rauha ry", "email": "info@rauha.example"},
+        "applicant": {"name": "Hakija", "email": "hakija@example.test"}, "represents": True,
+        "access": "organization_account", "status": "in_review", "status_token_hash": "x",
+        "created_at": now, "updated_at": now}).inserted_id
+    try:
+        step = {"id": str(rid), "status": "rejected", "message": "Ei sopiva.", "case": "c1"}
+        for _ in range(2):
+            assert _org_requests(app.test_client(), claims, "update", step).status_code == 200
+        assert _org_requests(app.test_client(), claims, "update", {**step, "status": "approved"}).status_code == 409
+        stored = db.organization_requests.find_one({"_id": rid})
+        assert len(stored["history"]) == 1
+        assert len(mails) == 1 and mails[0]["recipients"] == ["hakija@example.test"]
+        assert mails[0]["context"]["message"] == "Ei sopiva." and mails[0]["context"]["status"] == "rejected"
+    finally:
+        db.organization_requests.delete_one({"_id": rid})
+
+
 def test_organization_requests_for_hallinto(owner, db):
     from datetime import datetime, timezone
     app, subject = owner
