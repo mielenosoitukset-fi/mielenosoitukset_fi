@@ -521,6 +521,8 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             "represents": bool(row.get("represents")), "access": row.get("access"),
             "invite_email": row.get("invite_email"), "onboarding": bool(row.get("onboarding")),
             "status_message": row.get("status_message"), "case": row.get("hallinto_case"),
+            "organization_id": str(row["organization_id"]) if row.get("organization_id") else None,
+            "owner_state": row.get("owner_state"), "logo_state": row.get("logo_state"),
             "created_at": stamp(row.get("created_at")), "updated_at": stamp(row.get("updated_at")),
         }
 
@@ -576,5 +578,60 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         if not row:
             return jsonify(error="not_found"), 404
         return jsonify(item=_org_request_view(row))
+
+    @bp.post("/organization-requests/create-organization")
+    def organization_requests_create_organization():
+        """Carry out an approved request (slice O4): create the organization, copy
+        the logo and give the owner access as the request's access choice says.
+        Idempotent: a repeat finishes the steps that are missing. Hallinto has
+        decided; this only needs the request to be approved by the named case."""
+        from flask import current_app
+
+        from mielenosoitukset_fi.utils.org_request_owner import OwnerError, create_for_request
+        from mielenosoitukset_fi.utils.s3 import upload_image_fileobj
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        actor = User.from_db(db.users.find_one({"_id": ObjectId(payload["sub"])}))
+        if not (actor.has_full_permissions() or "CREATE_ORGANIZATION" in (actor.global_permissions or [])):
+            return jsonify(error="access_denied"), 403
+        request_id, case = payload.get("id"), payload.get("case")
+        if (not isinstance(request_id, str) or not _ACCOUNT_ID.fullmatch(request_id)
+                or not isinstance(case, str) or not 0 < len(case) <= 64):
+            return jsonify(error="invalid_request"), 400
+        row = db.organization_requests.find_one({"_id": ObjectId(request_id)}, {"status_token_hash": 0})
+        if not row:
+            return jsonify(error="not_found"), 404
+        base = f"{origin.scheme}://{origin.netloc}"
+
+        def send_invite(email, context):
+            invite_sender().queue_email(
+                template_name="invite_to_organization.html",
+                subject=f"Kutsu liittyä organisaatioon {context['organization_name']}",
+                recipients=[email],
+                context={"invite_url": base + url_for("users.user_orgs.accept_invite",
+                                                      organization_id=context["organization_id"]),
+                         "inviter_name": "Mielenosoitukset.fi",
+                         "organization_name": context["organization_name"]})
+
+        def send_account_invite(user_doc, email):
+            invite_sender().queue_email(
+                template_name="hallinto_account_invite.html",
+                subject="Organisaatiollesi on luotu tili mielenosoitukset.fi-palveluun",
+                recipients=[email],
+                context={"user_name": user_doc.get("displayname") or user_doc["username"],
+                         "username": user_doc["username"],
+                         "reset_url": base + url_for("users.auth.password_reset", token=generate_reset_token(email)),
+                         "reset_request_url": base + url_for("users.auth.password_reset_request")})
+
+        try:
+            result = create_for_request(
+                db, row, actor_id=payload["sub"], case=case, now=utcnow(),
+                send_invite=send_invite, send_account_invite=send_account_invite,
+                upload=upload_image_fileobj, bucket=current_app.config.get("S3_BUCKET"))
+        except OwnerError as failure:
+            return jsonify(error=failure.code), failure.status
+        return jsonify(**result)
 
     app.register_blueprint(bp)

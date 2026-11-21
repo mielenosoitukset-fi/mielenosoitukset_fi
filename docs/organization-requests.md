@@ -76,6 +76,14 @@ Per client: 3 submissions a minute and 10 an hour; 20 status reads a minute and
 counts against the site-wide signup mail caps (`signup_mail_cap.go`, route
 `org-request`). The panic switch closes the form.
 
+## Carrying out an approval (O4)
+
+Hallinto calls `/hallinto-oidc/organization-requests/create-organization` once a case's
+verified decision approves an organization's own request (see
+`docs/hallinto-isolated-issuer.md`). The code is `utils/org_request_owner.py`. The
+organization document only gets fields `Organization.from_dict` accepts, because any other
+key breaks every loader: the organization has no city field, so the city stays on the request.
+
 ## Open before activation
 
 - A TTL index or job removing unconfirmed requests after `expires_at`, and rejected
