@@ -817,7 +817,7 @@ def test_analytics_pages_use_shared_hero_metric_slot():
         "mielenosoitukset_fi/templates/admin_V2/macros.html"
     ).read_text(encoding="utf-8")
     pages = (
-        "mielenosoitukset_fi/templates/admin_V2/analytics.html",
+        "mielenosoitukset_fi/templates/admin_V2/site_analytics.html",
         "mielenosoitukset_fi/templates/admin_V2/stats.html",
     )
 
@@ -848,9 +848,9 @@ def test_analytics_pages_use_shared_theme_aware_components():
     analytics_css = Path(
         "mielenosoitukset_fi/static/css/admin/analytics.css"
     ).read_text(encoding="utf-8")
+    # The old most-viewed list and per-demo page now redirect to the one
+    # analytics hub, so only the 24 h chart page keeps this chart contract.
     pages = (
-        Path("mielenosoitukset_fi/templates/admin_V2/analytics.html"),
-        Path("mielenosoitukset_fi/templates/admin_V2/per_demo_analytics.html"),
         Path("mielenosoitukset_fi/templates/admin_V2/overall_24h_analytics.html"),
     )
 
@@ -871,13 +871,7 @@ def test_analytics_pages_use_shared_theme_aware_components():
         assert "getAdminChartColors" in source
         assert "admin:themechange" in source
 
-    per_demo = pages[1].read_text(encoding="utf-8")
-    assert "admin-workspace-summary" in per_demo
-    assert "admin-analytics__data-disclosure" in per_demo
-    assert "admin-data-view__table" in per_demo
-    assert "prefers-reduced-motion: reduce" in per_demo
-
-    overall = pages[2].read_text(encoding="utf-8")
+    overall = pages[0].read_text(encoding="utf-8")
     assert 'class="admin-page admin-analytics"' in overall
     assert "admin-filter-bar__primary" in overall
     assert "admin-analytics__data-disclosure" in overall
@@ -1094,7 +1088,7 @@ def test_every_full_admin_v2_page_uses_canonical_hero_macro():
     assert Path('mielenosoitukset_fi/templates/admin_V2/cities/review_dashboard.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/governance/security.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/organizations/history.html') in pages
-    assert len(pages) == 57
+    assert len(pages) == 55
     for locale in ("en", "fi", "sv"):
         catalog = Path(
             f"mielenosoitukset_fi/translations/{locale}/LC_MESSAGES/messages.po"
@@ -1113,7 +1107,6 @@ def test_full_admin_pages_use_breadcrumbs_and_standard_back_actions():
     from jinja2.visitor import NodeVisitor
 
     top_level_without_back = {
-        "analytics.html",
         "background_jobs.html",
         "cases/all.html",
         "dashboard.html",
