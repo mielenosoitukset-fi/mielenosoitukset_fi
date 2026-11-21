@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import secrets
+from mielenosoitukset_fi.utils.cities import CITY_KEY_TO_NAME
 from dataclasses import dataclass
 from datetime import UTC, timedelta
 from hmac import compare_digest
@@ -515,7 +516,10 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         stamp = lambda value: value.replace(tzinfo=UTC).isoformat() if value else None
         return {
             "id": str(row["_id"]), "status": row.get("status"),
-            "organization": {key: org.get(key) for key in ("name", "email", "links", "business_id", "description")},
+            "organization": {**{key: org.get(key) for key in ("name", "email", "links", "business_id", "description")},
+                             # The city's display name; the logo's bytes stay in Flask until O4 copies them.
+                             "city": CITY_KEY_TO_NAME.get(org.get("city"), org.get("city")) if org.get("city") else None,
+                             "has_logo": bool(row.get("logo"))},
             "applicant": {"name": applicant.get("name"), "email": applicant.get("email"), "role": applicant.get("role"),
                           "account": str(applicant["user_id"]) if applicant.get("user_id") else None},
             "represents": bool(row.get("represents")), "access": row.get("access"),
@@ -533,7 +537,7 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             return error
         rows = db.organization_requests.find(
             {"status": {"$in": list(_ORG_REQUEST_STATUSES)}},
-            {"status_token_hash": 0},
+            {"status_token_hash": 0, "logo.data": 0},
         ).sort("created_at", -1).limit(100)
         return jsonify(items=[_org_request_view(row) for row in rows])
 
@@ -571,7 +575,7 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
              **({"represents": True} if access else {})},
             {"$set": update, "$push": {"history": {"status": status, "at": update["updated_at"],
                                                    "by": payload["sub"], "access": access}}},
-            projection={"status_token_hash": 0}, return_document=True,
+            projection={"status_token_hash": 0, "logo.data": 0}, return_document=True,
         )
         if not row:
             return jsonify(error="not_found"), 404

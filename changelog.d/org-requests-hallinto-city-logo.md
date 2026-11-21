@@ -1,0 +1,1 @@
+- Hallinto now sees the city of an organization request and whether it came with a logo.
