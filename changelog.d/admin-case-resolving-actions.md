@@ -1,0 +1,1 @@
+- Jokaisella tapaustyypillä on nyt ratkaiseva toiminto: organisaation muutosehdotuksen voi käsitellä tai hylätä tapauksesta, peruutuspyynnön voi hylätä syyn kanssa, virheilmoituksesta pääsee korjaamaan mielenosoitusta, ja julkaisemattoman mielenosoituksen tapaus avaa esikatselun julkisen sivun sijaan.

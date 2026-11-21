@@ -8,10 +8,10 @@ def test_admin_logs_page_is_a_linked_finnish_log_center(admin_client):
 
     assert response.status_code == 200
     page = response.get_data(as_text=True)
-    assert "Hallinnan tapahtumaloki" in page
+    assert "Hallintatoiminnot" in page
     assert "Lokit ja tapahtumat" in page
     assert "Mielenosoitushistoria" in page
-    assert "Käyttöoikeushistoria" in page
+    assert "Hyväksyntöjen tapahtumaloki" in page
     assert "Tekninen audit-loki" in page
     assert 'name="q"' in page
     assert 'name="category"' in page

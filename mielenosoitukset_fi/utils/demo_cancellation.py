@@ -218,8 +218,27 @@ def request_cancellation_case(
     return case
 
 
-def trigger_cancellation_notifications(demo_doc: dict) -> None:
-    """Send in-app and email notifications to affected users."""
+_NOTICE_KINDS = {
+    "cancelled": {
+        "notification": "demo_cancelled",
+        "template": "demo_cancelled_notification.html",
+        "subject": "Mielenosoitus peruttu: {title}",
+    },
+    "restored": {
+        "notification": "demo_restored",
+        "template": "demo_restored_notification.html",
+        "subject": "Mielenosoitus ei olekaan peruttu: {title}",
+    },
+}
+
+
+def trigger_cancellation_notifications(demo_doc: dict, kind: str = "cancelled") -> None:
+    """Send in-app and email notifications to affected users.
+
+    ``kind`` is ``"cancelled"`` or ``"restored"``; both reach the same people
+    (attendees, reminder subscribers and series followers).
+    """
+    notice = _NOTICE_KINDS[kind]
 
     demo = mongo.demonstrations.find_one({"_id": _object_id(demo_doc.get("_id"))}) or demo_doc
     demo_id = _object_id(demo.get("_id"))
@@ -238,7 +257,7 @@ def trigger_cancellation_notifications(demo_doc: dict) -> None:
         if not user_id:
             continue
         try:
-            create_notification(user_id, "demo_cancelled", payload, detail_link)
+            create_notification(user_id, notice["notification"], payload, detail_link)
             user = mongo.users.find_one({"_id": user_id})
             if user and user.get("email"):
                 recipients.add(user["email"])
@@ -282,8 +301,8 @@ def trigger_cancellation_notifications(demo_doc: dict) -> None:
     for email in recipients:
         try:
             email_sender.queue_email(
-                template_name="demo_cancelled_notification.html",
-                subject=f"Mielenosoitus peruttu: {context['title']}",
+                template_name=notice["template"],
+                subject=notice["subject"].format(title=context["title"]),
                 recipients=[email],
                 context=context,
             )
@@ -340,4 +359,84 @@ def cancel_demo(
             )
 
     trigger_cancellation_notifications(current_demo)
+    return True
+
+
+class RestoreRefused(ValueError):
+    """The cancellation cannot be undone here; the message says where instead."""
+
+
+def restore_demo(
+    demo_doc: dict,
+    restored_by: Dict[str, object],
+    reason: str,
+) -> bool:
+    """Undo a cancellation: the demo is shown as going ahead again.
+
+    The previous cancellation (who, when, why) is kept in
+    ``cancellation_history`` together with who restored it and why, and the
+    cancellation case gets a history entry. People who were told about the
+    cancellation are told it is back on, unless the demo is not public or
+    already in the past. Returns False when the demo was not cancelled.
+    """
+
+    demo_id = _object_id(demo_doc.get("_id"))
+    current = mongo.demonstrations.find_one({"_id": demo_id}) or demo_doc
+    if not current.get("cancelled"):
+        return False
+    cancelled_by = current.get("cancelled_by") or {}
+    if isinstance(cancelled_by, dict) and cancelled_by.get("source") == "recurring_break":
+        # The series job would cancel it again on its next run.
+        raise RestoreRefused(
+            "Tämä tapahtuma peruttiin toistuvan sarjan taukopäivänä. "
+            "Poista taukopäivä sarjan asetuksista."
+        )
+
+    now = utcnow()
+    result = mongo.demonstrations.update_one(
+        {"_id": demo_id, "cancelled": True},
+        {
+            "$set": {
+                "cancelled": False,
+                "cancellation_requested": False,
+                "restored_at": now,
+                "restored_by": restored_by,
+                "restore_reason": reason,
+            },
+            "$unset": {"cancelled_at": "", "cancelled_by": "", "cancellation_reason": ""},
+            "$push": {
+                "cancellation_history": {
+                    "cancelled_at": current.get("cancelled_at"),
+                    "cancelled_by": current.get("cancelled_by"),
+                    "cancellation_reason": current.get("cancellation_reason"),
+                    "restored_at": now,
+                    "restored_by": restored_by,
+                    "restore_reason": reason,
+                }
+            },
+        },
+    )
+    if result.modified_count != 1:
+        return False
+
+    case_id = current.get("cancellation_case_id")
+    if case_id:
+        # Atomic push: a concurrent case save must not drop this entry.
+        mongo[Case.COLLECTION].update_one(
+            {"_id": case_id},
+            {
+                "$push": {
+                    "case_history": {
+                        "timestamp": now,
+                        "action": "restored",
+                        "mech_action": restored_by.get("source", "manual"),
+                        "metadata": {"reason": reason, "restored_by": restored_by},
+                    }
+                },
+                "$set": {"updated_at": now},
+            },
+        )
+
+    if current.get("approved") and not current.get("in_past") and not current.get("hide"):
+        trigger_cancellation_notifications(current, kind="restored")
     return True

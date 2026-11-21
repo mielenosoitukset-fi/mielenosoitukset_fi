@@ -3856,6 +3856,11 @@ def demo_command_center(demo_id):
     status_flags["can_cancel"] = not (
         status_flags["cancelled"] or status_flags["rejected"] or status_flags["taken_down"]
     )
+    cancelled_by_doc = demo_data.get("cancelled_by") if isinstance(demo_data.get("cancelled_by"), dict) else {}
+    status_flags["series_break"] = status_flags["cancelled"] and cancelled_by_doc.get("source") == "recurring_break"
+    status_flags["can_restore"] = (
+        status_flags["cancelled"] and not status_flags["series_break"] and not status_flags["rejected"]
+    )
 
     location_query = " ".join(
         part for part in [demo.address, demo.city if getattr(demo, "city", None) else None] if part
@@ -3871,6 +3876,7 @@ def demo_command_center(demo_id):
 
     action_endpoints = {
         "cancel": {"url": url_for("admin_demo_api.admin_cancel_demo", demo_id=demo_id_str), "method": "POST"},
+        "restore": {"url": url_for("admin_demo_api.admin_restore_demo", demo_id=demo_id_str), "method": "POST"},
         "recommend": {"url": url_for("admin_demo.recommend_demo", demo_id=demo_id_str), "method": "POST"},
         "unrecommend": {"url": url_for("admin_demo.unrecommend_demo", demo_id=demo_id_str), "method": "POST"},
         "screenshot": {"url": url_for("admin_demo.trigger_ss", demo_id=demo_id_str), "method": "GET"},
@@ -3880,7 +3886,7 @@ def demo_command_center(demo_id):
         "copy_as_new": url_for("admin_demo.create_demo", pohja=demo_id_str),
         "history": url_for("admin_demo.demo_edit_history", demo_id=demo_id_str),
         "audit": url_for("admin_demo.view_demo_audit_log", demo_id=demo_id_str),
-        "analytics": url_for("admin.demo_analytics", demo_id=demo_id_str),
+        "analytics": url_for("admin_site_analytics.site_demo_analytics", demo_id=demo_id_str),
     }
 
     permissions = {
@@ -6173,6 +6179,58 @@ def admin_cancel_demo(demo_id):
     )
 
     return jsonify({"success": True, "message": "Mielenosoitus merkitty perutuksi."})
+
+
+@admin_demo_api_bp.route("/<demo_id>/restore", methods=["POST"])
+@login_required
+@admin_required
+@permission_required("EDIT_DEMO", _type="DEMONSTRATION")
+def admin_restore_demo(demo_id):
+    """Undo a cancellation. A reason is required and kept in the history."""
+    from mielenosoitukset_fi.utils.demo_cancellation import RestoreRefused, restore_demo
+
+    try:
+        demo_oid = _require_valid_objectid(demo_id)
+    except ValueError:
+        return jsonify({"success": False, "error": "Virheellinen tunniste"}), 400
+
+    demo = mongo.demonstrations.find_one({"_id": demo_oid})
+    if not demo:
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei löytynyt")}), 404
+    _abort_if_demo_forbidden(demo["_id"], "EDIT_DEMO")
+
+    payload = request.get_json(silent=True) if request.is_json else request.form
+    reason = ((payload or {}).get("reason") or "").strip()
+    if len(reason) < 3:
+        return jsonify({"success": False, "error": _("Kerro lyhyesti, miksi peruutus kumotaan.")}), 400
+    reason = reason[:500]
+
+    try:
+        restored = restore_demo(
+            demo,
+            restored_by={
+                "user_id": str(current_user.id),
+                "source": "admin_api",
+                "username": getattr(current_user, "username", None),
+            },
+            reason=reason,
+        )
+    except RestoreRefused as exc:
+        return jsonify({"success": False, "error": str(exc)}), 409
+
+    if not restored:
+        return jsonify({"success": False, "error": _("Mielenosoitusta ei ole merkitty perutuksi.")}), 409
+
+    updated_demo = mongo.demonstrations.find_one({"_id": demo_oid}) or demo
+    record_demo_change(
+        demo_id,
+        demo,
+        updated_demo,
+        action="restore_demo",
+        message=_("%(user)s kumosi mielenosoituksen peruutuksen") % {"user": _get_actor_label()},
+        extra_details={"reason": reason},
+    )
+    return jsonify({"success": True, "message": _("Peruutus kumottu. Mielenosoitus näkyy taas tulevana.")})
 
 
 @admin_demo_api_bp.route("/bulk_cancel", methods=["POST"])

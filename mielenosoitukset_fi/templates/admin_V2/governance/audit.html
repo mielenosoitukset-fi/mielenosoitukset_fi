@@ -16,6 +16,7 @@
   ) }}
 
   {% include 'admin_V2/governance/_tabs.html' %}
+  <p class="admin-field__help mb-3"><i class="fa-solid fa-list-check me-1" aria-hidden="true"></i>{{ _('Muut lokit, kuten hallintatoiminnot ja mielenosoitushistoria:') }} <a href="{{ url_for('admin.logs') }}">{{ _('Lokit ja tapahtumat') }}</a></p>
 
   <section class="admin-workspace-toolbar" aria-label="{{ _('Tapahtumalokin suodattimet') }}">
     <form method="GET" action="{{ url_for('admin_governance.audit_log') }}" class="admin-filter-bar">

@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='fa/css/all.css') }}">
     {% block styles %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/product-tokens.css', v='20261110-pride-contrast-1') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/workspace.css', v='20261121-admin-ui-88') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/workspace.css', v='20261121-admin-ui-89') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/analytics.css', v='20261120-analytics-61') }}">
 </head>
 
@@ -286,13 +286,8 @@ function confirmAction(action, taskId) {
 
       {% if current_user.has_permission("VIEW_ANALYTICS") %}
         <li class="nav-item">
-          <a class="nav-link admin-sidebar-link {% if admin_endpoint == 'admin.stats' %}active{% endif %}" href="{{ url_for('admin.stats') }}">
-            <i class="fas fa-chart-line me-2"></i>{{ _('Tilastot') }}
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link admin-sidebar-link {% if admin_endpoint in ['admin_site_analytics.site_overview', 'admin_site_analytics.site_demo_analytics'] %}active{% endif %}" href="{{ url_for('admin_site_analytics.site_overview') }}">
-            <i class="fas fa-chart-simple me-2"></i>{{ _('Palvelun analytiikka') }}
+          <a class="nav-link admin-sidebar-link {% if admin_endpoint in ['admin.stats', 'admin.analytics_overall_24h', 'admin_site_analytics.site_overview', 'admin_site_analytics.site_demo_analytics'] %}active{% endif %}" href="{{ url_for('admin.stats') }}">
+            <i class="fas fa-chart-line me-2"></i>{{ _('Analytiikka') }}
           </a>
         </li>
       {% endif %}

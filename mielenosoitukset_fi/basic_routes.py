@@ -4368,11 +4368,15 @@ def init_routes(app):
         suggestion_id = str(result.inserted_id)
         
         
+        # The case links the organisation and the suggestion by id. It does
+        # not copy the suggestion, so the submitter's IP and user agent stay
+        # only on the suggestion record (purged by purge_suggestion_ips).
         Case.create_new(
             case_type="organization_edit_suggestion",
-            suggestion=suggestion,
-            submitter_id=current_user._id if current_user else None, # or ObjectId of submitter doc if you want
-            meta={"urgency": "high"}  # optional, can be extended
+            organization_id=ObjectId(org_id),
+            submitter_id=getattr(current_user, "_id", None) if current_user.is_authenticated else None,
+            submitter={"submitter_email": suggestion["meta"]["submitter_email"]} if suggestion["meta"]["submitter_email"] else None,
+            meta={"suggestion_id": suggestion_id},
         )
 
         # --- 💌 Email notifications ---

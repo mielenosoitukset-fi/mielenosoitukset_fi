@@ -1,18 +1,21 @@
 {% extends "admin_base.html" %}
 {% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
+{% from 'admin_V2/_analytics_hub.html' import analytics_tabs with context %}
 
-{% block title %}{{ _('Tilastot') }}{% endblock %}
+{% block title %}{{ _('Analytiikka') }}{% endblock %}
 
 {% block main_content %}
 <section class="admin-page admin-workspace">
   {{ admin_page_hero(
     _('Miten palvelulla menee?'),
     _('Täältä näet palvelun tärkeimmät luvut ja sinulle näkyvien mielenosoitusten katselukerrat yhdessä paikassa.'),
-    _('Tilastot'),
-    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Tilastot'), none)],
+    _('Analytiikka'),
+    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Analytiikka'), none)],
     metric_value=last_updated,
     metric_label=_('Viimeisin päivitys')
   ) }}
+
+  {{ analytics_tabs('stats') }}
 
   <section class="admin-workspace-summary" aria-label="{{ _('Tilastojen yhteenveto') }}">
     {% if show_global_counts %}
@@ -66,19 +69,17 @@
       <span class="admin-result-summary">{{ _('Näytetään %(start)s–%(end)s / %(count)s mielenosoituksesta', start=range_start, end=range_end, count=analytics_count) }}</span>
       {% if show_global_counts %}
       <div class="admin-form-actions">
-        <a href="{{ url_for('admin_site_analytics.site_overview') }}" class="btn btn-primary"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i>{{ _('Palvelun analytiikka') }}</a>
-        <a href="{{ url_for('admin.analytics_overall_24h') }}" class="btn btn-primary"><i class="fa-solid fa-clock" aria-hidden="true"></i>{{ _('Viimeiset 24 h') }}</a>
         <a href="{{ url_for('admin.analytics_overall_24h') }}" class="btn btn-secondary" id="matomo-link" data-live-url="{{ url_for('admin.stats_matomo_live') }}" data-unavailable-label="{{ _('Matomo ei saatavilla') }}" data-visitor-label="{{ _('kävijää') }}"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span data-matomo-label>{{ _('Matomo') }}</span></a>
       </div>
       {% endif %}
     </div>
     <div class="admin-data-view__viewport">
       <table class="admin-data-view__table">
-        <thead><tr><th>{{ _('Mielenosoitus') }}</th><th>{{ _('Päivämäärä') }}</th><th>{{ _('Katselukerrat') }}</th></tr></thead>
+        <thead><tr><th>{{ _('Mielenosoitus') }}</th><th>{{ _('Päivämäärä') }}</th><th>{{ _('Katselukerrat (kaikki ajat)') }}</th></tr></thead>
         <tbody>
           {% for row in rows %}
           <tr>
-            <td><a href="{{ url_for('admin.demo_analytics', demo_id=row.id) }}"><strong>{{ row.title or row.id }}</strong></a><div class="admin-field__help"><code>{{ row.id }}</code></div></td>
+            <td><a href="{{ url_for('admin_site_analytics.site_demo_analytics', demo_id=row.id) }}"><strong>{{ row.title or row.id }}</strong></a><div class="admin-field__help"><code>{{ row.id }}</code></div></td>
             <td>{{ row.date or '—' }}</td>
             <td><span class="admin-status-badge admin-status-badge--info"><i class="fa-solid fa-eye" aria-hidden="true"></i>{{ row.views }}</span></td>
           </tr>

@@ -1,26 +1,22 @@
 {% extends "admin_base.html" %}
 {% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
+{% from 'admin_V2/_log_hub.html' import log_hub_tabs with context %}
 
-{% block title %}{{ _('Hallinnan tapahtumaloki') }}{% endblock %}
+{% block title %}{{ _('Hallintatoiminnot') }}{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/audit.css', v='20260920-admin-ui-58') }}">{% endblock %}
 
 {% block main_content %}
 <section class="admin-page admin-workspace">
   {{ admin_page_hero(
-    _('Hallinnan tapahtumaloki'),
+    _('Hallintatoiminnot'),
     _('Selvitä, kuka teki mitä ja milloin. Lokin katselu kirjataan tietosuojan ja jäljitettävyyden vuoksi.'),
-    _('Lokit ja tietosuoja'),
-    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Hallinnan tapahtumaloki'), none)],
+    _('Lokit ja tapahtumat'),
+    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Lokit ja tapahtumat'), none)],
     back_url=url_for('admin.admin_dashboard'),
     back_label=_('Hallintapaneeli'),
   ) }}
 
-  <nav class="admin-section-tabs" aria-label="{{ _('Lokilähteet') }}">
-    <a href="{{ url_for('admin.logs') }}" aria-current="page"><i class="fa-solid fa-list-check" aria-hidden="true"></i>{{ _('Hallintatoiminnot') }}</a>
-    <a href="{{ url_for('admin_demo.audit_timeline') }}"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i>{{ _('Mielenosoitushistoria') }}</a>
-    {% if current_user.global_admin or current_user.has_permission('VIEW_CLEARANCE_AUDIT') %}<a href="{{ url_for('admin_governance.audit_log') }}"><i class="fa-solid fa-user-shield" aria-hidden="true"></i>{{ _('Käyttöoikeushistoria') }}</a>{% endif %}
-    {% if current_user.global_admin %}<a href="{{ url_for('admin_demo.view_super_audit_logs') }}"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>{{ _('Tekninen audit-loki') }}</a>{% endif %}
-  </nav>
+  {{ log_hub_tabs('admin') }}
 
   <section class="admin-workspace-toolbar" aria-label="{{ _('Hallintalokin suodattimet') }}">
     <form method="GET" action="{{ url_for('admin.logs') }}" class="admin-filter-bar">
