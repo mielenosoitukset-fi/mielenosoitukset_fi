@@ -43,6 +43,9 @@ _CONFIG_PATH.write_text(
             "DEBUG": False,
             "TESTING": True,
             "ENABLE_CHAT": False,
+            # Legacy site-admin rights forms stay covered; tests that need the
+            # Hallinto lock turn it on per test.
+            "ADMIN_RIGHTS_IN_HALLINTO": False,
             "ENABLE_EMAIL_WORKER": False,
             "ENABLE_PANIC_THREAD": False,
             "ENABLE_BACKGROUND_JOBS": True,

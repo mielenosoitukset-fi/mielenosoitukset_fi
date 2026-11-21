@@ -4844,3 +4844,16 @@ th.sortable.desc::after {
     min-height: 0;
   }
 }
+
+/* User edit: read-only admin rights (managed in Hallinto) */
+.admin-rights-summary { display: grid; gap: .75rem; margin: 0 0 1rem; }
+.admin-rights-summary > div { display: grid; grid-template-columns: minmax(8rem, 12rem) 1fr; gap: .5rem 1rem; padding: .75rem 0; border-bottom: 1px solid var(--admin-workspace-border); }
+.admin-rights-summary dt { font-weight: 600; color: var(--admin-workspace-muted); }
+.admin-rights-summary dd { margin: 0; color: var(--admin-workspace-text); }
+.admin-rights-summary ul { margin: .25rem 0 0; padding-left: 1.1rem; }
+.admin-rights-readonly .btn i { margin-right: .4rem; }
+.admin-rights-dialog { max-width: 32rem; width: calc(100% - 2rem); border: 1px solid var(--admin-workspace-border); border-radius: 12px; padding: 1.5rem; background: var(--admin-workspace-surface, #fff); color: var(--admin-workspace-text); }
+.admin-rights-dialog::backdrop { background: rgba(15, 23, 42, .55); }
+.admin-rights-dialog h2 { font-size: 1.25rem; margin: 0 0 .75rem; }
+.admin-rights-dialog__actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+@media (max-width: 560px) { .admin-rights-summary > div { grid-template-columns: 1fr; } }
