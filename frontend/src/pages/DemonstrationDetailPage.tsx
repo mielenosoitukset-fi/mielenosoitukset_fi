@@ -178,7 +178,7 @@ function SeriesNavigation({ props }: { props: DetailProps }) {
 
 /** Portable screen: host supplies routes, translations and navigation adapter. */
 export function DemonstrationDetailPage(props: DetailProps) {
-  const { state, retry } = useDemonstration(props.endpoint, props.id, props.locale);
+  const { state, retry } = useDemonstration(props.endpoint, props.id, props.locale, props.preview?.event);
   useEffect(() => { if (state.status === 'ready') props.onLoaded?.(state.event); }, [state, props.onLoaded]);
   let content: ReactNode;
   if (state.status === 'loading') content = <div className="detail-loading" role="status" aria-busy="true"><span className="detail-loading__bar" />{props.messages.loading}</div>;

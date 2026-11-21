@@ -91,6 +91,7 @@ function assetTags(manifest) {
     register: routeAssets('src/app/RegisterScreen.tsx'),
     passwordReset: routeAssets('src/app/PasswordResetScreen.tsx'),
     registerNextSteps: routeAssets('src/app/RegisterNextStepsScreen.tsx'),
+    logout: routeAssets('src/app/LogoutScreen.tsx'),
     head: [...css].map((file) => `<link rel="stylesheet" href="/app-assets/${file}">`)
       .concat([...modules].filter((file) => file.endsWith('.js'))
         .map((file) => `<link rel="modulepreload" href="/app-assets/${file}">`)).join('\n'),

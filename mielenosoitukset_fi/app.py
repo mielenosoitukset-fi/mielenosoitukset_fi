@@ -71,8 +71,10 @@ def create_app(config_overrides=None) -> Flask:
 
     app.jinja_env.globals["frontend_assets"] = frontend_assets
     from mielenosoitukset_fi.utils.flashing import unique_flashed_messages
+    from mielenosoitukset_fi.utils.secret_urls import url_carries_secret
     # Templates show each queued notice once.
     app.jinja_env.globals["get_flashed_messages"] = unique_flashed_messages
+    app.jinja_env.globals["url_carries_secret"] = url_carries_secret
     app.config.from_object("config.Config")  # Load configurations from 'config.Config'
     if config_overrides:
         app.config.update(config_overrides)

@@ -47,6 +47,7 @@ import PasswordResetRequestScreen from './PasswordResetRequestScreen';
 import RegisterScreen from './RegisterScreen';
 import PasswordResetScreen from './PasswordResetScreen';
 import RegisterNextStepsScreen from './RegisterNextStepsScreen';
+import LogoutScreen from './LogoutScreen';
 import LoginScreen from './LoginScreen';
 import { loginLegacyLocation } from './login-route';
 import { accountCopy } from './account-settings-route';
@@ -101,7 +102,7 @@ export type RenderInput = {
   headOnly?: boolean;
 };
 
-export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; registerNextSteps?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
+export type RenderAssets = { head: string; scripts: string; listing?: string; organization?: string; cities?: string; today?: string; submit?: string; calendar?: string; calendarYear?: string; godAuth?: string; campaign?: string; fundraising?: string; contact?: string; cityAdmin?: string; organizationFill?: string; suggestChange?: string; cancelLink?: string; volunteerConfirm?: string; emailConfirm?: string; orgInvite?: string; developer?: string; profile?: string; accountSettings?: string; passwordResetRequest?: string; login?: string; notifications?: string; register?: string; logout?: string; registerNextSteps?: string; passwordReset?: string; status?: string; pride?: string; information?: string };
 
 export type RenderResult = {
   status: number;
@@ -237,7 +238,7 @@ ${options.jsonLd ? `<script type="application/ld+json">${serialize(options.jsonL
 <noscript><link rel="stylesheet" href="https://cdn2.mielenosoitukset.fi/vendor/bootstrap/5.3.0/bootstrap.min.css" crossorigin></noscript>
 <link rel="stylesheet" href="/static/css/home.css?v=20261112-quick-picks">
 <link rel="stylesheet" href="/static/css/product-tokens.css?v=20261110-pride-contrast-1">
-<link rel="stylesheet" href="/static/css/user-workspace.css?v=20261120-user-workspace-9">
+<link rel="stylesheet" href="/static/css/user-workspace.css?v=20261120-user-workspace-10">
 <link rel="stylesheet" href="/static/css/public-header.css?v=20261027-react-header-1">
 <link rel="stylesheet" href="/static/css/flash.css?v=20261110-inline-spacing-1">
 <link rel="stylesheet" href="/static/css/public_hero.css?v=20261015-hero-width-1">
@@ -600,6 +601,19 @@ export async function renderPage(input: RenderInput, assets: RenderAssets): Prom
     noscript = '';
     appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
       serverPage={<RegisterNextStepsScreen config={config} />} />);
+  }
+
+  if (route.name === 'logout') {
+    // Like Flask: a signed-out visitor goes to the login page. The form carries this account's token.
+    if (!session.authenticated && !session.unverified) return { status: 302, html: '', redirect: config.urls.login,
+      headers: { 'Cache-Control': 'private, no-store' } };
+    headers['Cache-Control'] = 'private, no-store';
+    headers['X-Robots-Tag'] = 'noindex, nofollow';
+    extraHead = (assets.logout ?? '') + `<link rel="stylesheet" href="${DETAIL_STYLESHEET}">`;
+    // The form is plain HTML that posts to Flask, so it works without JavaScript.
+    noscript = '';
+    appMarkup = renderToString(<App config={config} session={session} route={route} path={input.path}
+      serverPage={<LogoutScreen config={config} session={session} />} />);
   }
 
   if (route.name === 'register') {

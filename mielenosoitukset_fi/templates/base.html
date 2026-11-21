@@ -5,6 +5,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  {% if url_carries_secret() %}<meta name="referrer" content="no-referrer" />{% endif %}
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -127,7 +128,7 @@
 
   {% block styles %}{% endblock %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/product-tokens.css', v='20261110-pride-contrast-1') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/user-workspace.css', v='20261120-user-workspace-9') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/user-workspace.css', v='20261120-user-workspace-10') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/public-header.css', v='20261027-react-header-1') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css', v='20260928-campaign-feedback-1') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/public_hero.css', v='20261015-hero-width-1') }}">
@@ -744,7 +745,8 @@ body.banner-closed {
 -->
 
   <!-- Vendor scripts (deferred to avoid blocking initial render) -->
-  {% if config.get('MATOMO_ENABLED', true) %}
+  {# Pages whose address carries a one-time token never load the third-party tracker. #}
+  {% if config.get('MATOMO_ENABLED', true) and not url_carries_secret() %}
   {# Legacy client-side Matomo tracker. Built-in server-side analytics now cover basic pageviews; disable MATOMO_ENABLED in config to stop double-counting. #}
   <script src="{{ url_for('static', filename='js/matomo.js') }}" async></script>
   {% endif %}

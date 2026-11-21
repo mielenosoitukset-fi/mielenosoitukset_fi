@@ -40,4 +40,10 @@ export type DetailProps = {
   recurringTargetId?: string | null; recurringFollowing?: boolean;
   onOrganizationFollowChange?: (id: string, following: boolean) => void;
   onRecurringFollowChange?: (following: boolean) => void;
+  /**
+   * Admin preview of an event the public API does not serve yet. `event` is the
+   * API response, preloaded by the server. The page renders exactly as public,
+   * but sends no requests, records no view and its controls do nothing.
+   */
+  preview?: { event: unknown };
 };

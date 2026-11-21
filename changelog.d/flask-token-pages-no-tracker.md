@@ -1,0 +1,1 @@
+- Pages whose address carries a one-time token (email confirmation, password reset, cancel and confirm links) no longer load the Matomo tracker, and they tell the browser not to send the address on as a referrer.

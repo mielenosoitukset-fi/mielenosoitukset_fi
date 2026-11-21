@@ -63,7 +63,6 @@ from mielenosoitukset_fi.utils.site_analytics import (
     record_web_vital,
 )
 from mielenosoitukset_fi.utils.wrappers import (
-    depracated_endpoint,
     has_demo_permission,
     permission_required,
 )
@@ -3118,10 +3117,21 @@ def init_routes(app):
         # The public React shell does only a projected metadata/visibility read.
         # API content is fetched directly by the browser, never before Flask TTFB.
         if current_app.config.get("PUBLIC_DETAIL_REACT_ENABLED", False):
-            from mielenosoitukset_fi.utils.react_detail import render_public_detail
+            from mielenosoitukset_fi.utils.react_detail import (
+                render_demo_preview, render_public_detail, resolve_any,
+            )
             response = render_public_detail(mongo, demo_id, _current_demo_language(), recurring_context)
             if response is not None:
                 return response
+            # Staff opening an event that is not public: the same React page as
+            # the public will see, read-only, for staff who may view this event.
+            document = resolve_any(mongo, demo_id)
+            if not document or not (
+                "VIEW_DEMO" in (getattr(current_user, "global_permissions", None) or [])
+                or has_demo_permission(current_user, document["_id"], "VIEW_DEMO")
+            ):
+                abort(404)
+            return render_demo_preview(document, _current_demo_language())
 
         # Load demonstration and permission checks first (so we don't serve cached 401/404)
         try:
@@ -3844,45 +3854,11 @@ def init_routes(app):
 
     @app.route("/demonstration/<demo_id>/some", methods=["GET"])
     @permission_required("VIEW_DEMO")
-    @depracated_endpoint
     def preview(demo_id):
-        """
-        Display details of a specific demonstration and save map coordinates if available.
-        
-        .. deprecated:: 3.0
-            This route will be removed in the next version.
-        """
-        result = demonstrations_collection.find_one(
-            {
-                "$or": [
-                    {"_id": ObjectId(demo_id)},
-                    {"aliases": {"$in": [ObjectId(demo_id)]}},
-                ]
-            }
-        )
-        if result:
-            demo = Demonstration.from_dict(result)
-        else:
+        """Old preview address; the preview is now the admin React preview."""
+        if not ObjectId.is_valid(demo_id):
             abort(404)
-        if not demo:
-            flash_message(
-                _("Mielenosoitusta ei löytynyt tai sitä ei ole vielä hyväksytty."),
-                "error",
-            )
-            return redirect(url_for("demonstrations"))
-        if not demo.approved and not current_user.has_permission("VIEW_DEMO"):
-            abort(401)
-            
-        if not demo.longitude:
-            fetch_geocode_data(demo)
-                
-        demo = _localized_demo_copy(
-            Demonstration.to_dict(demo, True), _current_demo_language()
-        )
-        log_demo_view(
-            demo_id, current_user._id if current_user.is_authenticated else None
-        )
-        return render_template("preview.html", demo=demo)
+        return redirect(url_for("admin_demo.preview_demo", demo_id=demo_id))
         
     from math import ceil
     from datetime import datetime

@@ -10,12 +10,12 @@ def test_each_recipient_gets_private_preview_and_the_case_link(app, db, seeded_d
         messages = personalize_moderation_messages(db, demo, [{'template_name': 'admin_demo_approve_notification.html',
             'subject': 'Moderation QA', 'recipients': ['alice@example.test', 'bob@example.test'], 'context': {'title': 'QA'}}])
     assert len(messages) == 2
-    # Decisions happen in the case (20 Nov 2026): the email link is the case link, no bearer token.
-    assert messages[0]['context']['approve_link'] == messages[1]['context']['approve_link']
-    assert messages[0]['context']['approve_link'].endswith(f'/admin/demo/{demo}/decide')
+    # Each known admin gets a private case link scoped to this demo (20 Nov 2026).
+    assert messages[0]['context']['approve_link'] != messages[1]['context']['approve_link']
+    assert all('/admin/demo/case_link/' in m['context']['approve_link'] for m in messages)
     assert messages[0]['context']['preview_link'] != messages[1]['context']['preview_link']
     records = list(db.magic_links.find({'intended_recipient': {'$ne': None}, 'demo_id': str(demo)}))
-    assert {row['action'] for row in records} == {'preview'}
+    assert {row['action'] for row in records} == {'preview', 'case'}
     assert {row['intended_recipient']['username'] for row in records} == {'alice', 'bob'}
     for message in messages:
         assert '@' not in message['context']['preview_link']
