@@ -144,9 +144,10 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
 
           <fieldset className="city-admin-fieldset">
             <legend>Sinun tietosi</legend>
+            {signedIn ? <p className="city-admin-hint">Olet kirjautunut sisään. Käytämme tilisi sähköpostiosoitetta, ja näet hakemuksen tilan tällä sivulla.</p> : null}
             <label htmlFor="org-request-applicant">Nimi</label>
             <input id="org-request-applicant" name="applicant_name" required minLength={2} maxLength={120} autoComplete="name" />
-            {signedIn ? <p className="city-admin-hint">Olet kirjautunut sisään. Käytämme tilisi sähköpostiosoitetta, ja näet hakemuksen tilan tällä sivulla.</p> : <>
+            {signedIn ? null : <>
               <label htmlFor="org-request-applicant-email">Sähköpostiosoite</label>
               <p className="city-admin-hint" id="org-request-applicant-email-hint">Lähetämme tähän osoitteeseen vahvistuslinkin. Linkistä näet myös hakemuksen tilan.</p>
               <input id="org-request-applicant-email" name="applicant_email" type="email" required maxLength={254} autoComplete="email"
@@ -154,13 +155,13 @@ export default function OrgRequestScreen({ session }: { session: SessionSummary 
             </>}
             {represents ? <>
               <label htmlFor="org-request-role">Roolisi organisaatiossa (vapaaehtoinen)</label>
-              <input id="org-request-role" name="applicant_role" maxLength={120} placeholder="Esimerkiksi hallituksen jäsen tai tiedottaja" />
+              <input id="org-request-role" name="applicant_role" maxLength={120} placeholder="Esim. hallituksen jäsen" />
             </> : null}
           </fieldset>
 
           {represents ? <fieldset className="city-admin-fieldset">
-            <legend>Kuka hallinnoi organisaatiota palvelussa?</legend>
-            <p className="city-admin-hint">Hallinnoija voi kutsua muita organisaation jäseniä omilla tileillään. Valintaa voi muuttaa käsittelyn aikana.</p>
+            <legend>Tilin hallinnointi</legend>
+            <p className="city-admin-hint">Kuka hallinnoi organisaatiota palvelussa? Hallinnoija voi kutsua muita organisaation jäseniä omilla tileillään. Valintaa voi muuttaa käsittelyn aikana.</p>
             <div className="org-request-choices">
               <label className="org-request-choice">
                 <input type="radio" name="access" value="organization_account" checked={access === 'organization_account'} onChange={() => setAccess('organization_account')} />

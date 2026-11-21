@@ -78,3 +78,11 @@
 .org-request-page .flash-message--inline {
   box-sizing: border-box;
 }
+
+.org-request-status > :first-child {
+  margin-top: 0;
+}
+
+.org-request-page .city-admin-fieldset > .city-admin-hint:first-of-type {
+  margin-top: 0.25rem;
+}
