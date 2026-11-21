@@ -20,7 +20,7 @@ def _install(tmp_path, **env):
                 "SYSTEMCTL": str(fake), "LOG": str(log),
                 "OFFSITE_RECIPIENTS": str(tmp_path / "etc/backup-recipients.txt"),
                 "OFFSITE_OUTBOX": str(tmp_path / "outbox"), "OFFSITE_PULL_HOME": str(tmp_path / "pull"),
-                "BACKUP_SKIP_ACCOUNTS": "1", **env}
+                "BACKUP_SKIP_ACCOUNTS": "1", "SSHD": str(tmp_path / "no-sshd"), **env}
     result = subprocess.run(["bash", str(BACKUP / "install_units.sh")], env=full_env,
                             capture_output=True, text=True)
     calls = log.read_text().splitlines() if log.exists() else []
@@ -137,3 +137,39 @@ def test_age_check_fails_without_full_archive_or_directory(tmp_path):
 def test_age_check_fails_when_full_is_a_week_late(tmp_path):
     result = _age_check(tmp_path, {"m-core-a.archive.gz": 2, "m-full-a.archive.gz": 197})
     assert result.returncode == 1 and "newest full archive is 197 hours old" in result.stderr
+
+
+def _fake_sshd(tmp_path, accept=True):
+    """A stand-in sshd: -T prints AllowUsers lines including any drop-in, -t validates."""
+    dropin = tmp_path / "sshd_config.d/60-moso-offsite.conf"
+    fake = tmp_path / "sshd"
+    fake.write_text(
+        "#!/usr/bin/env bash\n"
+        "if [[ $1 == -t ]]; then " + ("exit 0" if accept else "exit 1") + "; fi\n"
+        "echo 'allowusers root'\n"
+        f"[[ -f {dropin} ]] && sed -n 's/^AllowUsers /allowusers /p' {dropin}\n"
+        "exit 0\n")
+    fake.chmod(0o755)
+    (tmp_path / "sshd_config.d").mkdir(exist_ok=True)
+    (tmp_path / "sshd_config").write_text("Include " + str(tmp_path / "sshd_config.d") + "/*.conf\n")
+    return {"SSHD": str(fake), "OFFSITE_SSHD_DROPIN": str(dropin),
+            "OFFSITE_SSHD_CONFIG": str(tmp_path / "sshd_config")}, dropin
+
+
+def test_pull_user_is_allowed_in_sshd_from_the_jump_host_only(tmp_path):
+    env, dropin = _fake_sshd(tmp_path)
+    result, _, calls = _install(tmp_path, **env)
+    assert result.returncode == 0, result.stderr
+    assert dropin.read_text().splitlines()[-1] == "AllowUsers moso-offsite@10.20.0.1"
+    assert "reload ssh" in calls
+    # Second deploy: already allowed, no rewrite and no reload.
+    result, _, calls = _install(tmp_path, **env)
+    assert "reload ssh" not in calls and "allowed moso-offsite" not in result.stdout
+
+
+def test_rejected_sshd_dropin_is_removed(tmp_path):
+    env, dropin = _fake_sshd(tmp_path, accept=False)
+    result, _, calls = _install(tmp_path, **env)
+    assert result.returncode == 0, result.stderr
+    assert not dropin.exists()
+    assert "reload ssh" not in calls and "did not accept" in result.stdout
