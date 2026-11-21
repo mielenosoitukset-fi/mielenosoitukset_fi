@@ -63,6 +63,11 @@ func flaskAnswer(w http.ResponseWriter, r *http.Request) {
 		// enforce_required_identity_change answers every /api/ request of a flagged account like this.
 		w.WriteHeader(428)
 		w.Write([]byte(`{"status":"error","message":"Käyttäjänimi ja näyttönimi on vaihdettava ennen palvelun käyttöä.","redirect":"https://evil.example/steal"}`))
+	case "session=forcedpw":
+		// /api/session answers 200 for a flagged account; the flags are in the body.
+		w.Write([]byte(`{"authenticated":true,"actor_id":"` + testActor + `","role":"user","permissions":{"EDIT_DEMO":true},"forced":{"password":true,"identity":true}}`))
+	case "session=forcedid":
+		w.Write([]byte(`{"authenticated":true,"actor_id":"` + testActor + `","role":"user","permissions":{"EDIT_DEMO":true},"forced":{"password":false,"identity":true}}`))
 	case "session=nobool":
 		w.Write([]byte(`{"role":"admin"}`))
 	case "session=badactor":
@@ -339,5 +344,32 @@ func TestForcedIdentityChangeIsRefusedWithAFixedRedirect(t *testing.T) {
 	// Other failures stay 503, anonymous visitors stay 401.
 	if w := get(resolver.RequireAuthenticated(ok), "/x", "session=error"); w.Code != 503 {
 		t.Errorf("a 500 from Flask must stay 503, got %d", w.Code)
+	}
+}
+
+func TestForcedStepsInTheSessionAnswerAreRefused(t *testing.T) {
+	config, _ := fakeFlask(t, flaskAnswer)
+	resolver, _ := newSessionResolver(config)
+	ok := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Error("handler must not run"); w.WriteHeader(204) })
+	cases := map[string][2]string{
+		"session=forcedpw": {"password change required", "/users/auth/forced_pwd_reset/"},
+		"session=forcedid": {"identity change required", "/users/auth/forced_identity_change/"},
+	}
+	for cookie, want := range cases {
+		for name, h := range map[string]http.Handler{
+			"authenticated": resolver.RequireAuthenticated(ok),
+			"permission":    resolver.RequirePermission("EDIT_DEMO", nil, ok),
+		} {
+			w := get(h, "/x", cookie)
+			var body map[string]string
+			if w.Code != 403 || json.Unmarshal(w.Body.Bytes(), &body) != nil || body["error"] != want[0] || body["redirect"] != want[1] {
+				t.Errorf("%s %s: got %d %q", cookie, name, w.Code, w.Body.String())
+			}
+		}
+	}
+	// A normal account with the flags off still passes.
+	pass := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) })
+	if w := get(resolver.RequireAuthenticated(pass), "/x", "session=member"); w.Code != 204 {
+		t.Fatalf("member: got %d", w.Code)
 	}
 }

@@ -47,7 +47,8 @@ export const forcedIdentityCopy = {
 };
 
 export const forcedCommonCopy = {
-  help: 'Tarvitsetko apua? Ota yhteyttä: tuki@mielenosoitukset.fi',
+  help: 'Tarvitsetko apua? Ota yhteyttä:',
+  helpEmail: 'tuki@mielenosoitukset.fi',
   logoutLead: 'Etkö halua jatkaa nyt?',
   logout: 'Kirjaudu ulos',
 };

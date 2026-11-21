@@ -9,6 +9,6 @@ export function ForcedLogoutCard({ session, logoutUrl }: { session: SessionSumma
       {session.logoutToken && <input type="hidden" name="logout_token" value={session.logoutToken} />}
       <button type="submit" className="detail-button">{copy.logout}</button>
     </form>
-    <p className="auth-hint">{copy.help}</p>
+    <p className="auth-hint">{copy.help} <a href={`mailto:${copy.helpEmail}`}>{copy.helpEmail}</a></p>
   </section>;
 }

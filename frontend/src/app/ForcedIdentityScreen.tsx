@@ -70,9 +70,8 @@ export default function ForcedIdentityScreen({ config, session }: { config: AppC
     <FlashNotices notices={notices} />
     {error > 0 && <p ref={errorBox} tabIndex={-1} className="flash-message flash-message--inline flash-error" role="alert">
       <span className="flash-text">{copy.fixErrors}</span></p>}
-    <form className="auth-form register-form" action={forcedIdentityPath} method="post" onSubmit={onSubmit}>
+    <form className="auth-form register-form" action={forcedIdentityPath} method="post" noValidate onSubmit={onSubmit}>
       <section className="public-prose-card auth-card register-card">
-        <p className="auth-hint">{copy.reserved}</p>
         <label htmlFor="forced-username">{copy.username}</label>
         <input type="text" id="forced-username" name="username" required minLength={3} maxLength={30}
           autoComplete="username" autoCapitalize="none" spellCheck={false}
@@ -81,7 +80,7 @@ export default function ForcedIdentityScreen({ config, session }: { config: AppC
           value={username} onChange={event => setUsername(event.target.value)} />
         <p className={`register-status register-status--${usernameState}`} id="forced-username-status" aria-live="polite">
           {usernameText[usernameState]}</p>
-        <p className="auth-hint" id="forced-username-hint">{copy.usernameHint}</p>
+        <p className="auth-hint" id="forced-username-hint">{copy.usernameHint} {copy.reserved}</p>
         <label htmlFor="forced-displayname">{copy.displayname}</label>
         <input type="text" id="forced-displayname" name="displayname" required minLength={2} maxLength={80}
           autoComplete="nickname" aria-describedby="forced-displayname-hint" aria-invalid={nameBad ? true : undefined}

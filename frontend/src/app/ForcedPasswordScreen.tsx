@@ -61,7 +61,7 @@ export default function ForcedPasswordScreen({ config, session }: { config: AppC
     <FlashNotices notices={notices} />
     {error > 0 && <p ref={errorBox} tabIndex={-1} className="flash-message flash-message--inline flash-error" role="alert">
       <span className="flash-text">{copy.fixErrors}</span></p>}
-    <form className="auth-form register-form" action={forcedPasswordPath} method="post" onSubmit={onSubmit}>
+    <form className="auth-form register-form" action={forcedPasswordPath} method="post" noValidate onSubmit={onSubmit}>
       <section className="public-prose-card auth-card register-card">
         <label htmlFor="forced-password">{copy.password}</label>
         <div className="login-password">
