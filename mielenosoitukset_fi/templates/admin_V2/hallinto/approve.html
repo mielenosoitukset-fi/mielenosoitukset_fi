@@ -4,7 +4,7 @@
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/users.css', v='20261121-hallinto-approve') }}">{% endblock %}
 {% block main_content %}
 <section class="admin-page admin-workspace hallinto-approve">
-  {{ admin_page_hero('Vahvista nimitys', 'Hallinnossa hyväksytty nimitys tulee voimaan vasta, kun vahvistat sen tässä.', 'Hallinto', [('Hallintapaneeli', url_for('admin.admin_dashboard')), ('Vahvista nimitys', none)]) }}
+  {{ admin_page_hero('Vahvista nimitys', 'Hallinnossa hyväksytty nimitys tulee voimaan vasta, kun vahvistat sen tässä.', 'Hallinto', [('Hallintapaneeli', url_for('admin.admin_dashboard')), ('Vahvista nimitys', none)], back_url=hallinto_url, back_label='Takaisin Hallintoon') }}
   <section class="admin-form-section" aria-labelledby="approve-terms-heading">
     <div class="admin-form-section__header">
       <span class="admin-form-section__icon"><i class="fas fa-user-shield" aria-hidden="true"></i></span>
@@ -73,11 +73,6 @@
     {% endif %}
   </section>
   {% endif %}
-  {% endif %}
-  {% if not (elevated and eligible) %}
-  <div class="hallinto-approve-actions">
-    <a class="workflow-button btn btn-outline-secondary" href="{{ hallinto_url }}"><i class="fas fa-arrow-left" aria-hidden="true"></i>Takaisin Hallintoon</a>
-  </div>
   {% endif %}
 </section>
 {% endblock %}
