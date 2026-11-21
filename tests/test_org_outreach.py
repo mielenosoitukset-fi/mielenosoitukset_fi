@@ -111,26 +111,42 @@ def test_account_addresses_are_never_invited(outreach):
     app, client, db, seeded, mailbox = outreach
     db.users.insert_one(_user_doc("orgowner", ADDRESS, "OwnerPass1!"))
     receipt = _send(outreach).get_json()
-    assert receipt["effective"]["status"] == "account_exists" and not mailbox.sent
+    # Same answer as a recent invitation: a send must not reveal whether an account exists.
+    assert receipt["effective"]["status"] == "not_sent" and not mailbox.sent
+    db.users.update_one({"email": ADDRESS}, {"$set": {"email": "a.b@elsewhere.example",
+                                                       "email_canonical": "a.b@elsewhere.example"}})
+    assert _send(outreach, invitation_id="hallinto-invite-00000000002",
+                 address="info+kutsu@ympariston-ystavat.example", name="Eri ry").get_json()["effective"]["status"] == "sent"
+    db.users.insert_one(_user_doc("alias", "owner@alias.example", "OwnerPass1!"))
+    assert _send(outreach, invitation_id="hallinto-invite-00000000003", address="owner+x@alias.example",
+                 name="Kolmas ry").get_json()["effective"]["status"] == "not_sent"
 
 
-def test_limits_per_address_organization_day_and_verifier(outreach):
+def test_limits_per_address_and_organization(outreach, monkeypatch):
     app, client, db, seeded, mailbox = outreach
+    monkeypatch.setattr(org_outreach, "VERIFIER_PER_DAY", 50)
     assert _send(outreach).get_json()["effective"]["status"] == "sent"
     # Same address again, a different invitation id.
     second = _send(outreach, invitation_id="hallinto-invite-00000000002")
-    assert second.get_json()["effective"]["status"] == "limit"
-    # Same organization, other address.
+    assert second.get_json()["effective"]["status"] == "not_sent"
+    # An alias of the same mailbox counts as the same address.
+    alias = _send(outreach, invitation_id="hallinto-invite-00000000009", address="info+x@ympariston-ystavat.example",
+                  name="Toinen nimi ry")
+    assert alias.get_json()["effective"]["status"] == "not_sent"
+    # Same organization (case and spacing ignored), other address.
     third = _send(outreach, invitation_id="hallinto-invite-00000000003", address="muu@ympariston-ystavat.example",
                   name="YMPÄRISTÖN   ystävät RY")
-    assert third.get_json()["effective"]["status"] == "limit"
-    # Per verifier: three a day.
-    for number, (name, address) in enumerate([("Yksi ry", "a@yksi.example"), ("Kaksi ry", "b@kaksi.example")]):
-        assert _send(outreach, invitation_id=f"hallinto-invite-1000000000{number}", name=name,
-                     address=address).get_json()["effective"]["status"] == "sent"
+    assert third.get_json()["effective"]["status"] == "not_sent"
+    assert len(mailbox.sent) == 1
+
+
+def test_verifier_daily_quota(outreach):
+    app, client, db, seeded, mailbox = outreach
+    for number in range(3):
+        assert _send(outreach, invitation_id=f"hallinto-invite-1000000000{number}", name=f"Org {number} ry",
+                     address=f"a@org{number}.example").get_json()["effective"]["status"] == "sent"
     over = _send(outreach, invitation_id="hallinto-invite-20000000000", name="Kolme ry", address="c@kolme.example")
-    assert over.get_json()["effective"]["status"] == "limit"
-    assert len(mailbox.sent) == 3
+    assert over.get_json()["effective"]["status"] == "limit" and len(mailbox.sent) == 3
 
 
 def test_site_wide_daily_cap(outreach, monkeypatch):
@@ -278,3 +294,33 @@ def test_approval_page_is_absent_when_the_flag_is_off(api):
     page = _verifier(app, seeded["admin_id"], strong=True, age=60).get(
         "/admin/hallinto/approve", query_string={"r": _terms(_fields(invite)), "state": STATE})
     assert page.status_code == 404
+
+
+def test_a_refused_verifier_cannot_drain_the_site_quota(outreach, monkeypatch):
+    app, client, db, seeded, mailbox = outreach
+    monkeypatch.setattr(org_outreach, "VERIFIER_PER_DAY", 1)
+    monkeypatch.setattr(org_outreach, "SITE_PER_DAY", 2)
+    assert _send(outreach).get_json()["effective"]["status"] == "sent"
+    for number in range(3):
+        refused = _send(outreach, invitation_id=f"hallinto-invite-3000000000{number}", name=f"Muu {number} ry",
+                        address=f"x{number}@muu.example")
+        assert refused.get_json()["effective"]["status"] == "limit"
+    with app.app_context():
+        row = db.outreach_rate.find_one({"name": "site"})
+    assert row["count"] == 1
+
+
+def test_format_characters_are_refused_in_visible_text(outreach):
+    app, client, db, seeded, mailbox = outreach
+    for field, value in (("note", "hei\u202esalaisuus"), ("organization_name", "Testi\u200b ry")):
+        body = {"invitation_id": KEY, "case_id": "c", "decision_id": "d", "decision_revision": 1,
+                "organization_name": "Testi ry", "address": ADDRESS, "source_url": "https://x.example/yhteys",
+                "authority_attestation": "-", field: value}
+        assert org_outreach.validate_invitation(body) is None
+
+
+def test_the_flag_must_be_a_real_true(api):
+    app, client, db, body, digest, proof, seeded, target = api
+    app.config["ORG_OUTREACH_ENABLED"] = "false"
+    invite, _ = _invite()
+    assert client.post(BASE, json=invite, headers=_headers(proof="x", key=KEY)).status_code == 404

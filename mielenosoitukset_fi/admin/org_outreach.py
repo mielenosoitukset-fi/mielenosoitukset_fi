@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import re
 import secrets
+import unicodedata
 from datetime import timedelta
 from typing import Any, Optional
 from urllib.parse import urlsplit
@@ -51,11 +52,18 @@ CHECK_PER_MINUTE = 60
 
 def _plain(text: Any, low: int, high: int) -> bool:
     return (isinstance(text, str) and low <= len(text) <= high and text == text.strip()
-            and not any(ord(c) < 0x20 or ord(c) == 0x7F or c in "  �" for c in text))
+            and not any(ord(c) < 0x20 or ord(c) == 0x7F or c in "\u2028\u2029\ufffd"
+                        or unicodedata.category(c) in {"Cf", "Co", "Cn", "Cs"} for c in text))
+
+
+def _canonical(address: str) -> str:
+    """Lowercase address without a ``+tag``: aliases of one mailbox share one hash."""
+    local, _, domain = address.strip().lower().partition("@")
+    return f"{local.split('+', 1)[0]}@{domain}"
 
 
 def address_hash(address: str) -> str:
-    return hashlib.sha256(address.strip().lower().encode("utf-8")).hexdigest()
+    return hashlib.sha256(_canonical(address).encode("utf-8")).hexdigest()
 
 
 def organization_key(name: str) -> str:
@@ -134,21 +142,28 @@ def check_address(db, address: str) -> Optional[str]:
 
 
 def _account_uses(db, address: str) -> bool:
-    return db.users.count_documents({"$or": [{"email": address}, {"email_canonical": address}]}, limit=1) > 0
+    forms = sorted({address, _canonical(address)})
+    return db.users.count_documents({"$or": [{"email": {"$in": forms}}, {"email_canonical": {"$in": forms}}]},
+                                    limit=1) > 0
 
 
-def _limit_reason(db, intent: dict, actor_id: str, now) -> Optional[str]:
+def _quota_reason(db, actor_id: str, now) -> Optional[str]:
+    """Verifier quota first, so a refused verifier cannot drain the site's daily cap."""
+    day = now.strftime("%Y-%m-%d")
+    if not _under_rate(db, f"verifier:{actor_id}", day, VERIFIER_PER_DAY, timedelta(days=2)):
+        return "limit"
+    if not _under_rate(db, "site", day, SITE_PER_DAY, timedelta(days=2)):
+        return "limit"
+    return None
+
+
+def _recent_reason(db, intent: dict, now) -> Optional[str]:
     h = address_hash(intent["address"])
     if db[INVITATIONS].count_documents({"address_hash": h, "created_at": {"$gt": now - PER_ADDRESS}}, limit=1):
         return "limit"
     if db[INVITATIONS].count_documents(
             {"organization_key": organization_key(intent["organization_name"]),
              "created_at": {"$gt": now - PER_ORGANIZATION}}, limit=1):
-        return "limit"
-    day = now.strftime("%Y-%m-%d")
-    if not _under_rate(db, "site", day, SITE_PER_DAY, timedelta(days=2)):
-        return "limit"
-    if not _under_rate(db, f"verifier:{actor_id}", day, VERIFIER_PER_DAY, timedelta(days=2)):
         return "limit"
     return None
 
@@ -195,6 +210,9 @@ def _queue_mail(intent: dict, token: str, optout_token: str) -> None:
         recipients=[intent["address"]],
         context={"organization_name": intent["organization_name"], "form_url": form_url,
                  "optout_url": optout_url, "source_url": intent["source_url"], "note": intent.get("note", "")},
+        plain_body=(f"Hei,\n\nMielenosoitukset.fi kutsuu organisaatiota {intent['organization_name']} käyttämään "
+                    f"palvelua.\n\nHakulomake: {form_url}\n\nLöysimme osoitteen sivulta: {intent['source_url']}\n"
+                    f"Linkki on voimassa 30 päivää.\n\nJos et halua kutsuja: {optout_url}\n"),
         extra_headers={"List-Unsubscribe": f"<{optout_url}>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"},
     )
 
@@ -248,30 +266,36 @@ def apply_invitation(db, *, integration: str, actor_id, idempotency_key: str, re
 
 def _send_fenced(db, operation: dict, intent: dict, actor, h: str) -> cg.Outcome:
     now = utcnow()
-    status, token, expires = None, None, None
+    status, expires = None, None
     if _paused(db):
         status = "paused"
     else:
-        status = check_address(db, intent["address"]) or ("account_exists" if _account_uses(db, intent["address"])
-                                                         else _limit_reason(db, intent, str(actor._id), now))
+        status = check_address(db, intent["address"]) or _quota_reason(db, str(actor._id), now)
     if status is None:
-        token, optout = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
-        expires = now + TOKEN_TTL
-        db[INVITATIONS].insert_one({
-            "_id": ObjectId(), "invitation_id": intent["invitation_id"], "case_id": intent["case_id"],
-            "address_hash": h, "organization_key": organization_key(intent["organization_name"]),
-            "token_hash": hashlib.sha256(token.encode()).hexdigest(),
-            "optout_token_hash": hashlib.sha256(optout.encode()).hexdigest(),
-            "operation_id": str(operation["_id"]), "verifier_id": str(actor._id),
-            "status": "sent", "created_at": now, "expires_at": expires,
-        })
-        try:
-            _queue_mail(intent, token, optout)
-        except Exception:  # noqa: BLE001
-            # Left pending: a retry reports reconciliation_required and never resends.
-            logger.exception("org invitation operation=%s mail not queued", operation["_id"])
-            return cg._error("unavailable")
-        status = "sent"
+        # The organization fence closes the check-then-insert race between two addresses of
+        # one organization. An account's address and a recent invitation both answer
+        # "not_sent": a send must not tell whether somebody has an account.
+        with cg.account_fence(db, "outreach-org:" + organization_key(intent["organization_name"])):
+            if _account_uses(db, intent["address"]) or _recent_reason(db, intent, now):
+                status = "not_sent"
+            else:
+                token, optout = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+                expires = now + TOKEN_TTL
+                db[INVITATIONS].insert_one({
+                    "_id": ObjectId(), "invitation_id": intent["invitation_id"], "case_id": intent["case_id"],
+                    "address_hash": h, "organization_key": organization_key(intent["organization_name"]),
+                    "token_hash": hashlib.sha256(token.encode()).hexdigest(),
+                    "optout_token_hash": hashlib.sha256(optout.encode()).hexdigest(),
+                    "operation_id": str(operation["_id"]), "verifier_id": str(actor._id),
+                    "status": "sent", "created_at": now, "expires_at": expires,
+                })
+                try:
+                    _queue_mail(intent, token, optout)
+                except Exception:  # noqa: BLE001
+                    # Left pending: a retry reports reconciliation_required and never resends.
+                    logger.exception("org invitation operation=%s mail not queued", operation["_id"])
+                    return cg._error("unavailable")
+                status = "sent"
     receipt = {
         **cg._receipt_identity(operation), "status": "confirmed", "checked_at": now.strftime(cg.INSTANT),
         "effective": {"invitation_id": intent["invitation_id"], "status": status,

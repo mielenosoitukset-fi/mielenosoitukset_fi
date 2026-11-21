@@ -22,7 +22,7 @@
       {% if fields.note %}<div><dt>Viesti</dt><dd>{{ fields.note }}</dd></div>{% endif %}
       <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
     </dl>
-    <p class="mb-0">Organisaation osoitteeseen lähetetään yksi viesti, jossa on linkki hakulomakkeeseen ja yhden klikkauksen peruutus. Osoitetta ei tallenneta selkokielisenä.</p>
+    <p class="mb-0">Organisaation osoitteeseen lähetetään yksi viesti, jossa on linkki hakulomakkeeseen ja yhden klikkauksen peruutus. Kutsun tietoihin tallennetaan vain osoitteen tiiviste. Viesti on selkokielisenä sähköpostijonossa, kunnes se on lähetetty.</p>
     {% elif is_order %}
     <dl class="admin-message-meta">
       {% if fields.kind == 'role_removal' %}

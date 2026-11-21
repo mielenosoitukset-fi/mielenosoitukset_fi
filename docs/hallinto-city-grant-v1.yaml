@@ -190,7 +190,7 @@ paths:
                 note: { type: string, maxLength: 300 }
                 authority_attestation: { type: string, description: Ed25519 over the context hallinto-org-invitation-v1-attestation and the intent digest }
       responses:
-        '200': { description: 'Confirmed receipt; effective.status is sent, suppressed, account_exists, limit, invalid_address or paused' }
+        '200': { description: 'Confirmed receipt; effective.status is sent, suppressed, not_sent, limit, invalid_address or paused' }
         '202': { description: Durable pending result }
         '403': { $ref: '#/components/responses/Denied' }
         '404': { description: Switched off }

@@ -237,7 +237,7 @@ def build_blueprint(db) -> Blueprint:
         ))
 
     def _outreach_on() -> bool:
-        return bool(current_app.config.get("ORG_OUTREACH_ENABLED"))
+        return current_app.config.get("ORG_OUTREACH_ENABLED") is True
 
     @bp.post("/org-invitations")
     def send_org_invitation():
@@ -374,7 +374,7 @@ def build_approval_blueprint(db) -> Blueprint:
         if fields is None or not STATE.match(state_param):
             abort(400)
         if "invitation_id" in fields:
-            if not current_app.config.get("ORG_OUTREACH_ENABLED"):
+            if current_app.config.get("ORG_OUTREACH_ENABLED") is not True:
                 abort(404)
             digest = org_outreach.invitation_digest({**fields, "authority_attestation": "-"})
             if digest is None:
