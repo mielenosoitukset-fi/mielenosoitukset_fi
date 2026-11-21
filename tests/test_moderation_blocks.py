@@ -58,3 +58,16 @@ def test_sync_refuses_invalid_items(db, bad):
     with pytest.raises(ValueError):
         blocks.sync(db, [bad])
     assert db[blocks.COLLECTION].count_documents({}) == 0
+
+
+def test_a_precedent_keeps_a_demo_from_being_approved(admin_client, db, seeded_data):
+    demo_id = seeded_data["pending_demo_id"]
+    blocks.sync(db, [item(id="p1", kind="demo", organization_id=str(demo_id), reason="Ennakkopäätös")])
+    response = admin_client.post(f"/api/admin/demo/{demo_id}/approve")
+    assert response.status_code == 409
+    demo = db.demonstrations.find_one({"_id": demo_id})
+    assert not demo.get("approved")
+    # Lifting the precedent lets the same approval through.
+    blocks.sync(db, [item(id="p1", kind="demo", organization_id=str(demo_id), until="2026-11-02")])
+    assert admin_client.post(f"/api/admin/demo/{demo_id}/approve").status_code == 200
+    assert db.demonstrations.find_one({"_id": demo_id})["approved"] is True

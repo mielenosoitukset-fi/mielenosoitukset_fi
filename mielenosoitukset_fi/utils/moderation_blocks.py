@@ -9,7 +9,7 @@ lifted one keeps its end day.
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 
 from bson import ObjectId
 
@@ -68,7 +68,7 @@ def _in_force(day):
 
 
 def _today(now: datetime | None = None):
-    now = now or datetime.utcnow()
+    now = now or datetime.now(UTC).replace(tzinfo=None)
     return datetime(now.year, now.month, now.day)
 
 
