@@ -289,7 +289,8 @@ def test_end_removes_access_at_once_and_is_idempotent(api, kind, reason):
     assert response.status_code == 200, response.get_json()
     receipt = response.get_json()
     assert receipt["status"] == "confirmed" and receipt["kind"] == kind and receipt["appointment_id"] == KEY
-    assert receipt["effective"] == {"cities": [], "permissions": [], "role": "user"}
+    assert receipt["effective"] == {"cities": [], "permissions": [], "role": "user", "global_admin": False,
+                                    "governance_managed": False, "other_scope_types": []}
     grant = db.admin_scope_grants.find_one({"user_id": target})
     assert grant["revoked_reason"] == reason and bool(grant.get("frozen")) == (kind == "freeze")
     assert db.users.find_one({"_id": target})["role"] == "user"
@@ -371,3 +372,52 @@ def test_approval_page_and_proof_for_ending(api):
     assert "expected_state" not in returned and returned["state"] == [STATE]
     assert client.post("/internal/hallinto/v1/city-appointment-ends", json=end,
                        headers=_headers(proof=returned["proof"][0], key=END_KEY)).status_code == 200
+
+
+def _end(client, app, db, seeded, target, key, kind="revoke"):
+    end, end_digest = _end_body(target, kind)
+    proof = _end_proof(app, db, seeded, end_digest, target)
+    return client.post("/internal/hallinto/v1/city-appointment-ends", json=end,
+                       headers=_headers(proof=proof, key=key))
+
+
+def test_ending_one_appointment_leaves_a_later_grant_alone(api):
+    app, client, db, seeded, target = _appointed(api)
+    assert _end(client, app, db, seeded, target, "hallinto-end-0000000000001").status_code == 200
+    # A later grant for the same account (as a second appointment or a legacy save would make).
+    db.admin_scope_grants.insert_one({
+        "_id": ObjectId(), "user_id": target, "scope_type": "city", "scope_keys": ["tampere"],
+        "role": "city_reviewer", "permissions": ["LIST_DEMOS", "VIEW_DEMO"], "revoked_at": None,
+        "created_at": city_grants.utcnow(), "updated_at": city_grants.utcnow()})
+    db.users.update_one({"_id": target}, {"$set": {"role": "city_admin"}})
+    # A late retry of the same end under a new key must not touch it.
+    response = _end(client, app, db, seeded, target, "hallinto-end-0000000000002", "freeze")
+    assert response.status_code == 200
+    assert response.get_json()["effective"]["cities"] == ["tampere"]
+    assert db.admin_scope_grants.count_documents({"user_id": target, "scope_keys": ["tampere"], "revoked_at": None}) == 1
+    assert db.users.find_one({"_id": target})["role"] == "city_admin"
+
+
+def test_receipt_reports_access_the_end_did_not_remove(api):
+    app, client, db, seeded, target = _appointed(api)
+    db.users.update_one({"_id": target}, {"$set": {"global_admin": True}})
+    db.admin_scope_grants.insert_one({
+        "_id": ObjectId(), "user_id": target, "scope_type": "organization", "scope_keys": ["org-1"],
+        "permissions": ["EDIT_ORGANIZATION"], "revoked_at": None,
+        "created_at": city_grants.utcnow(), "updated_at": city_grants.utcnow()})
+    effective = _end(client, app, db, seeded, target, END_KEY).get_json()["effective"]
+    assert effective["cities"] == [] and effective["global_admin"] is True
+    assert effective["other_scope_types"] == ["organization"] and "EDIT_ORGANIZATION" in effective["permissions"]
+
+
+def test_a_freeze_blocks_legacy_grants_until_a_new_appointment(api):
+    app, client, db, seeded, target = _appointed(api)
+    assert _end(client, app, db, seeded, target, END_KEY, "freeze").status_code == 200
+    with app.app_context():
+        actor = city_grants._actor_authorized(db, seeded["admin_id"])
+        with pytest.raises(city_grants.CityGrantConflict):
+            city_grants.sync_city_scope_grant(db, target, ["kuopio"], city_grants.CITY_ADMIN_V1_PERMISSIONS, actor)
+        # A new appointment (additive) lifts the freeze.
+        city_grants.sync_city_scope_grant(db, target, ["kuopio"], city_grants.CITY_ADMIN_V1_PERMISSIONS, actor,
+                                          additive_only=True, expires_at=city_grants.parse_valid_until(VALID_UNTIL))
+    assert db.admin_scope_grants.count_documents({"user_id": target, "frozen": True}) == 0

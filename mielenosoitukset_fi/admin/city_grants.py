@@ -190,16 +190,19 @@ def sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissio
                           allow_city_enablement: bool = True, additive_only: bool = False,
                           before_write: Optional[Callable[[], None]] = None,
                           fenced: bool = False, expires_at: Optional[datetime] = None,
-                          end_marker: Optional[dict] = None) -> SyncResult:
+                          end_marker: Optional[dict] = None, only_grant_id: Optional[ObjectId] = None) -> SyncResult:
     """Replace the user's city grant under the account fence.
 
     ``fenced=True`` means the caller already holds ``account_fence``.
     ``expires_at`` (naive UTC, exclusive) sets the grant's end. Without it an
     existing grant keeps its expiry, so a legacy save never extends one.
-    ``end_marker`` (revoked_reason, frozen) is stored on grants a removal ends.
+    ``end_marker`` (revoked_reason, frozen) is stored on grants a removal ends;
+    ``only_grant_id`` limits that removal to one grant. A frozen account takes
+    no legacy grant until a new appointment (additive) lifts the freeze.
     """
     options = dict(allow_city_enablement=allow_city_enablement, additive_only=additive_only,
-                   before_write=before_write, expires_at=expires_at, end_marker=end_marker)
+                   before_write=before_write, expires_at=expires_at, end_marker=end_marker,
+                   only_grant_id=only_grant_id)
     if fenced:
         return _sync_city_scope_grant(db, user_id, city_keys, permissions, actor, **options)
     with account_fence(db, user_id):
@@ -210,7 +213,8 @@ def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissi
                            allow_city_enablement: bool = True, additive_only: bool = False,
                            before_write: Optional[Callable[[], None]] = None,
                            expires_at: Optional[datetime] = None,
-                           end_marker: Optional[dict] = None) -> SyncResult:
+                           end_marker: Optional[dict] = None,
+                           only_grant_id: Optional[ObjectId] = None) -> SyncResult:
     """Replace the user's city grant; audit each scope mutation in its own outbox.
 
     ``allow_city_enablement=False`` and ``additive_only=True`` raise
@@ -229,6 +233,9 @@ def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissi
             raise CityGrantConflict("granting would enable a city the caller did not allow")
     if additive_only and (not granting or db.admin_scope_grants.find_one(query)):
         raise CityGrantConflict("an additive grant found an existing city grant")
+    owner = {"$in": [user_id, str(user_id)]}
+    if granting and not additive_only and db.admin_scope_grants.find_one({"user_id": owner, "frozen": True}):
+        raise CityGrantConflict("the account is frozen; a new appointment decision lifts the freeze")
     if before_write is not None:
         before_write()
     enabled: list[str] = []
@@ -270,11 +277,11 @@ def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissi
             raise CityGrantConflict("the form re-submitted a city grant that has ended")
 
     if not city_keys or not permissions:
-        for grant in db.admin_scope_grants.find(query):
+        for grant in db.admin_scope_grants.find({**query, "_id": only_grant_id} if only_grant_id else query):
             update_grant(grant, {"revoked_at": utcnow(), "revoked_by": str(actor._id), **(end_marker or {})},
                          {"city_scope_keys": [], "city_scope_permissions": []})
         document = db.users.find_one({"_id": user_id})
-        if document and document.get("role") == "city_admin":
+        if document and document.get("role") == "city_admin" and not db.admin_scope_grants.find_one(query):
             commit_profile_change(db, document, {"role": "user"}, actor)
         flush_user_history(db, user_id)
         return SyncResult([], [], enabled)
@@ -303,6 +310,10 @@ def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissi
             user_id, {"city_scope_keys": [], "city_scope_permissions": []}, after, attribution,
         )]
         db.admin_scope_grants.insert_one(payload)
+    if additive_only:
+        # A new appointment decision lifts an earlier freeze.
+        db.admin_scope_grants.update_many({"user_id": owner, "frozen": True},
+                                          {"$set": {"frozen": False, "unfrozen_at": utcnow()}})
     document = db.users.find_one({"_id": user_id})
     if document and document.get("role") not in {"admin", "global_admin", "god", "city_admin"}:
         commit_profile_change(db, document, {"role": "city_admin"}, actor)
@@ -710,7 +721,9 @@ def _apply_fenced(db, operation, intent, actor, integration, account_id, fence) 
         "checked_at": utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "effective": verified["effective"], "resulted_in_city_enablement": enabled,
     }
-    return _outcome_for(_transition(db, operation, {"pending"}, "confirmed", receipt))
+    live = [g for g in _active_grants(db, account_id) if g.get("scope_type") == "city"]
+    grant_id = live[0]["_id"] if len(live) == 1 else None
+    return _outcome_for(_transition(db, operation, {"pending"}, "confirmed", receipt, grant_id=grant_id))
 
 
 # --------------------------------------------------------------------------- #
@@ -751,14 +764,21 @@ def end_digest(request: Any) -> Optional[str]:
 
 
 def _remaining_access(db, account_id: ObjectId) -> dict:
-    """What the account still has: cities, permissions, role (reloaded)."""
+    """Everything the account still has (reloaded): city scopes, permissions,
+    role, full admin, governance management and live grants of other types."""
     doc = db.users.find_one({"_id": account_id}) or {}
-    scopes = _scopes(_active_grants(db, account_id))
+    grants = _active_grants(db, account_id)
+    scopes = _scopes(grants)
+    other = sorted({str(g.get("scope_type")) for g in grants if g.get("scope_type") != "city"})
     return {
         "cities": sorted({scope["city"] for scope in scopes}),
         "permissions": sorted({p for scope in scopes for p in scope["permissions"]}
+                              | {p for g in grants if g.get("scope_type") != "city" for p in g.get("permissions") or []}
                               | set(doc.get("global_permissions") or [])),
         "role": doc.get("role"),
+        "global_admin": bool(doc.get("global_admin")),
+        "governance_managed": bool(doc.get("governance_managed")),
+        "other_scope_types": other,
     }
 
 
@@ -824,7 +844,8 @@ def _original_appointment(db, integration: str, intent: dict) -> Optional[dict]:
 def _end_fenced(db, operation, intent, actor, integration, account_id, fence) -> Outcome:
     if db.users.find_one({"_id": account_id}) is None:
         return _outcome_for(_reject(db, operation, "denied"))
-    if _original_appointment(db, integration, intent) is None:
+    original = _original_appointment(db, integration, intent)
+    if original is None or not original.get("grant_id"):
         return _outcome_for(_reject(db, operation, "unsupported_scope"))
 
     def applying():
@@ -848,8 +869,10 @@ def _end_fenced(db, operation, intent, actor, integration, account_id, fence) ->
     try:
         with audit_scope("integration", integration, actor={"kind": "user", "user_id": str(actor._id)},
                          operation_id=str(operation["_id"])):
+            # Only the appointment's own grant: a later appointment or a legacy
+            # grant for the account stays.
             sync_city_scope_grant(db, account_id, [], [], actor, before_write=applying,
-                                  fenced=True, end_marker=marker)
+                                  fenced=True, end_marker=marker, only_grant_id=original["grant_id"])
     except CityGrantConflict:
         if operation.get("phase") != "applying":
             return _outcome_for(_reject(db, operation, "stale_state"))
@@ -864,7 +887,8 @@ def _end_fenced(db, operation, intent, actor, integration, account_id, fence) ->
             return _error("unavailable")
 
     remaining = _remaining_access(db, account_id)
-    if intent["city"] in remaining["cities"] or not fence_held(db, account_id, fence):
+    still_live = db.admin_scope_grants.count_documents({"_id": original["grant_id"], **live_grant_filter()}, limit=1)
+    if still_live or not fence_held(db, account_id, fence):
         return _outcome_for(_transition(db, operation, {"pending"}, "reconciliation_required"))
     receipt = {**_receipt_identity(operation), "status": "confirmed",
                "checked_at": utcnow().strftime(INSTANT), "effective": remaining}

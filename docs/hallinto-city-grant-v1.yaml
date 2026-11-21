@@ -263,9 +263,12 @@ components:
             checked_at: { type: string, format: date-time }
             effective:
               type: object
-              description: What the account still has. Hallinto confirms its end only when all three are empty.
-              required: [cities, permissions, role]
+              description: Everything the account still has after the end, not only the ended city.
+              required: [cities, permissions, role, global_admin, governance_managed, other_scope_types]
               properties:
+                global_admin: { type: boolean }
+                governance_managed: { type: boolean }
+                other_scope_types: { type: array, items: { type: string } }
                 cities: { type: array, items: { $ref: '#/components/schemas/CityKey' } }
                 permissions: { type: array, items: { type: string } }
                 role: { type: [string, 'null'] }
