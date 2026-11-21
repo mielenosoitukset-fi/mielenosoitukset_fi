@@ -163,3 +163,64 @@ def test_rejection_email_names_the_review_date_when_notices_are_on(admin_client,
         finally:
             admin_client.application.config.pop("MODERATION_REVIEW_NOTICES", None)
     assert queued[0]["context"]["review_by"]
+
+
+def _escalated(client, claims, path, body):
+    return client.post(PREFIX + "/escalated-cases/" + path, base_url=ORIGIN,
+                       auth=("synthetic-hallinto", "synthetic-issuer-fixture-only-client"),
+                       json={"sub": claims["sub"], "sid": claims["sid"], **body})
+
+
+def test_hallinto_decides_escalated_cases(owner, db, monkeypatch):  # noqa: F811
+    from mielenosoitukset_fi.users import hallinto_issuer
+    from mielenosoitukset_fi.utils.time_utils import utcnow
+
+    app, subject = owner
+    monkeypatch.setattr(hallinto_issuer, "_invite_sender", _Sender())
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    demo_ids = [db.demonstrations.insert_one({
+        "title": f"Eskaloitu {i}", "date": "2030-01-01", "city": "Helsinki", "approved": False, "rejected": False,
+    }).inserted_id for i in range(3)]
+    case_ids = []
+    for demo_id, level in zip(demo_ids, (3, 3, 4)):
+        case_ids.append(str(db.cases.insert_one({
+            "type": "new_demo", "demo_id": demo_id, "running_num": 7000 + level, "updated_at": utcnow(),
+            "meta": {"superior_needed": True, "escalation_level": level},
+            "case_history": [{"timestamp": utcnow(), "mech_action": "escalate_demo", "user": "moderaattori",
+                              "metadata": {"reason": "En voi päättää"}}],
+        }).inserted_id))
+    try:
+        # Only a signed-in admin reads or decides.
+        assert _escalated(app.test_client(), claims, "list", {}).status_code == 403
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+        items = _escalated(app.test_client(), claims, "list", {}).json["items"]
+        mine = {i["id"]: i for i in items if i["id"] in case_ids}
+        assert len(mine) == 3 and mine[case_ids[0]]["level"] == "ot" and mine[case_ids[0]]["can_escalate"]
+        assert mine[case_ids[2]]["level"] == "jory" and not mine[case_ids[2]]["can_escalate"]
+        assert mine[case_ids[0]]["reason"] == "En voi päättää"
+
+        # Escalating needs a reason; Johtoryhmä is the last level.
+        assert _escalated(app.test_client(), claims, "update", {"id": case_ids[0], "action": "escalate"}).status_code == 400
+        sent_up = _escalated(app.test_client(), claims, "update",
+                             {"id": case_ids[0], "action": "escalate", "reason": "Kuuluu Johtoryhmälle"})
+        assert sent_up.status_code == 200 and sent_up.json["item"]["level"] == "jory"
+        assert _escalated(app.test_client(), claims, "update",
+                          {"id": case_ids[2], "action": "escalate", "reason": "Ylemmäs vielä"}).status_code == 409
+
+        # Reject needs a reason; approve publishes through the decision service.
+        assert _escalated(app.test_client(), claims, "update", {"id": case_ids[1], "action": "reject"}).status_code == 400
+        rejected = _escalated(app.test_client(), claims, "update",
+                              {"id": case_ids[1], "action": "reject", "reason": "Ei kuulu palveluun"})
+        assert rejected.status_code == 200 and rejected.json["item"]["status"] == "rejected"
+        assert db.demonstrations.find_one({"_id": demo_ids[1]})["rejected"] is True
+        approved = _escalated(app.test_client(), claims, "update", {"id": case_ids[2], "action": "approve"})
+        assert approved.status_code == 200 and approved.json["item"]["status"] == "approved"
+        assert db.demonstrations.find_one({"_id": demo_ids[2]})["approved"] is True
+        assert db.cases.find_one({"_id": ObjectId(case_ids[2])})["case_history"][-1]["metadata"]["authentication"] == "hallinto"
+        # A decided case cannot be decided again.
+        assert _escalated(app.test_client(), claims, "update", {"id": case_ids[2], "action": "approve"}).status_code == 409
+    finally:
+        db.cases.delete_many({"_id": {"$in": [ObjectId(i) for i in case_ids]}})
+        db.demonstrations.delete_many({"_id": {"$in": demo_ids}})
