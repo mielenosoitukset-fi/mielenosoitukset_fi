@@ -134,8 +134,8 @@ instead, the same way it already pulls the Hallinto backups:
    (`OFFSITE_OUTBOX`, set in `mielenosoitukset-offsite-copy.service`): it encrypts the
    archive with age to the public recipients in `deploy/backup/offsite-recipients.txt`
    (either of the maintainer's two offline keys decrypts), writes the `.sha256` and
-   puts both, mode 0640, in `/var/backups/mielenosoitukset-outbox`. It keeps 14 days
-   there. Nothing unencrypted leaves the host.
+   puts both, mode 0640, in `/var/backups/mielenosoitukset-outbox`. It keeps them
+   there for 3 days (`OFFSITE_OUTBOX_DAYS`): the puller re-reads the whole outbox daily. Nothing unencrypted leaves the host.
 2. `install_units.sh` (every deploy) installs the recipients file, creates the
    locked system user `moso-offsite`, and installs its root-owned
    `authorized_keys` from `deploy/backup/offsite-pull.authorized_keys`: the homelab's

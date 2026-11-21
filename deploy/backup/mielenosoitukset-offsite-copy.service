@@ -15,6 +15,8 @@ StateDirectoryMode=0700
 # Outbox mode: encrypt into the outbox the off-site machine pulls from (read-only
 # rsync key, see docs/backups.md). Production cannot reach the off-site machine.
 Environment=OFFSITE_OUTBOX=/var/backups/mielenosoitukset-outbox
+# The puller re-reads the whole outbox each day, so keep it short (3 days).
+Environment=OFFSITE_OUTBOX_DAYS=3
 ExecStart=/var/www/mielenosoitukset_fi/deploy/backup/offsite-copy.sh
 # About 420 MB at the 2 MiB/s cap is about 4 minutes.
 RuntimeMaxSec=3600
