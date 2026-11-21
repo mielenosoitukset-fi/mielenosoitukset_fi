@@ -481,6 +481,8 @@ func authBridgeHandler(next http.Handler, config authBridgeConfig, db *mongo.Dat
 	}
 	// Account settings reads (docs/account-pages-react.md) share the bridge and have their own flag.
 	next = accountSettingsReadHandler(next, db, resolver, config.Origin)
+	// Accepting an organization invitation (docs/org-invite-react.md): its own flag, off by default.
+	next = orgInviteFromEnv(next, db, resolver, config.Origin)
 	return authBridgeHandlerWith(developerHandlerWith(next, mongoDeveloperStore{db}, resolver, writes), resolver)
 }
 

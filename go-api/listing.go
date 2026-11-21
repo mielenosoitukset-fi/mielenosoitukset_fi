@@ -183,7 +183,17 @@ func listingFilter(q listingQuery) bson.M {
 		filter["organizers"] = bson.M{"$elemMatch": bson.M{"organization_id": bson.M{"$in": bson.A{q.Organization, q.Organization.Hex()}}}}
 	}
 	if dates := listingDates(q); len(dates) > 0 {
-		filter["date"] = dates
+		// Multi-day demonstrations show on every day they run.
+		from, _ := dates["$gte"].(string)
+		to, _ := dates["$lte"].(string)
+		if day, ok := dates["$eq"].(string); ok {
+			from, to = day, day
+		}
+		span, running := overlapDates(from, to)
+		filter["date"] = span
+		if running != nil {
+			filter["$and"] = append(filter["$and"].(bson.A), running)
+		}
 	}
 	filter["$and"] = listingSearch(q, filter["$and"].(bson.A))
 	return filter

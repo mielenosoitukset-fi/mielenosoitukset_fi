@@ -1,4 +1,4 @@
-import { adjacentMonth, calendarPlace, dateForDay, monthName, monthPath } from './calendar';
+import { adjacentMonth, calendarDemonstrations, calendarPlace, dateForDay, monthName, monthPath } from './calendar';
 import type { CalendarBootstrap } from './calendar';
 import { CalendarScope } from './CalendarScope';
 import { dayLabel } from './cities';
@@ -23,7 +23,7 @@ export function CalendarFallback({ calendar, config }: { calendar: CalendarBoots
       {!annual && <> · <a href={monthPath({ ...calendar, month:0 })}>Vuosi {year}</a></>}
     </nav>
     {!data ? <p>Kalenterin lataaminen epäonnistui. Yritä uudelleen.</p> : <>
-      <p>{data.total} {data.total === 1 ? 'mielenosoitus' : 'mielenosoitusta'}</p>
+      <p>{calendarDemonstrations(data)} {calendarDemonstrations(data) === 1 ? 'mielenosoitus' : 'mielenosoitusta'}</p>
       {annual ? <ul>{Array.from({ length:12 }, (_, index) => {
         const period = { ...calendar, month:index+1 };
         const total = data.days.filter(row=>Number(row.date.slice(5,7))===period.month).reduce((sum,row)=>sum+row.count,0);
