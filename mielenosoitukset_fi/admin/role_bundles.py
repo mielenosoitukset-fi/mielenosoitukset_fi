@@ -222,12 +222,15 @@ def _notify(db, operation: dict, account_doc: dict, action: str) -> None:
         subjects = {"applied": f"Roolipaketti myönnetty: {bundle['label']}",
                     "revoke": f"Roolipaketti peruttu: {bundle['label']}",
                     "freeze": f"Roolipaketti jäädytetty: {bundle['label']}"}
-        _email_sender().queue_email(
-            template_name="role_bundle_notification.html", subject=subjects[action], recipients=recipients,
-            context={"action": action, "bundle_label": bundle["label"], "account_name": name,
-                     "decision_id": intent["decision_id"], "decision_revision": intent["decision_revision"],
-                     "valid_until": intent.get("valid_until", ""), "permissions": bundle["permissions"]},
-        )
+        sender = _email_sender()
+        # One mail per person: nobody sees the other recipients' addresses.
+        for recipient in recipients:
+            sender.queue_email(
+                template_name="role_bundle_notification.html", subject=subjects[action], recipients=[recipient],
+                context={"action": action, "bundle_label": bundle["label"], "account_name": name,
+                         "decision_id": intent["decision_id"], "decision_revision": intent["decision_revision"],
+                         "valid_until": intent.get("valid_until", ""), "permissions": bundle["permissions"]},
+            )
         db[cg.OPERATIONS].update_one({"_id": operation["_id"]}, {"$set": {"notified_at": utcnow()}})
     except Exception:  # noqa: BLE001 - notification must not fail the operation
         logger.exception("role bundle operation=%s notification failed", operation.get("_id"))
@@ -409,10 +412,15 @@ def apply_role_bundle_end_v1(db, *, integration: str, actor_id, idempotency_key:
 
 
 def _original(db, integration: str, intent: dict) -> Optional[dict]:
-    """The confirmed appointment this end refers to, for the same account and bundle."""
+    """The appointment this end refers to, for the same account and bundle.
+
+    Not only a confirmed one: a write that ended in reconciliation_required may
+    have left the bundle live, and it must still be endable. The end acts only
+    on a bundle whose operation id is this appointment's.
+    """
     return db[cg.OPERATIONS].find_one({
         "integration": integration, "idempotency_key": intent["appointment_id"],
-        "account_id": intent["account_id"], "status": "confirmed",
+        "account_id": intent["account_id"], "status": {"$ne": "rejected"},
         "intent.template": intent["template"], "intent.kind": {"$exists": False},
     })
 
@@ -425,7 +433,8 @@ def _remaining(db, account_id: ObjectId) -> dict:
     return {"role": user.role if user else None,
             "permissions": sorted(user.global_permissions) if user else [],
             "global_admin": bool(user and user.global_admin),
-            "bundle": bundle.get("template") if live else None}
+            "bundle": bundle.get("template") if live else None,
+            "bundle_operation_id": bundle.get("operation_id") if live else None}
 
 
 def _end_fenced(db, operation, intent, actor, integration, account_id, fence) -> cg.Outcome:

@@ -325,8 +325,8 @@ def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissi
 # city_admin_v1 appointment operation (Hallinto, disabled: no route)
 # --------------------------------------------------------------------------- #
 OPERATIONS = "city_grant_operations"
-IDEMPOTENCY_KEY = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
-ACCOUNT_ID = re.compile(r"^[a-f0-9]{24}$")
+IDEMPOTENCY_KEY = re.compile(r"^[A-Za-z0-9_-]{16,128}\Z")
+ACCOUNT_ID = re.compile(r"^[a-f0-9]{24}\Z")
 # An operation still pending after this long is reported reconciliation_required.
 APPLY_LEASE = timedelta(minutes=5)
 ERROR_STATUS = {
@@ -337,7 +337,7 @@ REQUEST_FIELDS = {
     "account_id", "city", "template", "expected_state", "allow_city_enablement",
     "decision_id", "decision_revision", "application_id", "authority_attestation", "valid_until",
 }
-VALID_UNTIL = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+VALID_UNTIL = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
 # Hallinto allows a last valid day under five years ahead; the end is the next midnight.
 MAX_VALIDITY = timedelta(days=5 * 366 + 1)
 INSTANT = "%Y-%m-%dT%H:%M:%SZ"

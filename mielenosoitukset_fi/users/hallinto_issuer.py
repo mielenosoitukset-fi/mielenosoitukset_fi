@@ -443,8 +443,12 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             return None, error
         if not _live_marker(db, markers, payload.get("sid"), payload.get("sub")):
             return None, (jsonify(error="access_denied"), 403)
-        actor = db.users.find_one({"_id": ObjectId(payload["sub"])}, {"role": 1, "global_admin": 1})
-        if not actor or not (actor.get("global_admin") or actor.get("role") in _ACCOUNT_LOOKUP_ROLES):
+        actor = db.users.find_one({"_id": ObjectId(payload["sub"])},
+                                  {"role": 1, "global_admin": 1, "global_permissions": 1, "role_bundle": 1})
+        # An expired role bundle no longer makes the account an admin.
+        from mielenosoitukset_fi.utils.role_bundle_expiry import effective_role_permissions
+        role = effective_role_permissions(actor, "user")[0] if actor else None
+        if not actor or not (actor.get("global_admin") or role in _ACCOUNT_LOOKUP_ROLES):
             return None, (jsonify(error="access_denied"), 403)
         return payload, None
 

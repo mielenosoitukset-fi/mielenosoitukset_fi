@@ -229,7 +229,12 @@ def user_control():
         )
         if str(membership.get("organization_id")) not in system_team_org_ids
     }
+
+    from mielenosoitukset_fi.utils.role_bundle_expiry import effective_role_permissions
+
     for user in users:
+        # An expired role bundle no longer shows (or acts) as admin.
+        user["role"], user["global_permissions"] = effective_role_permissions(user, "user")
         if user.get("role") in {None, "user"} and str(user["_id"]) in scoped_user_ids:
             user["role"] = "city_admin"
         user["admin_scope"] = _admin_scope_label_key(

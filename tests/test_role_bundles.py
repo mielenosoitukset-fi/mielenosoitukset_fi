@@ -268,7 +268,8 @@ def test_revoke_returns_the_account_to_a_plain_user_and_is_idempotent(bundles):
     response = _end(bundles, target, template="admin_v1")
     assert response.status_code == 200, response.get_json()
     receipt = response.get_json()
-    assert receipt["effective"] == {"role": "user", "permissions": [], "global_admin": False, "bundle": None}
+    assert receipt["effective"] == {"role": "user", "permissions": [], "global_admin": False, "bundle": None,
+                                  "bundle_operation_id": None}
     assert receipt["kind"] == "revoke" and receipt["appointment_id"] == KEY
     doc = db.users.find_one({"_id": target})
     assert doc["role"] == "user" and doc["global_permissions"] == [] and doc["role_bundle"]["ended"] is True
@@ -359,7 +360,8 @@ def test_admins_of_the_national_team_are_told_too(bundles):
     db.memberships.insert_one({"user_id": member, "organization_id": national, "governance_approved": True,
                                "role": "member", "permissions": []})
     _give(bundles, target)
-    assert mailbox.sent[0]["recipients"] == ["carol@example.test", "nina@example.test"]
+    # One mail per person: nobody sees the others' addresses.
+    assert [m["recipients"] for m in mailbox.sent] == [["carol@example.test"], ["nina@example.test"]]
     assert mailbox.sent[0]["context"]["bundle_label"] == "Kääntäjä"
 
 
@@ -434,3 +436,33 @@ def test_approval_page_warns_for_an_elevated_account(bundles):
                              headers={"Origin": "http://localhost"})
     # A proof can still be issued; Flask refuses at apply (422 above). The page does not offer it.
     assert response.status_code == 303
+
+
+def test_a_bundle_left_by_an_unconfirmed_write_can_still_be_ended(bundles):
+    app, client, db, seeded, target, mailbox = bundles
+    _give(bundles, target, "admin_v1")
+    db.city_grant_operations.update_one({"idempotency_key": KEY}, {"$set": {"status": "reconciliation_required"}})
+    response = _end(bundles, target, template="admin_v1")
+    assert response.status_code == 200 and response.get_json()["effective"]["bundle"] is None
+    assert db.users.find_one({"_id": target})["global_permissions"] == []
+
+
+def test_an_expired_bundle_does_not_open_account_lookup_or_the_user_list(bundles):
+    app, client, db, seeded, target, mailbox = bundles
+    _give(bundles, target, "admin_v1")
+    from mielenosoitukset_fi.utils.role_bundle_expiry import effective_role_permissions
+    doc = db.users.find_one({"_id": target})
+    assert effective_role_permissions(doc, "user")[0] == "admin"
+    db.users.update_one({"_id": target}, {"$set": {"role_bundle.valid_until": city_grants.utcnow() - timedelta(seconds=1)}})
+    doc = db.users.find_one({"_id": target})
+    assert effective_role_permissions(doc, "user") == ("user", [])
+
+
+def test_ids_with_a_trailing_newline_are_refused(bundles):
+    app, client, db, seeded, target, mailbox = bundles
+    body, digest = _bundle(app, db, target)
+    bad = {**body, "account_id": str(target) + "\n"}
+    assert role_bundles.validate_bundle(bad) is None
+    assert role_bundles.validate_end({"appointment_id": KEY + "\n", "kind": "revoke", "account_id": str(target),
+                                      "template": "translator_v1", "decision_id": "d", "decision_revision": 1,
+                                      "authority_attestation": "-"}) is None
