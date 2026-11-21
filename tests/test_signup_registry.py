@@ -91,3 +91,10 @@ def test_counts_cover_all_three_lists(db, lists):
     assert counts["kampanja"]["pending"] == db.volunteers.count_documents({"confirmed": {"$ne": True}}) >= 1
     assert counts["pride"]["confirmed"] == db.pride_banner_volunteers.count_documents({"status": "confirmed"}) >= 1
     assert counts["avajaiset"]["total"] == db.campaign_opening_interest.count_documents({}) >= 1
+
+
+def test_delete_page_shows_legacy_phone_only_when_present(admin_client, db):
+    with_phone = db.volunteers.insert_one({"name": "Vanha", "email": "ph@example.test", "phone": "0401234", "confirmed": True}).inserted_id
+    without = db.volunteers.insert_one({"name": "Uusi", "email": "nph@example.test", "confirmed": True}).inserted_id
+    assert "0401234" in admin_client.get(f"/admin/kampanja/ilmoittautumiset/kampanja/{with_phone}/poista").get_data(as_text=True)
+    assert "Puhelin" not in admin_client.get(f"/admin/kampanja/ilmoittautumiset/kampanja/{without}/poista").get_data(as_text=True)

@@ -75,8 +75,8 @@ def _sources() -> Dict[str, Source]:
         Source(
             "kampanja", "Kampanjan vapaaehtoiset", "volunteers",
             (("Nimi", "name"), ("Sähköposti", "email"), ("Kaupunki", "city"), ("Tehtävät", "roles"),
-             ("Huomiot", "notes")),
-            _campaign_status, {"confirmed": {"$ne": True}}, {"confirmed": True}, campaign_purge, ("notes",),
+             ("Puhelin", "phone"), ("Huomiot", "notes")),
+            _campaign_status, {"confirmed": {"$ne": True}}, {"confirmed": True}, campaign_purge, ("phone", "notes"),
         ),
         Source(
             "pride", "Pride-banderollin kantajat", "pride_banner_volunteers",

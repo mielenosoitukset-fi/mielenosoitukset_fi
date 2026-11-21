@@ -82,10 +82,10 @@ def test_old_documents_still_confirm_and_export(client, db, admin_client):
         "confirmed": False, "confirmation_token": "old-token-1", "confirmation_expires": utcnow() + timedelta(hours=1),
     })
     assert client.get("/kampanja/confirm/old-token-1").status_code == 200
-    export = admin_client.get("/admin/kampanja/api/volunteers/export/csv")
+    export = admin_client.get("/admin/kampanja/ilmoittautumiset/kampanja.csv")
     assert export.status_code == 200
     text = export.get_data(as_text=True)
-    assert "Roles" in text.splitlines()[0] and "old-doc@example.test" in text
+    assert "Tehtävät" in text.splitlines()[0] and "old-doc@example.test" in text and "0401" in text
 
 
 def test_link_token_is_stored_only_as_a_hash_and_confirms(client, db, queued):
@@ -132,7 +132,7 @@ def test_format_characters_are_stripped_from_free_text(client, db, queued):
 
 def test_export_escapes_formula_cells(admin_client, db):
     db.volunteers.insert_one({"name": "=HYPERLINK(\"x\")", "email": "csv@example.test", "notes": "+1", "confirmed": True})
-    text = admin_client.get("/admin/kampanja/api/volunteers/export/csv").get_data(as_text=True)
+    text = admin_client.get("/admin/kampanja/ilmoittautumiset/kampanja.csv").get_data(as_text=True)
     assert "'=HYPERLINK" in text and "'+1" in text and ",=HYPERLINK" not in text
 
 
