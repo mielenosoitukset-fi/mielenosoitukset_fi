@@ -400,3 +400,23 @@ def test_legacy_save_keeps_the_appointment_expiry(ctx, admin_client):
     assert admin_client.post(f"/admin/user/edit_user/{ctx.target}", data=payload).status_code == 302
     [grant] = _grants(ctx)
     assert grant["expires_at"].strftime("%Y-%m-%dT%H:%M:%SZ") == VALID_UNTIL
+
+
+def test_stale_legacy_form_cannot_recreate_an_ended_appointment(ctx, admin_client):
+    assert _apply(ctx, _request(ctx)).status_code == 200
+    form = _profile(ctx.db.users.find_one({"_id": ctx.target}), **{
+        "admin_scope_cities[]": ["kuopio"], "admin_scope_permissions[city][]": NINE, "role": "city_admin",
+    })
+    ctx.db.admin_scope_grants.update_one({"user_id": ctx.target}, {"$set": {
+        "expires_at": city_grants.utcnow() - timedelta(seconds=1)}})
+    assert admin_client.post(f"/admin/user/edit_user/{ctx.target}", data=form).status_code == 409
+    assert not _grants(ctx)
+    ended = ctx.db.admin_scope_grants.find_one({"user_id": ctx.target})
+    assert ended["revoked_reason"] == "expired" and "expires_at" in ended
+    # A deliberate new grant after the reload works and has no end date.
+    form = _profile(ctx.db.users.find_one({"_id": ctx.target}), **{
+        "admin_scope_cities[]": ["kuopio"], "admin_scope_permissions[city][]": ["EDIT_DEMO"],
+    })
+    assert admin_client.post(f"/admin/user/edit_user/{ctx.target}", data=form).status_code == 302
+    [grant] = _grants(ctx)
+    assert "expires_at" not in grant

@@ -249,6 +249,23 @@ def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissi
         }) is None:
             raise CityGrantConflict("city grant changed concurrently")
 
+    if expires_at is None and not additive_only:
+        # A legacy save after an appointment ended: close the ended grant, and
+        # refuse a stale form that would recreate it without an end date.
+        stale = False
+        for grant in db.admin_scope_grants.find({
+            "user_id": {"$in": [user_id, str(user_id)]}, "scope_type": "city",
+            "$or": [{"revoked_at": {"$exists": False}}, {"revoked_at": None}],
+            "expires_at": {"$ne": None, "$lte": utcnow()},
+        }):
+            ended = snapshot(grant)
+            update_grant(grant, {"revoked_at": utcnow(), "revoked_by": str(actor._id), "revoked_reason": "expired"},
+                         {"city_scope_keys": [], "city_scope_permissions": []})
+            stale = stale or (granting and ended["city_scope_keys"] == city_keys
+                              and ended["city_scope_permissions"] == permissions)
+        if stale:
+            raise CityGrantConflict("the form re-submitted a city grant that has ended")
+
     if not city_keys or not permissions:
         for grant in db.admin_scope_grants.find(query):
             update_grant(grant, {"revoked_at": utcnow(), "revoked_by": str(actor._id)},
