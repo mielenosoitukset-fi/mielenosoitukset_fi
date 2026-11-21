@@ -585,6 +585,9 @@ body {
 }
 
 .admin-data-view__viewport {
+  /* Positioned so absolutely placed children (visually-hidden labels) are
+     clipped by the table's own scroll area instead of widening the page. */
+  position: relative;
   width: 100%;
   max-width: 100%;
 }
