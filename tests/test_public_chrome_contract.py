@@ -64,7 +64,7 @@ def test_public_header_uses_shared_scoped_component_css():
     css = HEADER_CSS.read_text(encoding="utf-8")
 
     assert "css/public-header.css" in base
-    assert "20261027-react-header-1" in base
+    assert "20261121-mobile-bar-1" in base
     assert "root.classList.add('js')" in base
     assert '<header class="top-header public-site-header' in header
     assert '<nav class="main-nav public-main-nav"' in header

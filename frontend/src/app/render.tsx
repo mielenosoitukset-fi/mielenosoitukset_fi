@@ -238,8 +238,8 @@ ${options.jsonLd ? `<script type="application/ld+json">${serialize(options.jsonL
 <link rel="stylesheet" href="/static/css/home.css?v=20261112-quick-picks">
 <link rel="stylesheet" href="/static/css/product-tokens.css?v=20261110-pride-contrast-1">
 <link rel="stylesheet" href="/static/css/user-workspace.css?v=20261120-user-workspace-10">
-<link rel="stylesheet" href="/static/css/public-header.css?v=20261027-react-header-1">
-<link rel="stylesheet" href="/static/css/flash.css?v=20261110-inline-spacing-1">
+<link rel="stylesheet" href="/static/css/public-header.css?v=20261121-mobile-bar-1">
+<link rel="stylesheet" href="/static/css/flash.css?v=20261121-plain-info-1">
 <link rel="stylesheet" href="/static/css/public_hero.css?v=20261015-hero-width-1">
 ${options.extraHead ?? ''}
 ${options.siteAnalyticsEnabled ? `<script src="https://cdn2.mielenosoitukset.fi/vendor/web-vitals/6.2.2/web-vitals.iife.js" integrity="sha256-Hl6bmva41xz+9QjlqGnFO0zyu8ytjJtaxmTDTpP2FRo=" defer crossorigin="anonymous"></script>
