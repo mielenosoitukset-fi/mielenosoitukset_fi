@@ -94,8 +94,10 @@ def configure(source, target):
         values["AUTH_BRIDGE_ORIGIN"] = config.get("GO_SUBMIT_ORIGIN", "https://mielenosoitukset.fi")
         values["AUTH_BRIDGE_SESSION_SOCKET"] = "/var/www/mielenosoitukset_fi/mielenosoitus.sock"
         # Developer write controls (docs/developer-react-write-controls.md): a
-        # separate switch, off by default, and only with the bridge on.
-        if config.get("DEVELOPER_WRITES") is True:
+        # separate switch, only with the bridge on. On by default since
+        # 21 November 2026 (maintainer: "turn everything on", independent
+        # review SHIP); `DEVELOPER_WRITES: false` in config.yaml opts out.
+        if config.get("DEVELOPER_WRITES", True) is True:
             values["DEVELOPER_WRITES_ENABLED"] = "true"
         # Go POST /contact (docs/go-contact.md): off by default, and only with
         # the bridge on, because the one-time token lives in Flask's session.
