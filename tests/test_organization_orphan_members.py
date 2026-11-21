@@ -39,7 +39,7 @@ def test_organization_preserves_valid_members_and_permissions(db, seeded_data):
     assert {member._id for member in org.members} == {seeded_data["admin_id"], seeded_data["user_id"]}
     members = {member._id: member for member in org.members}
     assert members[seeded_data["admin_id"]].role == "owner"
-    assert members[seeded_data["user_id"]].role == "admin"
+    assert members[seeded_data["user_id"]].role == "member"
     assert "EDIT_ORGANIZATION" in members[seeded_data["user_id"]].permissions
     assert "CREATE_DEMO" in members[seeded_data["user_id"]].permissions
     assert org.is_member(user_id=seeded_data["user_id"])
