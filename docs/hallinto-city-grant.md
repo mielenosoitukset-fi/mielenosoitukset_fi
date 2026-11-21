@@ -70,3 +70,67 @@ Apache (internal vhost only, production activation needs Olivia's go-ahead): `SS
     RequestHeader set X-Hallinto-Proxy-Secret "<secret from a root-only include>"
 
 Route only `/internal/hallinto/` through that vhost. Include `deploy/apache/hallinto-public-vhost-guard.conf` in every public vhost: it strips all three headers and denies `/internal/`.
+
+## Ending an appointment (Hallinto B3c)
+
+`POST /internal/hallinto/v1/city-appointment-ends` revokes or freezes a confirmed appointment at once. It needs the same three things as an appointment: mTLS workload identity, an actor proof and Hallinto's attestation.
+
+Body: `appointment_id` (the Idempotency-Key of the original appointment), `kind` (`revoke` or `freeze`), `account_id`, `city`, `template` (`city_admin_v1`), `decision_id`, `decision_revision` and `authority_attestation`. The `Idempotency-Key` header is the end's own id.
+
+- **Different signature.** The attestation signs `"hallinto-city-admin-end-v1-attestation\n" + end_digest`, so an appointment signature can never end a grant. The digest is built like the appointment digest from the body without `authority_attestation` (sorted keys, no whitespace, no `permissions`).
+- **Different proof.** Flask issues the proof for the action `city_admin_end_v1`. Send the verifier to `/admin/hallinto/approve` with `r` holding the end terms (`appointment_id`, `kind`, `account_id`, `city`, `template`, `decision_id`, `decision_revision`). There is no `expected_state` in the end fragment, because ending is idempotent and only removes access.
+- **What it does.** Flask checks that `appointment_id` is a confirmed appointment of the same account and city. It then ends that appointment's own grant (Flask stored its id when it confirmed the appointment) under the account fence, and returns the role `city_admin` to `user` only if no other live city grant remains. A later appointment or a legacy grant for the account is never touched. Both kinds remove access immediately.
+- **Freeze.** A freeze marks the grant `frozen` and `revoked_reason: hallinto_frozen`; a revoke uses `hallinto_revoked`. While a frozen grant exists, the legacy admin views refuse to grant a city to the account (409). A new appointment lifts the freeze, and that needs a new decision.
+- **Idempotent.** The same key and body replays the receipt. A new key for a grant that is already ended is a confirmed no-op.
+- **Receipt.** `status: confirmed` means the appointment's grant is no longer live. `effective` is everything the account still has: `cities`, `permissions`, `role`, `global_admin`, `governance_managed` and `other_scope_types` (live grants that are not city grants). Flask only reports it. Hallinto confirms its end when `status` is `confirmed` and `effective` shows nothing of the ended appointment's city, and should show anything else that remains to the verifier. If the grant is still live after the write, the operation is `reconciliation_required`.
+- **Errors.** Unknown appointment, a different city or an unconfirmed appointment give 422. A missing or demoted actor, a bad proof or a bad signature give 403. The target is never revealed.
+
+## Orders: board team and role removal (Hallinto H12, H17)
+
+`POST /internal/hallinto/v1/orders` carries out an order Hallinto decided. One route serves both kinds. The `Idempotency-Key` header is the order id (`order_id` in the body must equal it). Trust model as before: mTLS workload identity plus proxy secret, an actor proof and Hallinto's attestation.
+
+- **Attestation.** Ed25519 over `"hallinto-flask-order-v1-attestation\n" + order_digest`. The digest is built like the others: the body without `authority_attestation`, canonical JSON.
+- **Proof.** Action `flask_order_v1`. Send the verifier to `/admin/hallinto/approve?r=<base64url JSON of the order terms>&state=...`. The fragment returns `state` and `proof` only. A roster list must fit the request line (about 200 accounts at most; the real board is far smaller).
+
+### `kind: board_roster` (H12)
+
+Body: `order_id`, `kind`, `decision_id`, `decision_revision`, `roster` (sorted, unique account ids, 1 to 200), `authority_attestation`. Flask sets the board team (the memberships of `BOARD_ORG_ID`) to exactly that roster: accounts missing from the team are added with `grant_source: hallinto_decision`, accounts not listed are set `governance_approved: false`. Safeguards that stay in Flask, each answered 422 without a write:
+
+- every listed account must exist and be active and confirmed;
+- the board organization must be configured and exist;
+- Olivia's account (`OVERRIDE_OLIVIA_USER_ID`) is never removed by an order;
+- one order removes at most half of the current team, and adds at most as many accounts as the team has (at least five, so a new team can be set up);
+- the account that signs the order in Flask cannot be on the list as an addition.
+
+Re-approving an old membership row resets its role to `member` and its permissions to none. The approval page lists who is added and who is removed.
+
+Receipt: `status: confirmed` with `effective: {roster: [...]}`, the team Flask has now. Hallinto confirms only when it equals the sent roster. The receipt has no `account_id`.
+
+### `kind: role_removal` (H17)
+
+Body: `order_id`, `kind`, `decision_id`, `decision_revision`, `account_id`, `role`, `authority_attestation`. Flask removes the one named role and nothing else. Removable roles: `city_admin`, `admin`, `global_admin`, `superuser`, `god`. Refused: any other role, the account named by `OVERRIDE_OLIVIA_USER_ID` and the acting verifier themselves (422, 403), and a role ranked above the actor (403): `god` needs a god actor and `superuser` a superuser or god actor, others need a global admin.
+
+- `admin`, `superuser`, `god`: the role becomes `user`.
+- `global_admin`: the stored flag, the role `global_admin` and the national team membership all end. A `superuser` or `god` role the account also has stays.
+- `city_admin`: the account's city grants end and the role returns to `user`.
+- Tokens and sessions are revoked and `auth_epoch` rises. Board team membership is not touched; the roster order owns that.
+- Idempotent: a new order for a role the account no longer has is a confirmed no-op. "Permanent" means Hallinto will not grant it again by itself; the legacy admin views can still give a role, until they are retired.
+
+Receipt: `status: confirmed`, `account_id`, `effective: {role, global_admin, full_permissions, system_team_access}`, read from the loaded account so access that comes from a team shows too. Hallinto confirms when `effective.role` differs from the removed role (for `global_admin`, when `effective.global_admin` is false unless a super role remains). If the named role is still held after the write the operation is `reconciliation_required`.
+
+Both kinds return the usual `pending`, `reconciliation_required` and `rejected` receipts, replayed by key.
+
+
+## Role bundles (`translator_v1`, `api_access_v1`, `admin_v1`)
+
+An account gets one named bundle by an appointment decision: a role and an exact permission list that Flask owns (`admin/role_bundles.py`, `BUNDLES`). Hallinto confirms only that exact set. The contract text is Hallinto's `docs/role-bundles-contract.md`.
+
+`POST /internal/hallinto/v1/role-bundles`, Idempotency-Key = appointment id. Same workload identity, proof and attestation as city appointments, with proof action `role_bundle_v1` and attestation context `hallinto-role-bundle-v1-attestation\n`. Body: `account_id`, `template`, `decision_id`, `decision_revision`, `valid_until`, `expected_state`, `authority_attestation`. The signed digest is the canonical JSON of the body without the attestation plus the bundle's sorted `permissions`, which Flask adds itself. The approval page takes the same terms without `expected_state` and returns it in the fragment.
+
+- One bundle per account: a new bundle replaces the earlier one (sessions and tokens are revoked on replacement). Accounts with a global-admin flag, a super or city role, a system team, a live scoped grant, a protected account or an inactive one are refused (422). Rights from the old admin tools are taken over only when the bundle gives them anyway. Nobody can give themselves a bundle.
+- Flask writes `users.role`, exactly `users.global_permissions`, `governance_managed` and `users.role_bundle` (template, operation id, `valid_until`) through the guarded profile write, so the change is in the account history.
+- Expiry is on read: `User.from_db` ignores a bundle once `valid_until` has passed (`utils/role_bundle_expiry.py`). Code that reads `users` documents directly still sees the stored fields until the next write.
+- Receipt `effective`: `{role, city: "", permissions (sorted), valid_until}`, plus `resulted_in_city_enablement: false`.
+- The account and the national admin team's active members get an email after a confirmed write or end (best effort; a mail failure never changes the result).
+
+`POST /internal/hallinto/v1/role-bundles/{appointment_id}/end` ends the bundle that appointment wrote (revoke or freeze). Body: `appointment_id` (must equal the path), `kind`, `account_id`, `template`, `decision_id`, `decision_revision`, `authority_attestation`. Proof action `role_bundle_end_v1`, attestation context `hallinto-role-bundle-end-v1-attestation\n`. It removes exactly the bundle's role and permissions at once, is idempotent, and leaves a newer bundle alone. Receipt `effective`: `{role, permissions, global_admin, bundle}`; a plain user has `bundle: null`.

@@ -27,6 +27,10 @@ PROOF_TTL = timedelta(minutes=5)
 # Password alone is not a fresh strong factor.
 STRONG_FACTORS = {"passkey", "password_totp"}
 ACTION_CITY_ADMIN_V1 = "city_admin_v1"
+ACTION_CITY_ADMIN_END_V1 = "city_admin_end_v1"
+ACTION_FLASK_ORDER_V1 = "flask_order_v1"
+ACTION_ROLE_BUNDLE_V1 = "role_bundle_v1"
+ACTION_ROLE_BUNDLE_END_V1 = "role_bundle_end_v1"
 
 
 def _hash(token: str) -> str:
