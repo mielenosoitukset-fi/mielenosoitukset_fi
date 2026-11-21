@@ -4,17 +4,26 @@
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/users.css', v='20261121-hallinto-approve') }}">{% endblock %}
 {% block main_content %}
 <section class="admin-page admin-workspace hallinto-approve">
-  {{ admin_page_hero(page_title, 'Hallinnossa hyväksytty päätös tulee voimaan vasta, kun vahvistat sen tässä.' if (is_end or is_order) else 'Hallinnossa hyväksytty nimitys tulee voimaan vasta, kun vahvistat sen tässä.', 'Hallinto', [('Hallintapaneeli', url_for('admin.admin_dashboard')), (page_title, none)], back_url=hallinto_url, back_label='Takaisin Hallintoon') }}
+  {{ admin_page_hero(page_title, 'Hallinnossa hyväksytty päätös tulee voimaan vasta, kun vahvistat sen tässä.' if (is_end or is_order or is_invite) else 'Hallinnossa hyväksytty nimitys tulee voimaan vasta, kun vahvistat sen tässä.', 'Hallinto', [('Hallintapaneeli', url_for('admin.admin_dashboard')), (page_title, none)], back_url=hallinto_url, back_label='Takaisin Hallintoon') }}
   <section class="admin-form-section" aria-labelledby="approve-terms-heading">
     <div class="admin-form-section__header">
       <span class="admin-form-section__icon"><i class="fas fa-user-shield" aria-hidden="true"></i></span>
       <div>
-        <h2 id="approve-terms-heading">{{ 'Hallitustiimi' if fields.kind == 'board_roster' else 'Roolin pysyvä poisto' if is_order else ('Roolipaketti: ' ~ bundle_label) if is_bundle else 'Kaupunkiadmin' }}</h2>
-        <p>{{ 'Hallinnossa hyväksytty päätös' if (is_end or is_order) else 'Hallinnossa hyväksytyt ehdot' }}</p>
+        <h2 id="approve-terms-heading">{{ 'Kutsu organisaatiolle' if is_invite else 'Hallitustiimi' if fields.kind == 'board_roster' else 'Roolin pysyvä poisto' if is_order else ('Roolipaketti: ' ~ bundle_label) if is_bundle else 'Kaupunkiadmin' }}</h2>
+        <p>{{ 'Hallinnossa hyväksytty päätös' if (is_end or is_order or is_invite) else 'Hallinnossa hyväksytyt ehdot' }}</p>
       </div>
     </div>
     <div class="admin-form-section__body">
-    {% if is_order %}
+    {% if is_invite %}
+    <dl class="admin-message-meta">
+      <div><dt>Organisaatio</dt><dd>{{ fields.organization_name }}</dd></div>
+      <div><dt>Osoite</dt><dd>{{ masked_address }}</dd></div>
+      <div><dt>Osoite julkaistu</dt><dd>{{ fields.source_url }}</dd></div>
+      {% if fields.note %}<div><dt>Viesti</dt><dd>{{ fields.note }}</dd></div>{% endif %}
+      <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
+    </dl>
+    <p class="mb-0">Organisaation osoitteeseen lähetetään yksi viesti, jossa on linkki hakulomakkeeseen ja yhden klikkauksen peruutus. Osoitetta ei tallenneta selkokielisenä.</p>
+    {% elif is_order %}
     <dl class="admin-message-meta">
       {% if fields.kind == 'role_removal' %}
       <div><dt>Käyttäjä</dt><dd>{{ account.displayname or account.username }}{% if account.displayname and account.username %} ({{ account.username }}){% endif %}</dd></div>
@@ -37,7 +46,8 @@
       <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
     </dl>
     {% endif %}
-    {% if is_order %}
+    {% if is_invite %}
+    {% elif is_order %}
     <p class="mb-0">{% if fields.kind == 'role_removal' and fields.role == 'city_admin' %}Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% elif fields.kind == 'role_removal' %}Käyttäjä menettää roolin pysyvästi, ja hänen istuntonsa ja avaimensa mitätöidään.{% else %}Tiimistä poistetaan ne, jotka eivät ole listalla. Yksi vahvistus voi poistaa enintään puolet tiimistä.{% endif %}</p>
     {% elif is_bundle and is_end %}
     <p class="mb-0">Käyttäjän roolipaketin oikeudet poistetaan heti, ja hän palaa tavalliseksi käyttäjäksi.{% if fields.kind == 'freeze' %} Jäädytys päättyy vasta uudella nimityspäätöksellä.{% endif %}</p>
@@ -49,7 +59,7 @@
     {% else %}
     <p class="mb-0">Käyttäjä saa kaupungin mielenosoitusten ja asioiden käsittelyoikeudet.{% if fields.allow_city_enablement %} Jos kaupunki ei ole vielä käytössä, se otetaan käyttöön.{% endif %}</p>
     {% endif %}
-    {% if not eligible %}<div class="alert alert-warning mb-0" role="alert">Käyttäjälle ei voi antaa tätä nimitystä nyt: hänellä on jo ylläpito-oikeuksia tai käyttäjätili ei ole käytössä. Nimitystä ei voi vahvistaa.</div>{% endif %}
+    {% if not eligible and is_invite %}<div class="alert alert-warning mb-0" role="alert">Tähän osoitteeseen ei voi lähettää kutsua: osoite on kutsukiellossa tai se on yleisosoite. Kutsua ei voi vahvistaa.</div>{% elif not eligible %}<div class="alert alert-warning mb-0" role="alert">Käyttäjälle ei voi antaa tätä nimitystä nyt: hänellä on jo ylläpito-oikeuksia tai käyttäjätili ei ole käytössä. Nimitystä ei voi vahvistaa.</div>{% endif %}
     </div>
   </section>
 
@@ -57,7 +67,7 @@
     <input type="hidden" name="r" value="{{ raw }}">
     <input type="hidden" name="state" value="{{ state_param }}">
     {% if elevated and eligible %}
-    <button type="submit" class="workflow-button btn btn-primary"><i class="fas fa-check" aria-hidden="true"></i>{{ 'Vahvista' if is_order else 'Vahvista päättäminen' if is_end else 'Vahvista nimitys' }}</button>
+    <button type="submit" class="workflow-button btn btn-primary"><i class="fas fa-check" aria-hidden="true"></i>{{ 'Vahvista ja lähetä' if is_invite else 'Vahvista' if is_order else 'Vahvista päättäminen' if is_end else 'Vahvista nimitys' }}</button>
     <a class="workflow-button btn btn-outline-secondary" href="{{ hallinto_url }}">Peruuta</a>
     {% endif %}
   </form>

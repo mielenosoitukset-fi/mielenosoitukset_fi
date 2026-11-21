@@ -164,6 +164,56 @@ paths:
         '403': { $ref: '#/components/responses/Denied' }
         '422': { $ref: '#/components/responses/Unsupported' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /internal/hallinto/v1/org-invitations:
+    parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      operationId: sendOrgInvitation
+      summary: Send one invitation mail to an organization's public address. Off unless ORG_OUTREACH_ENABLED. Idempotency-Key is the invitation id.
+      security: [{ workload: [], actorProof: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [invitation_id, case_id, decision_id, decision_revision, organization_name, address, source_url, authority_attestation]
+              properties:
+                invitation_id: { type: string }
+                case_id: { type: string }
+                decision_id: { type: string }
+                decision_revision: { type: integer, minimum: 1 }
+                organization_name: { type: string, minLength: 2, maxLength: 120 }
+                address: { type: string, description: Lowercase public address }
+                source_url: { type: string, description: https page where the address is published }
+                note: { type: string, maxLength: 300 }
+                authority_attestation: { type: string, description: Ed25519 over the context hallinto-org-invitation-v1-attestation and the intent digest }
+      responses:
+        '200': { description: 'Confirmed receipt; effective.status is sent, suppressed, account_exists, limit, invalid_address or paused' }
+        '202': { description: Durable pending result }
+        '403': { $ref: '#/components/responses/Denied' }
+        '404': { description: Switched off }
+        '422': { $ref: '#/components/responses/Unsupported' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /internal/hallinto/v1/org-invitations/check:
+    post:
+      operationId: checkOrgInvitationAddress
+      summary: Read-only answer before drafting an invitation. Workload identity only. 60 a minute.
+      security: [{ workload: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [address]
+              properties:
+                address: { type: string }
+      responses:
+        '200': { description: '{sendable, reason} with reason suppressed, invalid_address, limit, rate_limited or null' }
+        '404': { description: Switched off }
   /internal/hallinto/v1/operations/by-key:
     parameters:
       - $ref: '#/components/parameters/IdempotencyKey'

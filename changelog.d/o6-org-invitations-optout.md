@@ -1,0 +1,1 @@
+- Lisätty julkinen "Lopeta kutsut" -sivu (`/organisaatiot/ei-kutsuja`) organisaatioille lähetettäviä kutsuja varten. Kutsut ovat pois päältä, kunnes ne otetaan käyttöön asetuksella.

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Kutsut organisaatioille – Mielenosoitukset.fi{% endblock %}
+{% block robots %}<meta name="robots" content="noindex, nofollow" />{% endblock %}
+{% block styles %}
+<style>
+  .optout-card {
+    max-width: 36rem; margin: 2rem auto; padding: 1.5rem;
+    background: light-dark(#fff, #23272a); color: light-dark(#222, #f3f3f3);
+    border-radius: 1rem; box-shadow: 0 1px 8px rgba(0,0,0,.08);
+  }
+  .optout-card h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+  .optout-card button {
+    margin-top: 1rem; padding: .7rem 1.5rem; border: 0; border-radius: 2rem; cursor: pointer;
+    font-size: 1rem; background: light-dark(#0056b3, #4ea1ff); color: light-dark(#fff, #10151a);
+  }
+  .optout-card button:focus-visible { outline: 3px solid light-dark(#222, #fff); outline-offset: 2px; }
+  @media (max-width: 600px) { .optout-card { margin: 1rem; padding: 1rem; } }
+</style>
+{% endblock %}
+{% block content %}
+<section class="optout-card" aria-labelledby="optout-title">
+  {% if state == 'confirm' %}
+  <h1 id="optout-title">Haluatko lopettaa kutsut?</h1>
+  <p>Olet saanut kutsun käyttää Mielenosoitukset.fi-palvelua. Jos et halua enempää kutsuja tähän sähköpostiosoitteeseen, vahvista tässä. Emme lähetä osoitteeseen enää kutsuja. Vahvistus koskee vain kutsuja, ei tilejä tai hakemuksia.</p>
+  <form method="post" action="{{ url_for('org_outreach.optout_confirm') }}">
+    <input type="hidden" name="t" value="{{ token }}">
+    <button type="submit">Lopeta kutsut</button>
+  </form>
+  {% elif state == 'done' %}
+  <h1 id="optout-title">Kutsut on lopetettu</h1>
+  <p>Emme lähetä tähän osoitteeseen enää kutsuja. Jos haluat myöhemmin hakea organisaatiolle tiliä, voit tehdä sen milloin vain <a href="/organisaatiot/hae">hakulomakkeella</a>.</p>
+  {% else %}
+  <h1 id="optout-title">Linkki ei toimi</h1>
+  <p>Linkki on virheellinen tai käytetty. Jos haluat lopettaa kutsut, kirjoita meille osoitteeseen, johon viesti tuli, ja kerro sähköpostiosoite.</p>
+  {% endif %}
+</section>
+{% endblock %}

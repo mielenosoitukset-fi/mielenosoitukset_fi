@@ -134,3 +134,19 @@ An account gets one named bundle by an appointment decision: a role and an exact
 - The account and the national admin team's active members get an email after a confirmed write or end (best effort; a mail failure never changes the result).
 
 `POST /internal/hallinto/v1/role-bundles/{appointment_id}/end` ends the bundle that appointment wrote (revoke or freeze). Body: `appointment_id` (must equal the path), `kind`, `account_id`, `template`, `decision_id`, `decision_revision`, `authority_attestation`. Proof action `role_bundle_end_v1`, attestation context `hallinto-role-bundle-end-v1-attestation\n`. It removes exactly the bundle's role and permissions at once, is idempotent, and leaves a newer bundle alone. Receipt `effective`: `{role, permissions, global_admin, bundle}`; a plain user has `bundle: null`.
+
+## Outbound organization invitations (O6)
+
+Off unless `ORG_OUTREACH_ENABLED: true` is in `config.yaml` (default `false`) AND the grant config exists. With the flag off the routes answer 404 and the approval page answers 404. The opt-out page is always on.
+
+`POST /internal/hallinto/v1/org-invitations`, Idempotency-Key = `invitation_id`. Proof action `org_invitation_v1`, attestation context `hallinto-org-invitation-v1-attestation\n`. Body (exact set, `note` optional): `invitation_id`, `case_id`, `decision_id`, `decision_revision`, `organization_name` (2 to 120, one line), `address` (lowercase, one `@`), `source_url` (https, where the address is published), `note` (<= 300, one line), `authority_attestation`. Flask sends one Finnish mail to the address with a link to `https://mielenosoitukset.fi/organisaatiot/hae?kutsu=<token>` and a one-click opt-out (`List-Unsubscribe` and `List-Unsubscribe-Post`). Tokens are random, expire after 30 days and are stored hashed.
+
+The receipt is always `confirmed` once Flask has decided; `effective.status` says what happened: `sent`, `suppressed` (opt-out), `account_exists` (an account uses the address), `limit`, `invalid_address` (role or automatic mailbox), `paused` (panic switch). It carries `invitation_id`, `expires_at` and the address's SHA-256, never the address. The journal and logs hold only the hash. A retry with the same key replays the receipt and never resends; if queueing the mail fails the operation stays pending (503), then `reconciliation_required`.
+
+Limits: one invitation per address per 90 days, one per organization name per 30 days (case and spacing ignored), 20 a day for the whole site, 3 a day per verifier. Opt-outs are permanent (`outreach_optouts`, address hash only); Hallinto never deletes entries.
+
+`POST /internal/hallinto/v1/org-invitations/check` with `{"address": ...}` and workload identity only (no proof) answers `{sendable, reason}` with `reason` one of `suppressed`, `invalid_address`, `limit`, `rate_limited` (60 a minute) or null. It never says whether an account uses the address; that is only learned at send time, behind a step-up.
+
+Public page: `GET /organisaatiot/ei-kutsuja?t=<token>` shows a confirm button and changes nothing; `POST` records the opt-out (the one-click request from mail programs too). The page is `no-store`, `no-referrer` and `noindex`. The token only identifies an invitation.
+
+The Go request form must accept `kutsu` and store the invitation's `case_id` on the new request (Go side, not in this change). Until it does, the link opens the plain form.
