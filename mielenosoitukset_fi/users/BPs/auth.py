@@ -130,6 +130,32 @@ def _pending_mfa_digest(value):
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+RESEND_CONFIRMATION_LIMIT = 3
+RESEND_CONFIRMATION_WINDOW_SECONDS = 3600
+
+
+def _resend_confirmation_allowed(user_id):
+    """Count a confirmation resend for this account; False once the hourly limit is used.
+
+    Anyone can ask for a resend by address or username, so without a cap the form could
+    flood an unconfirmed address with mail.
+    """
+    collection = _pending_mfa_collection()
+    now = utcnow()
+    bucket = int(now.timestamp()) // RESEND_CONFIRMATION_WINDOW_SECONDS
+    key = "resend-confirm:" + _pending_mfa_digest(f"{user_id}:{bucket}")
+    row = collection.find_one_and_update(
+        {"_id": key},
+        {"$inc": {"attempts": 1}, "$setOnInsert": {
+            "kind": "login_rate_limit",
+            "expires_at": now + timedelta(seconds=2 * RESEND_CONFIRMATION_WINDOW_SECONDS),
+        }},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+    return (row or {}).get("attempts", 1) <= RESEND_CONFIRMATION_LIMIT
+
+
 def _clear_pending_mfa_login():
     """Revoke this browser's pending first factor and remove its handle."""
     challenge = session.pop(MFA_PENDING_LOGIN_KEY, None)
@@ -521,6 +547,26 @@ def register_next_steps():
     )
 
 
+def _registration_state():
+    """The address this browser just registered with, and whether it is confirmed yet."""
+    email = session.get("registration_email") or ""
+    if not isinstance(email, str) or not email:
+        return None, False
+    try:
+        user_doc = _find_user_by_email(email)
+        return email, bool(user_doc and User.from_db(user_doc).confirmed)
+    except Exception:
+        current_app.logger.exception("Could not read the registration state")
+        return email, False
+
+
+@auth_bp.route("/api/register/status", methods=["GET"])
+def register_status():
+    """Answer the React next-steps page from this browser's own session, never for any address."""
+    email, verified = _registration_state()
+    return jsonify({"email": email, "verified": verified}), 200, {"Cache-Control": "no-store"}
+
+
 # ------------------------
 # Generate a new API token
 # ------------------------
@@ -792,7 +838,7 @@ def resend_confirmation():
 
         if user_doc:
             user = User.from_db(user_doc)
-            if not user.confirmed:
+            if not user.confirmed and _resend_confirmation_allowed(user.id):
                 try:
                     verify_emailer(user.email, user.username)
                 except Exception:
@@ -825,11 +871,14 @@ def resend_confirmation():
 
     if user_doc:
         user = User.from_db(user_doc)
-        if not user.confirmed:
+        if not user.confirmed and _resend_confirmation_allowed(user.id):
             try:
                 verify_emailer(user.email, user.username)
-            except Exception as e:
-                flash_message(f"Vahvistusviestin lähetys epäonnistui: {e}", "error")
+            except Exception:
+                current_app.logger.exception(
+                    "Failed to resend confirmation for user %s", user.id
+                )
+                flash_message("Vahvistusviestin lähetys epäonnistui.", "error")
                 return redirect(url_for("users.auth.login"))
 
     flash_message(
@@ -849,12 +898,14 @@ def check_email_verified():
     dict
         A dictionary indicating whether the email is verified.
     """
-    try:
-        user = _find_user_by_email(request.json.get("email"))
-        user = User.from_db(user)
-        return jsonify({"verified": user.confirmed})
-    except Exception as e:
-        return jsonify({"verified": False})
+    # Only this browser's own registration is answered, so the endpoint cannot tell
+    # anyone whether some other address has a confirmed account.
+    body = request.get_json(silent=True)
+    asked = body.get("email") if isinstance(body, dict) else None
+    email, verified = _registration_state()
+    if not email or not isinstance(asked, str) or asked.strip().lower() != email.strip().lower():
+        return jsonify({"verified": False}), 200, {"Cache-Control": "no-store"}
+    return jsonify({"verified": verified}), 200, {"Cache-Control": "no-store"}
 
 @auth_bp.route("/2fa_check", methods=["POST"])
 def mfa_check():

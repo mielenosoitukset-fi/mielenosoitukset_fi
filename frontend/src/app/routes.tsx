@@ -17,6 +17,7 @@ import { passwordResetRequestCopy, passwordResetRequestPath } from './password-r
 import { loginCopy, loginPath } from './login-route';
 import { registerCopy, registerPath } from './register-route';
 import { passwordResetCopy, resetTokenFromPath } from './password-reset-token-route';
+import { nextStepsCopy, nextStepsPath } from './register-next-steps-route';
 
 /**
  * Public routes owned by the standalone React application.
@@ -57,6 +58,7 @@ export type AppRoute =
   | { name: 'password-reset-request' }
   | { name: 'login' }
   | { name: 'register' }
+  | { name: 'register-next-steps' }
   | { name: 'password-reset'; token: string }
   | { name: 'detail'; identifier: string }
   | { name: 'series'; parent: string };
@@ -132,6 +134,7 @@ export function routeForPath(path: string): AppRoute | null {
   if (path === passwordResetRequestPath) return { name: 'password-reset-request' };
   if (path === loginPath) return { name: 'login' };
   if (path === registerPath) return { name: 'register' };
+  if (path === nextStepsPath) return { name: 'register-next-steps' };
   const resetToken = resetTokenFromPath(path);
   if (resetToken) return { name: 'password-reset', token: resetToken };
   const profile = PROFILE_PATH.exec(path);
@@ -206,6 +209,9 @@ export function routeMeta(route: AppRoute, config: AppConfig, text: Catalog): Ro
   }
   if (route.name === 'password-reset') {
     return { title: `${passwordResetCopy.title} | Mielenosoitukset.fi`, description: passwordResetCopy.lead, robots: 'noindex, nofollow', canonical: null };
+  }
+  if (route.name === 'register-next-steps') {
+    return { title: `${nextStepsCopy.title} | Mielenosoitukset.fi`, description: nextStepsCopy.lead, robots: 'noindex, nofollow', canonical: null };
   }
   if (route.name === 'register') {
     return { title: `${registerCopy.title} | Mielenosoitukset.fi`, description: registerCopy.lead, robots: 'noindex, nofollow', canonical: null };

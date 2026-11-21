@@ -111,6 +111,10 @@ if (container) {
       void import('./PasswordResetScreen').then(({ default: PasswordResetScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<PasswordResetScreen config={props.config} token={token} />} />);
       }).catch(error => console.error('Could not start the password reset page', error));
+    } else if (route?.name === 'register-next-steps') {
+      void import('./RegisterNextStepsScreen').then(({ default: RegisterNextStepsScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<RegisterNextStepsScreen config={props.config} />} />);
+      }).catch(error => console.error('Could not start the next steps page', error));
     } else if (route?.name === 'register') {
       void import('./RegisterScreen').then(({ default: RegisterScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<RegisterScreen config={props.config} />} />);
