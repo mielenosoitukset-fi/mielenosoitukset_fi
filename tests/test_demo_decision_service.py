@@ -147,50 +147,19 @@ def test_legacy_approval_is_idempotent_and_reconciles_all_side_effects(
     _assert_single_decision_record(db, demo["_id"], decision_id, "approve_demo")
 
 
-def test_token_rejection_consumes_used_token_and_revokes_siblings(
-    client, db, seeded_data, monkeypatch
+def test_rejection_revokes_every_open_link(
+    admin_client, db, seeded_data, monkeypatch
 ):
     queued = _capture_decision_email(monkeypatch)
-    response = client.post(
-        f"/admin/demo/reject_demo_with_token/{seeded_data['reject_token']}",
-        follow_redirects=False,
-    )
+    demo_id = seeded_data["pending_demo_id"]
+    response = admin_client.post(f"/api/admin/demo/{demo_id}/deny")
 
-    assert response.status_code == 302
-    demo = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
-    assert demo["approved"] is False
+    assert response.status_code == 200
+    demo = db.demonstrations.find_one({"_id": demo_id})
     assert demo["rejected"] is True
-    assert demo["moderation_decision"]["source"] == "token"
-    assert len(queued) == 1
     assert queued[0]["template_name"] == "demo_submitter_rejected.html"
-
-    from mielenosoitukset_fi.admin.admin_demo_bp import _hash_token
-
-    used = db.magic_links.find_one(
-        {"token_hash": _hash_token(seeded_data["reject_token"])}
-    )
-    assert used["used_at"] is not None
-    assert used["revoked"] is False
-    siblings = list(
-        db.magic_links.find(
-            {
-                "demo_id": str(seeded_data["pending_demo_id"]),
-                "_id": {"$ne": used["_id"]},
-            }
-        )
-    )
-    assert {token["action"] for token in siblings} == {"preview", "approve"}
-    assert all(token["revoked"] is True for token in siblings)
-    replay = client.post(
-        f"/admin/demo/reject_demo_with_token/{seeded_data['reject_token']}"
-    )
-    # Used links intentionally render the existing friendly 200 page, not expiry.
-    assert replay.status_code == 200
-    assert "on jo käytetty" in replay.get_data(as_text=True)
-    assert db.magic_links.find_one({"_id": used["_id"]})["used_at"] == used["used_at"]
-    assert len(queued) == 1
-    after_replay = db.demonstrations.find_one({"_id": demo["_id"]})
-    assert after_replay["moderation_decision"] == demo["moderation_decision"]
+    links = list(db.magic_links.find({"demo_id": str(demo_id)}))
+    assert links and all(link["revoked"] is True for link in links)
     _assert_single_decision_record(
         db, demo["_id"], demo["moderation_decision"]["id"], "reject_demo"
     )
