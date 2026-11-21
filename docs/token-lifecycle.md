@@ -98,14 +98,16 @@ application imports. `-B` keeps it from writing `.pyc` files. A file that cannot
 message that never quotes `config.yaml`. The file ends at mode 600, which is fine for a systemd `EnvironmentFile`
 (systemd reads it as root). `--config` and `--env-file` override the default paths. Covered by `tests/test_confirmation_token_key.py`.
 
-## Scoped case links (admin emails, 20 Nov 2026)
+## Scoped case links (admin emails, 20 Nov 2026; same page as the case, 21 Nov 2026)
 
 Admin moderation emails to a known admin carry a `case` link (`/admin/demo/case_link/<token>`):
 
 - One link per recipient admin and demonstration, valid 24 h; any decision on the demonstration revokes it (`TERMINAL_TOKEN_ACTIONS`), and a decision made with it marks it used.
-- A plain GET only shows an "Avaa tässä selaimessa" button, so mail scanners that prefetch links cannot claim it. The POST binds the link to that browser (HttpOnly cookie, only its hash is stored).
-- It never logs anyone in. It shows that one demonstration and offers approve or reject (with a reason); duplicates, escalation, take-down and everything else need a login.
-- Rights are checked against the recipient's current account on every request.
-- Second factor: an admin with TOTP must enter a code (the login verifier; a code is not accepted twice; five wrong codes revoke the link). An admin with passkeys only must log in to decide.
+- A plain GET only shows an "Avaa ilmoitus" button, so mail scanners that prefetch links cannot claim it. The POST binds the link to that browser (HttpOnly cookie on `/admin`, only its hash is stored).
+- It then redirects to the demonstration's case page, **the same page and buttons as in Tapaukset**. The browser keeps a `case_link` session marker, not a login (no `_user_id`): `login_manager.request_loader` (`utils/case_links.user_for_request`) lets the recipient act as `current_user` only on that case's own routes (`single_case`, `demo_action`, `demo_escalate`, the demo preview and the decision preview, and the duplicate search). Every other route, and Go reading the session, sees a signed-out browser. The page hides the menu and the submitter's contact details.
+- Through the link: approve, reject (with a reason, duplicates included) and escalate. Take-down, undo, notes, linking and closing need a login.
+- Rights are checked against the recipient's current account on every request, including `ACCEPT_DEMO` for that demonstration.
+- Second factor: an admin with TOTP enters a code in the dialog (the login verifier; a code is not accepted twice; five wrong codes revoke the link). An admin with passkeys only must log in to decide.
+- After a decision the page stays readable in that browser until the link expires (GET only), so the person sees what happened; the buttons are gone.
 - The decision runs through `apply_demo_decision` with `source="case_link"` and the actor marked `authentication: case_link`.
-- Recipients without a user account get the login link `/admin/demo/<id>/decide`.
+- Recipients without a user account get the login link `/admin/demo/<id>/decide`, which also ends in the case.

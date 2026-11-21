@@ -101,14 +101,14 @@
     <li>{{ m.ui(_('Esikatsele mielenosoitusta')) }}: {{ _('näyttää ilmoituksen kirjautumatta.') }}</li>
   </ul>
   {% call m.task('tapauslinkki', _('Käsittele ilmoitus sähköpostin linkistä'), _('Hyväksy tai hylkää uusi mielenosoitus puhelimella ilman kirjautumista.'), none, none) %}
-    {% call m.step() %}<p>{{ _('Avaa sähköpostin') }} {{ m.ui(_('Avaa tapaus')) }} {{ _('ja valitse sivulla') }} {{ m.ui(_('Avaa tässä selaimessa')) }}. {{ _('Linkki toimii sen jälkeen vain tässä selaimessa. Pelkkä avaaminen ei vielä sido linkkiä, joten sähköpostin linkkiesikatselu ei vie sitä.') }}</p>{% endcall %}
-    {% call m.step() %}<p>{{ _('Tarkista tiedot ja valitse') }} {{ m.ui(_('Hyväksy ja julkaise')) }} {{ _('tai') }} {{ m.ui(_('Hylkää')) }} {{ _('syyn kanssa. Sivu näyttää ennen vahvistusta, mitä päätös tekee.') }}</p>{% endcall %}
-    {% call m.step() %}<p>{{ _('Jos käytät kaksivaiheista tunnistusta, kirjoita sovelluksen koodi. Jos kirjaudut pelkällä passkeyllä, valitse') }} {{ m.ui(_('Avaa tapaus kirjautumalla')) }}.</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Avaa sähköpostin') }} {{ m.ui(_('Avaa tapaus')) }} {{ _('ja paina') }} {{ m.ui(_('Avaa ilmoitus')) }}. {{ _('Linkki toimii sen jälkeen vain tässä selaimessa. Pelkkä avaaminen ei vielä sido linkkiä, joten sähköpostin linkkiesikatselu ei vie sitä.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Näet saman tapaussivun kuin ylläpidossa. Tarkista tiedot ja valitse') }} {{ m.ui(_('Hyväksy mielenosoitus')) }}, {{ m.ui(_('Hylkää mielenosoitus')) }} {{ _('tai pyydä seuraavaa tasoa päättämään. Sivu näyttää ennen vahvistusta, mitä päätös tekee.') }}</p>{% endcall %}
+    {% call m.step() %}<p>{{ _('Jos käytät kaksivaiheista tunnistusta, kirjoita sovelluksen koodi. Jos kirjaudut pelkällä passkeyllä, kirjaudu ylläpitoon ja tee päätös siellä.') }}</p>{% endcall %}
   {% endcall %}
   <ul>
-    <li>{{ _('Linkki koskee vain tätä yhtä odottavaa mielenosoitusta. Se ei kirjaa sinua sisään eikä avaa muuta ylläpitoa.') }}</li>
+    <li>{{ _('Linkki avaa vain tämän yhden tapauksen. Se ei kirjaa sinua sisään eikä avaa muuta ylläpitoa. Kirjautuneena näet saman sivun Tapaukset-listasta.') }}</li>
     <li>{{ _('Linkki on voimassa 24 tuntia ja lakkaa toimimasta, kun mielenosoituksesta on tehty päätös millä tahansa tavalla.') }}</li>
-    <li>{{ _('Eskaloitua tapausta ei voi päättää linkillä, vaan se avataan kirjautumalla.') }}</li>
+    <li>{{ _('Kun tapaus on siirretty ylemmälle tasolle, päätöksen tekee se taso.') }}</li>
     <li>{{ _('Aiemmin lähetettyjen viestien hyväksy- ja hylkää-linkit avaavat vain tapauksen eivätkä päätä mitään.') }}</li>
   </ul>
   <p>{{ _('Esikatselulinkki:') }}</p>

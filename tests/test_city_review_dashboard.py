@@ -46,8 +46,10 @@ def test_approval_only_city_dashboard_is_scoped_and_has_usable_review_links(app,
     assert "Allowed review" in html
     assert "Other city secret" not in html and "Conflicting city secret" not in html
     assert "Already resolved" not in html
-    assert 'href="/admin/demo/review/' + str(demo_id) + '"' in html
-    assert client.get(f"/admin/demo/review/{demo_id}").status_code == 200
+    assert 'href="/admin/demo/' + str(demo_id) + '/decide"' in html
+    # One page for everyone: the decide link ends in the demonstration's case.
+    followed = client.get(f"/admin/demo/{demo_id}/decide", follow_redirects=True)
+    assert followed.status_code == 200 and "/admin/case/" in followed.request.path
     assert 'id="stat-users-total"' not in html
     assert client.get("/admin/dashboard/data").status_code == 403
 
@@ -116,7 +118,7 @@ def test_city_queue_has_nojs_deadline_and_accessible_minute_clock(app, db, seede
     assert "Käsittelyaikaa jäljellä" in browser_page.locator("[data-deadline]").inner_text()
     assert browser_page.evaluate("getComputedStyle(document.documentElement).colorScheme") == theme
     assert browser_page.evaluate("document.documentElement.scrollWidth <= innerWidth")
-    for selector in ("time[datetime]", 'a[href*="/admin/demo/review/"]'):
+    for selector in ("time[datetime]", 'a[href*="/decide"]'):
         bounds = browser_page.locator(selector).bounding_box()
         assert bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= width + 1
     assert "EET" in browser_page.locator("time").inner_text() or "EEST" in browser_page.locator("time").inner_text()
@@ -127,7 +129,7 @@ def test_city_queue_has_nojs_deadline_and_accessible_minute_clock(app, db, seede
         fallback = nojs.new_page()
         fallback.goto(f"{live_server}/admin/dashboard", wait_until="domcontentloaded")
         assert fallback.locator("time[datetime]").is_visible()
-        assert fallback.locator('a[href*="/admin/demo/review/"]').is_visible()
+        assert fallback.locator('a[href*="/decide"]').is_visible()
     browser_page.evaluate("document.querySelector('[data-admin-deadlines]').dataset.serverNow = '2099-01-01T00:00:00Z'")
     browser_page.add_script_tag(url=f"{live_server}/static/js/admin_deadlines.js")
     assert "Määräaika päättynyt" in browser_page.locator("[data-deadline]").inner_text()

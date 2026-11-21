@@ -14,13 +14,14 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <div class="case-page admin-page">
+  {% if case_link_mode %}<p class="muted mb-2">{{ _('Tämä sivu avautui sähköpostin linkistä ja näyttää vain tämän tapauksen. Muut tapaukset näet kirjautumalla ylläpitoon.') }} <a href="{{ url_for('users.auth.login', next=request.path) }}">{{ _('Kirjaudu ylläpitoon') }}</a></p>{% endif %}
   {{ admin_page_hero(
-    _('Tapaus') ~ ' #' ~ case.running_num,
-    _('Tämä näkymä kokoaa tapauksen tilan, siihen liittyvät tiedot ja käsittelytoimet samaan paikkaan.'),
+    _('Uusi mielenosoitus odottaa päätöstäsi') if case_link_mode else _('Tapaus') ~ ' #' ~ case.running_num,
+    _('Tarkista tiedot ja valitse: hyväksy, hylkää tai pyydä jonkun toisen päättämään.') if case_link_mode else _('Tämä näkymä kokoaa tapauksen tilan, siihen liittyvät tiedot ja käsittelytoimet samaan paikkaan.'),
     _('Tapaukset'),
-    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Tapaukset'), url_for('admin_case.cases')), (_('Tapaus') ~ ' #' ~ case.running_num, none)],
-    back_url=url_for('admin_case.cases'),
-    back_label=_('Tapaukset')
+    [(_('Tapaukset'), none), (_('Tapaus') ~ ' #' ~ case.running_num, none)] if case_link_mode else [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Tapaukset'), url_for('admin_case.cases')), (_('Tapaus') ~ ' #' ~ case.running_num, none)],
+    back_url=none if case_link_mode else url_for('admin_case.cases'),
+    back_label=none if case_link_mode else _('Tapaukset')
   ) }}
   <div class="admin-row-actions admin-case-statuses" aria-label="{{ _('Tapauksen tila') }}">
     <span class="admin-status-badge"><i class="fa-solid fa-folder"></i>{{ case_data.type_label }}</span>
@@ -209,7 +210,7 @@
 
           <div class="detail-item">
             <strong>{{ _('Kuvaus') }}</strong>
-            <div class="description-box">{{ (demo.description or _('Ei kuvausta'))|safe }}</div>
+            <div class="description-box">{{ (demo.description or _('Ei kuvausta'))|stored_html }}</div>
           </div>
 
           {% if case.case_type == "new_demo" and demo._id %}
@@ -267,6 +268,40 @@
             {% endif %}
             {% if take_down_review.own %}<span class="d-block muted">{{ _('Teit pyynnön itse, joten toisen ylläpitäjän pitää vahvistaa se.') }}</span>{% endif %}
           </div>
+          {% endif %}
+          {% if case_link_mode and link_ended %}
+          <div class="alert alert-success" role="status">
+            <strong>{{ _('Päätös on tehty.') }}</strong>
+            <span class="d-block">{{ _('Kiitos! Linkki ei toimi enää päätösten tekemiseen. Voit sulkea tämän sivun.') }}</span>
+          </div>
+          {% elif can_decide_demo and not global_case_controls and not demo.approved and not demo.rejected %}
+          {% if case.meta.superior_needed and not (current_user.global_admin) %}
+          <div class="alert alert-info" role="status">
+            <strong>{{ _('Tapaus on siirretty eteenpäin') }}: {{ escalation_name }}</strong>
+            <span class="d-block">{{ _('Päätöksen tekee se taso. Sinun ei tarvitse tehdä enää mitään.') }}</span>
+          </div>
+          {% elif case_link_mode and link_factor == 'passkey_only' %}
+          <div class="alert alert-warning" role="status">
+            <strong>{{ _('Kirjaudu sisään tehdäksesi päätöksen') }}</strong>
+            <span class="d-block">{{ _('Tilisi käyttää pääsyavainta, jota sähköpostilinkki ei voi käyttää.') }}</span>
+            <a class="btn btn-primary btn-sm mt-2" href="{{ url_for('users.auth.login', next=request.path) }}">{{ _('Kirjaudu ylläpitoon') }}</a>
+          </div>
+          {% else %}
+          <p class="mb-2">{{ _('Hyväksytty ilmoitus julkaistaan heti sivustolla. Hylätystä ilmoituksesta ilmoittaja saa tiedon. Jos et voi tai halua päättää, pyydä seuraavaa tasoa päättämään.') }}</p>
+          <div class="admin-row-actions">
+            <button class="btn btn-success" type="button" onclick="approveDemo()">
+              <i class="fa-solid fa-check me-1"></i>{{ _('Hyväksy mielenosoitus') }}
+            </button>
+            <button class="btn btn-danger" type="button" onclick="rejectDemo()">
+              <i class="fa-solid fa-xmark me-1"></i>{{ _('Hylkää mielenosoitus') }}
+            </button>
+            {% if can_escalate_case %}
+            <button class="btn btn-secondary" type="button" onclick="escalateDemo()">
+              <i class="fa-solid fa-arrow-up-right-dots me-1"></i>{{ escalate_label }}
+            </button>
+            {% endif %}
+          </div>
+          {% endif %}
           {% endif %}
           <div class="admin-row-actions">
 {% if global_case_controls %}
@@ -514,6 +549,7 @@
       </section>
       {% endif %}
 
+      {% if not restricted_view %}
       <section class="admin-section-card">
         <div class="admin-section-card__header">
           <div class="admin-section-card__title"><h2>{{ _('Sisäiset muistiinpanot') }}</h2></div>
@@ -542,6 +578,7 @@
 {% endif %}
         </div>
       </section>
+      {% endif %}
     </div>
 
     <aside class="admin-stack">
@@ -581,6 +618,7 @@
         </div>
       </section>
 
+      {% if not restricted_view %}
       {% if case_data.notified_at %}
       <section class="admin-section-card">
         <div class="admin-section-card__header">
@@ -660,6 +698,7 @@
           {% endif %}
         </div>
       </section>
+      {% endif %}
     </aside>
   </div>
 </div>
@@ -821,7 +860,26 @@
     });
   }
 
-  function sendDemoAction(action, details = {}) {
+  // Email link and two-factor account: the code from the authenticator app goes with the action.
+  const linkFactor = {{ (link_factor or '')|tojson }};
+  async function withCode(details) {
+    if (linkFactor !== "totp") return details;
+    const answer = await Swal.fire({
+      title: "{{ _('Vahvista koodilla') }}",
+      input: "text",
+      inputLabel: "{{ _('Kirjoita kuusinumeroinen koodi todennussovelluksesta') }}",
+      inputAttributes: { inputmode: "numeric", maxlength: 7, autocomplete: "one-time-code" },
+      showCancelButton: true,
+      confirmButtonText: "{{ _('Vahvista') }}",
+      cancelButtonText: "{{ _('Peruuta') }}",
+      inputValidator: (value) => (/^\d{6}$/.test((value || "").replace(/\s/g, "")) ? null : "{{ _('Kirjoita 6 numeroa.') }}"),
+    });
+    return answer.isConfirmed ? { ...details, code: answer.value } : null;
+  }
+
+  async function sendDemoAction(action, details = {}) {
+    details = await withCode(details);
+    if (!details) return;
     fetch(`/admin/case/${caseId}/demo_action`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -988,12 +1046,14 @@
       confirmButtonText: "{{ _('Siirrä eteenpäin') }}",
       cancelButtonText: "{{ _('Peruuta') }}",
       inputValidator: (value) => ((value || "").trim().length < 5 ? "{{ _('Kirjoita lyhyt syy.') }}" : null),
-    }).then((result) => {
+    }).then(async (result) => {
       if (!result.isConfirmed) return;
+      const details = await withCode({ reason: result.value || "" });
+      if (!details) return;
       fetch(`/admin/case/${caseId}/demo_escalate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: result.value || "" }),
+        body: JSON.stringify(details),
       })
         .then((res) => res.json())
         .then((data) => {

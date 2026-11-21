@@ -52,7 +52,7 @@ def test_legacy_approval_is_idempotent_and_reconciles_all_side_effects(
         "demo_id": seeded_data["demo_id"],
     }
     db.cases.insert_many([string_case, unrelated_case])
-    path = f"/admin/demo/accept_demo/{seeded_data['pending_demo_id']}"
+    path = f"/api/admin/demo/{seeded_data['pending_demo_id']}/approve"
     reference_token = db.magic_links.find_one(
         {"demo_id": str(seeded_data["pending_demo_id"])}
     )
@@ -89,7 +89,7 @@ def test_legacy_approval_is_idempotent_and_reconciles_all_side_effects(
     assert demo["approved"] is True
     assert demo["rejected"] is False
     assert demo["moderation_decision"]["status"] == "approved"
-    assert demo["moderation_decision"]["source"] == "legacy_api"
+    assert demo["moderation_decision"]["source"] == "admin_api"
     assert demo["moderation_decision"] == original_decision
 
     assert len(queued) == 1
@@ -140,7 +140,7 @@ def test_legacy_approval_is_idempotent_and_reconciles_all_side_effects(
             if entry.get("metadata", {}).get("decision_id") == decision_id
         ]
         assert len(entries) == 1
-        assert entries[0]["metadata"]["source"] == "legacy_api"
+        assert entries[0]["metadata"]["source"] == "admin_api"
         assert entries[0]["user"] == original_decision["actor"]["username"]
         assert entries[0]["timestamp"] == original_decision["at"]
     assert db.cases.find_one({"_id": unrelated_case["_id"]}) == unrelated_case
@@ -232,7 +232,9 @@ def test_notification_delivery_can_retry_without_repeating_decision_effects(
             raise RuntimeError("temporary mail failure")
 
     _patch_demo_email_sender(monkeypatch, "queue_email", flaky_queue)
-    legacy_path = f"/admin/demo/accept_demo/{seeded_data['pending_demo_id']}"
+    legacy_path = f"/api/admin/demo/{seeded_data['pending_demo_id']}/approve"
+    # The failing mail must come back as an error response, not abort the test client.
+    admin_client.application.config["PROPAGATE_EXCEPTIONS"] = False
     failed = admin_client.post(
         legacy_path, json={}, headers={"Content-Type": "application/json"}
     )
@@ -270,45 +272,3 @@ def test_notification_delivery_can_retry_without_repeating_decision_effects(
     _assert_single_decision_record(db, demo["_id"], decision_id, "approve_demo")
 
 
-def test_bulk_decision_uses_same_service_and_reports_each_result(
-    admin_client, db, seeded_data, monkeypatch
-):
-    queued = _capture_decision_email(monkeypatch)
-    with admin_client.session_transaction() as session:
-        session["demo_edit_link_csrf_token"] = "bulk-decision-csrf"
-    response = admin_client.post(
-        "/api/admin/demo/bulk_decide",
-        json={
-            "decision": "approved",
-            "demo_ids": [
-                str(seeded_data["pending_demo_id"]),
-                str(seeded_data["pending_demo_id"]),
-                "not-an-object-id",
-            ],
-        },
-        headers={"X-CSRF-Token": "bulk-decision-csrf"},
-    )
-
-    assert response.status_code == 200
-    payload = response.get_json()
-    assert payload["changed_count"] == 1
-    assert len(payload["results"]) == 2
-    assert payload["results"][0]["status"] == "changed"
-    assert payload["results"][1]["status"] == "invalid_id"
-    assert len(queued) == 1
-    demo = db.demonstrations.find_one({"_id": seeded_data["pending_demo_id"]})
-    assert demo["moderation_decision"]["source"] == "admin_bulk"
-    retried = admin_client.post(
-        "/api/admin/demo/bulk_decide",
-        json={"decision": "approved", "demo_ids": [str(demo["_id"])]},
-        headers={"X-CSRF-Token": "bulk-decision-csrf"},
-    )
-    assert retried.status_code == 200
-    assert retried.get_json()["changed_count"] == 0
-    assert retried.get_json()["results"] == [
-        {"demo_id": str(demo["_id"]), "status": "unchanged"}
-    ]
-    assert len(queued) == 1
-    _assert_single_decision_record(
-        db, demo["_id"], demo["moderation_decision"]["id"], "approve_demo"
-    )

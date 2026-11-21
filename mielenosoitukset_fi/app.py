@@ -242,6 +242,25 @@ def create_app(config_overrides=None) -> Flask:
         logger.warning(f"User not found with id: {user_id}")
         return None
 
+    @login_manager.request_loader
+    def load_case_link_user(_request):
+        """A scoped email link acts as its recipient on that one case only.
+
+        Not a login: no ``_user_id`` is stored, so every route outside the
+        case's own few routes (and every other service reading the session)
+        sees a signed-out browser. See ``utils.case_links``.
+        """
+        from mielenosoitukset_fi.utils import case_links
+
+        user, info = case_links.user_for_request(
+            mongo, session, request.cookies, request.endpoint, request.view_args, request.method
+        )
+        if not user:
+            return None
+        user.apply_active_duty()
+        g.case_link = info
+        return user
+
     # Import and register blueprints
     from admin import (
         admin_bp,
@@ -515,7 +534,7 @@ def create_app(config_overrides=None) -> Flask:
 
         def _decision_link(demo_id):
             from mielenosoitukset_fi.admin.admin_demo_bp import _decision_urls
-            return _decision_urls([demo_id]).get(str(demo_id)) or url_for("admin_demo.review_demo", demo_id=demo_id)
+            return _decision_urls([demo_id]).get(str(demo_id)) or url_for("admin_demo.open_demo_decision", demo_id=demo_id)
 
         # --- DEMONSTRATION approval tasks ---
         waiting_demos = list(

@@ -29,7 +29,7 @@ def test_delivery_deduplicates_and_preserves_read_notice(app, db, assignment):
     notifications.notify_city_reviewers(db, str(demo_id))
     notice = db.notifications.find_one({"user_id": user_id})
     assert notice["payload"] == {"demo_id": demo_id, "demo_title": "Private city review"}
-    assert notice["link"] == f"/admin/demo/review/{demo_id}"
+    assert notice["link"] == f"/admin/demo/{demo_id}/decide"
     assert db.notifications.count_documents({"user_id": other}) == 0
     db.notifications.update_one({"_id": notice["_id"]}, {"$set": {"read": True}})
     notifications.notify_city_reviewers(db, demo_id)
@@ -40,7 +40,7 @@ def test_delivery_deduplicates_and_preserves_read_notice(app, db, assignment):
     assert response.status_code == 200
     assert response.json[0]["message"] == "Odottaa hyväksyntää: Private city review"
     assert response.json[0]["read"] is True
-    assert client.get(notice["link"]).status_code == 200
+    assert client.get(notice["link"], follow_redirects=True).status_code == 200
 
 
 @pytest.mark.parametrize("change", [

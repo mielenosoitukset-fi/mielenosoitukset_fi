@@ -97,7 +97,7 @@ def notify_city_reviewers(db, demo_id):
             {"$setOnInsert": {
                 "user_id": user_id, "type": "city_review",
                 "payload": {"demo_id": demo_id, "demo_title": demo.get("title") or ""},
-                "link": f"/admin/demo/review/{demo_id}",
+                "link": f"/admin/demo/{demo_id}/decide",
                 "created_at": utcnow(), "read": False,
             }},
             upsert=True,
