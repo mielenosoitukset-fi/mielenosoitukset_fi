@@ -59,6 +59,12 @@ CITY_ASSIGNMENT_ESCALATION_HOURS: 24
 # The demo returns to pending and its case reopens; no email is sent.
 DEMO_APPROVAL_UNDO_MINUTES: 30
 
+# Taking an approved demo off the site needs a second admin. A normal request
+# waits for the confirmation; an urgent one hides the demo at once and must be
+# confirmed within TAKE_DOWN_CONFIRM_HOURS. false = one admin is enough.
+TAKE_DOWN_SECOND_ADMIN: true
+TAKE_DOWN_CONFIRM_HOURS: 48
+
 # Demonstrations nobody approved or rejected before their date are closed as
 # expired by a background job. Submitters of demos that passed within
 # EXPIRED_DEMO_NOTIFY_DAYS get an apology email; older ones close quietly.

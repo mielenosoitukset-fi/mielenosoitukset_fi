@@ -312,6 +312,8 @@ class Config:
             "CITY_ASSIGNMENT_ESCALATION_HOURS", 24
         )
         cls.DEMO_APPROVAL_UNDO_MINUTES = config.get("DEMO_APPROVAL_UNDO_MINUTES", 30)
+        cls.TAKE_DOWN_SECOND_ADMIN = config.get("TAKE_DOWN_SECOND_ADMIN", True)
+        cls.TAKE_DOWN_CONFIRM_HOURS = config.get("TAKE_DOWN_CONFIRM_HOURS", 48)
         cls.EXPIRE_UNDECIDED_DEMOS = config.get("EXPIRE_UNDECIDED_DEMOS", True)
         cls.EXPIRED_DEMO_NOTIFY_DAYS = config.get("EXPIRED_DEMO_NOTIFY_DAYS", 14)
         cls.NATIONAL_ADMIN_ORG_ID = config.get("NATIONAL_ADMIN_ORG_ID")

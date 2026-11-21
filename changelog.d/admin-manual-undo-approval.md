@@ -1,0 +1,1 @@
+- Admin guide: describes undoing a mistaken approval in the case within 30 minutes ("Peru hyväksyntä").

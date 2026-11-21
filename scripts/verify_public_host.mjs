@@ -282,7 +282,8 @@ try {
     assert(live.html.includes('/static/css/campaign.css') && live.html.includes('/static/css/campaign-v2.css'));
     assert(body.includes('/kampanja/api/volunteers') || live.html.includes('/kampanja/api/volunteers'));
     assert.equal((await page({ path: '/kampanja' })).status, 404, 'Flask keeps the slash redirect');
-    assert.equal((await page({ path: '/kampanja/confirm/token' })).status, 404, 'Confirmation stays in Flask');
+    // The host renders the confirm page (button only); Apache does not route to it until the maintainer's go.
+    assert.equal((await page({ path: '/kampanja/confirm/' })).status, 404, 'A confirm link without a token stays in Flask');
     // The fundraising page is public and independent of the campaign gate.
     const fundraising = changes => campaign({ path: '/ker%C3%A4ys', ...changes });
     const dayHelsinki = offset => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date(Date.now() + offset * 86_400_000));
@@ -912,6 +913,104 @@ try {
   }
   assert(apacheRouting.includes('RewriteCond %{REQUEST_METHOD} "^(GET|HEAD)$"\nRewriteRule "^/cancel_demonstration/[A-Za-z0-9_-]{1,128}$" "http://127.0.0.1:8090$0" [P,L]'));
   console.log('PASS: cancellation link states, escaping, noindex, Flask POST form and failures');
+
+  // Campaign volunteer confirmation: the page reads nothing and writes nothing on GET; the button posts to Go.
+  const volunteerToken = 'abcDEF123_-abcDEF123_-';
+  const volunteerFetch = globalThis.fetch;
+  let volunteerRequests = 0;
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes('/campaign-volunteers/')) { volunteerRequests++; throw new Error('The page must not call the confirm route on GET'); }
+    return volunteerFetch(url, options);
+  };
+  try {
+    const confirm = await detailPage({ path: `/kampanja/confirm/${volunteerToken}` });
+    assert.equal(confirm.status, 200);
+    const confirmBody = confirm.html.split('<body>')[1].split('<script type="application/json"')[0];
+    for (const text of ['Vahvista ilmoittautuminen', 'Vahvista sähköpostiosoitteesi painamalla painiketta']) assert(confirmBody.includes(text), text);
+    assert(/<button[^>]*type="button"/.test(confirmBody) && !confirmBody.includes('<form'), 'A button, no GET-submitted form');
+    assert(!confirmBody.includes('Ilmoittautumisesi on vahvistettu'), 'A GET never claims the signup was confirmed');
+    assert.match(confirm.html, /<meta name="robots" content="noindex, nofollow" \/>/);
+    assert(!/rel="canonical"/.test(confirm.html), 'A bearer link has no canonical URL');
+    const confirmHeaders = Object.fromEntries(Object.entries(confirm.headers ?? {}).map(([key, value]) => [key.toLowerCase(), value]));
+    assert.equal(confirmHeaders['x-robots-tag'], 'noindex, nofollow');
+    assert.equal(confirmHeaders['cache-control'], 'private, no-store');
+    assert.equal(confirmHeaders['referrer-policy'], 'no-referrer');
+    assert.equal(volunteerRequests, 0, 'Rendering the page made no confirm request');
+    for (const path of ['/kampanja/confirm/', `/kampanja/confirm/${volunteerToken}/`, '/kampanja/confirm/a%20b', `/kampanja/confirm/${'a'.repeat(129)}`]) {
+      assert.equal((await detailPage({ path })).status, 404, path);
+    }
+  } finally {
+    globalThis.fetch = volunteerFetch;
+  }
+  assert(!/^RewriteRule .*\/kampanja\/confirm/m.test(apacheRouting), 'The volunteer confirm route stays unrouted until the maintainer activates it');
+  assert(apacheRouting.includes('#RewriteRule "^/kampanja/confirm/[A-Za-z0-9_-]{1,128}$" "http://127.0.0.1:8090$0" [P,L]'));
+  console.log('PASS: volunteer confirmation page is read-only, noindex, no referrer, and unrouted');
+
+  // E-mail confirmation: same shape, signed token in the path, nothing read or written on GET.
+  const emailToken = 'aaaaaaaa.bbbbbbbb.cccccccc';
+  const emailFetch = globalThis.fetch;
+  let emailRequests = 0;
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes('/account/confirm-email')) { emailRequests++; throw new Error('The page must not call the confirm route on GET'); }
+    return emailFetch(url, options);
+  };
+  try {
+    const confirm = await detailPage({ path: `/users/auth/confirm_email/${emailToken}` });
+    assert.equal(confirm.status, 200);
+    const confirmBody = confirm.html.split('<body>')[1].split('<script type="application/json"')[0];
+    for (const text of ['Vahvista sähköpostiosoite', 'painamalla painiketta']) assert(confirmBody.includes(text), text);
+    assert(/<button[^>]*type="button"/.test(confirmBody) && !confirmBody.includes('<form'), 'A button, no GET-submitted form');
+    assert(!confirmBody.includes('on vahvistettu. Voit nyt'), 'A GET never claims the address was confirmed');
+    assert.match(confirm.html, /<meta name="robots" content="noindex, nofollow" \/>/);
+    assert(!/rel="canonical"/.test(confirm.html));
+    const emailHeaders = Object.fromEntries(Object.entries(confirm.headers ?? {}).map(([key, value]) => [key.toLowerCase(), value]));
+    assert.equal(emailHeaders['x-robots-tag'], 'noindex, nofollow');
+    assert.equal(emailHeaders['cache-control'], 'private, no-store');
+    assert.equal(emailHeaders['referrer-policy'], 'no-referrer');
+    assert.equal(emailRequests, 0, 'Rendering the page made no confirm request');
+    for (const path of ['/users/auth/confirm_email/', '/users/auth/confirm_email/a%20b', `/users/auth/confirm_email/${'a'.repeat(3101)}`, `/users/auth/confirm_email/${emailToken}/`]) {
+      assert.equal((await detailPage({ path })).status, 404, path);
+    }
+  } finally {
+    globalThis.fetch = emailFetch;
+  }
+  assert(!/^RewriteRule .*confirm_email/m.test(apacheRouting) && !/^RewriteRule .*confirm-email/m.test(apacheRouting), 'The e-mail confirm route stays unrouted until the maintainer activates it');
+  assert(apacheRouting.includes('#RewriteRule "^/api/account/confirm-email$" "http://127.0.0.1:8091$0" [P,L]'));
+  console.log('PASS: e-mail confirmation page is read-only, noindex, no referrer, and unrouted');
+
+  // Organization invitation: the shell is rendered, the invitation is read in the browser, nothing joins on GET.
+  const inviteOrg = 'abcdefabcdefabcdefabcdef';
+  const inviteFetch = globalThis.fetch;
+  let inviteRequests = 0;
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes('/invitation')) { inviteRequests++; throw new Error('The page must not call the invitation routes on GET'); }
+    return inviteFetch(url, options);
+  };
+  try {
+    const invite = await detailPage({ path: '/users/orgs/accept_invite', search: `?organization_id=${inviteOrg}` });
+    assert.equal(invite.status, 200);
+    const inviteBody = invite.html.split('<body>')[1].split('<script type="application/json"')[0];
+    for (const text of ['Liity organisaatioon', 'Ladataan kutsua']) assert(inviteBody.includes(text), text);
+    assert(!inviteBody.includes('<form') && !inviteBody.includes('Liityit organisaatioon'), 'No form, and a GET never claims a join');
+    assert.match(invite.html, /<meta name="robots" content="noindex, nofollow" \/>/);
+    assert(!/rel="canonical"/.test(invite.html));
+    const inviteHeaders = Object.fromEntries(Object.entries(invite.headers ?? {}).map(([key, value]) => [key.toLowerCase(), value]));
+    assert.equal(inviteHeaders['x-robots-tag'], 'noindex, nofollow');
+    assert.equal(inviteHeaders['cache-control'], 'private, no-store');
+    assert.equal(inviteHeaders['referrer-policy'], 'no-referrer');
+    assert.equal(bootstrap(invite.html).orgInvite.organizationId, inviteOrg);
+    const noId = await detailPage({ path: '/users/orgs/accept_invite' });
+    assert(noId.html.includes('Organisaation tunnus puuttuu.') && bootstrap(noId.html).orgInvite.organizationId === null);
+    const badId = await detailPage({ path: '/users/orgs/accept_invite', search: '?organization_id=%3Cscript%3E' });
+    assert(badId.html.includes('Organisaatiota ei löytynyt.') && !badId.html.includes('<script>alert'));
+    assert.equal(inviteRequests, 0, 'Rendering the page made no invitation request');
+    assert.equal((await detailPage({ path: '/users/orgs/accept_invite/' })).status, 404);
+  } finally {
+    globalThis.fetch = inviteFetch;
+  }
+  assert(!/^RewriteRule .*accept_invite/m.test(apacheRouting) && !/^RewriteRule .*\/invitation/m.test(apacheRouting), 'The invitation routes stay unrouted until the maintainer activates them');
+  assert(apacheRouting.includes('#RewriteRule "^/users/orgs/accept_invite$" "http://127.0.0.1:8090$0" [P,L]'));
+  console.log('PASS: invitation page renders a shell only, noindex, no referrer, and unrouted');
 
   // Developer panel: the shell is server-rendered, the data is read in the browser from Go.
   const developerAppId = 'a'.repeat(24);

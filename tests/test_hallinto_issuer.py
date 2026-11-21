@@ -307,3 +307,39 @@ def test_linked_logout_can_retry_a_marker_revocation_outage(owner, db, monkeypat
     assert _opacity(backchannel, claims).json == {"active": True}
     assert browser.post("/users/auth/logout", base_url=ORIGIN, data={"logout_token": token}).status_code == 302
     assert _opacity(backchannel, claims).json == {"active": False}
+
+
+def _accounts(owner_client, claims, path, body, auth=(CLIENT, SECRET)):
+    return owner_client.post(PREFIX + "/accounts/" + path, base_url=ORIGIN, auth=auth,
+                             json={"sub": claims["sub"], "sid": claims["sid"], **body})
+
+
+def test_account_search_needs_a_live_admin_sign_in(owner, db):
+    app, subject = owner
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    member = db.users.insert_one({
+        "username": "hallinto-member", "username_canonical": "hallinto-member", "displayname": "Jäsen Esimerkki",
+        "email": "member@example.test", "password_hash": "x", "active": True, "confirmed": True,
+    }).inserted_id
+    try:
+        # An ordinary account and a wrong client see nothing.
+        assert _accounts(app.test_client(), claims, "search", {"q": "hallinto"}).status_code == 403
+        assert _accounts(app.test_client(), claims, "search", {"q": "hallinto"}, auth=(CLIENT, "x" * 40)).status_code == 401
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
+        assert _accounts(app.test_client(), claims, "search", {"q": "h"}).status_code == 400
+        found = _accounts(app.test_client(), claims, "search", {"q": "jäsen"}).json["items"]
+        assert found == [{"sub": str(member), "username": "hallinto-member", "name": "Jäsen Esimerkki", "active": True}]
+        # A regex in the query is literal text.
+        assert _accounts(app.test_client(), claims, "search", {"q": ".*.*"}).json["items"] == []
+        db.users.update_one({"_id": member}, {"$set": {"security_suspension": {"active": True}}})
+        looked = _accounts(app.test_client(), claims, "lookup", {"ids": [str(member), "0" * 24]}).json["items"]
+        assert looked == [{"sub": str(member), "username": "hallinto-member", "name": "Jäsen Esimerkki", "active": False}]
+        assert _accounts(app.test_client(), claims, "lookup", {"ids": ["not-an-id"]}).status_code == 400
+        assert _accounts(app.test_client(), claims, "lookup", {"ids": [str(member)] * 101}).status_code == 400
+        # Signing out of Hallinto ends access.
+        db.users.update_one({"_id": ObjectId(subject)}, {"$inc": {"auth_epoch": 1}})
+        assert _accounts(app.test_client(), claims, "lookup", {"ids": [str(member)]}).status_code == 403
+    finally:
+        db.users.delete_one({"_id": member})
