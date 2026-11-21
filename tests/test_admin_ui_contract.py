@@ -776,7 +776,7 @@ def test_audit_and_developer_pages_use_canonical_hero_navigation():
     assert "<style" not in logs
     assert "css/admin/audit.css" in logs
     assert "admin-filter-bar" in logs
-    assert "admin-section-tabs" in logs
+    assert "log_hub_tabs('admin')" in logs
     assert "admin-data-view__header admin-result-summary" in logs
     assert "admin-data-view__viewport" in logs
     assert "admin_pagination(" in logs
