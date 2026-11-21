@@ -78,7 +78,8 @@ def _enroll(db, candidate, kind, state):
     db.memberships.update_one(
         {"user_id": candidate, "organization_id": organization},
         {"$set": {"governance_approved": True,
-                  "grant_source": "emergency_god_appointment" if state.get("method") in {"two_board", "usb_and_god"} else "board_approval",
+                  "grant_source": "hallinto_decision" if state.get("source") == "hallinto_decision"
+                  else "emergency_god_appointment" if state.get("method") in {"two_board", "usb_and_god"} else "board_approval",
                   "approval_request_id": state["id"]},
          "$setOnInsert": {"role": "member", "permissions": [], "created_at": utcnow()}}, upsert=True,
     )
@@ -114,7 +115,7 @@ def cast_vote(db, candidate_id, voter_id, kind, approve):
         record = db.board_clearances.find_one({"user_id": candidate})
         previous = request_state(record, kind)
         if (kind == "national" and previous.get("approved")
-                and previous.get("source") in {"unanimous_god_appointment", "god_appointment_consent"}):
+                and previous.get("source") in {"unanimous_god_appointment", "god_appointment_consent", "hallinto_decision"}):
             # A routine board vote must not replace the appointment evidence
             # used to authorize the nominee at and after activation.
             return previous

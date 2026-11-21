@@ -69,6 +69,11 @@ def appointment_approved(db, candidate_id):
     advance_appointment(db, candidate_id)
     record = db.board_clearances.find_one({"user_id": str(candidate_id)}) or {}
     state = (record.get("team_requests") or {}).get("god") or {}
+    if state.get("method") == "hallinto_decision":
+        # Johtoryhmä and OT decided in Hallinto (roadmap phase F); the legacy
+        # electorate does not apply. The decision counts only until its end.
+        from mielenosoitukset_fi.admin.elevated_grants import hallinto_evidence_valid
+        return record.get("approved") is True and hallinto_evidence_valid(state)
     # Activation rechecks the live roster. Completed grants retain the roster
     # that approved them, since activation itself changes the god roster.
     if consent_approved(state, appointment_roster(db, candidate_id)):
