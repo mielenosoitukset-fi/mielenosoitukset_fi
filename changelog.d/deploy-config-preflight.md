@@ -1,0 +1,1 @@
+- Deploys now check that the site's service account can read every configuration file before workers reload. A file it cannot read stops the deploy while the running site keeps serving, instead of taking the site down with 503 errors as it did on 21 November 2026. Boot errors now name the kind of failure (for example a permission error).

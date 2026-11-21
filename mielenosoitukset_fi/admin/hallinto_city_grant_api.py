@@ -483,10 +483,12 @@ def configure(app, db) -> None:
     if test_settings:
         register(app, db, test_settings)
         return
-    from mielenosoitukset_fi.users.hallinto_issuer_config import _read_settings
+    from mielenosoitukset_fi.users.hallinto_issuer_config import _read_settings, config_error_reason
 
     try:
         settings = _read_settings(path)
         register(app, db, settings)
-    except Exception:
-        raise RuntimeError("Hallinto city grant configuration is invalid") from None
+    except Exception as exc:
+        # Only the exception class reaches the journal, never values or paths.
+        raise RuntimeError(
+            f"Hallinto city grant configuration is invalid ({config_error_reason(exc)})") from None

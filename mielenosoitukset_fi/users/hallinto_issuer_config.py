@@ -20,6 +20,24 @@ _INSECURE_TLS_OPTIONS = (
 )
 
 
+class ConfigFileError(RuntimeError):
+    """A secret config file could not be read; ``reason`` is only an exception class name."""
+
+    def __init__(self, message, reason):
+        super().__init__(f"{message} ({reason})")
+        self.reason = reason
+
+
+def config_error_reason(exc):
+    """Name the failure for the service journal without echoing values.
+
+    A boot failure must say whether the file was unreadable (for example a
+    ``PermissionError`` after a directory mode change) or malformed, while
+    config values, paths and parser messages stay out of the log.
+    """
+    return exc.reason if isinstance(exc, ConfigFileError) else type(exc).__name__
+
+
 def _read_settings(path):
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
@@ -35,9 +53,11 @@ def _read_settings(path):
         if not isinstance(settings, dict):
             raise ValueError
         return settings
-    except (OSError, ValueError):
-        # Config values, paths and parser error details may contain secrets.
-        raise RuntimeError("Hallinto issuer needs a readable, restricted JSON file") from None
+    except (OSError, ValueError) as exc:
+        # Config values, paths and parser error details may contain secrets, so
+        # only the exception class is kept.
+        raise ConfigFileError("Hallinto issuer needs a readable, restricted JSON file",
+                              type(exc).__name__) from None
 
 
 def _open_state_database(settings, owner_db):
@@ -91,6 +111,7 @@ def configure_hallinto_issuer(app, owner_db):
             raise ValueError
         state = _open_state_database(settings, owner_db)
         register_hallinto_issuer(app, owner_db, settings, state_db=state)
-    except Exception:
+    except Exception as exc:
         # Construction failures can include private key or URI values.
-        raise RuntimeError("Hallinto issuer configuration is invalid") from None
+        raise RuntimeError(
+            f"Hallinto issuer configuration is invalid ({config_error_reason(exc)})") from None

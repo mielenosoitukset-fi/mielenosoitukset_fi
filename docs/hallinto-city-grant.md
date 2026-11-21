@@ -43,7 +43,7 @@ Until C02/C04 prove compatibility, keep API disabled. Required staging checks in
 
 ## Internal route and fresh proof (C02 step 3, I02 remainder)
 
-Off unless `HALLINTO_CITY_GRANT_CONFIG_FILE` names a restricted JSON file (mode 0600, owned by the service user or root) with:
+Off unless `HALLINTO_CITY_GRANT_CONFIG_FILE` names a restricted JSON file (mode 0600, owned by the service user or root). In production the file is `/etc/hallinto-city-grant/config.json`, in a directory owned by `www-data` with mode 0700, set by a systemd drop-in for the Flask unit. Never place it in `/etc/mielenosoitukset`, which deploys keep root-only for backup secrets. The deploy refuses to reload when the service user cannot read the file (see `docs/production-deployment.md`). The file contains:
 
 - `proxy_secret_sha256`: lowercase SHA-256 of the secret the internal vhost adds as `X-Hallinto-Proxy-Secret`. A client certificate is public, so the forwarded certificate alone is not proof that the request came through the mTLS vhost.
 - `workload_cert_sha256`: lowercase SHA-256 fingerprints of the DER client certificates Hallinto presents.
