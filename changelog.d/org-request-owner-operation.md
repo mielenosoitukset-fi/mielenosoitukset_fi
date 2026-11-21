@@ -1,0 +1,1 @@
+- An approved organization request can now create the organization: Hallinto asks Flask to create it with its logo and to give the owner access (a new organization account, the applicant's own account or an invitation). The form itself stays switched off.

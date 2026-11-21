@@ -465,6 +465,129 @@ def test_organization_requests_for_hallinto(owner, db):
         db.organization_requests.delete_many({"_id": {"$in": [confirmed, hidden, suggestion]}})
 
 
+def test_create_organization_for_approved_request(owner, db, monkeypatch):
+    """Slice O4: an approved request becomes an organization with its owner access."""
+    import io
+    from datetime import datetime, timezone
+
+    from mielenosoitukset_fi.users import hallinto_issuer
+    from mielenosoitukset_fi.utils import s3
+
+    sent, uploads = [], []
+    monkeypatch.setattr(hallinto_issuer, "_invite_sender",
+                        type("Sender", (), {"queue_email": lambda self, **kw: sent.append(kw)})())
+    monkeypatch.setattr(s3, "upload_image_fileobj",
+                        lambda bucket, fileobj, name, kind: uploads.append((bucket, fileobj.read())) or "https://s3.test/logo.jpg")
+    app, subject = owner
+    app.config["S3_BUCKET"] = "bucket"
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    now = datetime.now(timezone.utc)
+
+    def request(**extra):
+        row = {"organization": {"name": "Rauhan ystävät ry", "email": "info@rauha.example",
+                                "links": ["https://rauha.example"], "city": "tampere", "description": "Rauhaa."},
+               "applicant": {"name": "Hakija", "email": "hakija@example.test"}, "represents": True,
+               "access": "organization_account", "status": "approved", "hallinto_case": "case-1",
+               "logo": {"content_type": "image/png", "data": b"\x89PNGdata", "size": 8},
+               "status_token_hash": "secret", "created_at": now, "updated_at": now, **extra}
+        return db.organization_requests.insert_one(row).inserted_id
+
+    created_requests, created_orgs, created_users = [], [], []
+    try:
+        first = request()
+        created_requests.append(first)
+        call = lambda rid, case="case-1": _org_requests(app.test_client(), claims, "create-organization",
+                                                         {"id": str(rid), "case": case})
+        # Needs an admin with the right to create organizations, and an approved request of that case.
+        assert call(first).status_code == 403
+        db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin", "global_permissions": ["CREATE_ORGANIZATION"]}})
+        assert call(first, "other-case").status_code == 409
+        in_review = request(status="in_review")
+        suggestion = request(represents=False)
+        created_requests += [in_review, suggestion]
+        assert call(in_review).json["error"] == "not_approved" and call(suggestion).json["error"] == "not_approved"
+
+        # An organization account: the organization, its logo, a new account as owner and one mail.
+        result = call(first)
+        assert result.status_code == 200 and result.json["access"] == "organization_account" and result.json["logo"] == "copied"
+        org = db.organizations.find_one({"_id": ObjectId(result.json["organization_id"])})
+        created_orgs.append(org["_id"])
+        assert org["name"] == "Rauhan ystävät ry" and org["verified"] is True and org["logo"] == "https://s3.test/logo.jpg"
+        assert org["website"] == "https://rauha.example"
+        assert set(org) <= {"_id", "name", "description", "email", "website", "logo", "social_media_links", "members",
+                            "verified", "invitations"}
+        account = db.users.find_one({"email": "info@rauha.example"})
+        created_users.append(account["_id"])
+        assert account["account_kind"] == "organization" and account["created_via"] == "organization_request"
+        assert db.memberships.find_one({"user_id": account["_id"], "organization_id": org["_id"]})["role"] == "owner"
+        assert len(sent) == 1 and sent[0]["recipients"] == ["info@rauha.example"] and uploads == [("bucket", b"\x89PNGdata")]
+        # A repeat changes nothing: one organization, one account, one mail, one upload.
+        again = call(first)
+        assert again.status_code == 200 and again.json["organization_id"] == str(org["_id"])
+        assert db.organizations.count_documents({"_id": org["_id"]}) == 1
+        assert db.users.count_documents({"email": "info@rauha.example"}) == 1
+        assert db.memberships.count_documents({"organization_id": org["_id"]}) == 1
+        assert len(sent) == 1 and len(uploads) == 1
+
+        # The address already has an account: nothing is created, so the access choice can change.
+        taken = request(organization={"name": "Toinen ry", "email": "info@rauha.example", "links": []})
+        created_requests.append(taken)
+        refused = call(taken)
+        assert refused.status_code == 409 and refused.json["error"] == "email_in_use"
+        assert db.organization_requests.find_one({"_id": taken}).get("organization_id") is None
+
+        # An invitation: the owner role is marked as granted by the Hallinto case, and mailed once.
+        invite = request(access="invite", invite_email="pj@vanha.example",
+                         organization={"name": "Vanha ry", "email": "x@vanha.example", "links": []}, logo=None)
+        created_requests.append(invite)
+        sent.clear()
+        result = call(invite)
+        assert result.status_code == 200 and result.json["owner_state"] == "invited" and result.json["logo"] == "none"
+        org2 = db.organizations.find_one({"_id": db.organization_requests.find_one({"_id": invite})["organization_id"]})
+        created_orgs.append(org2["_id"])
+        assert org2["invitations"][0]["role"] == "owner" and org2["invitations"][0]["role_granted_by"] == "hallinto:case-1"
+        assert org2["invitations"][0]["email"] == "pj@vanha.example"
+        assert len(sent) == 1 and "/accept_invite" in sent[0]["context"]["invite_url"]
+        call(invite)
+        assert len(db.organizations.find_one({"_id": org2["_id"]})["invitations"]) == 1 and len(sent) == 1
+
+        # The applicant's own account becomes owner; a missing account is refused.
+        own = request(access="own_account", applicant={"name": "Hakija", "email": "h@example.test", "user_id": ObjectId(subject)},
+                      organization={"name": "Kolmas ry", "email": "x@kolmas.example", "links": []}, logo=None)
+        lost = request(access="own_account", applicant={"name": "X", "user_id": ObjectId()},
+                       organization={"name": "Neljäs ry", "email": "x@neljas.example", "links": []})
+        created_requests += [own, lost]
+        assert call(lost).json["error"] == "applicant_account_missing"
+        assert call(own).status_code == 200
+        org3 = db.organizations.find_one({"_id": db.organization_requests.find_one({"_id": own})["organization_id"]})
+        created_orgs.append(org3["_id"])
+        assert db.memberships.find_one({"user_id": ObjectId(subject), "organization_id": org3["_id"]})["role"] == "owner"
+
+        # A logo store that is down is not fatal: the logo stays pending and a retry copies it.
+        app.config["S3_BUCKET"] = None
+        late = request(organization={"name": "Viides ry", "email": "x@viides.example", "links": []},
+                       access="invite", invite_email="a@viides.example")
+        created_requests.append(late)
+        pending = call(late)
+        assert pending.status_code == 200 and pending.json["logo"] == "pending"
+        org4 = db.organizations.find_one({"_id": db.organization_requests.find_one({"_id": late})["organization_id"]})
+        created_orgs.append(org4["_id"])
+        assert "logo" not in org4
+        app.config["S3_BUCKET"] = "bucket"
+        assert call(late).json["logo"] == "copied"
+        assert db.organizations.find_one({"_id": org4["_id"]})["logo"] == "https://s3.test/logo.jpg"
+        # The list shows where each request stands, never the logo's bytes.
+        item = next(i for i in _org_requests(app.test_client(), claims, "list", {}).json["items"] if i["id"] == str(first))
+        assert item["organization_id"] == str(org["_id"]) and item["owner_state"] == "account"
+    finally:
+        db.organization_requests.delete_many({"_id": {"$in": created_requests}})
+        db.organizations.delete_many({"_id": {"$in": created_orgs}})
+        db.memberships.delete_many({"organization_id": {"$in": created_orgs}})
+        db.users.delete_many({"_id": {"$in": created_users}})
+
+
 def _applications(owner_client, claims, path, body, auth=(CLIENT, SECRET)):
     return owner_client.post(PREFIX + "/city-admin-applications/" + path, base_url=ORIGIN, auth=auth,
                              json={"sub": claims["sub"], "sid": claims["sid"], **body})
