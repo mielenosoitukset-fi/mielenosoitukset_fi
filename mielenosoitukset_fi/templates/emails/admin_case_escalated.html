@@ -1,0 +1,42 @@
+{% extends "admin_email_base.html" %}
+{% set eyebrow = "Tapaukset" %}
+{% set heading = "Tapaus eskaloitu sinulle" %}
+
+{% block subject %}Tapaus #{{ running_num }} eskaloitu sinulle (taso {{ level }}){% endblock %}
+
+{% block body %}
+<p>
+    {{ from_user }} pyysi sinua käsittelemään tapauksen, koska sitä ei voitu päättää aiemmalla tasolla. Mielenosoitus odottaa päätöstä.
+</p>
+
+<ul class="data-list">
+    <li>
+        <strong>Tapaus</strong>
+        #{{ running_num }}
+    </li>
+    <li>
+        <strong>Taso</strong>
+        {{ level }}: {{ level_name }}
+    </li>
+    {% if demo_title %}
+    <li>
+        <strong>Mielenosoitus</strong>
+        {{ demo_title }}
+    </li>
+    {% endif %}
+    <li>
+        <strong>Syy</strong>
+        {{ reason }}
+    </li>
+</ul>
+
+<div class="btn-group">
+    <a href="{{ case_link }}" class="btn btn-primary">Avaa tapaus</a>
+</div>
+
+<div class="meta">
+    <p>
+        Saat tämän viestin, koska tapaus on nyt tasolla, jota sinä käsittelet. Sama ilmoitus näkyy myös sivuston ilmoituksissa.
+    </p>
+</div>
+{% endblock %}

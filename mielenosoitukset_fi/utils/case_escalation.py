@@ -99,7 +99,7 @@ def escalate(db, case_doc, user, reason, *, authentication, second_factor="none"
     if not updated.modified_count:
         raise EscalationError("changed")
     try:
-        notify_level(db, case_doc, new_level)
+        notify_level(db, case_doc, new_level, reason=reason, from_user=user.username)
     except Exception:
         logger.exception("Could not notify level %s about case %s", new_level, case_doc.get("_id"))
     return new_level
@@ -117,16 +117,22 @@ def _level_users(db, level):
     return [doc for doc in users if doc.get("global_admin") or doc.get("role") in SUPER_ROLES]
 
 
-def notify_level(db, case_doc, level):
-    """Inbox notice (the bell) for each person at the new level who may see the case."""
-    from mielenosoitukset_fi.utils.case_notifications import NOTICE_TYPE, _payload, case_recipients
+def notify_level(db, case_doc, level, *, reason="", from_user=""):
+    """Inbox notice and one e-mail for each person at the new level who may see the case.
+
+    Mail follows the same switch as new-case mail and is sent only when the
+    notice is first created, so a retry never mails twice.
+    """
+    from mielenosoitukset_fi.utils.case_notifications import (
+        NOTICE_TYPE, SITE_URL, _email_sender, _payload, case_recipients, emails_enabled,
+    )
 
     payload = _payload(db, case_doc)
     payload["escalation_level"] = level
     payload["escalation_name"] = LEVEL_NAMES[level]
     sent = 0
     for doc, _user in case_recipients(db, case_doc["_id"], users=_level_users(db, level)):
-        db.notifications.update_one(
+        result = db.notifications.update_one(
             {"_id": f"escalation:{case_doc['_id']}:{level}:{doc['_id']}"},
             {"$setOnInsert": {
                 "user_id": doc["_id"], "type": NOTICE_TYPE, "payload": payload,
@@ -134,5 +140,21 @@ def notify_level(db, case_doc, level):
             }},
             upsert=True,
         )
+        email = (doc.get("email") or "").strip()
+        if result.upserted_id is not None and email and emails_enabled():
+            try:
+                _email_sender().queue_email(
+                    template_name="admin_case_escalated.html",
+                    subject=f"Tapaus #{payload.get('running_num') or ''} eskaloitu sinulle (taso {level})",
+                    recipients=[email],
+                    context={
+                        "running_num": payload.get("running_num") or "", "level": level,
+                        "level_name": LEVEL_NAMES[level], "demo_title": payload.get("demo_title") or "",
+                        "reason": reason, "from_user": from_user or "Moderaattori",
+                        "case_link": f"{SITE_URL}/admin/case/{case_doc['_id']}/",
+                    },
+                )
+            except Exception:
+                logger.exception("Could not queue escalation mail for case %s", case_doc.get("_id"))
         sent += 1
     return sent
