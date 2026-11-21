@@ -22,6 +22,7 @@ Behaviour of the pilot operation:
 - The writer refuses, before any write, to replace an existing city grant or to enable a city the request did not allow.
 - After the write, a freshly loaded user must have the role `city_admin`, the city enabled, exactly one city scope and exactly the nine permissions through `User.has_scoped_permission`. Anything else is `reconciliation_required`.
 - A `pending` operation whose last update is older than five minutes is reported as `reconciliation_required` on replay or lookup. It is never retried automatically.
+- `valid_until` (required) is the exclusive end instant in UTC; Hallinto sends the Helsinki midnight after the last valid day. It must be ahead and at most about five years out. It is stored as the grant's `expires_at`. Every grant read (`utils/scope_grants.py`, and `liveGrantClauses` in the Go API) ignores a grant from that instant, so no job revokes it. A legacy admin save keeps an existing expiry. Receipts and the state read echo `valid_until`. Justification and meeting records stay in Hallinto.
 - The existing city-admin implication of organization permissions (`CITY_ADMIN_ORGANIZATION_PERMISSIONS`) still follows from any city grant. The receipt reports the city scope only.
 
 ## Pilot scope and security

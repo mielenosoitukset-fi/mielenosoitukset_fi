@@ -19,6 +19,8 @@ from tests.test_admin_user_history import _profile
 
 FIXTURES = json.loads((Path(__file__).resolve().parents[1] / "docs/hallinto-city-grant-fixtures.json").read_text())
 KEY = "hallinto-op-0000000001"
+# Exclusive end: the Helsinki midnight after the last valid day, as UTC.
+VALID_UNTIL = (city_grants.utcnow() + timedelta(days=90)).strftime("%Y-%m-%dT22:00:00Z")
 NINE = ["ACCEPT_DEMO", "CREATE_DEMO", "EDIT_CASE", "EDIT_DEMO", "GENERATE_EDIT_LINK",
         "LIST_CASES", "LIST_DEMOS", "VIEW_CASE", "VIEW_DEMO"]
 
@@ -37,7 +39,7 @@ def ctx(app, db, seeded_data):
 def _request(ctx, city="kuopio", **overrides):
     state = read_city_grant_state(ctx.db, str(ctx.target))
     request = {**FIXTURES["request"], "account_id": str(ctx.target), "city": city,
-               "expected_state": state["expected_state"]}
+               "expected_state": state["expected_state"], "valid_until": VALID_UNTIL}
     request.update(overrides)
     return request
 
@@ -115,7 +117,9 @@ def test_contract_fixture_is_a_valid_request_and_bad_shapes_are_rejected():
     assert "authority_attestation" not in intent
     for bad in ({"template": "city_admin_v2"}, {"city": "Tampere"}, {"city": "atlantis"},
                 {"decision_revision": 0}, {"decision_revision": True}, {"allow_city_enablement": 1},
-                {"account_id": "XYZ"}, {"permissions": ["EDIT_USER"]}, {"authority_attestation": ""}):
+                {"account_id": "XYZ"}, {"permissions": ["EDIT_USER"]}, {"authority_attestation": ""},
+                {"valid_until": "2027-01-01"}, {"valid_until": "2027-01-01T22:00:00+02:00"},
+                {"valid_until": "2027-02-30T22:00:00Z"}, {"valid_until": None}):
         assert validate_appointment({**FIXTURES["request"], **bad}) is None
 
 
@@ -123,20 +127,23 @@ def test_appointment_confirms_exactly_the_approved_grant(ctx):
     outcome = _apply(ctx, _request(ctx))
     assert outcome.status_code == 200, outcome.body
     body = outcome.body
-    assert set(body) == {"operation_id", "account_id", "decision_id", "decision_revision", "status",
-                         "checked_at", "effective", "resulted_in_city_enablement"}
+    assert set(body) == {"operation_id", "account_id", "decision_id", "decision_revision", "valid_until",
+                         "status", "checked_at", "effective", "resulted_in_city_enablement"}
     assert body["status"] == "confirmed" and body["account_id"] == str(ctx.target)
-    assert body["effective"] == {"city": "kuopio", "permissions": NINE}
+    assert body["valid_until"] == VALID_UNTIL
+    assert body["effective"] == {"city": "kuopio", "permissions": NINE, "valid_until": VALID_UNTIL}
     assert body["resulted_in_city_enablement"] is False
     [grant] = _grants(ctx)
     assert grant["scope_keys"] == ["kuopio"] and grant["permissions"] == NINE
     assert grant["granted_by"] == str(ctx.admin)
+    assert grant["expires_at"].strftime("%Y-%m-%dT%H:%M:%SZ") == VALID_UNTIL
     assert ctx.db.users.find_one({"_id": ctx.target})["role"] == "city_admin"
     operation = ctx.db[OPERATIONS].find_one({"idempotency_key": KEY})
     assert [t["status"] for t in operation["transitions"]] == ["pending", "confirmed"]
     assert "authority_attestation" not in json.dumps(operation, default=str)
     state = read_city_grant_state(ctx.db, str(ctx.target))
-    assert state["eligible"] is False and state["scopes"] == [{"city": "kuopio", "permissions": NINE}]
+    assert state["eligible"] is False
+    assert state["scopes"] == [{"city": "kuopio", "permissions": NINE, "valid_until": VALID_UNTIL}]
 
 
 def test_replay_returns_the_original_receipt_and_never_reapplies(ctx):
@@ -255,7 +262,7 @@ def test_receipt_lookup_revalidates_visibility(ctx, seeded_data):
 
 
 def test_unverified_result_needs_reconciliation_and_keeps_its_key(ctx, monkeypatch):
-    monkeypatch.setattr(city_grants, "verify_effective_grant", lambda db, account, city: {"ok": False})
+    monkeypatch.setattr(city_grants, "verify_effective_grant", lambda db, account, city, valid_until: {"ok": False})
     request = _request(ctx)
     outcome = _apply(ctx, request)
     assert outcome.status_code == 202
@@ -326,11 +333,11 @@ def test_two_appointments_for_different_cities_cannot_both_land(ctx, monkeypatch
     original = city_grants.verify_effective_grant
     results = {}
 
-    def interleave(db, account, city):
+    def interleave(db, account, city, valid_until):
         # While the first appointment is still fenced, the second one runs.
         if "second" not in results:
             results["second"] = _apply(ctx, second, key="hallinto-op-0000000006")
-        return original(db, account, city)
+        return original(db, account, city, valid_until)
 
     monkeypatch.setattr(city_grants, "verify_effective_grant", interleave)
     assert _apply(ctx, first).status_code == 200
@@ -347,10 +354,49 @@ def test_an_expired_fence_is_taken_over(ctx):
 def test_a_writer_that_lost_its_fence_never_confirms(ctx, monkeypatch):
     original = city_grants.verify_effective_grant
 
-    def taken_over(db, account, city):
+    def taken_over(db, account, city, valid_until):
         db[city_grants.FENCES].update_one({"_id": str(account)}, {"$set": {"token": ObjectId()}})
-        return original(db, account, city)
+        return original(db, account, city, valid_until)
 
     monkeypatch.setattr(city_grants, "verify_effective_grant", taken_over)
     outcome = _apply(ctx, _request(ctx))
     assert outcome.status_code == 202 and outcome.body["status"] == "reconciliation_required"
+
+
+@pytest.mark.parametrize("valid_until", [
+    "2020-01-01T22:00:00Z",
+    (city_grants.utcnow() + timedelta(days=5 * 366 + 3)).strftime("%Y-%m-%dT22:00:00Z"),
+])
+def test_validity_must_be_ahead_and_bounded(ctx, valid_until):
+    outcome = _apply(ctx, _request(ctx, valid_until=valid_until))
+    assert (outcome.status_code, outcome.body) == (422, {"code": "unsupported_scope"})
+    assert not _grants(ctx)
+    lookup = read_operation_receipt(ctx.db, integration="hallinto", actor_id=ctx.admin, idempotency_key=KEY)
+    assert lookup.body["valid_until"] == valid_until
+
+
+def test_expired_grant_stops_working_without_a_job(ctx):
+    from mielenosoitukset_fi.users.models import User
+
+    assert _apply(ctx, _request(ctx)).status_code == 200
+    user = User.from_db(ctx.db.users.find_one({"_id": ctx.target}))
+    assert user.has_scoped_permission("ACCEPT_DEMO", scope_type="city", scope_key="kuopio")
+    ctx.db.admin_scope_grants.update_one({"user_id": ctx.target}, {"$set": {
+        "expires_at": city_grants.utcnow() - timedelta(seconds=1)}})
+    user = User.from_db(ctx.db.users.find_one({"_id": ctx.target}))
+    assert not user.has_scoped_permission("ACCEPT_DEMO", scope_type="city", scope_key="kuopio")
+    assert not user.has_city_admin_scope_grants() and not user.has_permission("LIST_CASES")
+    assert read_city_grant_state(ctx.db, str(ctx.target))["scopes"] == []
+    from mielenosoitukset_fi.utils.city_assignment import active_city_admins_for_city
+    assert str(ctx.target) not in {str(doc["_id"]) for doc in active_city_admins_for_city(ctx.db, "kuopio")}
+
+
+def test_legacy_save_keeps_the_appointment_expiry(ctx, admin_client):
+    assert _apply(ctx, _request(ctx)).status_code == 200
+    payload = _profile(ctx.db.users.find_one({"_id": ctx.target}), **{
+        "admin_scope_cities[]": ["kuopio"], "admin_scope_permissions[city][]": NINE,
+        "role": "city_admin",
+    })
+    assert admin_client.post(f"/admin/user/edit_user/{ctx.target}", data=payload).status_code == 302
+    [grant] = _grants(ctx)
+    assert grant["expires_at"].strftime("%Y-%m-%dT%H:%M:%SZ") == VALID_UNTIL

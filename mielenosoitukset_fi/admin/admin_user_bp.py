@@ -9,6 +9,7 @@ from markupsafe import Markup
 import math
 import re
 
+from mielenosoitukset_fi.utils.scope_grants import live_grant_filter
 from mielenosoitukset_fi.admin.permission_copy import PERMISSION_CATEGORY_LABELS, PERMISSION_DESCRIPTIONS
 from mielenosoitukset_fi.users.models import User
 from mielenosoitukset_fi.emailer.EmailSender import EmailSender
@@ -129,7 +130,7 @@ def user_control():
             {
                 "scope_type": "city",
                 "scope_keys": city_filter_key,
-                "$or": [{"revoked_at": {"$exists": False}}, {"revoked_at": None}],
+                **live_grant_filter(),
             },
             {"user_id": 1},
         ):
@@ -166,7 +167,7 @@ def user_control():
             {
                 "user_id": {"$in": page_user_ids + [str(user_id) for user_id in page_user_ids]},
                 "scope_type": "city",
-                "$or": [{"revoked_at": {"$exists": False}}, {"revoked_at": None}],
+                **live_grant_filter(),
             },
             {"user_id": 1},
         )

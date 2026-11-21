@@ -90,6 +90,16 @@ func activeAccount(doc bson.M) bool {
 	return doc["confirmed"] == true
 }
 
+// liveGrantClauses selects grants that are neither revoked nor past their
+// exclusive expires_at. Keep in sync with Flask's utils/scope_grants.py.
+func liveGrantClauses(now time.Time) bson.A {
+	return bson.A{
+		bson.M{"$or": bson.A{bson.M{"revoked_at": bson.M{"$exists": false}}, bson.M{"revoked_at": nil}}},
+		bson.M{"$or": bson.A{bson.M{"expires_at": bson.M{"$exists": false}}, bson.M{"expires_at": nil},
+			bson.M{"expires_at": bson.M{"$gt": now}}}},
+	}
+}
+
 // CountCityAdmins counts distinct users who can approve demonstrations in the
 // city: an unrevoked grant with ACCEPT_DEMO (the rule of Flask's
 // active_city_admins_for_city) held by a usable account. It reads only ids and
@@ -99,10 +109,8 @@ func (s mongoStore) CountCityAdmins(ctx context.Context, key string) (int, error
 	cursor, err := db.Collection("admin_scope_grants").Find(ctx, bson.M{
 		"scope_type":  "city",
 		"permissions": "ACCEPT_DEMO",
-		"$and": bson.A{
-			bson.M{"$or": bson.A{bson.M{"scope_keys": key}, bson.M{"scope_key": key}}},
-			bson.M{"$or": bson.A{bson.M{"revoked_at": bson.M{"$exists": false}}, bson.M{"revoked_at": nil}}},
-		},
+		"$and": append(liveGrantClauses(time.Now().UTC()),
+			bson.M{"$or": bson.A{bson.M{"scope_keys": key}, bson.M{"scope_key": key}}}),
 	}, options.Find().SetProjection(bson.M{"user_id": 1}).SetLimit(500))
 	if err != nil {
 		return 0, err
@@ -172,7 +180,7 @@ func (s mongoStore) CityAdminCoverage(ctx context.Context) (map[string]int, erro
 	cursor, err := db.Collection("admin_scope_grants").Find(ctx, bson.M{
 		"scope_type":  "city",
 		"permissions": "ACCEPT_DEMO",
-		"$or":         bson.A{bson.M{"revoked_at": bson.M{"$exists": false}}, bson.M{"revoked_at": nil}},
+		"$and":        liveGrantClauses(time.Now().UTC()),
 	}, options.Find().SetProjection(bson.M{"user_id": 1, "scope_keys": 1, "scope_key": 1}).SetLimit(5000))
 	if err != nil {
 		return nil, err

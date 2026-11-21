@@ -18,13 +18,14 @@ import json
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Callable, Optional
 
 from bson import ObjectId
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
+from mielenosoitukset_fi.utils.scope_grants import live_grant_filter
 from mielenosoitukset_fi.utils.cities import CITY_KEY_TO_NAME, normalize_city_key
 from mielenosoitukset_fi.utils.city_settings import enabled_city_keys, upsert_city_setting
 from mielenosoitukset_fi.utils.logger import logger
@@ -76,7 +77,7 @@ def _active_city_grant_query(user_id) -> dict:
     return {
         "user_id": {"$in": [user_id, str(user_id)]},
         "scope_type": "city",
-        "$or": [{"revoked_at": {"$exists": False}}, {"revoked_at": None}],
+        **live_grant_filter(),
     }
 
 
@@ -188,24 +189,25 @@ def fence_held(db, user_id, token) -> bool:
 def sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissions: list[str], actor, *,
                           allow_city_enablement: bool = True, additive_only: bool = False,
                           before_write: Optional[Callable[[], None]] = None,
-                          fenced: bool = False) -> SyncResult:
+                          fenced: bool = False, expires_at: Optional[datetime] = None) -> SyncResult:
     """Replace the user's city grant under the account fence.
 
     ``fenced=True`` means the caller already holds ``account_fence``.
+    ``expires_at`` (naive UTC, exclusive) sets the grant's end. Without it an
+    existing grant keeps its expiry, so a legacy save never extends one.
     """
+    options = dict(allow_city_enablement=allow_city_enablement, additive_only=additive_only,
+                   before_write=before_write, expires_at=expires_at)
     if fenced:
-        return _sync_city_scope_grant(db, user_id, city_keys, permissions, actor,
-                                      allow_city_enablement=allow_city_enablement,
-                                      additive_only=additive_only, before_write=before_write)
+        return _sync_city_scope_grant(db, user_id, city_keys, permissions, actor, **options)
     with account_fence(db, user_id):
-        return _sync_city_scope_grant(db, user_id, city_keys, permissions, actor,
-                                      allow_city_enablement=allow_city_enablement,
-                                      additive_only=additive_only, before_write=before_write)
+        return _sync_city_scope_grant(db, user_id, city_keys, permissions, actor, **options)
 
 
 def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissions: list[str], actor, *,
                            allow_city_enablement: bool = True, additive_only: bool = False,
-                           before_write: Optional[Callable[[], None]] = None) -> SyncResult:
+                           before_write: Optional[Callable[[], None]] = None,
+                           expires_at: Optional[datetime] = None) -> SyncResult:
     """Replace the user's city grant; audit each scope mutation in its own outbox.
 
     ``allow_city_enablement=False`` and ``additive_only=True`` raise
@@ -268,6 +270,8 @@ def _sync_city_scope_grant(db, user_id: ObjectId, city_keys: list[str], permissi
         "updated_by": str(actor._id),
         "revoked_at": None,
     }
+    if expires_at is not None:
+        payload["expires_at"] = expires_at
     after = {"city_scope_keys": city_keys, "city_scope_permissions": permissions}
     if existing:
         update_grant(existing, payload, after)
@@ -300,8 +304,22 @@ ERROR_STATUS = {
 }
 REQUEST_FIELDS = {
     "account_id", "city", "template", "expected_state", "allow_city_enablement",
-    "decision_id", "decision_revision", "application_id", "authority_attestation",
+    "decision_id", "decision_revision", "application_id", "authority_attestation", "valid_until",
 }
+VALID_UNTIL = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+# Hallinto allows a last valid day under five years ahead; the end is the next midnight.
+MAX_VALIDITY = timedelta(days=5 * 366 + 1)
+INSTANT = "%Y-%m-%dT%H:%M:%SZ"
+
+
+def parse_valid_until(value) -> Optional[datetime]:
+    """Exclusive end instant, RFC 3339 UTC with seconds; naive UTC or None."""
+    if not isinstance(value, str) or not VALID_UNTIL.match(value):
+        return None
+    try:
+        return datetime.strptime(value, INSTANT)
+    except ValueError:
+        return None
 REQUIRED_FIELDS = REQUEST_FIELDS - {"application_id"}
 
 
@@ -347,7 +365,8 @@ def validate_appointment(request: Any) -> Optional[dict]:
             and _non_empty_id(request["decision_id"])
             and type(revision) is int and revision >= 1
             and ("application_id" not in request or _non_empty_id(request["application_id"]))
-            and isinstance(attestation, str) and 1 <= len(attestation) <= 16384):
+            and isinstance(attestation, str) and 1 <= len(attestation) <= 16384
+            and parse_valid_until(request["valid_until"]) is not None):
         return None
     intent = {key: request[key] for key in sorted(REQUEST_FIELDS - {"authority_attestation"}) if key in request}
     intent["permissions"] = CITY_ADMIN_V1_PERMISSIONS
@@ -362,7 +381,7 @@ def _digest(value) -> str:
 def _active_grants(db, user_id) -> list:
     return list(db.admin_scope_grants.find({
         "user_id": {"$in": [user_id, str(user_id)]},
-        "$or": [{"revoked_at": {"$exists": False}}, {"revoked_at": None}],
+        **live_grant_filter(),
     }))
 
 
@@ -383,7 +402,8 @@ def _owner_inputs(db, doc) -> dict:
         "grants": sorted(
             [{"id": str(g["_id"]), "type": g.get("scope_type"),
               "keys": sorted(g.get("scope_keys") or ([g["scope_key"]] if g.get("scope_key") else [])),
-              "permissions": sorted(g.get("permissions") or [])} for g in grants],
+              "permissions": sorted(g.get("permissions") or []),
+              "expires_at": g.get("expires_at")} for g in grants],
             key=lambda grant: grant["id"],
         ),
         "enabled_cities": sorted(enabled_city_keys(db)),
@@ -401,7 +421,10 @@ def _eligible(inputs: dict) -> bool:
 
 
 def _scopes(grants: list) -> list:
+    """Effective city scopes. ``valid_until`` appears when every grant for the
+    city expires; it is the latest of those ends."""
     scopes: dict[str, set] = {}
+    ends: dict[str, list] = {}
     for grant in grants:
         if grant.get("scope_type") != "city":
             continue
@@ -414,7 +437,16 @@ def _scopes(grants: list) -> list:
             city = normalize_city_key(key)
             if city:
                 scopes.setdefault(city, set()).update(grant.get("permissions") or [])
-    return [{"city": city, "permissions": sorted(perms)} for city, perms in sorted(scopes.items()) if perms]
+                ends.setdefault(city, []).append(grant.get("expires_at"))
+    result = []
+    for city, perms in sorted(scopes.items()):
+        if not perms:
+            continue
+        scope = {"city": city, "permissions": sorted(perms)}
+        if ends[city] and all(ends[city]):
+            scope["valid_until"] = max(ends[city]).strftime(INSTANT)
+        result.append(scope)
+    return result
 
 
 def read_city_grant_state(db, account_id: str) -> Optional[dict]:
@@ -456,6 +488,7 @@ def _receipt_identity(operation: dict) -> dict:
         "account_id": operation["account_id"],
         "decision_id": operation["intent"]["decision_id"],
         "decision_revision": operation["intent"]["decision_revision"],
+        "valid_until": operation["intent"]["valid_until"],
     }
 
 
@@ -507,7 +540,7 @@ def _replay(db, existing: dict, digest: str) -> Outcome:
     return _outcome_for(existing)
 
 
-def verify_effective_grant(db, account_id: ObjectId, city: str) -> dict:
+def verify_effective_grant(db, account_id: ObjectId, city: str, valid_until: str) -> dict:
     """Recheck the effective result with newly loaded owner state."""
     doc = db.users.find_one({"_id": account_id})
     if not doc:
@@ -520,9 +553,12 @@ def verify_effective_grant(db, account_id: ObjectId, city: str) -> dict:
     city_enabled = city in enabled_city_keys(db)
     ok = (user.is_active and not user.has_full_permissions() and doc.get("role") == "city_admin"
           and not user.global_permissions and city_enabled
-          and scopes == [{"city": city, "permissions": CITY_ADMIN_V1_PERMISSIONS}]
+          and scopes == [{"city": city, "permissions": CITY_ADMIN_V1_PERMISSIONS, "valid_until": valid_until}]
           and sorted(effective) == CITY_ADMIN_V1_PERMISSIONS)
-    return {"ok": ok, "effective": {"city": city, "permissions": sorted(effective)}}
+    effective_scope = {"city": city, "permissions": sorted(effective)}
+    if scopes and scopes[0].get("valid_until"):
+        effective_scope["valid_until"] = scopes[0]["valid_until"]
+    return {"ok": ok, "effective": effective_scope}
 
 
 def apply_city_admin_v1(db, *, integration: str, actor_id, idempotency_key: str, request: Any) -> Outcome:
@@ -587,6 +623,10 @@ def _apply_fenced(db, operation, intent, actor, integration, account_id, fence) 
         return _outcome_for(_reject(db, operation, "stale_state"))
     if not _eligible(inputs):
         return _outcome_for(_reject(db, operation, "unsupported_scope"))
+    expires_at = parse_valid_until(intent["valid_until"])
+    now = utcnow()
+    if not (now < expires_at <= now + MAX_VALIDITY):
+        return _outcome_for(_reject(db, operation, "unsupported_scope"))
     city_was_enabled = city in inputs["enabled_cities"]
     if not city_was_enabled and not intent["allow_city_enablement"]:
         return _outcome_for(_reject(db, operation, "unsupported_scope"))
@@ -612,7 +652,7 @@ def _apply_fenced(db, operation, intent, actor, integration, account_id, fence) 
             result = sync_city_scope_grant(
                 db, account_id, [city], CITY_ADMIN_V1_PERMISSIONS, actor,
                 allow_city_enablement=intent["allow_city_enablement"], additive_only=True,
-                before_write=applying, fenced=True,
+                before_write=applying, fenced=True, expires_at=expires_at,
             )
     except CityGrantConflict:
         if operation.get("phase") != "applying":
@@ -627,7 +667,7 @@ def _apply_fenced(db, operation, intent, actor, integration, account_id, fence) 
         except PyMongoError:
             return _error("unavailable")
 
-    verified = verify_effective_grant(db, account_id, city)
+    verified = verify_effective_grant(db, account_id, city, intent["valid_until"])
     enabled = city in result.enabled_cities
     if (not verified["ok"] or (enabled and not intent["allow_city_enablement"])
             or not fence_held(db, account_id, fence)):

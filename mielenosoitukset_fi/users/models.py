@@ -4,6 +4,7 @@ from flask_login import UserMixin, AnonymousUserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 import pyotp, datetime
 
+from mielenosoitukset_fi.utils.scope_grants import live_grant_filter
 from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.utils.cities import normalize_city_key
 from mielenosoitukset_fi.utils.case_access import CASE_PERMISSIONS
@@ -343,10 +344,7 @@ class User(UserMixin):
                 _get_mongo().admin_scope_grants.find(
                     {
                         "user_id": {"$in": [self._id, str(self._id)]},
-                        "$or": [
-                            {"revoked_at": {"$exists": False}},
-                            {"revoked_at": None},
-                        ],
+                        **live_grant_filter(),
                     }
                 )
             )
