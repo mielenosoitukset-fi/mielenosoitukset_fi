@@ -135,8 +135,12 @@ def check_code(db, doc: dict, user, code: str) -> None:
     # Same verifier as the login form; one code is never accepted twice here.
     user_oid = ObjectId(str(getattr(user, "_id", None) or user.id))
     if code and code.isdigit() and code != doc.get("last_code") and UserMFA(user_oid).verify_token(code):
-        db.magic_links.update_one({"_id": doc["_id"]}, {"$set": {"last_code": code}})
-        return
+        # Atomic: two requests carrying the same code cannot both pass.
+        claimed = db.magic_links.update_one(
+            {"_id": doc["_id"], "last_code": {"$ne": code}}, {"$set": {"last_code": code}}
+        )
+        if claimed.modified_count:
+            return
     updated = db.magic_links.find_one_and_update(
         {"_id": doc["_id"]}, {"$inc": {"code_failures": 1}}, return_document=True
     )

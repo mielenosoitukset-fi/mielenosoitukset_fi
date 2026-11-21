@@ -63,7 +63,10 @@ def case_permission(permission, *, allow_city=False, approver=False):
             required = permission.get(request.method) if isinstance(permission, dict) else permission
             if not required:
                 abort(403)
-            if approver and _approves_new_demo(kwargs.get("case_id")):
+            decides_only = request.endpoint != "admin_case.demo_action" or (
+                (request.get_json(silent=True) or {}).get("action") in {"accept", "reject"}
+            )
+            if approver and decides_only and _approves_new_demo(kwargs.get("case_id")):
                 # Whoever may decide the demonstration may open and decide its case.
                 log_admin_action_V2(AdminActParser().log_request_info(request.__dict__, current_user))
                 return function(*args, **kwargs)
@@ -1202,6 +1205,13 @@ def _link_gate(demo, *, actions=None, action=None):
     return None
 
 
+def _decision_failed(result):
+    """The decision routes answer with an error status when nothing was decided."""
+    response = result[0] if isinstance(result, tuple) else result
+    status = result[1] if isinstance(result, tuple) else getattr(response, "status_code", 200)
+    return (response, status) if status >= 400 else None
+
+
 def _link_done():
     """A decision ends the link; the page stays readable, the buttons stay away."""
     link = getattr(g, "case_link", None)
@@ -1239,7 +1249,9 @@ def demo_action(case_id):
     response_status = ""
 
     if data["action"] == "accept":
-        approve_demo(demo_id=case.demo_id)
+        failed = _decision_failed(approve_demo(demo_id=case.demo_id))
+        if failed:
+            return failed
         _link_done()
         response_status = "accepted"
 
@@ -1251,7 +1263,9 @@ def demo_action(case_id):
         except case_reasons.ReasonError as error:
             return jsonify({"error": str(error)}), 400
 
-        reject_demo(demo_id=case.demo_id)
+        failed = _decision_failed(reject_demo(demo_id=case.demo_id))
+        if failed:
+            return failed
         _link_done()
         response_status = "rejected"
         now = utcnow()
