@@ -22,8 +22,11 @@ def test_routing_claims_only_get_and_head_of_the_exact_path():
     assert rule in routing
     before = routing.split(rule)[0].rstrip().splitlines()[-1]
     assert before == 'RewriteCond %{REQUEST_METHOD} "^(GET|HEAD)$"'
-    # The next-steps page reads the Flask session and stays there.
-    assert "/users/auth/register/next_steps" not in routing
+    # The next-steps page is React too, for GET/HEAD of its exact path only.
+    next_rule = 'RewriteRule "^/users/auth/register/next_steps$" "http://127.0.0.1:8090$0" [P,L]'
+    assert next_rule in routing
+    before = routing.split(next_rule)[0].rstrip().splitlines()[-1]
+    assert before == 'RewriteCond %{REQUEST_METHOD} "^(GET|HEAD)$"'
 
 
 def test_flask_post_still_validates(client):
