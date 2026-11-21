@@ -119,6 +119,14 @@ if (container) {
       void import('./ForcedIdentityScreen').then(({ default: ForcedIdentityScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<ForcedIdentityScreen config={props.config} session={props.session} />} />);
       }).catch(error => console.error('Could not start the name change page', error));
+    } else if (route?.name === 'register-next-steps') {
+      void import('./RegisterNextStepsScreen').then(({ default: RegisterNextStepsScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<RegisterNextStepsScreen config={props.config} />} />);
+      }).catch(error => console.error('Could not start the next steps page', error));
+    } else if (route?.name === 'logout') {
+      void import('./LogoutScreen').then(({ default: LogoutScreen }) => {
+        hydrateRoot(container, <Root {...props} serverPage={<LogoutScreen config={props.config} session={props.session} />} />);
+      }).catch(error => console.error('Could not start the sign-out page', error));
     } else if (route?.name === 'register') {
       void import('./RegisterScreen').then(({ default: RegisterScreen }) => {
         hydrateRoot(container, <Root {...props} serverPage={<RegisterScreen config={props.config} />} />);

@@ -41,10 +41,10 @@ export function DetailScreen({ base, id, canonicalUrl, initialHref }: DetailScre
   const loaded = useCallback((event: DetailEvent) => {
     if (event._id !== route.id) return;
     document.title = `${event.title} | Mielenosoitukset.fi`;
-    if (trackedView.current === event._id) return;
+    if (base.preview || trackedView.current === event._id) return;
     trackedView.current = event._id;
     trackDemoView(base.urls.trackView, event._id);
-  }, [route.id, base.urls.trackView]);
+  }, [route.id, base.urls.trackView, base.preview]);
   const [intent, setIntent] = useState<'attend' | 'invite' | null>(() => {
     const action = new URL(window.location.href).searchParams.get('action');
     return action === 'like' ? 'attend' : action === 'inviteFriends' ? 'invite' : null;
@@ -96,9 +96,13 @@ export function DetailScreen({ base, id, canonicalUrl, initialHref }: DetailScre
     attendance: base.urls.attendance.replaceAll('__EVENT_ID__', encodeURIComponent(route.id)),
     login: loginHref('like'), loginInvite: loginHref('inviteFriends'),
   };
-  return <><SuggestionNoticeBanner /><DemonstrationDetailPage {...base} id={route.id}
+  const page = <DemonstrationDetailPage {...base} id={route.id}
     canonicalUrl={route.id === id ? canonicalUrl : route.href} urls={urls}
     initialAction={intent} onIntentConsumed={consumeIntent} onSelect={select} onLoaded={loaded}
     followedOrganizations={followedOrganizations} recurringFollowing={recurringFollowing}
-    onOrganizationFollowChange={organizationChanged} onRecurringFollowChange={setRecurringFollowing} /></>;
+    onOrganizationFollowChange={organizationChanged} onRecurringFollowChange={setRecurringFollowing} />;
+  // Admin preview: same markup and styles, but inert, so no reminder, report,
+  // attendance or link can act on an event that is not public yet.
+  if (base.preview) return <div className="detail-preview" inert>{page}</div>;
+  return <><SuggestionNoticeBanner />{page}</>;
 }

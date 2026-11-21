@@ -1,7 +1,7 @@
 const facts = [
-  { icon: 'fa-calendar-check', value: '2024', label: 'Perustettu' },
-  { icon: 'fa-scale-balanced', value: 'Riippumaton', label: 'Ei sidoksissa puolueisiin tai järjestöihin' },
-  { icon: 'fa-hand-holding-heart', value: 'Vapaaehtoisvoimin', label: 'Voittoa tavoittelematon' },
+  { value: '2024', label: 'Perustettu' },
+  { value: 'Riippumaton', label: 'Ei sidoksissa puolueisiin tai järjestöihin' },
+  { value: 'Vapaaehtoisvoimin', label: 'Voittoa tavoittelematon' },
 ];
 
 /** `campaign` is true when the campaign page is public or the visitor can preview it. */
@@ -9,7 +9,6 @@ export function AboutContent({ campaign = false }: { campaign?: boolean }) {
   return <>
     <dl className="about-facts">
       {facts.map(fact => <div key={fact.value} className="about-fact">
-        <i className={`fa-solid ${fact.icon}`} aria-hidden="true" />
         <dt>{fact.label}</dt>
         <dd>{fact.value}</dd>
       </div>)}

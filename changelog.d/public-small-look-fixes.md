@@ -1,0 +1,3 @@
+- Info notices on public pages use the site's own blue in a plain box instead of a cyan card with a coloured stripe and shadow.
+- The about page (/info) shows its three facts as one plain line instead of three icon cards.
+- On phones the header is one blue bar with the site name and the menu button, instead of a blue band plus an almost empty white strip. The bar stays at the top while scrolling, and the opened menu no longer runs past the right edge of the screen.

@@ -1,0 +1,1 @@
+- Admin guide: moderation e-mails open the case ("Avaa tapaus"), undecided demonstrations expire as "Vanhentunut", and what each dashboard card counts.
