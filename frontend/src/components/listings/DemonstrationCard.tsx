@@ -84,14 +84,14 @@ export function DemonstrationCard({ event, props, friends }: {
       <div className="demo-card-tags">{tags.map(tag => <a key={tag} className="demo-card-tag"
         href={props.tagUrl.replace('__TAG__', encodeURIComponent(tag))}>#{tag}</a>)}</div>
     </div>
-    <div className="demo-card-attending">
-      {!props.authenticated ? <div className="demo-card-no-friends"><span className="login-prompt">{text.loginPrompt}</span></div>
-        : friends === null ? <div className="attending-loading"><span>{text.loadingFriends}</span></div>
+    {/* Signed-out visitors see no per-card login line: the header and footer already offer sign-in. */}
+    {props.authenticated && <div className="demo-card-attending">
+      {friends === null ? <div className="attending-loading"><span>{text.loadingFriends}</span></div>
         : friends.length ? <div className="demo-card-friends">{friends.slice(0, 3).map((friend, index) =>
           <img key={index} className="friend-avatar" src={friend.avatar} alt={friend.name} title={friend.name} />)}
           <span className="friends-text">{friends[0].name} {text.attendingSuffix}</span></div>
         : <a className="demo-card-no-friends" href={inviteHref(href)}><span className="plus-avatar">+</span><span className="invite-text">{text.invite}</span></a>}
-    </div>
+    </div>}
   </div>;
 }
 
