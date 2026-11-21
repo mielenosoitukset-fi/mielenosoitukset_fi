@@ -166,6 +166,10 @@ mongo["demo_suggestions"].create_index([("demo_id", ASCENDING), ("created_at", D
 mongo["admin_logs"].create_index("timestamp", background=True)
 mongo["super_audit_logs"].create_index("timestamp", background=True)
 
+from mielenosoitukset_fi.utils import moderation_reviews as _moderation_reviews  # noqa: E402
+
+_moderation_reviews.ensure_indexes(mongo)
+
 
 def ensure_audit_pagination_indexes(database):
     """Create the indexes used by deterministic audit-log pagination."""
