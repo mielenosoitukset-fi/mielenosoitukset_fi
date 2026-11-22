@@ -284,6 +284,17 @@ def send_reminders(db, now: Optional[datetime] = None, dry_run: bool = True) -> 
 
 # --- "Ota yhteyttä": ask the holder whether they still need the rights -------------------------
 
+# What a holder can answer. Each situation maps to the coarse reply (keep, drop, none) that older callers know.
+# Same set as Hallinto's account review panel.
+SITUATIONS = {
+    "needs": ("keep", "tarvitsen oikeuksia ja käytän niitä"),
+    "keep_idle": ("keep", "haluan pitää oikeudet, mutta en tarvitse niitä aktiivisesti"),
+    "partial": ("keep", "tarvitsen vain osaa oikeuksista (kerro mitä)"),
+    "give_up": ("drop", "haluan luopua oikeuksista"),
+    "inactive": ("drop", "olen tilapäisesti poissa (kerro, mihin asti)"),
+    "no_answer": ("none", "ei vastannut"),
+    "unreachable": ("none", "ei ole tavoitettavissa"),
+}
 REPLIES = ("keep", "drop", "none")
 
 
@@ -305,6 +316,7 @@ def contact_view(review: dict) -> Optional[dict]:
         return None
     fmt = lambda t: t.strftime("%Y-%m-%dT%H:%M:%SZ") if t else ""
     return {"at": fmt(c.get("at")), "by": c.get("by") or "", "reply": c.get("reply") or "",
+            "situation": c.get("situation") or "", "roles": list(c.get("roles") or []), "until": c.get("until") or "",
             "reply_at": fmt(c.get("reply_at")), "note": c.get("note") or ""}
 
 
@@ -314,8 +326,9 @@ def contact_message(doc: dict) -> tuple[str, str]:
     holds_text = ", ".join(holds_labels(doc)) or "ylläpito-oikeudet"
     body = (f"Hei {doc.get('username')},\n\n"
             f"Mielenosoitukset.fi:n ylläpito-oikeudet tarkistetaan kuuden kuukauden välein. Tililläsi on: {holds_text}.\n\n"
-            "Tarvitsetko oikeuksia edelleen? Vastaa tähän viestiin: \"tarvitsen\" tai \"en tarvitse\". "
-            f"Jos oikeuksia ei vahvisteta ennen {deadline:%-d.%-m.%Y}, ne päättyvät silloin. "
+            "Tarvitsetko oikeuksia edelleen? Vastaa tähän viestiin yhdellä näistä:\n"
+            + "".join(f"- {text}\n" for key, (_, text) in SITUATIONS.items() if key not in {"no_answer", "unreachable"})
+            + f"\nJos oikeuksia ei vahvisteta ennen {deadline:%-d.%-m.%Y}, ne päättyvät silloin. "
             "Mitään ei poisteta, ja oikeudet voi palauttaa myöhemmin.\n\n"
             "Ystävällisin terveisin\nMielenosoitukset.fi:n ylläpito\n")
     return "Mielenosoitukset.fi: tarvitsetko vielä ylläpito-oikeuksiasi?", body
@@ -366,15 +379,38 @@ def contact_send(db, account: str, by: str, now: Optional[datetime] = None) -> d
     return contact_view(db.users.find_one({"_id": doc["_id"]})[FIELD])
 
 
-def contact_reply(db, account: str, reply: str, by: str, note: str = "", now: Optional[datetime] = None) -> dict:
-    """Record the holder's answer by hand. Works without a sent mail (they may have been asked in person)."""
-    if reply not in REPLIES or not isinstance(note, str) or len(note) > 500:
+def contact_reply(db, account: str, reply: Optional[str], by: str, note: str = "", now: Optional[datetime] = None,
+                  situation: str = "", roles: Optional[list] = None, until: str = "") -> dict:
+    """Record the holder's answer by hand. Works without a sent mail (they may have been asked in person).
+
+    Give a `situation` (preferred) or just a coarse `reply`; the coarse reply follows from the situation.
+    "partial" needs the roles kept, "inactive" the date they are away until (YYYY-MM-DD).
+    """
+    roles = list(roles or [])
+    if situation:
+        if situation not in SITUATIONS or (reply and reply != SITUATIONS[situation][0]):
+            raise ContactError("invalid_request", 400)
+        reply = SITUATIONS[situation][0]
+    if reply not in REPLIES or not isinstance(note, str) or len(note) > 500 or not isinstance(until, str):
+        raise ContactError("invalid_request", 400)
+    if (any(not isinstance(r, str) or not r or len(r) > 80 or any(c in r for c in "|,[]") for r in roles) or len(roles) > 10
+            or (situation == "partial") != bool(roles)):
+        raise ContactError("invalid_request", 400)
+    if situation == "inactive":
+        try:
+            day = datetime.strptime(until, "%Y-%m-%d")
+        except ValueError:
+            raise ContactError("invalid_request", 400)
+        if not utcnow() - timedelta(days=1) <= day <= utcnow() + timedelta(days=731):
+            raise ContactError("invalid_request", 400)
+    elif until:
         raise ContactError("invalid_request", 400)
     now = now or utcnow()
     doc = _open_doc(db, account, now)
     review = doc[FIELD]
     old = review.get("contact") if contact_view(review) else None
     contact = {"round": _deadline(review), "at": (old or {}).get("at") or now, "by": (old or {}).get("by") or by,
-               "reply": reply, "reply_at": now, "note": note.strip()}
+               "reply": reply, "situation": situation, "roles": roles, "until": until,
+               "reply_at": now, "note": note.strip()}
     db.users.update_one({"_id": doc["_id"]}, {"$set": {f"{FIELD}.contact": contact}})
     return contact_view({"deadline": contact["round"], "contact": contact})

@@ -188,3 +188,23 @@ def test_list_carries_evidence_of_use(app, db, clean_users):
                                       "admin_actions_6m": 3, "demos_handled_6m": 2, "cities_handled": []}
         assert rows["hiljainen"]["last_admin_action"] is None and rows["hiljainen"]["admin_actions_6m"] == 0
         db.demo_audit_logs.delete_many({})
+
+
+def test_contact_reply_takes_a_situation_with_roles_and_date(app, db, clean_users):
+    with app.app_context():
+        uid = str(_add(db, "tilanne", role="city_admin", global_permissions=["VIEW_LOGS"]))
+        access_review.stamp(db, apply=True)
+        bad = [dict(situation="partial"), dict(situation="needs", roles=["city_admin"]), dict(situation="inactive"),
+               dict(situation="inactive", until="2020-01-01"), dict(situation="needs", until="2027-01-01"),
+               dict(situation="nonsense"), dict(situation="give_up", reply="keep"), dict(situation="partial", roles=["a|b"])]
+        for kwargs in bad:
+            with pytest.raises(access_review.ContactError) as err:
+                access_review.contact_reply(db, uid, kwargs.pop("reply", None), "olivia", **kwargs)
+            assert err.value.status == 400, kwargs
+        got = access_review.contact_reply(db, uid, None, "olivia", "vain Tampere", situation="partial", roles=["city_admin"])
+        assert (got["reply"], got["situation"], got["roles"], got["until"]) == ("keep", "partial", ["city_admin"], "")
+        until = (datetime.utcnow() + timedelta(days=60)).strftime("%Y-%m-%d")
+        got = access_review.contact_reply(db, uid, None, "olivia", situation="inactive", until=until)
+        assert (got["reply"], got["situation"], got["until"], got["roles"]) == ("drop", "inactive", until, [])
+        assert access_review.hallinto_list(db)[0]["contact"]["situation"] == "inactive"
+        assert access_review.contact_reply(db, uid, "none", "olivia")["situation"] == ""

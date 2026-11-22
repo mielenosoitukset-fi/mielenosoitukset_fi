@@ -564,7 +564,9 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
                 return jsonify(contact=access_review.contact_send(db, account, by))
             if action == "reply":
                 return jsonify(contact=access_review.contact_reply(
-                    db, account, payload.get("reply"), by, payload.get("note") or ""))
+                    db, account, payload.get("reply"), by, payload.get("note") or "",
+                    situation=payload.get("situation") or "", roles=payload.get("roles"),
+                    until=payload.get("until") or ""))
         except access_review.ContactError as exc:
             return jsonify(error=exc.code), exc.status
         return jsonify(error="invalid_request"), 400

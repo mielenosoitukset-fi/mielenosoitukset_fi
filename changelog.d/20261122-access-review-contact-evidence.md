@@ -1,1 +1,2 @@
 - Admin account review now lists each account's use over the last six months and lets Hallinto mail the holder to ask whether the rights are still needed, then record the reply. Sending is off until it is switched on separately.
+- The mail to a holder and the recorded reply now cover the same situations as Hallinto: needs and uses the rights, keeps them without active need, needs only some (which roles), gives them up, away until a date, no answer, unreachable.
