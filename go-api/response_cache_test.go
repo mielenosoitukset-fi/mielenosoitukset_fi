@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -128,7 +129,13 @@ func TestSharedResponseCacheCrossInstanceHEADAgeAndETag(t *testing.T) {
 	if calls != 1 || head.Body.Len() != 0 || get.Body.String() != "{\"events\":[]}\n" {
 		t.Fatal("shared representation or HEAD contract lost")
 	}
-	if get.Header().Get("Cache-Control") != "public, max-age=60, s-maxage=300" {
+	// The home cache expires at Helsinki midnight, so its lifetime can be
+	// shorter than five minutes. Both instances must serve the same policy.
+	control := get.Header().Get("Cache-Control")
+	var browserTTL, sharedTTL int
+	_, err = fmt.Sscanf(control, "public, max-age=%d, s-maxage=%d", &browserTTL, &sharedTTL)
+	if err != nil || sharedTTL < 1 || sharedTTL > 300 || browserTTL != min(sharedTTL, 60) ||
+		control != head.Header().Get("Cache-Control") {
 		t.Fatal(get.Header())
 	}
 	validated := read(publicResponseCache(loader, other), "GET", "W/"+get.Header().Get("ETag"))

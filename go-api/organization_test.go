@@ -216,7 +216,7 @@ func TestMongoOrganizationProfileRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := client.Database("moso_go_organization_test_" + bson.NewObjectID().Hex())
+	db := ciMongoDB(t, client, "moso_go_organization_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	id := bson.NewObjectID()
 	_, err = db.Collection("organizations").InsertOne(ctx, bson.M{"_id": id, "name": "Unverified public group",

@@ -72,7 +72,7 @@ def test_successful_exact_attempt_is_reused():
 def test_workflows_keep_protected_suites_and_native_pending_coalescing():
     tests = yaml.load(Path('.github/workflows/tests.yml').read_text(), Loader=yaml.BaseLoader)
     production = yaml.load(Path('.github/workflows/production-deploy.yml').read_text(), Loader=yaml.BaseLoader)
-    assert set(tests['on']) == {'pull_request', 'merge_group'}
+    assert set(tests['on']) == {'pull_request', 'merge_group', 'workflow_dispatch'}
     assert 'python-tests' in tests['jobs']
     assert production['concurrency'] == {'group': 'production-deploy', 'cancel-in-progress': 'false', 'queue': 'single'}
     release = production['jobs']['release']

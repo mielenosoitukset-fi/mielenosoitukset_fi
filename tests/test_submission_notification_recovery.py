@@ -261,7 +261,7 @@ def test_go_submission_uses_real_flask_links_and_existing_delivery_receipts(app,
     script, clock, sent, job_id, demo_id = worker
     db.demo_notifications_queue.delete_many({})
     db.demonstrations.update_one({"_id": demo_id}, {"$set": {
-        "title": "Example", "date": "2099-01-01", "address": "Kauppatori", "submission_delivery_pending": True,
+        "title": "Example", "date": "2099-01-01", "city": "", "address": "Kauppatori", "submission_delivery_pending": True,
         "organizers": [{"name": "Example organizer", "email": "organizer@example.test"}],
     }})
     db.submitters.insert_one({"demonstration_id": demo_id, "submitter_email": "submitter@example.test"})

@@ -137,7 +137,7 @@ func TestMongoListingVisibilityFiltersAndPagination(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := client.Database("moso_go_listing_test_" + bson.NewObjectID().Hex())
+	db := ciMongoDB(t, client, "moso_go_listing_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	store := mongoStore{db.Collection("demonstrations"), client}
 	parent := bson.NewObjectID()
@@ -202,7 +202,7 @@ func TestMongoListingPagesWalkWithoutDuplicatesOrGaps(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := client.Database("moso_go_walk_test_" + bson.NewObjectID().Hex())
+	db := ciMongoDB(t, client, "moso_go_walk_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	store := mongoStore{db.Collection("demonstrations"), client}
 	organization := bson.NewObjectID()
