@@ -34,11 +34,12 @@ from . import city_grants as cg
 KIND_ROLE_REMOVAL = "role_removal"
 KIND_BOARD_ROSTER = "board_roster"
 KIND_SITE_LOCKDOWN = "site_lockdown"
+KIND_ACCESS_REVIEW = "access_review"
 LOCKDOWN_ACTIONS = {"close", "reopen"}
 LOCKDOWN_FENCE = "site-lockdown"
 COMMON_FIELDS = {"order_id", "kind", "decision_id", "decision_revision", "authority_attestation"}
 KIND_FIELDS = {KIND_ROLE_REMOVAL: {"account_id", "role"}, KIND_BOARD_ROSTER: {"roster"},
-               KIND_SITE_LOCKDOWN: {"action"}}
+               KIND_SITE_LOCKDOWN: {"action"}, KIND_ACCESS_REVIEW: {"roster"}}
 ROLE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 # Roles an order may take away. Everything else is refused, not guessed at.
 REMOVABLE_ROLES = {"city_admin", "admin", "global_admin", "superuser", "god"}
@@ -141,6 +142,8 @@ def _order_fenced(db, operation, intent, actor, integration, target, fence) -> c
         write = _plan_role_removal(db, operation, intent, actor)
     elif intent["kind"] == KIND_SITE_LOCKDOWN:
         write = _plan_site_lockdown(db, operation, intent, actor)
+    elif intent["kind"] == KIND_ACCESS_REVIEW:
+        write = _plan_access_review(db, operation, intent, actor)
     else:
         write = _plan_board_roster(db, operation, intent, actor)
     if isinstance(write, str):
@@ -233,6 +236,37 @@ def _plan_board_roster(db, operation, intent, actor):
     def verify():
         team = sorted(board_ids(db))
         return team == roster, {"roster": team}
+
+    return write, verify
+
+
+def _plan_access_review(db, operation, intent, actor):
+    """Return a rejection code, or (write, verify) for confirming reviewed admin accounts.
+
+    Only stamped accounts can be confirmed, nobody confirms their own rights,
+    and an account with a super role needs an actor of at least that rank.
+    """
+    from mielenosoitukset_fi.utils import access_review
+
+    roster = intent["roster"]
+    if str(actor._id) in roster:
+        return "denied"
+    docs = list(db.users.find({"_id": {"$in": [ObjectId(a) for a in roster]}}))
+    # An order that already confirmed these accounts replays; otherwise they must be waiting for a decision.
+    if not access_review.confirmable(db, roster) and access_review.confirmed_accounts(
+            db, roster, intent["order_id"]) != roster:
+        return "unsupported_scope"
+    if any(ROLE_RANK.get(d.get("role"), 0) > _actor_rank(actor) for d in docs):
+        return "denied"
+
+    def write(acting):
+        access_review.confirm(db, roster, decision_id=intent["decision_id"],
+                              decision_revision=intent["decision_revision"], order_id=intent["order_id"],
+                              actor_id=acting._id)
+
+    def verify():
+        done = access_review.confirmed_accounts(db, roster, intent["order_id"])
+        return done == roster, {"roster": done}
 
     return write, verify
 

@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Ohjevideot{% endblock %}
+{% block meta %}<meta name="robots" content="noindex, nofollow" />{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/guide_videos.css') }}">{% endblock %}
+{% block content %}
+<div class="guide-videos">
+  <h1 class="h2">Ohjevideot</h1>
+  <p>Hei {{ name }}! Tässä ovat sinun tehtäviisi kuuluvat ohjevideot. Tekstitys on päällä. Videot on tehty harjoitusdatalla, joten niissä ei näy oikeita ihmisiä.</p>
+  <p class="guide-videos__note">Tämä linkki on vain sinua varten. Älä jaa sitä muille. Jos linkki katoaa, pyydä uusi ylläpidolta tai hallintapaneelin Ohjeet-sivulta.</p>
+  {% include '_partials/guide_video_groups.html' %}
+  <p><a href="/ohjeet">Kaikille avoimet ohjeet</a></p>
+</div>
+{% endblock %}
