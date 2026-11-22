@@ -1078,7 +1078,8 @@ def test_every_full_admin_v2_page_uses_canonical_hero_macro():
     # to the 51-page baseline after the media workspace was retired, and the
     # security incident screen adds one more. The organization change history
     # (built from audit_events) adds another, the duty shift page (Vuorot)
-    # one more, and so does the Hallinto appointment approval page.
+    # one more, and so do the Hallinto appointment approval page and the
+    # Ohjeet video guide page.
     assert Path('mielenosoitukset_fi/templates/admin_V2/user/account_status.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/user/history.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/cities/review_dashboard.html') in pages
@@ -1089,7 +1090,8 @@ def test_every_full_admin_v2_page_uses_canonical_hero_macro():
     # The combined sign-up lists page (Ilmoittautumiset) and its delete confirmation add two more.
     assert Path('mielenosoitukset_fi/templates/admin_V2/kampanja/signups.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/kampanja/signup_delete.html') in pages
-    assert len(pages) == 58
+    assert Path('mielenosoitukset_fi/templates/admin_V2/guides.html') in pages  # Ohjeet: video guides
+    assert len(pages) == 59
     for locale in ("en", "fi", "sv"):
         catalog = Path(
             f"mielenosoitukset_fi/translations/{locale}/LC_MESSAGES/messages.po"

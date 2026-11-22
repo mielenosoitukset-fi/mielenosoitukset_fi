@@ -263,6 +263,14 @@
       ],
       "sha256": "2442609deed0137824e173a59d3cb35100596ddd2cd284f1001ed20a6acc4798"
     },
+    "mielenosoitukset_fi/admin/guide_links_bp.py": {
+      "count": 3,
+      "coverage": [
+        "integration",
+        "tests/test_guide_links.py"
+      ],
+      "sha256": "8d86c7d1560a062fd88c70d403122d163f103c24f37f3fc60661c5947aaec883"
+    },
     "mielenosoitukset_fi/admin/v2.py": {
       "count": 1,
       "coverage": [

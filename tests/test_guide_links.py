@@ -108,3 +108,26 @@ def test_admin_page_sends_a_link_and_others_cannot_send_to_someone_else(app, db,
 def test_account_without_a_role_has_no_guides(db):
     user = User.from_OID(_plain_user(db))
     assert guide_links.audiences_for(user) == set()
+
+
+def test_bulk_send_script_counts_then_sends_once(app, db):
+    import importlib.util
+    from pathlib import Path
+
+    from mielenosoitukset_fi.admin import guide_links_bp as bp
+
+    spec = importlib.util.spec_from_file_location(
+        "send_guide_links", Path(__file__).resolve().parents[1] / "scripts" / "send_guide_links.py")
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+
+    translator = _translator(db)
+    _plain_user(db)
+    with app.test_request_context(base_url="https://mielenosoitukset.fi"):
+        dry = script.run(db, bp._load_user, bp.send_link)
+        assert dry["holders"] >= 1 and "sent" not in dry
+        assert db.guide_links.count_documents({"user_id": translator}) == 0
+        first = script.run(db, bp._load_user, bp.send_link, apply=True)
+        again = script.run(db, bp._load_user, bp.send_link, apply=True)
+    assert first["sent"] + first.get("skipped_recent", 0) == first["holders"] and first["sent"] >= 1 and again["skipped_recent"] == again["holders"]
+    assert db.guide_links.count_documents({"user_id": translator, "revoked_at": None}) == 1
