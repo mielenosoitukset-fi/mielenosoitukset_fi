@@ -31,6 +31,12 @@ def _moderator(db):
     return user_id
 
 
+def _block(now, ahead=0):
+    """A two-hour block: the one containing ``now``, or ``ahead`` blocks later."""
+    start = duty_shifts.block_start(now) + timedelta(hours=2 * ahead)
+    return start, start + duty_shifts.SHIFT_LENGTH
+
+
 def _appoint_with_shift(db, user_id, start, end, *, now):
     actor = _actor(db)
     grant = duty_shifts.appoint(
@@ -48,7 +54,7 @@ def _appoint_with_shift(db, user_id, start, end, *, now):
 def test_rights_exist_only_inside_the_shift_plus_grace(app, db):
     now = datetime.now(timezone.utc)
     user_id = _moderator(db)
-    start, end = now + timedelta(hours=1), now + timedelta(hours=3)
+    start, end = _block(now, 1)
     _appoint_with_shift(db, user_id, start, end, now=now)
 
     assert duty_shifts.active_duty(db, user_id, now) is None
@@ -63,8 +69,8 @@ def test_rights_exist_only_inside_the_shift_plus_grace(app, db):
 def test_cancel_freeze_and_revoke_end_rights_at_once(app, db):
     now = datetime.now(timezone.utc)
     user_id = _moderator(db)
-    grant, shift, actor = _appoint_with_shift(
-        db, user_id, now - timedelta(hours=1), now + timedelta(hours=1), now=now)
+    start, end = _block(now)
+    grant, shift, actor = _appoint_with_shift(db, user_id, start, end, now=now)
     assert duty_shifts.active_duty(db, user_id, now)
 
     assert duty_shifts.set_frozen(db, grant_id=grant["_id"], frozen=True, reason="tutkinta", actor=actor)
@@ -76,13 +82,13 @@ def test_cancel_freeze_and_revoke_end_rights_at_once(app, db):
     # A cancelled shift gets no grace period either.
     assert duty_shifts.active_duty(db, user_id, now) is None
 
-    duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=now - timedelta(minutes=5),
-                          ends_at=now + timedelta(hours=1), source=SOURCE, actor=actor, now=now)
+    duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=start, ends_at=end,
+                          source=SOURCE, actor=actor, now=now)
     assert duty_shifts.active_duty(db, user_id, now)
     assert duty_shifts.revoke(db, grant_id=grant["_id"], reason="päättyi", actor=actor)
     assert duty_shifts.active_duty(db, user_id, now) is None
     with pytest.raises(DutyError):
-        duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=now, ends_at=now + timedelta(hours=1),
+        duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=start, ends_at=end,
                               source=SOURCE, actor=actor, now=now)
 
 
@@ -99,15 +105,16 @@ def test_writes_are_refused_without_basis_or_by_the_moderator(app, db):
     with pytest.raises(DutyError, match="invalid_permissions"):
         duty_shifts.appoint(db, source=SOURCE, actor=actor, permissions=["EDIT_USER"], **kwargs)
     grant = duty_shifts.appoint(db, source=SOURCE, actor=actor, **kwargs)
+    later, later_end = _block(now + timedelta(days=3))
     with pytest.raises(DutyError, match="outside_appointment"):
-        duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=now, ends_at=now + timedelta(days=2),
+        duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=later, ends_at=later_end,
                               source=SOURCE, actor=actor, now=now)
 
 
 def test_stored_permissions_never_include_shift_rights(app, db):
     now = datetime.now(timezone.utc)
     user_id = _moderator(db)
-    _appoint_with_shift(db, user_id, now - timedelta(hours=1), now + timedelta(hours=1), now=now)
+    _appoint_with_shift(db, user_id, *_block(now), now=now)
     user = User.from_db(db.users.find_one({"_id": user_id}))
     with app.app_context():
         user.apply_active_duty()
@@ -120,8 +127,7 @@ def test_stored_permissions_never_include_shift_rights(app, db):
 def test_request_time_enforcement_and_use_log(app, db, seeded_data):
     now = datetime.now(timezone.utc)
     user_id = _moderator(db)
-    grant, shift, actor = _appoint_with_shift(
-        db, user_id, now - timedelta(hours=1), now + timedelta(hours=1), now=now)
+    grant, shift, actor = _appoint_with_shift(db, user_id, *_block(now), now=now)
     client = _client_for_user(app, user_id)
     pending = seeded_data["pending_demo_id"]
 
@@ -141,8 +147,7 @@ def test_own_booking_waits_for_approval_unless_self_booking(app, db):
     user_id = _moderator(db)
     me = {"id": str(user_id)}
     actor = _actor(db)
-    window = dict(starts_at=now - timedelta(minutes=5), ends_at=now + timedelta(hours=1),
-                  source=SOURCE, now=now)
+    window = dict(starts_at=_block(now)[0], ends_at=_block(now)[1], source=SOURCE, now=now)
     grant = duty_shifts.appoint(db, user_id=user_id, valid_from=now - timedelta(days=1),
                                 valid_until=now + timedelta(days=1), source=SOURCE, actor=actor,
                                 approvers=[actor["id"]], now=now)
@@ -173,14 +178,15 @@ def test_schedule_page_books_approves_and_lists_states(app, db, seeded_data):
     moderator = _client_for_user(app, user_id)
     page = moderator.get("/admin/vuorot/")
     assert page.status_code == 200
+    assert "Viikko" in page.get_data(as_text=True) and "Varaa vuoro" in page.get_data(as_text=True)
     with moderator.session_transaction() as session:
         token = session["governance_csrf_token"]
-    start = now + timedelta(hours=1)
+    start = _block(now, 1)[0]
     from zoneinfo import ZoneInfo
     local = lambda value: value.astimezone(ZoneInfo("Europe/Helsinki")).strftime("%Y-%m-%dT%H:%M")
     response = moderator.post("/admin/vuorot/", data={
         "csrf_token": token, "action": "book", "grant_id": str(grant["_id"]),
-        "starts_at": local(start), "ends_at": local(start + timedelta(hours=2))})
+        "slot": local(start)})
     assert response.status_code == 303
     shift = db.moderator_shifts.find_one({"user_id": user_id})
     assert shift and not shift.get("approved_at")
@@ -198,3 +204,67 @@ def test_schedule_page_books_approves_and_lists_states(app, db, seeded_data):
 
     outsider = _client_for_user(app, _moderator(db))
     assert outsider.get("/admin/vuorot/").status_code == 403
+
+
+def test_shifts_are_two_hour_blocks_and_at_most_four_in_a_row(app, db):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    actor = _actor(db)
+    grant = duty_shifts.appoint(db, user_id=user_id, valid_from=now - timedelta(days=1),
+                                valid_until=now + timedelta(days=30), source=SOURCE, actor=actor,
+                                approvers=[actor["id"]], now=now)
+    book = lambda start, end: duty_shifts.add_shift(
+        db, grant_id=grant["_id"], starts_at=start, ends_at=end, source=SOURCE, actor=actor, now=now)
+    first = _block(now, 10)[0]
+    block = lambda n: (first + timedelta(hours=2 * n), first + timedelta(hours=2 * n + 2))
+
+    # Not two hours, or not on an even hour.
+    with pytest.raises(DutyError, match="invalid_block"):
+        book(first, first + timedelta(hours=3))
+    with pytest.raises(DutyError, match="invalid_block"):
+        book(first + timedelta(hours=1), first + timedelta(hours=3))
+
+    for n in (0, 1, 3, 4):
+        book(*block(n))
+    with pytest.raises(DutyError, match="already_booked"):
+        book(*block(1))
+    # Block 2 would join 0-1 and 3-4 into five in a row.
+    with pytest.raises(DutyError, match="too_many_in_a_row"):
+        book(*block(2))
+    # A gap is fine, and a run of four is the limit.
+    book(*block(6))
+    book(*block(7))
+    book(*block(8))
+    book(*block(9))
+    with pytest.raises(DutyError, match="too_many_in_a_row"):
+        book(*block(10))
+    with pytest.raises(DutyError, match="too_many_in_a_row"):
+        book(*block(5))
+    # Cancelling one frees the slot.
+    cancelled = db.moderator_shifts.find_one({"starts_at": {"$gte": block(9)[0].replace(tzinfo=None)}})
+    duty_shifts.cancel_shift(db, shift_id=cancelled["_id"], reason="sairastui", actor=actor)
+    book(*block(10))
+
+
+def test_schedule_page_shows_the_requested_week(app, db, seeded_data):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    _appoint_with_shift(db, user_id, *_block(now, 1), now=now)
+    moderator = _client_for_user(app, user_id)
+    text = moderator.get("/admin/vuorot/").get_data(as_text=True)
+    assert "Maanantai" in text and "Sunnuntai" in text and "00–02" in text and "22–24" in text
+    far = (now + timedelta(days=60)).date().isoformat()
+    assert moderator.get(f"/admin/vuorot/?viikko={far}").status_code == 200
+    assert moderator.get("/admin/vuorot/?viikko=not-a-date").status_code == 200
+
+
+def test_calendar_shows_every_moderators_shifts_to_each_moderator(app, db, seeded_data):
+    now = datetime.now(timezone.utc)
+    mine, theirs = _moderator(db), _moderator(db)
+    db.users.update_one({"_id": theirs}, {"$set": {"displayname": "Toinen Moderaattori"}})
+    start = _block(now, 1)[0]
+    _appoint_with_shift(db, mine, start, start + duty_shifts.SHIFT_LENGTH, now=now)
+    _appoint_with_shift(db, theirs, start + timedelta(hours=2), start + timedelta(hours=4), now=now)
+    week = start.astimezone(duty_shifts.HELSINKI).date().isoformat()
+    text = _client_for_user(app, mine).get(f"/admin/vuorot/?viikko={week}").get_data(as_text=True)
+    assert "Toinen Moderaattori" in text and "Minä" in text

@@ -36,6 +36,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Optional
+from zoneinfo import ZoneInfo
 
 from bson import ObjectId
 
@@ -62,6 +63,13 @@ NATIONAL_MODERATOR_V1 = frozenset(
 # Rights continue this long after a shift ends so work started near the end
 # can be finished (Olivia, 21 Nov 2026). A cancelled shift gets no grace.
 END_GRACE = timedelta(minutes=30)
+
+# Shifts are fixed two-hour blocks that start on an even hour in Finnish time
+# (00, 02, ... 22), and one person may hold at most four blocks in a row
+# (Olivia, 22 Nov 2026).
+HELSINKI = ZoneInfo("Europe/Helsinki")
+SHIFT_LENGTH = timedelta(hours=2)
+MAX_BLOCKS_IN_A_ROW = 4
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -92,6 +100,36 @@ def _utc(value: Any, field: str) -> datetime:
 def _naive(value: datetime) -> datetime:
     """Mongo returns naive UTC datetimes; compare like with like."""
     return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def block_start(value: datetime) -> datetime:
+    """The start (UTC) of the two-hour block that contains the moment."""
+    local = _utc(value, "starts_at").astimezone(HELSINKI)
+    local = local.replace(hour=local.hour // 2 * 2, minute=0, second=0, microsecond=0)
+    return local.astimezone(timezone.utc)
+
+
+def _is_block(start: datetime, end: datetime) -> bool:
+    return end - start == SHIFT_LENGTH and block_start(start) == start
+
+
+def _blocks_in_a_row(db, user_id: ObjectId, start: datetime, end: datetime) -> int:
+    """Blocks the person would hold back to back around this one, counting it.
+    A cancelled shift does not count."""
+    window = SHIFT_LENGTH * (MAX_BLOCKS_IN_A_ROW + 1)
+    nearby = list(db[SHIFTS].find({
+        "user_id": user_id, "cancelled_at": None,
+        "starts_at": {"$gt": _naive(start - window), "$lt": _naive(end + window)},
+    }, {"starts_at": 1, "ends_at": 1}))
+    starts = {_naive(_utc(row["starts_at"], "starts_at")): _naive(_utc(row["ends_at"], "ends_at")) for row in nearby}
+    ends = {finish: began for began, finish in starts.items()}
+    run, cursor = 1, _naive(start)
+    while cursor in ends:
+        run, cursor = run + 1, ends[cursor]
+    cursor = _naive(end)
+    while cursor in starts:
+        run, cursor = run + 1, starts[cursor]
+    return run
 
 
 def _oid(value: Any, code: str) -> ObjectId:
@@ -225,6 +263,12 @@ def add_shift(db, *, grant_id: Any, starts_at: datetime, ends_at: datetime,
     start, end = _utc(starts_at, "starts_at"), _utc(ends_at, "ends_at")
     if end <= start or end <= _now(now):
         raise DutyError("invalid_window")
+    if not _is_block(start, end):
+        raise DutyError("invalid_block")
+    if db[SHIFTS].find_one({"user_id": grant["user_id"], "cancelled_at": None, "starts_at": _naive(start)}, {"_id": 1}):
+        raise DutyError("already_booked")
+    if _blocks_in_a_row(db, grant["user_id"], start, end) > MAX_BLOCKS_IN_A_ROW:
+        raise DutyError("too_many_in_a_row")
     if _naive(start) < _naive(_utc(grant["valid_from"], "valid_from")) or _naive(end) > _naive(
             _utc(grant["valid_until"], "valid_until")):
         raise DutyError("outside_appointment")
@@ -372,9 +416,11 @@ def is_moderator(db, user_id: Any) -> bool:
         {"user_id": _oid(user_id, "invalid_user"), "revoked_at": None}, {"_id": 1}))
 
 
-def schedule(db, viewer, now: Optional[datetime] = None, limit: int = 300) -> list[dict]:
+def schedule(db, viewer, now: Optional[datetime] = None, limit: int = 300,
+             since: Optional[datetime] = None, until: Optional[datetime] = None) -> list[dict]:
     """Shifts the viewer may see: their own, those of appointments they
-    approve, or all for an account with full permissions. Newest first."""
+    approve, or all for an account with full permissions. Newest first.
+    ``since`` and ``until`` limit it to shifts that start in that range."""
     vid = _oid(viewer.id, "invalid_user")
     if viewer.has_full_permissions():
         grants = list(db[GRANTS].find({}))
@@ -386,7 +432,11 @@ def schedule(db, viewer, now: Optional[datetime] = None, limit: int = 300) -> li
     users = {u["_id"]: u for u in db.users.find(
         {"_id": {"$in": list({g["user_id"] for g in grants})}}, {"username": 1, "displayname": 1})}
     rows = []
-    for shift in db[SHIFTS].find({"grant_id": {"$in": list(by_id)}}).sort("starts_at", -1).limit(limit):
+    query: dict = {"grant_id": {"$in": list(by_id)}}
+    if since or until:
+        query["starts_at"] = {**({"$gte": _naive(_utc(since, "since"))} if since else {}),
+                              **({"$lt": _naive(_utc(until, "until"))} if until else {})}
+    for shift in db[SHIFTS].find(query).sort("starts_at", -1).limit(limit):
         grant = by_id[shift["grant_id"]]
         user = users.get(grant["user_id"]) or {}
         own = shift["user_id"] == vid
@@ -394,6 +444,7 @@ def schedule(db, viewer, now: Optional[datetime] = None, limit: int = 300) -> li
         state = shift_state(shift, grant, now)
         rows.append({
             "id": str(shift["_id"]),
+            "own": own,
             "moderator": user.get("displayname") or user.get("username") or str(grant["user_id"]),
             "starts_at": shift["starts_at"],
             "ends_at": shift["ends_at"],
@@ -402,6 +453,33 @@ def schedule(db, viewer, now: Optional[datetime] = None, limit: int = 300) -> li
             "cancel_reason": shift.get("cancel_reason"),
             "can_approve": approver and not own and state == REQUESTED,
             "can_cancel": (own or approver) and state in (REQUESTED, APPROVED, RUNNING, GRACE),
+        })
+    return rows
+
+
+def week_overview(db, since: datetime, until: datetime, now: Optional[datetime] = None,
+                  limit: int = 500, viewer_id: Any = None) -> list[dict]:
+    """Who is on duty when: names, times and state only. Cancelled shifts are
+    left out. Oldest first. With ``viewer_id`` each row also says whether it
+    is the viewer's own shift."""
+    start, end = _utc(since, "since"), _utc(until, "until")
+    if end <= start or end - start > timedelta(days=14):
+        raise DutyError("invalid_window")
+    shifts = list(db[SHIFTS].find({"starts_at": {"$gte": _naive(start), "$lt": _naive(end)},
+                                   "cancelled_at": None}).sort("starts_at", 1).limit(limit))
+    grants = {g["_id"]: g for g in db[GRANTS].find({"_id": {"$in": list({s["grant_id"] for s in shifts})}})}
+    users = {u["_id"]: u for u in db.users.find(
+        {"_id": {"$in": list({s["user_id"] for s in shifts})}}, {"username": 1, "displayname": 1})}
+    rows = []
+    for shift in shifts:
+        user = users.get(shift["user_id"]) or {}
+        row_own = {"own": shift["user_id"] == _oid(viewer_id, "invalid_user")} if viewer_id is not None else {}
+        rows.append({
+            **row_own,
+            "starts_at": _utc(shift["starts_at"], "starts_at").strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "ends_at": _utc(shift["ends_at"], "ends_at").strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "moderator": user.get("displayname") or user.get("username") or "",
+            "state": shift_state(shift, grants.get(shift["grant_id"]), now),
         })
     return rows
 

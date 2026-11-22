@@ -1,1 +1,1 @@
-- Organisaation muutoshistoria näyttää nyt myös vanhat ylläpitolokin rivit ajalta ennen muutoshistorian kirjausta (tekijä ja toiminto, ei kenttiä).
+- Organisaation muutoshistoria sisältää nyt myös vanhat ylläpitolokin tapahtumat (tekijä, aika, toiminto) ajalta ennen muutoshistorian kirjausta; ne kopioidaan kerran taustatyöllä ja merkitään vanhoiksi.

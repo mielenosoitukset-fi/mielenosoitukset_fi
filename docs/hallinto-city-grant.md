@@ -152,7 +152,10 @@ A national moderator appointment records who may book duty shifts and who approv
 - Eligible: an active, confirmed personal account (not an organization account) without a live moderator appointment. Every approver must be an existing account. Otherwise `422 unsupported_scope`.
 - Flask writes one `national_moderators` record (approvers, `self_booking`, the decision and operation ids). It does not touch `users.role` or `users.global_permissions`.
 - Receipt `effective`: `{city: "", permissions (sorted), valid_until}`, plus `resulted_in_city_enablement: false`.
-- Ending (revoke or freeze) is not part of this route yet; it stays an operator step through `duty_shifts.revoke` / `set_frozen`.
+
+`POST /internal/hallinto/v1/moderator-appointments/{appointment_id}/end` revokes or freezes the appointment that operation wrote. Body: `appointment_id` (must equal the path and be the Idempotency-Key of the appointment), `kind` (`revoke` or `freeze`), `account_id`, `template`, `decision_id`, `decision_revision`, `authority_attestation`. Proof action `national_moderator_end_v1`, attestation context `hallinto-national-moderator-end-v1-attestation\n`. Shifts stop giving rights at once, including a running shift and its grace period. It is idempotent. A freeze is lifted only by a new appointment decision; a frozen appointment does not block one. Receipt `effective`: `{account_id, role: "", city: "", cities: [], permissions: [], global_admin}`: nothing remains that this appointment gave.
+
+`GET /internal/hallinto/v1/duty-shifts?from=YYYY-MM-DD&days=7` (1 to 14 days) is a read-only feed for Hallinto's Vuorot page: `{"shifts": [{starts_at, ends_at, moderator, state}]}` with the moderator's display name, UTC times and the shift state (`requested`, `approved`, `running`, `grace`, `ended`, `inactive`). Cancelled shifts are left out. The mTLS workload identity is the only check; it takes no proof because it changes nothing and shows nothing beyond the calendar.
 
 ## Outbound organization invitations (O6)
 
