@@ -5,16 +5,17 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 
-from pymongo import MongoClient
+from pymongo import MongoClient, timeout
 
 
 def reset_databases(client, slot):
-    for worker in ("controller", "gw0", "gw1"):
-        name = f"mielenosoitukset_test_{slot}_{worker}"
-        for suffix in ("", "_issuer", "_alternate", "_stale_sender"):
-            client.drop_database(f"{name}{suffix}")
-    for purpose in ("main", "limits"):
-        client.drop_database(f"moso_go_{slot}_{purpose}")
+    with timeout(30):
+        for worker in ("controller", "gw0", "gw1"):
+            name = f"mielenosoitukset_test_{slot}_{worker}"
+            for suffix in ("", "_issuer", "_alternate", "_stale_sender"):
+                client.drop_database(f"{name}{suffix}")
+        for purpose in ("main", "limits"):
+            client.drop_database(f"moso_go_{slot}_{purpose}")
 
 
 def main(phase):
@@ -22,7 +23,7 @@ def main(phase):
     if slot not in {"02", "03", "04"}:
         raise ValueError("Invalid shared MongoDB slot")
     owner = ":".join(os.environ[key] for key in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "SHARD"))
-    with MongoClient(os.environ["TEST_MONGO_URI"], serverSelectionTimeoutMS=10000) as client:
+    with MongoClient(os.environ["TEST_MONGO_URI"], timeoutMS=30000, serverSelectionTimeoutMS=10000) as client:
         leases = client.mielenosoitukset_test_leases.slots
         if phase == "start":
             leases.update_one({"_id": slot}, {"$setOnInsert": {"locked_until": datetime.now(timezone.utc)}}, upsert=True)
