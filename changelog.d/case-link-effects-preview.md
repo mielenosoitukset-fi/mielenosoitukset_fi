@@ -1,0 +1,1 @@
+- Sähköpostilinkin tapaussivulla hyväksymisen ja hylkäämisen vahvistusikkuna näyttää taas, mitä päätös tekee. Linkin selainmerkintä ei kulkenut rajapintakutsun mukana, joten ikkuna sanoi "Vaikutuksia ei saatu haettua".

@@ -325,3 +325,15 @@ def test_reject_form_offers_the_matching_johtoryhma_decision_first(app, db, seed
         assert "Johtoryhmän päätös MOSO/JORY/ENN/2026/007" in entry["metadata"]["reason"]
     finally:
         db[moderation_blocks.COLLECTION].delete_many({"_id": "pre-1"})
+
+
+def test_link_can_preview_the_decision_effects_of_its_own_demo_only(app, db, seeded_data):
+    _case(db, seeded_data)
+    browser = app.test_client()
+    _open(browser, _link(app, db, seeded_data))
+    demo_id = seeded_data["pending_demo_id"]
+    for decision in ("approved", "rejected"):
+        response = browser.get(f"/api/admin/demo/{demo_id}/decision_preview?decision={decision}")
+        assert response.status_code == 200 and response.get_json()["success"] is True
+    # Not another demonstration.
+    assert browser.get(f"/api/admin/demo/{seeded_data['demo_id']}/decision_preview?decision=approved").status_code in (302, 401, 403)

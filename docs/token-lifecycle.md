@@ -103,7 +103,7 @@ message that never quotes `config.yaml`. The file ends at mode 600, which is fin
 Admin moderation emails to a known admin carry a `case` link (`/admin/demo/case_link/<token>`):
 
 - One link per recipient admin and demonstration, valid 24 h; any decision on the demonstration revokes it (`TERMINAL_TOKEN_ACTIONS`), and a decision made with it marks it used.
-- A plain GET only shows an "Avaa ilmoitus" button, so mail scanners that prefetch links cannot claim it. The POST binds the link to that browser (HttpOnly cookie on `/admin`, only its hash is stored).
+- A plain GET only shows an "Avaa ilmoitus" button, so mail scanners that prefetch links cannot claim it. The POST binds the link to that browser (HttpOnly cookie on `/`, only its hash is stored).
 - It then redirects to the demonstration's case page, **the same page and buttons as in Tapaukset**. The browser keeps a `case_link` session marker, not a login (no `_user_id`): `login_manager.request_loader` (`utils/case_links.user_for_request`) lets the recipient act as `current_user` only on that case's own routes (`single_case`, `demo_action`, `demo_escalate`, the demo preview and the decision preview, and the duplicate search). Every other route, and Go reading the session, sees a signed-out browser. The page hides the menu and the submitter's contact details.
 - Through the link: approve, reject (with a reason, duplicates included) and escalate. Take-down, undo, notes, linking and closing need a login.
 - Rights are checked against the recipient's current account on every request, including `ACCEPT_DEMO` for that demonstration.
