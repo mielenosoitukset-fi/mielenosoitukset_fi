@@ -94,3 +94,13 @@ def test_override_closes_after_open_answer_when_read_fails():
     assert env.check(gate) is True
     env.fail, env.override = False, True
     assert env.check(gate) is False, "a successful open read wins over the override"
+
+
+def test_lockdown_exempts_hallinto_sign_in_and_campaign_only():
+    from mielenosoitukset_fi.basic_routes import lockdown_exempt
+
+    for path in ("/hallinto-oidc/authorize", "/hallinto-oidc/token", "/internal/hallinto/v1/orders",
+                 "/kampanja/", "/kampanja/api/volunteers", "/keräys", "/keräys/"):
+        assert lockdown_exempt(path), path
+    for path in ("/", "/kampanjat", "/hallinto-oidcx", "/keräysx", "/demonstrations", "/internal/other"):
+        assert not lockdown_exempt(path), path
