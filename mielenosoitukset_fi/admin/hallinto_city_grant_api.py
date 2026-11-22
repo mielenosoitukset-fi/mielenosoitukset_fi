@@ -34,8 +34,8 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Blueprint, current_app, g, jsonify, request, url_for
 
 from . import (
-    city_grants, elevated_grants, flask_orders, grant_proofs, moderator_appointments, org_outreach, org_recovery,
-    role_bundles,
+    city_grants, elevated_grants, flask_orders, grant_proofs, moderator_appointments, org_admin_grants,
+    org_outreach, org_recovery, role_bundles,
 )
 
 HELSINKI = ZoneInfo("Europe/Helsinki")
@@ -51,6 +51,7 @@ BUNDLE_END_ATTESTATION_CONTEXT = b"hallinto-role-bundle-end-v1-attestation\n"
 ELEVATED_ATTESTATION_CONTEXT = b"hallinto-elevated-v1-attestation\n"
 INVITATION_ATTESTATION_CONTEXT = b"hallinto-org-invitation-v1-attestation\n"
 RECOVERY_ATTESTATION_CONTEXT = b"hallinto-org-recovery-v1-attestation\n"
+ORG_ADMIN_END_ATTESTATION_CONTEXT = b"hallinto-org-admin-end-v1-attestation\n"
 
 
 def attestation_message(intent_digest: str) -> bytes:
@@ -92,6 +93,11 @@ def moderator_end_attestation_message(intent_digest: str) -> bytes:
 
 def bundle_attestation_message(intent_digest: str) -> bytes:
     return BUNDLE_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def org_admin_end_attestation_message(intent_digest: str) -> bytes:
+    """Ending an org_admin grant signs its own context."""
+    return ORG_ADMIN_END_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def bundle_end_attestation_message(intent_digest: str) -> bytes:
@@ -319,6 +325,43 @@ def build_blueprint(db) -> Blueprint:
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
         ))
 
+    def _org_admin_on() -> bool:
+        return current_app.config.get("ORG_ADMIN_HALLINTO_ENABLED") is True
+
+    @bp.post("/org-admin-ends")
+    def end_org_admin():
+        if not _org_admin_on():
+            return "", 404
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = org_admin_grants.end_digest(body)
+        if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key) or body["end_id"] != key:
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_ORG_ADMIN_END_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, org_admin_end_attestation_message):
+            return _error("denied")
+        return _reply(org_admin_grants.apply_org_admin_end_v1(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
+    @bp.get("/org-admins/<account_id>")
+    def read_org_admin_account(account_id):
+        """Read only, workload identity only: which organisations the account administers."""
+        if not _org_admin_on():
+            return "", 404
+        state = org_admin_grants.read_account_state(db, account_id)
+        return jsonify(state) if state is not None else _error("unsupported_scope")
+
+    @bp.get("/organizations/<organization_id>/org-admins")
+    def read_organization_org_admins(organization_id):
+        if not _org_admin_on():
+            return "", 404
+        state = org_admin_grants.read_organization_admins(db, organization_id)
+        return jsonify(state) if state is not None else _error("unsupported_scope")
+
     def _outreach_on() -> bool:
         return current_app.config.get("ORG_OUTREACH_ENABLED") is True
 
@@ -466,6 +509,10 @@ def _decode_fields(raw: str):
         if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN and not _lockdown_orders_on():
             return None
         return fields if set(fields) == ORDER_APPROVAL_FIELDS.get(fields.get("kind")) else None
+    if org_admin_grants.is_org_admin_fields(fields):
+        if current_app.config.get("ORG_ADMIN_HALLINTO_ENABLED") is not True:
+            return None
+        return fields if set(fields) == org_admin_grants.END_APPROVAL_FIELDS else None
     if "request_id" in fields and "need" in fields:
         return fields if set(fields) == RECOVERY_APPROVAL_FIELDS else None
     if "invitation_id" in fields:
@@ -542,6 +589,14 @@ def build_approval_blueprint(db) -> Blueprint:
         state_param = request.values.get("state", "")
         if fields is None or not STATE.match(state_param):
             abort(400)
+        if org_admin_grants.is_org_admin_fields(fields):
+            digest = org_admin_grants.end_digest({**fields, "authority_attestation": "-"})
+            organization = (db.organizations.find_one({"_id": ObjectId(fields["organization_id"])}, {"name": 1})
+                            if digest and org_admin_grants._id_ok(fields["organization_id"]) else None)
+            if digest is None or organization is None or not org_admin_grants._id_ok(fields["account_id"]):
+                abort(400)
+            # Ending is idempotent and only removes access: no expected_state.
+            return fields, state_param, {"eligible": True, "organization_name": organization.get("name") or ""}, digest
         if "request_id" in fields:
             if current_app.config.get("ORG_RECOVERY_ENABLED") is not True:
                 abort(404)
@@ -645,6 +700,7 @@ def build_approval_blueprint(db) -> Blueprint:
             added_names = [names.get(a, "?") for a in fields["roster"] if a not in current]
         is_end = "kind" in fields and not is_order and not is_invite
         is_elevated = _is_elevated(fields)
+        is_org_admin = org_admin_grants.is_org_admin_fields(fields)
         is_bundle = _is_bundle(fields)
         bundle = role_bundles.BUNDLES.get(fields.get("template")) if is_bundle else None
         is_moderator = moderator_appointments.is_moderator_fields(fields)
@@ -663,6 +719,7 @@ def build_approval_blueprint(db) -> Blueprint:
                       else "Vahvista sivuston avaaminen" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN
                       else "Vahvista ylläpitotilien tarkistus" if fields.get("kind") == flask_orders.KIND_ACCESS_REVIEW
                       else "Vahvista hallitustiimin päivitys" if is_order
+                      else "Vahvista organisaation ylläpito-oikeuden päättäminen" if is_org_admin
                       else "Vahvista roolipaketin päättäminen" if (is_end and is_bundle)
                       else "Vahvista roolipaketti" if is_bundle
                       else "Vahvista nimityksen päättäminen" if is_end else "Vahvista nimitys")
@@ -683,6 +740,7 @@ def build_approval_blueprint(db) -> Blueprint:
             recovery_replaced=(state.get("replaced_owners", 0) if is_recovery else 0),
             is_elevated=is_elevated, elevated_label=elevated_grants.TEMPLATES.get(fields.get("template"), ""),
             is_moderator=is_moderator, approver_names=approver_names,
+            is_org_admin=is_org_admin, org_admin_organization=(state.get("organization_name", "") if is_org_admin else ""),
             is_bundle=is_bundle, bundle_label=(bundle or {}).get("label", ""), permission_copy=permission_copy,
             page_title=page_title,
             eligible=state["eligible"],
@@ -706,7 +764,8 @@ def build_approval_blueprint(db) -> Blueprint:
         is_recovery = "request_id" in fields
         is_end = "kind" in fields and not is_order and not is_invite
         is_bundle = _is_bundle(fields)
-        action = (grant_proofs.ACTION_ELEVATED_V1 if _is_elevated(fields)
+        action = (grant_proofs.ACTION_ORG_ADMIN_END_V1 if org_admin_grants.is_org_admin_fields(fields)
+                  else grant_proofs.ACTION_ELEVATED_V1 if _is_elevated(fields)
                   else (grant_proofs.ACTION_MODERATOR_END_V1 if is_end else grant_proofs.ACTION_MODERATOR_V1)
                   if moderator_appointments.is_moderator_fields(fields)
                   else grant_proofs.ACTION_ORG_INVITATION_V1 if is_invite

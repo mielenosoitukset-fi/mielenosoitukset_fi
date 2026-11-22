@@ -544,6 +544,10 @@ def _receipt_identity(operation: dict) -> dict:
             identity["account_id"] = intent["account_id"]
         return identity
     identity["account_id"] = operation["account_id"]
+    if "end_id" in intent:
+        # Ending an org_admin grant (org_admin_grants.py); it names an organisation.
+        return {**identity, "end_id": intent["end_id"], "kind": intent["kind"],
+                "organization_id": intent["organization_id"]}
     if "kind" in intent:
         return {**identity, "appointment_id": intent["appointment_id"], "kind": intent["kind"]}
     return {**identity, "valid_until": intent["valid_until"]}

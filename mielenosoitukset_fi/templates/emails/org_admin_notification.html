@@ -1,0 +1,30 @@
+{% extends "admin_email_base.html" %}
+{% set eyebrow = "Oikeudet" %}
+{% set heading = "Organisaation ylläpito-oikeus peruttu" if action == "revoke" else "Organisaation ylläpito-oikeus jäädytetty" %}
+
+{% block subject %}{{ heading }}: {{ organization_name }}{% endblock %}
+
+{% block body %}
+<p>
+    Hallinnon päätöksellä tilin organisaation ylläpito-oikeus on {{ "peruttu" if action == "revoke" else "jäädytetty" }}. Oikeus poistui heti. Voit yhä olla organisaation jäsen.
+</p>
+
+<ul class="data-list">
+    <li>
+        <strong>Tili</strong>
+        {{ account_name }}
+    </li>
+    <li>
+        <strong>Organisaatio</strong>
+        {{ organization_name }}
+    </li>
+    <li>
+        <strong>Päätös</strong>
+        {{ decision_id }}
+    </li>
+</ul>
+
+<div class="meta">
+    <p>Saat tämän viestin, koska olet tilin haltija.</p>
+</div>
+{% endblock %}

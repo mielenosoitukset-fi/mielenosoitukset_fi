@@ -9,7 +9,7 @@
     <div class="admin-form-section__header">
       <span class="admin-form-section__icon"><i class="fas fa-user-shield" aria-hidden="true"></i></span>
       <div>
-        <h2 id="approve-terms-heading">{{ ('God-nimitys' if elevated_label == 'god' else 'Superadmin-nimitys') if is_elevated else 'Pääsyn palautus organisaatiolle' if is_recovery else 'Kutsu organisaatiolle' if is_invite else 'Hallitustiimi' if fields.kind == 'board_roster' else 'Ylläpitotilien tarkistus' if fields.kind == 'access_review' else ('Hätäsulku' if fields.action == 'close' else 'Sivuston avaaminen') if fields.kind == 'site_lockdown' else 'Roolin pysyvä poisto' if is_order else ('Roolipaketti: ' ~ bundle_label) if is_bundle else 'Valtakunnallinen moderaattori' if is_moderator else 'Kaupunkiadmin' }}</h2>
+        <h2 id="approve-terms-heading">{{ ('God-nimitys' if elevated_label == 'god' else 'Superadmin-nimitys') if is_elevated else 'Pääsyn palautus organisaatiolle' if is_recovery else 'Kutsu organisaatiolle' if is_invite else 'Hallitustiimi' if fields.kind == 'board_roster' else 'Ylläpitotilien tarkistus' if fields.kind == 'access_review' else ('Hätäsulku' if fields.action == 'close' else 'Sivuston avaaminen') if fields.kind == 'site_lockdown' else 'Roolin pysyvä poisto' if is_order else 'Organisaation ylläpitäjä' if is_org_admin else ('Roolipaketti: ' ~ bundle_label) if is_bundle else 'Valtakunnallinen moderaattori' if is_moderator else 'Kaupunkiadmin' }}</h2>
         <p>{{ 'Hallinnossa hyväksytty päätös' if (is_end or is_order or is_invite or is_recovery) else 'Hallinnossa hyväksytyt ehdot' }}</p>
       </div>
     </div>
@@ -61,6 +61,14 @@
       <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
       {% if fields.concurring_decision_id %}<div><dt>Toinen päätös</dt><dd>{{ fields.concurring_decision_id }}</dd></div>{% endif %}
     </dl>
+    {% elif is_org_admin %}
+    <dl class="admin-message-meta">
+      <div><dt>Käyttäjä</dt><dd>{{ account.displayname or account.username }}{% if account.displayname and account.username %} ({{ account.username }}){% endif %}</dd></div>
+      <div><dt>Organisaatio</dt><dd>{{ org_admin_organization }}</dd></div>
+      <div><dt>Toimenpide</dt><dd>{{ 'Ylläpito-oikeuden peruminen' if fields.kind == 'revoke' else 'Ylläpito-oikeuden jäädytys' }}</dd></div>
+      <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
+    </dl>
+    <p class="mb-0">Käyttäjän org_admin-oikeus tähän organisaatioon päättyy heti. Oikeus ei palaa itsestään, ennen kuin käyttäjä on ollut välillä muu kuin omistaja tai admin.</p>
     {% else %}
     <dl class="admin-message-meta">
       <div><dt>Käyttäjä</dt><dd>{{ account.displayname or account.username }}{% if account.displayname and account.username %} ({{ account.username }}){% endif %}</dd></div>

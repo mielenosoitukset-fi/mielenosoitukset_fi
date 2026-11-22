@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <p>{{ _('Rooli, globaalit oikeudet, paikkakunnat ja organisaatioiden ylläpitäjyys myönnetään, muutetaan ja poistetaan Hallinnossa. Tässä näet voimassa olevat oikeudet.') }}</p>
         </div>
         <dl class="admin-rights-summary">
-          <div><dt>{{ _('Rooli') }}</dt><dd>{{ {'user': _('Käyttäjä'), 'translator': _('Kääntäjä'), 'city_admin': _('Kaupunkiadmin'), 'admin': _('Admin'), 'global_admin': _('Superkäyttäjä'), 'superuser': _('Superkäyttäjä'), 'god': _('Superkäyttäjä')}.get(user.role, user.role) }}</dd></div>
+          <div><dt>{{ _('Rooli') }}</dt><dd>{{ {'user': _('Käyttäjä'), 'translator': _('Kääntäjä'), 'city_admin': _('Kaupunkiadmin'), 'org_admin': _('Organisaation ylläpitäjä'), 'admin': _('Admin'), 'global_admin': _('Superkäyttäjä'), 'superuser': _('Superkäyttäjä'), 'god': _('Superkäyttäjä')}.get(user.role, user.role) }}</dd></div>
           <div><dt>{{ _('Globaalit oikeudet') }}</dt><dd>
             {% if global_permissions %}<ul>{% for perm in global_permissions|sort %}<li>{{ (permission_descriptions|default({})).get(perm, perm) }}</li>{% endfor %}</ul>
             {% else %}{{ _('Ei globaaleja oikeuksia') }}{% endif %}

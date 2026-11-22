@@ -113,6 +113,9 @@ class MemberShip(BaseModel):
         """Ensure unique user/org combo and upsert safely."""
         from mielenosoitukset_fi.utils.system_teams import forbid_ordinary_team_write
         forbid_ordinary_team_write(self.organization_id)
+        if getattr(self, "granted_by_hallinto", False):
+            # Raised in memory by an org_admin grant (utils/org_admin_role); never stored.
+            raise ValueError("membership raised by an org_admin grant cannot be saved")
         db = _get_db()
         existing = db["memberships"].find_one({
             "user_id": self.user_id,
@@ -144,6 +147,8 @@ class MemberShip(BaseModel):
             },
             upsert=True
         )
+        from mielenosoitukset_fi.admin.org_admin_grants import sync_if_enabled
+        sync_if_enabled(self.user_id)
 
     def insert_to_db(self):
         """Alias for save()."""
