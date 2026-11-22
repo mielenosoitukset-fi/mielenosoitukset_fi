@@ -120,12 +120,12 @@ def test_backfill_copies_old_org_events_once_and_history_shows_them(admin_client
     assert backfill.main(db=db, dry_run=True)["events_seen"] == 4
     assert db.audit_events.count_documents({"legacy": True}) == 0
 
-    result = backfill.main(db=db)
+    result = backfill.main(db=db)["events"]
     assert result["written"] == 4 and result["no_org_id"] == 0
     assert db.audit_events.count_documents({"legacy": True, "collection": "organizations", "doc_ids": org_id}) == 3
     assert backfill.main(db=db) == {"already_done": True}
     db.maintenance_markers.delete_many({"_id": backfill.MARKER_ID})
-    assert backfill.main(db=db)["already_there"] == 4  # idempotent
+    assert backfill.main(db=db)["events"]["already_there"] == 4  # idempotent
     assert db.audit_events.count_documents({"legacy": True, "collection": "organizations"}) == 4
 
     stored = db.audit_events.find_one({"source.id": str(db.admin_logs.find_one({"event": "organization_verified_changed"})["_id"])})
@@ -139,3 +139,39 @@ def test_backfill_copies_old_org_events_once_and_history_shows_them(admin_client
     from mielenosoitukset_fi.admin.audit_history import first_event_at
     assert db.audit_events.find_one({"legacy": {"$ne": True}})["at"] == first_event_at(db)
     assert "Organisaatio luotu" in page
+
+
+@pytest.mark.integration
+def test_backfill_adds_sent_field_names_and_collapses_double_logged_edits(db, seeded_data, monkeypatch):
+    from mielenosoitukset_fi.scripts import backfill_org_history as backfill
+
+    monkeypatch.delenv("ORG_HISTORY_BACKFILL_DISABLED", raising=False)
+    monkeypatch.setattr(backfill, "FIELDS_FIRST_DAY", datetime(2026, 11, 1))
+    monkeypatch.setattr(backfill, "PAUSE", 0, raising=False)
+    org_id = ObjectId(seeded_data["org_id"])
+    actor = str(seeded_data["admin_id"])
+    at = datetime(2026, 11, 10, 12, 0, 0)
+    db.audit_events.delete_many({})
+    db.admin_logs.delete_many({})
+    db.maintenance_markers.delete_many({})
+    db.audit_events.insert_one(_event(org_id, datetime.now(timezone.utc), "update", [{"$set": {"x": 1}}],
+                                      {"kind": "user", "user_id": actor}))
+    path = f"/admin/organization/edit/{org_id}"
+    form_row = {"actor": {"user_id": actor}, "request": {"method": "POST", "path": path,
+                "form_keys": ["name", "website", "csrf_token", "password"]}}
+    db.admin_logs.insert_many([
+        {"event": "organization_update", "timestamp": at + timedelta(seconds=2), "actor": {"id": actor},
+         "details": {"org_id": str(org_id)}},
+        {**form_row, "timestamp": at},
+        {**form_row, "timestamp": at + timedelta(seconds=1)},  # logged twice
+        {**form_row, "timestamp": at + timedelta(days=2), "request": {**form_row["request"], "form_keys": ["email"]}},
+        {**form_row, "timestamp": at + timedelta(days=3), "request": {"method": "POST", "path": "/admin/demo/edit/x",
+                                                                      "form_keys": ["name"]}},
+    ])
+    result = backfill.main(db=db)
+    assert result["fields"]["matched_events"] == 2 and result["fields"]["new_rows"] == 1
+    legacy = list(db.audit_events.find({"legacy": True, "collection": "organizations"}))
+    edit = [e for e in legacy if e.get("reason") == "Organisaation tietoja muokattu"]
+    assert sorted(tuple(e["legacy_fields"]) for e in edit) == [("email",), ("name", "website")]
+    assert "csrf_token" not in str(legacy) and "password" not in str(legacy)
+    assert backfill.main(db=db) == {"already_done": True}
