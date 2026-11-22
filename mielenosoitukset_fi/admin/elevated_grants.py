@@ -78,6 +78,12 @@ def validate_elevated(request: Any) -> Optional[dict]:
     return {key: request[key] for key in sorted(REQUEST_FIELDS - {"authority_attestation"}) if key in request}
 
 
+def elevated_digest(request: Any) -> Optional[str]:
+    """Digest of the canonical intent, which the step-up proof and attestation bind."""
+    intent = validate_elevated(request)
+    return None if intent is None else _digest(intent)
+
+
 # --------------------------------------------------------------------------- #
 # Owner state
 # --------------------------------------------------------------------------- #
