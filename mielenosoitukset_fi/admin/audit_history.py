@@ -269,3 +269,29 @@ LEGACY_EVENTS = {
     "organization_invite_role_set": ("update", "Kutsun rooli asetettu"),
     "membership_deleted": ("update", "Jäsen poistettu"),
 }
+
+
+def estimated_creation_row(doc_id: Any) -> Optional[Dict[str, Any]]:
+    """A read-only row for the creation time an ObjectId carries.
+
+    Used when no recorded or backfilled creation exists: who created the
+    document is then unknown, but its id says when.
+    """
+    if not isinstance(doc_id, ObjectId):
+        return None
+    at = doc_id.generation_time
+    return {
+        "id": f"estimated-{doc_id}",
+        "at": at,
+        "at_display": helsinki_time(at),
+        "op": {"key": "create", "label": _("Luotu")},
+        "ok": True,
+        "actor": {"kind": "unknown", "name": _("Tekijä ei tiedossa"), "username": None},
+        "via": _("Arvio organisaation tunnisteesta"),
+        "via_is_actor": False,
+        "reason": _("Luontiaika arvioitu; tekijää ei ole kirjattu."),
+        "fields": [],
+        "multi": False,
+        "legacy": False,
+        "estimated": True,
+    }

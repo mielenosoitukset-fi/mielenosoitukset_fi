@@ -943,7 +943,9 @@ def view_organization(org_id):
 @permission_required("EDIT_ORGANIZATION")
 def organization_history(org_id):
     """Who created the organization and every later change, from audit_events."""
-    from mielenosoitukset_fi.admin.audit_history import first_event_at, helsinki_time, load_history
+    from mielenosoitukset_fi.admin.audit_history import (
+        estimated_creation_row, first_event_at, helsinki_time, load_history,
+    )
     from mielenosoitukset_fi.admin.pagination import build_admin_pagination, parse_admin_pagination
 
     if not ObjectId.is_valid(org_id):
@@ -956,6 +958,9 @@ def organization_history(org_id):
 
     history = load_history(mongo, "organizations", organization_doc["_id"])
     started = first_event_at(mongo)
+    estimated = None if history["has_create"] else estimated_creation_row(organization_doc["_id"])
+    if estimated:
+        history["rows"] = history["rows"] + [estimated]
     page, per_page = parse_admin_pagination(request.args)
     pagination = build_admin_pagination(
         "admin_org.organization_history",
