@@ -36,6 +36,27 @@
         </span>
       </div>
     </div>
+    {% if diagnostics %}
+    <details class="m-3 admin-audit-diagnostics">
+      <summary>{{ _('Miksi tekijä ei näy? Tarkistetut lähteet') }}</summary>
+      <ul class="mt-2 mb-0">
+        <li>{{ _('Organisaation tunniste on luotu %(at)s.', at=diagnostics.created_at) }}</li>
+        <li>{{ _('Vanhoja ylläpitolokin tapahtumia tälle organisaatiolle: %(n)s.', n=diagnostics.events|length) }}
+          {% for e in diagnostics.events %}<span class="d-block text-muted">{{ e.at }} · {{ e.event }} · {{ e.actor or _('tekijä puuttuu') }}</span>{% endfor %}</li>
+        <li>{{ _('Organisaation luontipyyntöjä lokissa luontihetken ±60 s ajalta: %(n)s.', n=diagnostics.create_requests|length) }}
+          {% for r in diagnostics.create_requests %}<span class="d-block text-muted">{{ r.at }} · {{ r.actor or _('tekijä puuttuu') }}</span>{% endfor %}</li>
+        {% for m in diagnostics.markers %}
+        <li>{{ _('Täydennysajo %(id)s: %(when)s', id=m.id, when=m.finished or _('ei valmis')) }}
+          <span class="d-block text-muted">{% for k, v in m.counts.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</span></li>
+        {% else %}
+        <li>{{ _('Täydennysajoa ei ole vielä suoritettu.') }}</li>
+        {% endfor %}
+        {% if not diagnostics.events and not diagnostics.create_requests %}
+        <li>{{ _('Vanhoissa lokeissa ei ole tekijää: organisaatio on luotu tavalla, jota ei kirjattu (esim. MCP-rajapinta tai suoraan tietokantaan).') }}</li>
+        {% endif %}
+      </ul>
+    </details>
+    {% endif %}
     {{ audit_history_table(rows, 'history-heading', _('Tälle organisaatiolle ei ole kirjattu muutoksia sen jälkeen, kun muutoshistorian kirjaus alkoi.')) }}
     {% if total_count %}
     {{ admin_pagination(

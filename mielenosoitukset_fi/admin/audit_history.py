@@ -295,3 +295,43 @@ def estimated_creation_row(doc_id: Any) -> Optional[Dict[str, Any]]:
         "legacy": False,
         "estimated": True,
     }
+
+
+def creation_diagnostics(db, doc_id: Any) -> Dict[str, Any]:
+    """Which old log sources hold a creator for one organization (read-only).
+
+    Shown to admins when no creation row exists, so "no creator" can be told apart
+    from "the backfill missed it": counts of old events for the organization, of
+    organization-create requests logged around the id's creation time, and the
+    counts the backfill job recorded when it finished.
+    """
+    from datetime import timedelta
+
+    if not isinstance(doc_id, ObjectId):
+        return {}
+    at = doc_id.generation_time
+    naive = at.replace(tzinfo=None)
+    key = str(doc_id)
+    events = []
+    for row in db.admin_logs.find(
+        {"event": {"$in": list(LEGACY_EVENTS)}, "$or": [{"related_id": key}, {"details.org_id": key},
+                                                         {"details.organization_id": key}]},
+        {"event": 1, "timestamp": 1, "actor.username": 1}).sort("timestamp", 1).limit(10):
+        events.append({"event": row.get("event"), "at": helsinki_time(row["timestamp"]) if isinstance(
+            row.get("timestamp"), datetime) else None, "actor": (row.get("actor") or {}).get("username")})
+    window = timedelta(seconds=60)
+    requests = []
+    for row in db.admin_logs.find(
+        {"timestamp": {"$gte": naive - window, "$lte": naive + window}, "request.method": "POST",
+         "request.path": {"$in": ["/admin/organization/create", "/admin/organization/create/"]}},
+        {"timestamp": 1, "actor.username": 1, "user.username": 1}).limit(5):
+        requests.append({"at": helsinki_time(row["timestamp"]), "actor": (row.get("actor") or {}).get("username")
+                         or (row.get("user") or {}).get("username")})
+    markers = []
+    for marker in db.maintenance_markers.find({"_id": {"$regex": "^org_history_backfill"}}):
+        done = marker.get("finished_at")
+        counts = {k: v for k, v in marker.items() if isinstance(v, int) and not isinstance(v, bool)}
+        markers.append({"id": marker["_id"], "finished": helsinki_time(done) if isinstance(done, datetime) else None,
+                        "counts": counts})
+    return {"created_at": helsinki_time(at), "events": events, "create_requests": requests,
+            "markers": markers}
