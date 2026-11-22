@@ -173,6 +173,13 @@ def test_api_docs_chrome_is_theme_aware_and_portrait_safe(live_server, browser_p
     footer = browser_page.locator(".public-site-footer")
     assert header.is_visible()
     assert footer.is_visible()
+    # The header gradient comes from a stylesheet that can still be loading on a
+    # busy runner when DOMContentLoaded fires, so wait for it instead of racing.
+    browser_page.wait_for_function(
+        "() => getComputedStyle(document.querySelector('.public-page-header'))"
+        ".backgroundImage !== 'none'",
+        timeout=15000,
+    )
     light_background = header.evaluate("node => getComputedStyle(node).backgroundImage")
     assert light_background != "none"
 
