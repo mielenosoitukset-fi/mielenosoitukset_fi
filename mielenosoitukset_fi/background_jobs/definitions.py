@@ -56,6 +56,9 @@ class JobDefinition:
     default_trigger: Dict[str, Any]
     allow_manual_trigger: bool = True
     allow_interval_override: bool = True
+    # One-time jobs: run this many seconds after the scheduler starts instead of one
+    # interval later, so frequent restarts (deploys) cannot keep pushing the first run away.
+    first_run_delay_seconds: int = 0
 
     def to_document(self) -> Dict[str, Any]:
         """Return the MongoDB document fragment containing immutable job info."""
@@ -277,6 +280,7 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         description="One-time job: copies old organization events from admin_logs (who, when, action; verified before/after) into the change history, marked as legacy. Safe to repeat; does nothing after its first finished run.",
         func=backfill_org_history,
         default_trigger=_interval(hours=1),
+        first_run_delay_seconds=90,
     ),
     JobDefinition(
         key="deliver_pride_banner_confirmations",
