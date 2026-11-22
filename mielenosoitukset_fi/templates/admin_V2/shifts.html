@@ -28,7 +28,7 @@
           {% for grant in grants %}<option value="{{ grant.id }}">{{ 'Minä' if grant.own else grant.moderator }}{% if grant.needs_approval %} · tarvitsee hyväksynnän{% endif %}</option>{% endfor %}
         </select></div>
       {% endif %}
-      {% if grants and grants[0].needs_approval and grants|length == 1 %}<p class="admin-field__help">Varaus odottaa OT:n jäsenen hyväksyntää. Oikeudet alkavat vasta hyväksynnän jälkeen.</p>{% endif %}
+      {% if grants and grants[0].needs_approval and grants|length == 1 %}<p class="admin-field__help">Varaus odottaa OT:n jäsenen hyväksyntää Hallinnossa. Oikeudet alkavat vasta hyväksynnän jälkeen.</p>{% endif %}
       <div class="shift-week__grid">
         {% for day in days %}
         <section class="shift-day{% if day.today %} shift-day--today{% endif %}" aria-label="{{ day.name }} {{ day.date.strftime('%-d.%-m.') }}">
@@ -63,7 +63,7 @@
       {% if row.can_approve or row.can_cancel %}
       <div class="d-flex flex-wrap gap-2 align-items-start">
         {% if row.can_approve %}
-        <form method="post"><input type="hidden" name="csrf_token" value="{{ governance_csrf_token }}"><input type="hidden" name="action" value="approve"><input type="hidden" name="shift_id" value="{{ row.id }}"><button class="btn btn-sm btn-primary" type="submit">Hyväksy</button></form>
+        <span class="admin-field__help align-self-center">Hyväksy Hallinnon Vuorot-sivulla.</span>
         {% endif %}
         {% if row.can_cancel %}
         <details><summary class="btn btn-sm btn-outline-danger">Peru</summary>

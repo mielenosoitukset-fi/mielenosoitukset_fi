@@ -204,9 +204,11 @@ def test_schedule_page_books_approves_and_lists_states(app, db, seeded_data):
     assert approver.get("/admin/vuorot/").status_code == 200
     with approver.session_transaction() as session:
         token = session["governance_csrf_token"]
+    # Approving happens in Hallinto: the Flask page only points there and takes no approval.
+    page = approver.get("/admin/vuorot/").get_data(as_text=True)
+    assert "Hyväksy Hallinnon Vuorot-sivulla" in page and ">Hyväksy<" not in page
     approver.post("/admin/vuorot/", data={"csrf_token": token, "action": "approve", "shift_id": str(shift["_id"])})
-    assert db.moderator_shifts.find_one({"_id": shift["_id"]})["approved_at"]
-    assert "Hyväksytty" in approver.get("/admin/vuorot/").get_data(as_text=True)
+    assert not db.moderator_shifts.find_one({"_id": shift["_id"]}).get("approved_at")
 
     outsider = _client_for_user(app, _moderator(db))
     assert outsider.get("/admin/vuorot/").status_code == 403
@@ -269,6 +271,9 @@ def test_calendar_shows_every_moderators_shifts_to_each_moderator(app, db, seede
     mine, theirs = _moderator(db), _moderator(db)
     db.users.update_one({"_id": theirs}, {"$set": {"displayname": "Toinen Moderaattori"}})
     start = _block(now, 1)[0]
+    last = (start + timedelta(hours=4) - timedelta(seconds=1)).astimezone(duty_shifts.HELSINKI)
+    if last.isocalendar()[:2] != start.astimezone(duty_shifts.HELSINKI).isocalendar()[:2]:
+        start += timedelta(days=1)  # Sunday evening: keep both shifts in one week
     _appoint_with_shift(db, mine, start, start + duty_shifts.SHIFT_LENGTH, now=now)
     _appoint_with_shift(db, theirs, start + timedelta(hours=2), start + timedelta(hours=4), now=now)
     week = start.astimezone(duty_shifts.HELSINKI).date().isoformat()
