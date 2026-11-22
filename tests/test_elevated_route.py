@@ -71,7 +71,7 @@ def test_superadmin_appointment_receipt_and_state(env):
     assert again.get_json() == receipt  # Same key, intent and proof replays the receipt.
     with app.app_context():
         assert "national" in user_team_access(db, target)
-    lookup = client.get(f"{BASE}/operations/by-key", headers=_headers(proof=proof))
+    lookup = client.get(f"{BASE}/operations/by-key", headers=_headers(proof=proof, key=KEY))
     assert lookup.status_code == 200 and lookup.get_json() == receipt
     state = client.get(f"{BASE}/elevated-grants/{target}", headers=_headers(proof=proof, key=None))
     assert state.status_code == 200 and state.get_json()["effective_role"] == "superadmin"
