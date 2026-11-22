@@ -220,6 +220,26 @@ def build_blueprint(db) -> Blueprint:
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
         ))
 
+    @bp.get("/duty-shifts")
+    def read_duty_shifts():
+        """Who is on duty when: names, times and state, for Hallinto's Vuorot page.
+
+        The mTLS workload identity is the only check: nothing here changes
+        anything, and nothing beyond the shift calendar is shown.
+        """
+        from datetime import datetime
+
+        from mielenosoitukset_fi.utils import duty_shifts
+
+        try:
+            day = datetime.fromisoformat(request.args.get("from", ""))
+            span = int(request.args.get("days", "7"))
+            start = datetime(day.year, day.month, day.day, tzinfo=HELSINKI).astimezone(timezone.utc)
+            return jsonify({"shifts": duty_shifts.week_overview(
+                db, start, start + timedelta(days=span))})
+        except (ValueError, OverflowError, duty_shifts.DutyError):
+            return _error("unsupported_scope")
+
     @bp.post("/moderator-appointments")
     def apply_moderator_appointment():
         key = request.headers.get("Idempotency-Key", "")

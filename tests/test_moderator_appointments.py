@@ -274,3 +274,33 @@ def test_end_approval_page_binds_a_proof_without_owner_state(api):
                                            action=grant_proofs.ACTION_MODERATOR_END_V1,
                                            intent_digest=digest, idempotency_key="hallinto-moderator-end-00001")
     assert str(spent) == str(seeded["admin_id"])
+
+
+def test_duty_shift_read_route_shows_names_and_times_only(api):
+    env, _ = _env(api)
+    app, client, db, seeded = env
+    moderator, approver = _person(db, "moderator", displayname="Maija Moderaattori"), _person(db, "approver")
+    body, digest = _body(app, db, moderator, [approver])
+    assert _post(env, body, digest).status_code == 200
+    grant = db[duty_shifts.GRANTS].find_one({"user_id": moderator})
+    now = datetime.now(timezone.utc)
+    start = duty_shifts.block_start(now) + timedelta(hours=2)
+    kept = duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=start, ends_at=start + timedelta(hours=2),
+                                 source={"decision": "vuoro"}, actor={"id": str(moderator)})
+    gone = duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=start + timedelta(hours=2),
+                                 ends_at=start + timedelta(hours=4), source={"decision": "vuoro"},
+                                 actor={"id": str(moderator)})
+    duty_shifts.cancel_shift(db, shift_id=gone["_id"], reason="sairastui", actor={"id": str(moderator)})
+
+    day = start.astimezone(duty_shifts.HELSINKI).date().isoformat()
+    headers = {k: v for k, v in _headers(key=None).items()}
+    response = client.get(f"/internal/hallinto/v1/duty-shifts?from={day}&days=2", headers=headers)
+    assert response.status_code == 200, response.get_json()
+    shifts = response.get_json()["shifts"]
+    assert [(s["moderator"], s["state"]) for s in shifts] == [("Maija Moderaattori", "requested")]
+    assert set(shifts[0]) == {"starts_at", "ends_at", "moderator", "state"}
+    assert kept["_id"]
+    # Only the workload may read it, and only a sensible window.
+    assert client.get(f"/internal/hallinto/v1/duty-shifts?from={day}").status_code == 403
+    assert client.get("/internal/hallinto/v1/duty-shifts?from=nonsense", headers=headers).status_code == 422
+    assert client.get(f"/internal/hallinto/v1/duty-shifts?from={day}&days=60", headers=headers).status_code == 422

@@ -457,6 +457,30 @@ def schedule(db, viewer, now: Optional[datetime] = None, limit: int = 300,
     return rows
 
 
+def week_overview(db, since: datetime, until: datetime, now: Optional[datetime] = None,
+                  limit: int = 500) -> list[dict]:
+    """Who is on duty when, for a read-only view in Hallinto: names, times and
+    state only. Cancelled shifts are left out. Oldest first."""
+    start, end = _utc(since, "since"), _utc(until, "until")
+    if end <= start or end - start > timedelta(days=14):
+        raise DutyError("invalid_window")
+    shifts = list(db[SHIFTS].find({"starts_at": {"$gte": _naive(start), "$lt": _naive(end)},
+                                   "cancelled_at": None}).sort("starts_at", 1).limit(limit))
+    grants = {g["_id"]: g for g in db[GRANTS].find({"_id": {"$in": list({s["grant_id"] for s in shifts})}})}
+    users = {u["_id"]: u for u in db.users.find(
+        {"_id": {"$in": list({s["user_id"] for s in shifts})}}, {"username": 1, "displayname": 1})}
+    rows = []
+    for shift in shifts:
+        user = users.get(shift["user_id"]) or {}
+        rows.append({
+            "starts_at": _utc(shift["starts_at"], "starts_at").strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "ends_at": _utc(shift["ends_at"], "ends_at").strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "moderator": user.get("displayname") or user.get("username") or "",
+            "state": shift_state(shift, grants.get(shift["grant_id"]), now),
+        })
+    return rows
+
+
 def bookable_grants(db, viewer, now: Optional[datetime] = None) -> list[dict]:
     """Appointments the viewer may book shifts for: their own, or those they
     approve. Frozen, revoked and expired ones are left out."""
