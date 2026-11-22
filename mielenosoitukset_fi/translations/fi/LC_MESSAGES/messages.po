@@ -5303,7 +5303,7 @@ msgid "Käyttäjän luominen epäonnistui."
 msgstr ""
 
 #: mielenosoitukset_fi/admin/admin_user_bp.py:915
-msgid "Käyttäjä %(displayname)s luotiin ja tunnukset lähetettiin sähköpostiin."
+msgid "Käyttäjä %(displayname)s luotiin ja salasanan asetuslinkki lähetettiin sähköpostiin."
 msgstr ""
 
 #: mielenosoitukset_fi/templates/admin_V2/dashboard.html:10

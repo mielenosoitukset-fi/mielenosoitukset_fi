@@ -1,0 +1,1 @@
+- Hallinto can now appoint national moderators: the internal `moderator-appointments` route and its approval page record the appointment, the shift approvers and self-booking; rights still exist only during an approved duty shift.

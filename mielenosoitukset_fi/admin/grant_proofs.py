@@ -32,6 +32,7 @@ ACTION_FLASK_ORDER_V1 = "flask_order_v1"
 ACTION_ROLE_BUNDLE_V1 = "role_bundle_v1"
 ACTION_ROLE_BUNDLE_END_V1 = "role_bundle_end_v1"
 ACTION_ELEVATED_V1 = "elevated_v1"
+ACTION_MODERATOR_V1 = "national_moderator_v1"
 ACTION_ORG_INVITATION_V1 = "org_invitation_v1"
 ACTION_ORG_RECOVERY_V1 = "org_recovery_v1"
 
