@@ -355,13 +355,23 @@ def test_account_search_needs_a_live_admin_sign_in(owner, db):
         "email": "member@example.test", "password_hash": "x", "active": True, "confirmed": True,
     }).inserted_id
     try:
-        # An ordinary account and a wrong client see nothing.
-        assert _accounts(app.test_client(), claims, "search", {"q": "hallinto"}).status_code == 403
+        # A wrong client sees nothing. An ordinary account with a live Hallinto sign-in can search:
+        # Hallinto decides who may use its forms, so no admin role is needed here.
+        assert _accounts(app.test_client(), claims, "search", {"q": "hallinto"}).status_code == 200
         assert _accounts(app.test_client(), claims, "search", {"q": "hallinto"}, auth=(CLIENT, "x" * 40)).status_code == 401
         db.users.update_one({"_id": ObjectId(subject)}, {"$set": {"role": "admin"}})
         assert _accounts(app.test_client(), claims, "search", {"q": "h"}).status_code == 400
         found = _accounts(app.test_client(), claims, "search", {"q": "jäsen"}).json["items"]
         assert found == [{"sub": str(member), "username": "hallinto-member", "name": "Jäsen Esimerkki", "active": True}]
+        # A @username and a whole email address find the same account; part of an address does not.
+        assert _accounts(app.test_client(), claims, "search", {"q": "@hallinto-mem"}).json["items"] == found
+        assert _accounts(app.test_client(), claims, "search", {"q": "Member@Example.test"}).json["items"] == found
+        assert _accounts(app.test_client(), claims, "search", {"q": "member@example"}).json["items"] == []
+        # The search lists the roles a role removal could take, and nothing more.
+        db.users.update_one({"_id": member}, {"$set": {"role": "city_admin"}})
+        listed = _accounts(app.test_client(), claims, "search", {"q": "jäsen"}).json["items"]
+        assert listed[0]["roles"] == ["city_admin"] and "email" not in listed[0]
+        db.users.update_one({"_id": member}, {"$set": {"role": "user"}})
         # A regex in the query is literal text.
         assert _accounts(app.test_client(), claims, "search", {"q": ".*.*"}).json["items"] == []
         db.users.update_one({"_id": member}, {"$set": {"security_suspension": {"active": True}}})
