@@ -201,7 +201,7 @@ func TestMongoPublicBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := client.Database("moso_go_api_test_" + bson.NewObjectID().Hex())
+	db := ciMongoDB(t, client, "moso_go_api_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	collection := db.Collection("demonstrations")
 	store := mongoStore{collection, client}
@@ -280,7 +280,7 @@ func TestMongoResolvePublicID(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := client.Database("moso_go_api_test_" + bson.NewObjectID().Hex())
+	db := ciMongoDB(t, client, "moso_go_api_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	collection := db.Collection("demonstrations")
 	store := mongoStore{collection, client}
@@ -399,7 +399,7 @@ func TestMongoOrganizerConsentProjection(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := client.Database("moso_go_api_test_" + bson.NewObjectID().Hex())
+	db := ciMongoDB(t, client, "moso_go_api_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	collection := db.Collection("demonstrations")
 	store := mongoStore{collection, client}
