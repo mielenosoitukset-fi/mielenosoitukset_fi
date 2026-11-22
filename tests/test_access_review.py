@@ -34,6 +34,7 @@ def test_stamp_finds_every_source_of_admin_rights(app, db, clean_users):
         perms = _add(db, "oikeudet", global_permissions=["EDIT_DEMO"])
         translator = _add(db, "kaantaja", global_permissions=["TRANSLATE_UI"])
         _add(db, "tavallinen")
+        _add(db, "orgtili", role="admin")  # organisation admins carry the role without site rights
         _add(db, "poissa", role="admin", active=False)
         dry = access_review.stamp(db)
         assert {a["username"] for a in dry["accounts"]} == {"ylla", "lippu", "oikeudet", "kaantaja"}
