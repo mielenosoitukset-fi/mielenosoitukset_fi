@@ -256,3 +256,15 @@ def test_schedule_page_shows_the_requested_week(app, db, seeded_data):
     far = (now + timedelta(days=60)).date().isoformat()
     assert moderator.get(f"/admin/vuorot/?viikko={far}").status_code == 200
     assert moderator.get("/admin/vuorot/?viikko=not-a-date").status_code == 200
+
+
+def test_calendar_shows_every_moderators_shifts_to_each_moderator(app, db, seeded_data):
+    now = datetime.now(timezone.utc)
+    mine, theirs = _moderator(db), _moderator(db)
+    db.users.update_one({"_id": theirs}, {"$set": {"displayname": "Toinen Moderaattori"}})
+    start = _block(now, 1)[0]
+    _appoint_with_shift(db, mine, start, start + duty_shifts.SHIFT_LENGTH, now=now)
+    _appoint_with_shift(db, theirs, start + timedelta(hours=2), start + timedelta(hours=4), now=now)
+    week = start.astimezone(duty_shifts.HELSINKI).date().isoformat()
+    text = _client_for_user(app, mine).get(f"/admin/vuorot/?viikko={week}").get_data(as_text=True)
+    assert "Toinen Moderaattori" in text and "Minä" in text

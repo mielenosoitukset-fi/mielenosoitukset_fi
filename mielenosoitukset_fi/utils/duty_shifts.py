@@ -116,7 +116,7 @@ def _is_block(start: datetime, end: datetime) -> bool:
 def _blocks_in_a_row(db, user_id: ObjectId, start: datetime, end: datetime) -> int:
     """Blocks the person would hold back to back around this one, counting it.
     A cancelled shift does not count."""
-    window = SHIFT_LENGTH * MAX_BLOCKS_IN_A_ROW
+    window = SHIFT_LENGTH * (MAX_BLOCKS_IN_A_ROW + 1)
     nearby = list(db[SHIFTS].find({
         "user_id": user_id, "cancelled_at": None,
         "starts_at": {"$gt": _naive(start - window), "$lt": _naive(end + window)},
@@ -458,9 +458,10 @@ def schedule(db, viewer, now: Optional[datetime] = None, limit: int = 300,
 
 
 def week_overview(db, since: datetime, until: datetime, now: Optional[datetime] = None,
-                  limit: int = 500) -> list[dict]:
-    """Who is on duty when, for a read-only view in Hallinto: names, times and
-    state only. Cancelled shifts are left out. Oldest first."""
+                  limit: int = 500, viewer_id: Any = None) -> list[dict]:
+    """Who is on duty when: names, times and state only. Cancelled shifts are
+    left out. Oldest first. With ``viewer_id`` each row also says whether it
+    is the viewer's own shift."""
     start, end = _utc(since, "since"), _utc(until, "until")
     if end <= start or end - start > timedelta(days=14):
         raise DutyError("invalid_window")
@@ -472,7 +473,9 @@ def week_overview(db, since: datetime, until: datetime, now: Optional[datetime] 
     rows = []
     for shift in shifts:
         user = users.get(shift["user_id"]) or {}
+        row_own = {"own": shift["user_id"] == _oid(viewer_id, "invalid_user")} if viewer_id is not None else {}
         rows.append({
+            **row_own,
             "starts_at": _utc(shift["starts_at"], "starts_at").strftime("%Y-%m-%dT%H:%M:%SZ"),
             "ends_at": _utc(shift["ends_at"], "ends_at").strftime("%Y-%m-%dT%H:%M:%SZ"),
             "moderator": user.get("displayname") or user.get("username") or "",

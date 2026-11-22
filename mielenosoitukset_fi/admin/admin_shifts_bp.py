@@ -65,7 +65,8 @@ def _calendar(rows: list, monday: date, can_book: bool) -> list:
     now = datetime.now(timezone.utc)
     by_block: dict = {}
     for row in rows:
-        local = row["starts_at"].replace(tzinfo=timezone.utc).astimezone(HELSINKI)
+        local = datetime.strptime(row["starts_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=timezone.utc).astimezone(HELSINKI)
         by_block.setdefault((local.date(), local.hour // 2 * 2), []).append(row)
     days = []
     for offset in range(7):
@@ -129,7 +130,9 @@ def shifts():
     monday = _week_start(request.args.get("viikko"))
     since = datetime(monday.year, monday.month, monday.day, tzinfo=HELSINKI)
     grants = duty_shifts.bookable_grants(mongo, current_user)
-    week_rows = duty_shifts.schedule(mongo, current_user, since=since, until=since + timedelta(days=7))
+    # Everyone who may open the page sees who is on duty when; the list below
+    # holds only the shifts one may act on.
+    week_rows = duty_shifts.week_overview(mongo, since, since + timedelta(days=7), viewer_id=current_user.id)
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}shifts.html",
         rows=duty_shifts.schedule(mongo, current_user),

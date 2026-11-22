@@ -1,0 +1,1 @@
+Moderator duty shifts are now fixed two-hour blocks (max four in a row) booked from a weekly calendar in the admin UI; the calendar shows every moderator's shifts. Hallinto can read the week over a new read-only `/internal/hallinto/v1/duty-shifts` feed (names, times, state).
