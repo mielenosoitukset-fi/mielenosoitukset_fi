@@ -147,6 +147,7 @@ def test_backfill_adds_sent_field_names_and_collapses_double_logged_edits(db, se
 
     monkeypatch.delenv("ORG_HISTORY_BACKFILL_DISABLED", raising=False)
     monkeypatch.setattr(backfill, "FIELDS_FIRST_DAY", datetime(2026, 11, 1))
+    monkeypatch.setattr(backfill, "FIELDS_MARKER_ID", backfill.FIELDS_MARKER_ID)
     monkeypatch.setattr(backfill, "PAUSE", 0, raising=False)
     org_id = ObjectId(seeded_data["org_id"])
     actor = str(seeded_data["admin_id"])
@@ -175,3 +176,33 @@ def test_backfill_adds_sent_field_names_and_collapses_double_logged_edits(db, se
     assert sorted(tuple(e["legacy_fields"]) for e in edit) == [("email",), ("name", "website")]
     assert "csrf_token" not in str(legacy) and "password" not in str(legacy)
     assert backfill.main(db=db) == {"already_done": True}
+
+
+@pytest.mark.integration
+def test_backfill_gives_admin_form_creations_their_creator(db, monkeypatch):
+    from mielenosoitukset_fi.scripts import backfill_org_history as backfill
+
+    monkeypatch.delenv("ORG_HISTORY_BACKFILL_DISABLED", raising=False)
+    monkeypatch.setattr(backfill, "FIELDS_FIRST_DAY", datetime(2025, 3, 1))
+    monkeypatch.setattr(backfill, "PAUSE", 0)
+    when = datetime(2025, 3, 5, 9, 30, 0)
+    org_id = ObjectId.from_datetime(when + timedelta(seconds=2))
+    db.organizations.insert_one({"_id": org_id, "name": "Vanha järjestö"})
+    for coll in ("audit_events", "admin_logs", "maintenance_markers"):
+        db[coll].delete_many({})
+    db.audit_events.insert_one(_event(ObjectId(), datetime.now(timezone.utc), "update", [{"$set": {"x": 1}}],
+                                      {"kind": "system"}))
+    db.admin_logs.insert_many([
+        {"timestamp": when, "user": {"_id": "u-creator", "username": "x"},
+         "request": {"method": "POST", "path": "/admin/organization/create"}},
+        {"timestamp": when, "user": {"_id": "u-creator"},  # a second org created far from this request
+         "request": {"method": "POST", "path": "/admin/organization/create"}},
+    ])
+    try:
+        result = backfill.main(db=db)["fields"]
+        assert result["new_rows"] == 1 and result["create_rows"] == 2 and result["create_unmatched"] == 0
+        row = db.audit_events.find_one({"legacy": True, "doc_ids": org_id})
+        assert row["op"] == "insert" and row["actor"] == {"kind": "user", "user_id": "u-creator"}
+        assert row["at"].replace(tzinfo=None) == when
+    finally:
+        db.organizations.delete_one({"_id": org_id})
