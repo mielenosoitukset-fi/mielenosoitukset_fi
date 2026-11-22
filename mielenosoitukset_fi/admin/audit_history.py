@@ -306,6 +306,7 @@ def load_legacy_organization_rows(db, org_id: Any, before: Optional[datetime]) -
             "op": _legacy_op(op_key),
             "ok": True,
             "actor": {"kind": "user", "name": username or _("Tuntematon käyttäjä"), "username": None},
+            "legacy": True,
             "via": _("Vanha ylläpitoloki"),
             "via_is_actor": False,
             "reason": _(label),
