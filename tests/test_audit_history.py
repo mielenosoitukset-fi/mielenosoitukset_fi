@@ -82,3 +82,31 @@ def test_demo_history_lists_every_recorded_change(admin_client, db, seeded_data)
     page = admin_client.get(f"/admin/demo/edit_history/{demo_id}").get_data(as_text=True)
     assert "Kaikki kirjatut muutokset" in page
     assert "Audit-otsikko" in page
+
+
+@pytest.mark.integration
+def test_organization_history_adds_old_admin_log_rows_before_trail(admin_client, db, seeded_data):
+    org_id = ObjectId(seeded_data["org_id"])
+    now = datetime.now(timezone.utc)
+    db.audit_events.delete_many({})
+    db.audit_events.insert_one(_event(org_id, now - timedelta(hours=1), "update", [{"$set": {"name": "Nyt"}}],
+                                      {"kind": "user", "user_id": str(seeded_data["admin_id"])}))
+    db.admin_logs.insert_many([
+        {"event": "organization_verified_changed", "timestamp": now - timedelta(days=5),
+         "actor": {"id": "1", "username": "vanha_admin", "email": "secret@example.test"},
+         "details": {"organization_id": str(org_id), "previous": False, "new": True}},
+        {"event": "organization_update", "timestamp": now - timedelta(days=4),
+         "actor": {"id": "1", "username": "vanha_admin", "email": "secret@example.test"},
+         "details": {"org_id": str(org_id)}},
+        {"event": "organization_update", "timestamp": now - timedelta(days=4),
+         "actor": {"id": "1", "username": "toinen"}, "details": {"org_id": str(ObjectId())}},
+        {"event": "organization_view", "timestamp": now - timedelta(days=4),
+         "actor": {"id": "1", "username": "katsoja"}, "details": {"org_id": str(org_id)}},
+        {"event": "organization_update", "timestamp": now + timedelta(days=1),
+         "actor": {"id": "1", "username": "tuleva"}, "details": {"org_id": str(org_id)}},
+    ])
+    page = admin_client.get(f"/admin/organization/history/{org_id}").get_data(as_text=True)
+    assert "Nyt" in page and "vanha_admin" in page and "Vanha ylläpitoloki" in page
+    assert "verified" in page
+    assert "secret@example.test" not in page
+    assert "toinen" not in page and "katsoja" not in page and "tuleva" not in page
