@@ -43,6 +43,8 @@ GUIDES = [
     ("b4-muutosehdotukset-ja-peruutuspyynnot", "moderator", ("moderator",),
      "Muutosehdotukset ja peruutuspyynnöt", 5,
      "Ehdotusten ja peruutuspyyntöjen käsittely Tapaukset-listassa."),
+    ("b5-paivystysvuoro", "moderator", ("moderator",), "Päivystysvuoron varaaminen", 4,
+     "Vuoron varaus viikkokalenterista, hyväksyntä ja peruminen."),
     ("b7-poisto-ja-palautus", "moderator", ("moderator",), "Poisto julkaisusta ja uudelleen julkaisu", 6,
      "Poistopyyntö, toisen ylläpitäjän vahvistus ja palautus."),
     ("d2-kutsu-ihmisia-organisaatioon", "organization", ("organization",), "Kutsu ihmisiä organisaatioon", 3,
