@@ -1,0 +1,1 @@
+- Hallinto pages with many lists (Asiat) no longer fail with "Sign-in unavailable": calls from the Hallinto server to `/hallinto-oidc/` skip the per-IP rate limit when it comes from an address in `HALLINTO_BACKCHANNEL_IPS`.

@@ -129,6 +129,14 @@ def create_app(config_overrides=None) -> Flask:
         @limiter.request_filter
         def _exempt_uptimerobot():
             return is_uptimerobot_ip(get_client_ip())
+
+        @limiter.request_filter
+        def _exempt_hallinto_backchannel():
+            # Hallinto's server checks the owner session and reads its lists through
+            # /hallinto-oidc/ several times per page. Those calls come from the
+            # configured Hallinto egress addresses and must not hit the per-IP limit.
+            allowed = app.config.get("HALLINTO_BACKCHANNEL_IPS") or []
+            return request.path.startswith("/hallinto-oidc/") and get_client_ip() in allowed
     
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1) # Fix for reverse proxy
         # Initialize Flask-Caching

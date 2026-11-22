@@ -333,6 +333,8 @@ class Config:
         cls.ORG_RECOVERY_ENABLED = config.get("ORG_RECOVERY_ENABLED", False)
         # Hätäsulku ordered from Hallinto (decision recorded there). Off: the order route answers 404. The Flask page always works.
         cls.HALLINTO_LOCKDOWN_ORDERS_ENABLED = config.get("HALLINTO_LOCKDOWN_ORDERS_ENABLED", False)
+        # Hallinto server egress IPs: their /hallinto-oidc/ backchannel calls skip the per-IP rate limit.
+        cls.HALLINTO_BACKCHANNEL_IPS = list(config.get("HALLINTO_BACKCHANNEL_IPS") or [])
         cls.GOD_AUTH_ORIGIN = config.get("GOD_AUTH_ORIGIN", "https://mielenosoitukset.fi")
         cls.GOD_EMERGENCY_ENABLED = config.get("GOD_EMERGENCY_ENABLED", False)
         cls.GOD_EMERGENCY_PANEL_KEYS = config.get("GOD_EMERGENCY_PANEL_KEYS", {})
