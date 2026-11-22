@@ -350,7 +350,7 @@ def handle_action(db, data):
             session.permanent = True
             db.board_audit_logs.insert_one({"user_id": str(user["_id"]), "action": "god-kirjautuminen",
                 "proof_id": proof["_id"], "timestamp": utcnow()})
-            return jsonify(stage="complete", redirect="/admin/governance/")
+            return jsonify(stage="complete", redirect="/admin/")
         raise PermissionError("Virheellinen kirjautumisvaihe.")
     except PermissionError as exc:
         return jsonify(message=str(exc)), 403

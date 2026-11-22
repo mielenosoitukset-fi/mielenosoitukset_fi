@@ -1,5 +1,4 @@
 {% extends 'admin_base.html' %}
-{% set governance_tab = 'clearances' %}
 {% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
 
 {% block title %}{{ _('Hallituksen hyväksynnät') }} – Mielenosoitukset.fi{% endblock %}
@@ -10,12 +9,11 @@
     _('Superkäyttäjäroolin hyväksynnät'),
     _('Uusi superkäyttäjä vaatii kaksi hallituksen hyväksyntää. Uusi hallituksen jäsen vaatii koko hallituksen hyväksynnän. Uusi god-tili vaatii ensin joko koko hallituksen tai kaikkien nykyisten god-käyttäjien hyväksynnän, minkä jälkeen toisella ryhmällä on 48 tuntia aikaa veto-oikeuteen. Veto siirtää päätöksen toiselle kierrokselle, jossa tarvitaan 75 prosenttia kaikista hallituksen ja god-käyttäjien äänistä.'),
     _('Hallinto'),
-    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Hallinto ja käyttöoikeudet'), url_for('admin_governance.dashboard')), (_('Superkäyttäjäroolin hyväksynnät'), none)],
-    back_url=url_for('admin_governance.dashboard'),
-    back_label=_('Hallinto ja käyttöoikeudet'),
+    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Superkäyttäjäroolin hyväksynnät'), none)],
+    back_url=url_for('admin.admin_dashboard'),
+    back_label=_('Hallintapaneeli'),
   ) }}
 
-  {% include 'admin_V2/governance/_tabs.html' %}
 
   <section class="admin-workspace-summary" aria-label="{{ _('Hyväksyntöjen yhteenveto') }}">
     <article class="admin-workspace-summary-card"><span class="admin-workspace-summary-icon"><i class="fa-solid fa-users" aria-hidden="true"></i></span><div><span>{{ _('Käyttäjiä yhteensä') }}</span><strong>{{ total_count }}</strong></div></article>

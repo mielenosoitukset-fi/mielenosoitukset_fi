@@ -1,5 +1,4 @@
 {% extends 'admin_base.html' %}
-{% set governance_tab = 'cities' %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
 
 {% block title %}{{ _('Kaupunkihallinta') }} – Mielenosoitukset.fi{% endblock %}
@@ -11,8 +10,8 @@
     _('Ota käyttöön kaupungit, joihin on löytynyt yhteyshenkilö. Käyttäjäkohtaiset oikeudet annetaan edelleen Käyttäjien hallinnasta.'),
     _('Hallinto'),
     [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Kaupunkihallinta'), none)],
-    back_url=url_for('admin_governance.dashboard'),
-    back_label=_('Hallinto'),
+    back_url=url_for('admin.admin_dashboard'),
+    back_label=_('Hallintapaneeli'),
     actions_visible=current_user.global_admin or current_user.has_permission('LIST_USERS'),
   ) %}
       <a class="admin-page-hero__action" href="{{ url_for('admin_user.user_control') }}">
@@ -20,7 +19,6 @@
       </a>
   {% endcall %}
 
-  {% include 'admin_V2/governance/_tabs.html' %}
 
   <section class="admin-workspace-summary city-admin-overview" aria-label="{{ _('Kaupunkihallinnan yhteenveto') }}">
     <article class="admin-workspace-summary-card">

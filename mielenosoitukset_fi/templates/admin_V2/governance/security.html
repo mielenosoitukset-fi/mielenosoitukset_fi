@@ -1,11 +1,9 @@
 {% extends 'admin_base.html' %}
-{% set governance_tab = 'security' %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
 {% block title %}Turvatapaukset – Mielenosoitukset.fi{% endblock %}
 {% block main_content %}
 <section class="admin-page admin-workspace">
-  {{ admin_page_hero('Turvatapaukset', 'Sulje julkinen sivusto hätätilanteessa tai keskeytä vaarantunut käyttäjätili. Päätökset kirjataan perusteluineen, eikä mikään pura itseään automaattisesti.', 'Hallinto', [('Hallintapaneeli', url_for('admin.admin_dashboard')), ('Hallinto', url_for('admin_governance.dashboard')), ('Turvatapaukset', none)], back_url=url_for('admin_governance.dashboard')) }}
-  {% include 'admin_V2/governance/_tabs.html' %}
+  {{ admin_page_hero('Turvatapaukset', 'Sulje julkinen sivusto hätätilanteessa tai keskeytä vaarantunut käyttäjätili. Päätökset kirjataan perusteluineen, eikä mikään pura itseään automaattisesti.', 'Hallinto', [('Hallintapaneeli', url_for('admin.admin_dashboard')), ('Hallinto', url_for('admin.admin_dashboard')), ('Turvatapaukset', none)], back_url=url_for('admin.admin_dashboard')) }}
   {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
   <section class="admin-form-section mb-4" aria-labelledby="lockdown-heading">
     <div class="admin-form-section__header">
