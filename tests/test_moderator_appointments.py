@@ -83,12 +83,14 @@ def test_an_approver_in_the_appointment_approves_the_shift(api):
     assert _post(env, body, digest).status_code == 200
     grant = db[duty_shifts.GRANTS].find_one({"user_id": moderator})
     now = datetime.now(timezone.utc)
-    shift = duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=now - timedelta(minutes=1),
-                                  ends_at=now + timedelta(hours=1), source={"decision": "vuoro"},
-                                  actor={"id": str(moderator)})
-    assert duty_shifts.active_duty(db, moderator) is None
-    assert duty_shifts.approve_shift(db, shift_id=shift["_id"], actor={"id": str(approver)})
-    assert duty_shifts.active_duty(db, moderator)
+    start = now + timedelta(hours=1)
+    shift = duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=start, ends_at=start + timedelta(hours=2),
+                                  source={"decision": "vuoro"}, actor={"id": str(moderator)})
+    during = start + timedelta(minutes=30)
+    # Booked by the moderator without self-booking: nothing until an approver approves.
+    assert duty_shifts.active_duty(db, moderator, during) is None
+    assert duty_shifts.approve_shift(db, shift_id=shift["_id"], actor={"id": str(approver)}, now=now)
+    assert duty_shifts.active_duty(db, moderator, during)
 
 
 def test_signed_terms_cannot_be_changed_or_borrowed(api):
@@ -121,9 +123,10 @@ def test_refused_targets_and_approvers(api):
     moderator, approver = _person(db, "moderator"), _person(db, "approver")
     organization = _person(db, "orgaccount", account_type="organization")
     banned = _person(db, "banneduser", banned=True)
-    for target in (organization, banned):
+    for number, target in enumerate((organization, banned)):
         body, digest = _body(app, db, target, [approver])
-        assert _post(env, body, digest, key=f"hallinto-moderator-{target}"[:40]).status_code == 422
+        refused = _post(env, body, digest, key=f"hallinto-moderator-refused-{number:04d}")
+        assert refused.status_code == 422, refused.get_json()
     # An approver that does not exist.
     body, digest = _body(app, db, moderator, [ObjectId()])
     assert _post(env, body, digest, key="hallinto-moderator-0000000003").status_code == 422
@@ -168,7 +171,7 @@ def test_approval_page_names_the_approvers_and_binds_the_proof(api):
         spent = grant_proofs.consume_proof(db, fragment["proof"][0], audience=AUDIENCE,
                                            action=grant_proofs.ACTION_MODERATOR_V1,
                                            intent_digest=digest, idempotency_key=KEY)
-    assert spent == seeded["admin_id"]
+    assert str(spent) == str(seeded["admin_id"])
     # Unknown extra terms are not accepted by the page.
     bad = {**body, "city": "kuopio"}
     assert verifier.get("/admin/hallinto/approve", query_string={"r": _terms(bad), "state": STATE}).status_code == 400
