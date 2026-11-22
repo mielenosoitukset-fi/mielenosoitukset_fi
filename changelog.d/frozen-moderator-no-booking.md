@@ -1,0 +1,1 @@
+- A frozen or revoked moderator appointment can no longer take shift bookings or approvals (checked on the server, so an old open page cannot book either), and freezing or revoking cancels its upcoming shifts.
