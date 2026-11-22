@@ -21,6 +21,10 @@ const apiBase = (process.env.PUBLIC_API_BASE || 'https://api.mielenosoitukset.fi
 // public round trip to itself. Browsers keep using PUBLIC_API_BASE.
 const apiReadBase = (process.env.PUBLIC_API_LOCAL || apiBase).replace(/\/+$/, '');
 const publicAvailable = availabilityReader(apiReadBase);
+// Served during a lockdown: god sign-in, the status page and the campaign the
+// maintenance page links to.
+const lockdownExempt = (path) => ['/auth/god', '/status', '/kampanja/'].includes(path)
+  || path.startsWith('/kampanja/confirm/');
 const flaskOrigin = (process.env.FLASK_API_ORIGIN || 'http://127.0.0.1:8000').replace(/\/+$/, '');
 const sessionUrl = process.env.SESSION_URL || `${flaskOrigin}/api/session`;
 const flaskSocketPath = process.env.FLASK_SOCKET_PATH || undefined;
@@ -194,7 +198,7 @@ const server = createServer(async (request, response) => {
       clientIp,
       cloudflareIp,
       doNotTrack: request.headers.dnt === '1',
-      publicUnavailable: ['/auth/god', '/status'].includes(url.pathname) ? false : !await publicAvailable(),
+      publicUnavailable: lockdownExempt(url.pathname) ? false : !await publicAvailable(),
     }, assets);
     if (result.redirect) {
       // A site-relative preview target stays on the same public origin; the web

@@ -36,6 +36,15 @@ func TestPublicGatePrecedesCachedResponsesAndPreservesHealth(t *testing.T) {
 		if served != 1 || calls != 1 || w.Code != 200 {
 			t.Fatal(served, calls, w.Code)
 		}
+		// The campaign page the maintenance page links to keeps its reads.
+		for _, path := range []string{campaignPublicationPath, fundraisingDetailsPath} {
+			w = httptest.NewRecorder()
+			handler.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+			if w.Code != 200 {
+				t.Fatal(path, w.Code)
+			}
+		}
+		served -= 2
 		w = httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest("GET", "/api/public-status", nil))
 		if w.Code != 200 || w.Body.String() != "{\"available\":false}\n" {
