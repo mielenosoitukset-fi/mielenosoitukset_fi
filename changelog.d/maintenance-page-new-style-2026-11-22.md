@@ -1,0 +1,1 @@
+- The "Palvelu on hetkellisesti pois käytöstä" maintenance page uses the site's new look (shared product colors, light and dark theme). It is now fully self-contained, with no external fonts, icon sets or app CSS, so it renders while the app is shielded. The campaign button links to `/kampanja/`.
