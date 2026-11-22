@@ -1,0 +1,1 @@
+- Organisations can ask Hallinto for the right to approve their own demonstrations. When Hallinto grants it, the organisation's owners and admins decide the cases of their own demos; the case history says which organisation's right was used. Off until switched on.

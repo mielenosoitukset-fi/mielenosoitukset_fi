@@ -47,7 +47,7 @@ def test_invite_role_needs_matching_authority(app, db, seeded_data, actor_role, 
 
 
 @pytest.mark.parametrize("route", ["get", "post"])
-def test_accept_gives_checked_role_without_raising_account_role(app, db, seeded_data, route):
+def test_accept_gives_checked_role_and_org_admin_for_that_organisation(app, db, seeded_data, route):
     org_id = seeded_data["org_id"]
     email = f"owner-{route}@example.test"
     invitee = _invitee(db, email)
@@ -62,7 +62,10 @@ def test_accept_gives_checked_role_without_raising_account_role(app, db, seeded_
     membership = db.memberships.find_one({"user_id": invitee, "organization_id": org_id})
     assert membership["role"] == "owner"
     assert "DELETE_ORGANIZATION" in membership["permissions"]
-    assert db.users.find_one({"_id": invitee})["role"] == "user"
+    # The account role follows the membership: org_admin, with a grant for this organisation only.
+    assert db.users.find_one({"_id": invitee})["role"] == "org_admin"
+    grants = list(db.admin_scope_grants.find({"user_id": invitee, "template": "org_admin_v1", "revoked_at": None}))
+    assert [g["scope_keys"] for g in grants] == [[str(org_id)]]
     assert db.organizations.find_one({"_id": org_id})["invitations"] == []
 
 
