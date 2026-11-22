@@ -537,6 +537,16 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         users = {u["_id"]: u for u in db.users.find({"_id": row.get("user_id")}, {"username": 1, "displayname": 1})}
         return jsonify(item=city_admin_applications.hallinto_view(row, users))
 
+    @bp.post("/access-reviews/list")
+    def access_reviews_list():
+        """Admin accounts waiting for review before 1.1.2027. Read only."""
+        from mielenosoitukset_fi.utils import access_review
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        return jsonify(items=access_review.hallinto_list(db))
+
     @bp.post("/accounts/search")
     def account_search():
         payload, error = admin_payload()

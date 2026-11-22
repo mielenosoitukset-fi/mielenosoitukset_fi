@@ -325,6 +325,7 @@ ORDER_APPROVAL_FIELDS = {
     flask_orders.KIND_ROLE_REMOVAL: {"order_id", "kind", "decision_id", "decision_revision", "account_id", "role"},
     flask_orders.KIND_BOARD_ROSTER: {"order_id", "kind", "decision_id", "decision_revision", "roster"},
     flask_orders.KIND_SITE_LOCKDOWN: {"order_id", "kind", "decision_id", "decision_revision", "action"},
+    flask_orders.KIND_ACCESS_REVIEW: {"order_id", "kind", "decision_id", "decision_revision", "roster"},
 }
 BUNDLE_APPROVAL_FIELDS = {"account_id", "template", "decision_id", "decision_revision", "valid_until"}
 BUNDLE_END_APPROVAL_FIELDS = {"appointment_id", "kind", "account_id", "template", "decision_id", "decision_revision"}
@@ -484,7 +485,7 @@ def build_approval_blueprint(db) -> Blueprint:
                 {"_id": {"$in": [ObjectId(a) for a in fields["roster"]]}}, {"username": 1, "displayname": 1})}
             roster_names = [names.get(a, "?") for a in fields["roster"]]
             from mielenosoitukset_fi.utils.system_teams import board_ids
-            current = set(board_ids(db))
+            current = set(board_ids(db)) if fields.get("kind") == flask_orders.KIND_BOARD_ROSTER else set(fields["roster"])
             leaving = sorted(current - set(fields["roster"]))
             removed_names = [u.get("displayname") or u.get("username") or "?" for u in db.users.find(
                 {"_id": {"$in": [ObjectId(a) for a in leaving]}}, {"username": 1, "displayname": 1})]
@@ -499,6 +500,7 @@ def build_approval_blueprint(db) -> Blueprint:
         page_title = ("Vahvista kutsun lähetys" if is_invite else "Vahvista pääsyn palautus" if is_recovery else "Vahvista roolin poisto" if fields.get("kind") == flask_orders.KIND_ROLE_REMOVAL
                       else "Vahvista hätäsulku" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN and fields.get("action") == "close"
                       else "Vahvista sivuston avaaminen" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN
+                      else "Vahvista ylläpitotilien tarkistus" if fields.get("kind") == flask_orders.KIND_ACCESS_REVIEW
                       else "Vahvista hallitustiimin päivitys" if is_order
                       else "Vahvista roolipaketin päättäminen" if (is_end and is_bundle)
                       else "Vahvista roolipaketti" if is_bundle
