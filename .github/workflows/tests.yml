@@ -14,19 +14,23 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  python-tests:
+  python-tests-shard:
     # MongoDB 8 rejects Linux 6.19–7.0.13 (SERVER-121912). The latest
     # Ubuntu 24 runner rolled onto kernel 7.0.0 and cannot start the test DB.
     # Keep the same DB/tests; revisit before Ubuntu 22 retires 2027-04-17.
     #
-    # GitHub-hosted ubuntu-22.04 stays the default so CI never depends on
-    # the maintainer's homelab. When hosted jobs hang, set the repository
-    # variable MOSO_CI_RUNS_ON to ["self-hosted","moso-ci"] to move pushes
-    # and same-repository PRs to the self-hosted runner; delete the variable
-    # to move back. Fork PRs always stay on GitHub-hosted runners, so
-    # untrusted code never reaches the self-hosted host.
-    runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-22.04' || fromJSON(vars.MOSO_CI_RUNS_ON || '"ubuntu-22.04"') }}
+    # Pushes and same-repository PRs run on the isolated AX41 runners
+    # (ci-flask-01..04, label self-hosted-moso, internet only) by default
+    # (2026-11-22, Olivia). Set the repository variable MOSO_CI_RUNS_ON to
+    # '"ubuntu-22.04"' to move back to GitHub-hosted runners. Fork PRs always
+    # stay on GitHub-hosted runners, so untrusted code never reaches our host.
+    # The suite runs as four shards side by side, each with pytest-xdist.
+    runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-22.04' || fromJSON(vars.MOSO_CI_RUNS_ON || '["self-hosted","self-hosted-moso"]') }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
 
     steps:
       - name: Checkout repository
@@ -51,6 +55,7 @@ jobs:
           cache: "npm"
 
       - name: Verify frontend types and committed build
+        if: matrix.shard == 1
         run: |
           npm ci
           npm run build
@@ -58,6 +63,7 @@ jobs:
           test -z "$(git ls-files --others --exclude-standard -- mielenosoitukset_fi/static/frontend mielenosoitukset_fi/templates/kampanja/_*_fallback.html)"
 
       - name: Verify the React public host build
+        if: matrix.shard == 1
         run: |
           python3 -m pip install "$(sed -n '/^Markdown==/p' requirements.txt)"
           npm run app:build
@@ -74,6 +80,12 @@ jobs:
 
       - name: Install Chromium for Playwright
         run: python -m playwright install --with-deps chromium
+
+      - name: Pick the test MongoDB image
+        # MongoDB 8.0 refuses Linux 6.19-7.0.13 (SERVER-121912); the AX41 runners
+        # share the host kernel, so they use 8.2, which starts there.
+        run: |
+          if [ "$RUNNER_ENVIRONMENT" = self-hosted ]; then echo "TEST_MONGO_IMAGE=mongo:8.2" >> "$GITHUB_ENV"; fi
 
       - name: Start disposable test services
         run: docker compose -f compose.test.yml up -d mongo redis mailpit localstack
@@ -133,6 +145,7 @@ jobs:
 
 
       - name: Verify Go public API and MongoDB boundaries
+        if: matrix.shard == 1
         working-directory: go-api
         env:
           TEST_MONGODB_URI: mongodb://127.0.0.1:27017
@@ -149,11 +162,18 @@ jobs:
           TEST_MAIL_HOST: 127.0.0.1
           TEST_MAIL_PORT: "1025"
           TEST_S3_ENDPOINT: http://127.0.0.1:4566
+          SHARD: ${{ matrix.shard }}
+          SHARDS: "4"
         # Override pytest.ini's quiet flag so stalled runs retain each test ID.
         # Keep every test and the 30-minute job limit. Bound each test including
         # fixture setup/teardown; thread mode also exits on an uninterruptible
         # lock wait and prints thread stacks before failing the job.
-        run: python -u -m pytest -o addopts='' -v --tb=short --durations=25 --timeout=180 --timeout-method=thread -o faulthandler_timeout=120
+        # Each shard takes a quarter of the test files, balanced by size, and
+        # runs them with four xdist workers (one file stays on one worker).
+        run: |
+          mapfile -t files < <(python3 scripts/ci_test_shard.py "$SHARD" "$SHARDS")
+          echo "shard $SHARD/$SHARDS: ${#files[@]} files"
+          python -u -m pytest -o addopts='' -v --tb=short --durations=25 --timeout=180 --timeout-method=thread -o faulthandler_timeout=120 -n 4 --dist loadfile "${files[@]}"
 
       - name: Dump test service logs on test failure
         if: failure()
@@ -162,3 +182,13 @@ jobs:
       - name: Tear down test services
         if: always()
         run: docker compose -f compose.test.yml down -v
+
+  # The required merge check: passes only when every shard passed.
+  python-tests:
+    needs: python-tests-shard
+    if: always()
+    runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-22.04' || fromJSON(vars.MOSO_CI_RUNS_ON || '["self-hosted","self-hosted-moso"]') }}
+    timeout-minutes: 5
+    steps:
+      - name: All shards passed
+        run: test "${{ needs.python-tests-shard.result }}" = success

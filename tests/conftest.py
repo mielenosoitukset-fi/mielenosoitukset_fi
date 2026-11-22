@@ -23,6 +23,9 @@ if str(ROOT) not in sys.path:
 
 
 TEST_DB_NAME = f"mielenosoitukset_test_{uuid.uuid4().hex[:12]}"
+# pytest-xdist worker ("gw0", "gw1", ...) or None in a plain run.
+XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER")
+TEST_REDIS_DB = (int(XDIST_WORKER[2:]) % 15) + 1 if XDIST_WORKER else 0
 TEST_SECRET = "codex-test-secret"
 TEST_MONGO_URI = os.environ.get("TEST_MONGO_URI", "mongodb://127.0.0.1:27017")
 TEST_REDIS_HOST = os.environ.get("TEST_REDIS_HOST", "127.0.0.1")
@@ -56,7 +59,7 @@ _CONFIG_PATH.write_text(
             "CACHE_DEFAULT_TIMEOUT": 1,
             "REDIS_HOST": TEST_REDIS_HOST,
             "REDIS_PORT": TEST_REDIS_PORT,
-            "REDIS_DB": 0,
+            "REDIS_DB": TEST_REDIS_DB,
             "DEFAULT_TIMEZONE": "Europe/Helsinki",
             "MAIL": {
                 "SERVER": TEST_MAIL_HOST,
@@ -804,8 +807,9 @@ def cleanup_test_resources():
             pass
         try:
             # Drop any test databases left behind by earlier crashed sessions so
-            # MongoDB does not accumulate hundreds of disposable databases.
-            for _db_name in instance.get_db().client.list_database_names():
+            # MongoDB does not accumulate hundreds of disposable databases. Under
+            # pytest-xdist the other workers' databases are still in use.
+            for _db_name in ([] if XDIST_WORKER else instance.get_db().client.list_database_names()):
                 if _db_name.startswith("mielenosoitukset_test_"):
                     try:
                         instance.get_db().client.drop_database(_db_name)
