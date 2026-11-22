@@ -3,9 +3,8 @@
 
 def test_create_user_sends_link_not_password(admin_client, db, monkeypatch):
     sent = []
-    import importlib
-    module = importlib.import_module("mielenosoitukset_fi.admin.admin_user_bp")
-    monkeypatch.setattr(module.email_sender, "queue_email", lambda **kw: sent.append(kw))
+    from mielenosoitukset_fi.emailer.EmailSender import EmailSender
+    monkeypatch.setattr(EmailSender, "queue_email", lambda self, *a, **kw: sent.append(kw))
     response = admin_client.post("/admin/user/create_user", json={
         "username": "link-user", "email": "link-user@example.test",
     })
