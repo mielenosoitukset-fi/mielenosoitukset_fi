@@ -1,0 +1,1 @@
+- Ohjevideoiden tekstitykset päivitettiin: ne kertovat nyt, että kuka tahansa voi painaa mielenosoituksen sivun yläosassa olevaa Ilmoita virheestä -painiketta, kun tiedot muuttuvat.
