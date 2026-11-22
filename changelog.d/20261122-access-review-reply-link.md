@@ -1,0 +1,1 @@
+- Admin account review: the mail now has a signed answer link (/ylla-vastaus/<token>, no sign-in) and a Reply-To of the support address, so holders can answer without a no-reply dead end. A follow-up mail with the link can be sent once to anyone mailed before.

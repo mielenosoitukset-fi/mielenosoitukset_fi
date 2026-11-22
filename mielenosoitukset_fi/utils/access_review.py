@@ -317,17 +317,57 @@ def contact_view(review: dict) -> Optional[dict]:
     fmt = lambda t: t.strftime("%Y-%m-%dT%H:%M:%SZ") if t else ""
     return {"at": fmt(c.get("at")), "by": c.get("by") or "", "reply": c.get("reply") or "",
             "situation": c.get("situation") or "", "roles": list(c.get("roles") or []), "until": c.get("until") or "",
-            "reply_at": fmt(c.get("reply_at")), "note": c.get("note") or ""}
+            "reply_at": fmt(c.get("reply_at")), "note": c.get("note") or "", "via": c.get("via") or "",
+            "followup_at": fmt(c.get("followup_at"))}
 
 
-def contact_message(doc: dict) -> tuple[str, str]:
+# Replies to the mail land in the support mailbox (read by people) and the holder can answer with a signed link.
+REPLY_TO = "tuki@mielenosoitukset.fi"
+REPLY_SALT = "access-review-reply-v1"
+REPLY_MAX_AGE = 120 * 24 * 3600
+
+
+def _reply_serializer():
+    from itsdangerous import URLSafeTimedSerializer
+    return URLSafeTimedSerializer(_config("SECRET_KEY") or "", salt=REPLY_SALT)
+
+
+def reply_token(doc: dict) -> str:
+    """Signed link token for one account and one round. Needs no sign-in; answers only that round."""
+    return _reply_serializer().dumps({"u": str(doc["_id"]), "d": f"{_deadline(doc[FIELD]):%Y%m%d}"})
+
+
+def reply_doc(db, token, now: Optional[datetime] = None) -> Optional[dict]:
+    """The account a link token belongs to, if the token is genuine, current and the review still open."""
+    from itsdangerous import BadSignature
+    if not isinstance(token, str) or not token or len(token) > 512:
+        return None
+    try:
+        data = _reply_serializer().loads(token, max_age=REPLY_MAX_AGE)
+        doc = _open_doc(db, data["u"], now or utcnow())
+    except (BadSignature, KeyError, TypeError, ContactError):
+        return None
+    return doc if data.get("d") == f"{_deadline(doc[FIELD]):%Y%m%d}" else None
+
+
+def reply_url(doc: dict) -> str:
+    base = (_config("ACCESS_REVIEW_REPLY_BASE") or "https://mielenosoitukset.fi").rstrip("/")
+    return f"{base}/ylla-vastaus/{reply_token(doc)}"
+
+
+def contact_message(doc: dict, link: Optional[str] = None, followup: bool = False) -> tuple[str, str]:
     review = doc[FIELD]
     deadline = _deadline(review).replace(tzinfo=timezone.utc).astimezone(HELSINKI)
     holds_text = ", ".join(holds_labels(doc)) or "ylläpito-oikeudet"
     body = (f"Hei {doc.get('username')},\n\n"
             f"Mielenosoitukset.fi:n ylläpito-oikeudet tarkistetaan kuuden kuukauden välein. Tililläsi on: {holds_text}.\n\n"
-            "Tarvitsetko oikeuksia edelleen? Vastaa tähän viestiin yhdellä näistä:\n"
+            + ("Aiemmassa viestissä ei ollut vastauslinkkiä, joten tässä se on. Voit myös vastata suoraan tähän viestiin.\n\n"
+               if followup else "")
+            + "Tarvitsetko oikeuksia edelleen? Vastaa tästä linkistä, se vie vajaan minuutin eikä vaadi kirjautumista:\n"
+            + (link or "[henkilökohtainen vastauslinkki]") + "\n\n"
+            "Valittavana on:\n"
             + "".join(f"- {text}\n" for key, (_, text) in SITUATIONS.items() if key not in {"no_answer", "unreachable"})
+            + "\nVoit myös vastata suoraan tähän viestiin.\n"
             + f"\nJos oikeuksia ei vahvisteta ennen {deadline:%-d.%-m.%Y}, ne päättyvät silloin. "
             "Mitään ei poisteta, ja oikeudet voi palauttaa myöhemmin.\n\n"
             "Ystävällisin terveisin\nMielenosoitukset.fi:n ylläpito\n")
@@ -368,10 +408,10 @@ def contact_send(db, account: str, by: str, now: Optional[datetime] = None) -> d
         raise ContactError("already_contacted")
     if not doc.get("email"):
         raise ContactError("no_address", 422)
-    subject, body = contact_message(doc)
+    subject, body = contact_message(doc, reply_url(doc))
     deadline = _deadline(review)
     # Fixed queue id: a repeat can never mail twice for the same round.
-    job = EmailJob(subject, [doc["email"]], body=body).to_dict()
+    job = EmailJob(subject, [doc["email"]], body=body, extra_headers={"Reply-To": REPLY_TO}).to_dict()
     db.email_queue.update_one({"_id": f"access-review-contact:{deadline:%Y%m%d}:{doc['_id']}"},
                               {"$setOnInsert": job}, upsert=True)
     db.users.update_one({"_id": doc["_id"]}, {"$set": {f"{FIELD}.contact": {
@@ -379,8 +419,35 @@ def contact_send(db, account: str, by: str, now: Optional[datetime] = None) -> d
     return contact_view(db.users.find_one({"_id": doc["_id"]})[FIELD])
 
 
+def contact_followup(db, account: str, by: str, now: Optional[datetime] = None) -> dict:
+    """One more mail with the answer link, for a holder who was mailed before the link existed.
+
+    Only after a contact this round and before any answer; once per round (fixed queue id).
+    """
+    from mielenosoitukset_fi.emailer.EmailJob import EmailJob
+
+    if not contact_enabled():
+        raise ContactError("disabled")
+    now = now or utcnow()
+    doc = _open_doc(db, account, now)
+    review = doc[FIELD]
+    contact = contact_view(review)
+    if not contact:
+        raise ContactError("not_contacted")
+    if contact["reply"] or review["contact"].get("followup_at"):
+        raise ContactError("already_answered" if contact["reply"] else "already_followed_up")
+    if not doc.get("email"):
+        raise ContactError("no_address", 422)
+    subject, body = contact_message(doc, reply_url(doc), followup=True)
+    job = EmailJob(subject, [doc["email"]], body=body, extra_headers={"Reply-To": REPLY_TO}).to_dict()
+    db.email_queue.update_one({"_id": f"access-review-contact-link:{_deadline(review):%Y%m%d}:{doc['_id']}"},
+                              {"$setOnInsert": job}, upsert=True)
+    db.users.update_one({"_id": doc["_id"]}, {"$set": {f"{FIELD}.contact.followup_at": now}})
+    return contact_view(db.users.find_one({"_id": doc["_id"]})[FIELD])
+
+
 def contact_reply(db, account: str, reply: Optional[str], by: str, note: str = "", now: Optional[datetime] = None,
-                  situation: str = "", roles: Optional[list] = None, until: str = "") -> dict:
+                  situation: str = "", roles: Optional[list] = None, until: str = "", via: str = "hand") -> dict:
     """Record the holder's answer by hand. Works without a sent mail (they may have been asked in person).
 
     Give a `situation` (preferred) or just a coarse `reply`; the coarse reply follows from the situation.
@@ -411,6 +478,6 @@ def contact_reply(db, account: str, reply: Optional[str], by: str, note: str = "
     old = review.get("contact") if contact_view(review) else None
     contact = {"round": _deadline(review), "at": (old or {}).get("at") or now, "by": (old or {}).get("by") or by,
                "reply": reply, "situation": situation, "roles": roles, "until": until,
-               "reply_at": now, "note": note.strip()}
+               "reply_at": now, "note": note.strip(), "via": via, "followup_at": (old or {}).get("followup_at")}
     db.users.update_one({"_id": doc["_id"]}, {"$set": {f"{FIELD}.contact": contact}})
     return contact_view({"deadline": contact["round"], "contact": contact})

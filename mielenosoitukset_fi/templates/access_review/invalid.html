@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block meta %}<meta name="robots" content="noindex, nofollow" />{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/guide_videos.css') }}">{% endblock %}
+{% block title %}Linkki ei toimi{% endblock %}
+{% block content %}
+<div class="guide-videos">
+  <h1 class="h2">Linkki ei toimi</h1>
+  <p>Linkki on vanhentunut, väärä tai tarkistus on jo käsitelty. Voit vastata suoraan saamaasi sähköpostiviestiin tai kirjoittaa osoitteeseen tuki@mielenosoitukset.fi.</p>
+</div>
+{% endblock %}
