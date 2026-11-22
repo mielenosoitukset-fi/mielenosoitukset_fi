@@ -25,8 +25,7 @@ def env(api):
     national = ObjectId()
     app.config.update(NATIONAL_ADMIN_ORG_ID=str(national), HALLINTO_ELEVATED_ENABLED=True)
     db.organizations.insert_one({"_id": national, "name": "National QA", "description": "", "email": "", "verified": True})
-    elevated_grants_indexes = city_grants.ensure_operation_indexes
-    elevated_grants_indexes(db)
+    city_grants.ensure_operation_indexes(db)
     return app, client, db, seeded, target
 
 
@@ -68,7 +67,7 @@ def test_superadmin_appointment_receipt_and_state(env):
     assert response.status_code == 200, response.get_json()
     receipt = response.get_json()
     assert receipt["status"] == "confirmed" and receipt["effective_role"] == "superadmin"
-    assert _post(env, body, digest)[0].get_json()["operation_id"] == receipt["operation_id"] or True
+    assert _post(env, body, digest)[0].get_json() == receipt  # Same key and intent replays the receipt.
     with app.app_context():
         assert "national" in user_team_access(db, target)
     lookup = client.get(f"{BASE}/operations/by-key", headers=_headers(proof=proof))
