@@ -14,13 +14,20 @@ from tests.test_hallinto_city_grant_api import api  # noqa: F401
 AFTER = access_review.DEADLINE + timedelta(minutes=1)
 
 
+@pytest.fixture
+def clean_users(db):
+    db.users.delete_many({})
+    db.email_queue.delete_many({})
+    yield
+
+
 def _add(db, name, **fields):
     uid = ObjectId()
     db.users.insert_one(_user_doc(name, f"{name}@example.test", "Passw0rd!x", _id=uid, **fields))
     return uid
 
 
-def test_stamp_finds_every_source_of_admin_rights(app, db):
+def test_stamp_finds_every_source_of_admin_rights(app, db, clean_users):
     with app.app_context():
         admin = _add(db, "ylla", role="admin", global_permissions=["VIEW_LOGS"])
         flag = _add(db, "lippu", global_admin=True)
@@ -39,7 +46,7 @@ def test_stamp_finds_every_source_of_admin_rights(app, db):
         assert "Yleisoikeudet (koko sivusto)" in by["oikeudet"] and by["kaantaja"] == ["Kääntäjä"]
 
 
-def test_unreviewed_account_lapses_after_deadline_only_when_enforced(app, db):
+def test_unreviewed_account_lapses_after_deadline_only_when_enforced(app, db, clean_users):
     with app.app_context():
         uid = _add(db, "ylla", role="admin", global_permissions=["VIEW_LOGS"])
         access_review.stamp(db, apply=True)
@@ -52,7 +59,7 @@ def test_unreviewed_account_lapses_after_deadline_only_when_enforced(app, db):
         assert user.role == "user" and user.global_permissions == [] and not user.has_admin_access()
 
 
-def test_protected_and_confirmed_accounts_never_lapse(app, db):
+def test_protected_and_confirmed_accounts_never_lapse(app, db, clean_users):
     with app.app_context():
         olivia = _add(db, "olivia", role="global_admin")
         other = _add(db, "toinen", role="global_admin")
@@ -79,7 +86,7 @@ def test_rounds_are_1_1_and_1_7(app):
     assert nxt(datetime(2027, 6, 30, 21, 0)) == datetime(2027, 12, 31, 22, 0)
 
 
-def test_reminders_only_on_reminder_days(app, db):
+def test_reminders_only_on_reminder_days(app, db, clean_users):
     with app.app_context():
         _add(db, "ylla", role="admin", global_permissions=["VIEW_LOGS"])
         access_review.stamp(db, apply=True)
