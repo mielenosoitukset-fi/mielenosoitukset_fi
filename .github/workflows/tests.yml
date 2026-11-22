@@ -163,12 +163,12 @@ jobs:
         # fixture setup/teardown; thread mode also exits on an uninterruptible
         # lock wait and prints thread stacks before failing the job.
         # Each shard takes a quarter of the test files, balanced by size, and
-        # runs them with four xdist workers (one file stays on one worker).
+        # runs them with two xdist workers (one file stays on one worker).
         run: |
           set -o pipefail
           mapfile -t files < <(python3 scripts/ci_test_shard.py "$SHARD" "$SHARDS")
           echo "shard $SHARD/$SHARDS: ${#files[@]} files"
-          python -u -m pytest -o addopts='' -v --tb=short --durations=25 --timeout=180 --timeout-method=thread -o faulthandler_timeout=120 -n 4 --dist loadfile "${files[@]}" 2>&1 | tee pytest-shard.log
+          python -u -m pytest -o addopts='' -v --tb=short --durations=25 --timeout=180 --timeout-method=thread -o faulthandler_timeout=120 -n 2 --dist loadfile "${files[@]}" 2>&1 | tee pytest-shard.log
 
       - name: Dump test service logs on test failure
         if: failure()
