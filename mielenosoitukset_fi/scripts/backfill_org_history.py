@@ -26,7 +26,9 @@ the live trail are copied, so nothing is duplicated. Set
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+import re
+import time
+from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
 
@@ -36,6 +38,17 @@ from mielenosoitukset_fi.utils.audit_trail import AUDIT_COLLECTION, SCHEMA_VERSI
 from mielenosoitukset_fi.utils.logger import logger
 
 MARKER_ID = "org_history_backfill_2026_11"
+FIELDS_MARKER_ID = "org_history_backfill_2026_11_fields"
+FIELDS_FIRST_DAY = datetime(2024, 11, 1)  # first row in admin_logs
+EDIT_PATH = re.compile(r"^/admin/organization/edit/([0-9a-f]{24})/?$")
+CREATE_PATH = re.compile(r"^/admin/organization/create/?$")
+CREATE_WINDOW = timedelta(seconds=15)  # the organization is inserted within the request
+# Only these names are shown: the old rows hold names of posted fields, never values.
+ORG_FIELDS = ("name", "description", "email", "website", "logo_url", "verified",
+              "social_media_platform[]", "social_media_url[]")
+MATCH_WINDOW = timedelta(seconds=15)
+PAUSE = 0.1
+EDIT_LABEL = LEGACY_EVENTS["organization_update"][1]
 ID_PREFIX = "legacy-admin-log:"
 
 
@@ -124,34 +137,128 @@ def backfill(db, dry_run=False):
     return counts
 
 
+def backfill_sent_fields(db, dry_run=False, pause=None):
+    """Add the names of the fields an admin sent to old organization edit rows.
+
+    Also gives organizations created in the admin form (no ``organization_created``
+    event before 6.1.2026) their creator: the create request row's admin and time are
+    matched to the one organization whose ``_id`` time falls within 15 seconds after it.
+
+    A browser request row (``admin_logs.request`` with ``form_keys``) is matched to
+    the backfilled edit event of the same organization and admin within 15 seconds
+    and gives it ``legacy_fields``; with no match it becomes its own row. Rows
+    logged twice (two request hooks) collapse into one because they match the
+    same event or the same new row. Values were never logged, so none are shown.
+    """
+    started = trail_started_at(db)
+    end = started.replace(tzinfo=None) if started else datetime.now(timezone.utc).replace(tzinfo=None)
+    counts = {"dry_run": dry_run, "request_rows": 0, "matched_events": 0, "new_rows": 0,
+              "create_rows": 0, "create_known": 0, "create_unmatched": 0}
+    day = FIELDS_FIRST_DAY
+    while day < end:
+        window = {"timestamp": {"$gte": day, "$lt": min(day + timedelta(days=1), end)},
+                  "request.method": "POST"}
+        for row in db.admin_logs.find(window, {"timestamp": 1, "actor.user_id": 1, "user._id": 1, "user.id": 1,
+                                               "request.path": 1, "request.form_keys": 1}):
+            path = str((row.get("request") or {}).get("path") or "")
+            at = _utc(row["timestamp"])
+            actor = (row.get("actor") or {}).get("user_id") or (row.get("user") or {}).get("_id") \
+                or (row.get("user") or {}).get("id")
+            actor_doc = {"kind": "user", "user_id": str(actor)} if actor else {"kind": "system"}
+            base = {"v": SCHEMA_VERSION, "at": at, "db": db.name, "service": "python",
+                    "collection": "organizations", "change": [], "actor": actor_doc,
+                    "outcome": {"ok": True}, "legacy": True,
+                    "source": {"collection": "admin_logs", "id": str(row["_id"])}}
+            if CREATE_PATH.match(path):
+                # The request row has no organization id; the organization inserted
+                # within seconds is the one it created (its _id carries the time).
+                counts["create_rows"] += 1
+                if dry_run:
+                    continue
+                made = list(db.organizations.find(
+                    {"_id": {"$gte": ObjectId.from_datetime(at), "$lte": ObjectId.from_datetime(at + CREATE_WINDOW)}},
+                    {"_id": 1}).limit(2))
+                if len(made) != 1:
+                    counts["create_unmatched"] += 1
+                    continue
+                org_id = made[0]["_id"]
+                # Skip when the event backfill already wrote this organization's creation.
+                if db[AUDIT_COLLECTION].find_one({"collection": "organizations", "doc_ids": org_id,
+                                                  "op": "insert", "legacy": True}):
+                    counts["create_known"] += 1
+                    continue
+                event = {**base, "op": "insert", "doc_ids": [org_id],
+                         "via": {"kind": "legacy_admin_log", "event": "organization_create_request"},
+                         "reason": LEGACY_EVENTS["organization_created"][1]}
+                if db[AUDIT_COLLECTION].update_one({"_id": f"legacy-admin-create:{org_id}"}, {"$setOnInsert": event},
+                                                   upsert=True).upserted_id:
+                    counts["new_rows"] += 1
+                continue
+            found = EDIT_PATH.match(path)
+            if not found:
+                continue
+            counts["request_rows"] += 1
+            names = [k for k in ((row["request"].get("form_keys")) or []) if k in ORG_FIELDS]
+            if dry_run:
+                continue
+            org_id = ObjectId(found.group(1))
+            match = {"collection": "organizations", "doc_ids": org_id, "op": "update",
+                     "at": {"$gte": at - MATCH_WINDOW, "$lte": at + MATCH_WINDOW}, "legacy": True,
+                     "reason": EDIT_LABEL}
+            if actor:
+                match["actor.user_id"] = str(actor)
+            if names:
+                matched = db[AUDIT_COLLECTION].update_many(match, {"$set": {"legacy_fields": names}}).matched_count
+            else:
+                matched = db[AUDIT_COLLECTION].count_documents(match, limit=1)
+            if matched:
+                counts["matched_events"] += 1
+                continue
+            event = {**base, "op": "update", "doc_ids": [org_id], "legacy_fields": names,
+                     "via": {"kind": "legacy_admin_log", "event": "organization_edit_request"},
+                     "reason": EDIT_LABEL}
+            # Second request row of the same edit: same half minute, same org and admin.
+            key = f"legacy-admin-form:{org_id}:{actor}:{int(at.timestamp()) // 30}"
+            if db[AUDIT_COLLECTION].update_one({"_id": key}, {"$setOnInsert": event}, upsert=True).upserted_id:
+                counts["new_rows"] += 1
+        day += timedelta(days=1)
+        time.sleep(PAUSE if pause is None else pause)
+    return counts
+
+
 def main(db=None, dry_run=False):
     db = db if db is not None else DatabaseManager().get_instance().get_db()
     if dry_run:
         return backfill(db, dry_run=True)
     if is_disabled():
         return {"disabled": True}
-    if db.maintenance_markers.find_one({"_id": MARKER_ID}):
-        return {"already_done": True}
-    result = backfill(db)
+    out = {}
+    if not db.maintenance_markers.find_one({"_id": MARKER_ID}):
+        out["events"] = _finish(db, MARKER_ID, backfill(db), "legacy_backfill",
+                                "Copied old organization admin-log events into the change history.")
+    if not db.maintenance_markers.find_one({"_id": FIELDS_MARKER_ID}):
+        out["fields"] = _finish(db, FIELDS_MARKER_ID, backfill_sent_fields(db), "legacy_backfill_fields",
+                                "Added names of sent fields to old organization edits in the change history.")
+    return out or {"already_done": True}
+
+
+def _finish(db, marker_id, result, op, message):
     finished_at = datetime.now(timezone.utc)
     db.maintenance_markers.update_one(
-        {"_id": MARKER_ID}, {"$setOnInsert": {**result, "finished_at": finished_at}}, upsert=True)
+        {"_id": marker_id}, {"$setOnInsert": {**result, "finished_at": finished_at}}, upsert=True)
     db.admin_logs.insert_one({
-        "event": "org_history_backfill",
-        "message": "Copied old organization admin-log events into the change history.",
-        "details": result,
-        "timestamp": finished_at.replace(tzinfo=None),
-        "actor": {"username": "system"},
+        "event": "org_history_backfill", "message": message, "details": result,
+        "timestamp": finished_at.replace(tzinfo=None), "actor": {"username": "system"},
     })
     db[AUDIT_COLLECTION].insert_one({
         "v": SCHEMA_VERSION, "at": finished_at, "db": db.name, "service": "python",
-        "collection": AUDIT_COLLECTION, "op": "legacy_backfill", "doc_ids": [], "change": [],
+        "collection": AUDIT_COLLECTION, "op": op, "doc_ids": [], "change": [],
         "actor": {"kind": "job", "name": "backfill_org_history"},
         "via": {"kind": "job", "name": "backfill_org_history"},
-        "outcome": {"ok": True, "n": result["written"]}, "legacy": True,
-        "reason": "Organization history backfill from admin_logs",
+        "outcome": {"ok": True, "n": result.get("written", result.get("matched_events", 0))}, "legacy": True,
+        "reason": message,
     })
-    logger.info("Organization history backfill: %s", result)
+    logger.info("Organization history backfill (%s): %s", op, result)
     return result
 
 
