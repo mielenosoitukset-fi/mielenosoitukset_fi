@@ -1,0 +1,1 @@
+- Admin account review now lists each account's use over the last six months and lets Hallinto mail the holder to ask whether the rights are still needed, then record the reply. Sending is off until it is switched on separately.

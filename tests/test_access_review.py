@@ -128,3 +128,63 @@ def test_list_reports_removable_roles_and_marks_removed_accounts(app, db, clean_
         item = access_review.hallinto_list(db)[0]
         assert item["state"] == "removed" and item["roles"] == []
         assert not access_review.confirmable(db, [str(uid)])
+
+
+def test_contact_is_off_by_default_and_records_one_mail_per_round(app, db, clean_users):
+    with app.app_context():
+        uid = str(_add(db, "kontakti", role="city_admin", global_permissions=["VIEW_LOGS"]))
+        access_review.stamp(db, apply=True)
+        assert access_review.hallinto_list(db)[0]["contact"] is None
+        preview = access_review.contact_preview(db, uid)
+        assert set(preview) == {"subject", "body"} and "@" not in preview["body"]
+        app.config["ACCESS_REVIEW_CONTACT_ENABLED"] = False
+        with pytest.raises(access_review.ContactError) as off:
+            access_review.contact_send(db, uid, "olivia")
+        assert off.value.code == "disabled" and db.email_queue.count_documents({}) == 0
+        app.config["ACCESS_REVIEW_CONTACT_ENABLED"] = True
+        try:
+            contact = access_review.contact_send(db, uid, "olivia")
+            assert contact["by"] == "olivia" and contact["reply"] == ""
+            assert db.email_queue.count_documents({}) == 1
+            with pytest.raises(access_review.ContactError) as twice:
+                access_review.contact_send(db, uid, "olivia")
+            assert twice.value.code == "already_contacted" and db.email_queue.count_documents({}) == 1
+        finally:
+            app.config["ACCESS_REVIEW_CONTACT_ENABLED"] = False
+
+
+def test_contact_reply_by_hand_and_old_rounds_do_not_count(app, db, clean_users):
+    with app.app_context():
+        uid = str(_add(db, "vastaaja", role="city_admin", global_permissions=["VIEW_LOGS"]))
+        access_review.stamp(db, apply=True)
+        with pytest.raises(access_review.ContactError):
+            access_review.contact_reply(db, uid, "maybe", "olivia")
+        got = access_review.contact_reply(db, uid, "keep", "olivia", "Tarvitsee Tampereella")
+        assert got["reply"] == "keep" and got["note"] == "Tarvitsee Tampereella" and got["reply_at"]
+        assert access_review.hallinto_list(db)[0]["contact"]["reply"] == "keep"
+        # A confirmed account is no longer open and the next round starts clean.
+        db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"access_review.deadline": access_review.DEADLINE - timedelta(days=400),
+                                                               "access_review.confirmed_at": access_review.DEADLINE - timedelta(days=500)}})
+        assert access_review.hallinto_list(db)[0]["contact"] is None
+        with pytest.raises(access_review.ContactError) as unknown:
+            access_review.contact_preview(db, str(ObjectId()))
+        assert unknown.value.code == "not_found"
+
+
+def test_list_carries_evidence_of_use(app, db, clean_users):
+    with app.app_context():
+        db.demo_audit_logs.delete_many({})
+        uid = _add(db, "aktiivinen", role="city_admin", global_permissions=["VIEW_LOGS"],
+                   last_login=datetime(2026, 11, 1, 12, 0))
+        _add(db, "hiljainen", role="city_admin", global_permissions=["VIEW_LOGS"])
+        access_review.stamp(db, apply=True)
+        now = datetime(2026, 11, 22)
+        for demo, when, auto in (("d1", datetime(2026, 10, 1), False), ("d1", datetime(2026, 10, 2), False),
+                                 ("d2", datetime(2026, 9, 1), False), ("d3", datetime(2026, 9, 2), True),
+                                 ("d4", datetime(2025, 1, 1), False)):
+            db.demo_audit_logs.insert_one({"demo_id": demo, "user_id": str(uid), "timestamp": when, "automatic": auto})
+        rows = {r["username"]: r["evidence"] for r in access_review.hallinto_list(db, now)}
+        assert rows["aktiivinen"] == {"last_login": "2026-11-01T12:00:00Z", "last_admin_action": "2026-10-02T00:00:00Z",
+                                      "admin_actions_6m": 3, "demos_handled_6m": 2, "cities_handled": []}
+        assert rows["hiljainen"]["last_admin_action"] is None and rows["hiljainen"]["admin_actions_6m"] == 0
+        db.demo_audit_logs.delete_many({})

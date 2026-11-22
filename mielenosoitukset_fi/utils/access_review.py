@@ -170,6 +170,34 @@ def removable_roles(db, doc: dict) -> list[str]:
     return roles
 
 
+EVIDENCE_MONTHS = 6
+
+
+def _iso(moment) -> Optional[str]:
+    return moment.strftime("%Y-%m-%dT%H:%M:%SZ") if moment else None
+
+
+def evidence(db, doc: dict, now: datetime) -> dict:
+    """Use of the account in the last six months, for judging whether the rights are still needed.
+
+    Counts demonstration audit entries the person made themselves (not automatic ones).
+    No addresses, no content.
+    """
+    since = now - timedelta(days=30 * EVIDENCE_MONTHS)
+    mine = {"user_id": str(doc["_id"]), "automatic": {"$ne": True}}
+    last = db.demo_audit_logs.find_one(mine, {"timestamp": 1}, sort=[("timestamp", -1)])
+    recent = list(db.demo_audit_logs.find({**mine, "timestamp": {"$gte": since}}, {"demo_id": 1}))
+    demo_ids = sorted({r.get("demo_id") for r in recent if r.get("demo_id")})
+    cities = set()
+    valid = [ObjectId(d) for d in demo_ids if ObjectId.is_valid(d)]
+    if valid:
+        for d in db.demonstrations.find({"_id": {"$in": valid}}, {"city": 1}):
+            if d.get("city"):
+                cities.add(str(d["city"]))
+    return {"last_login": _iso(doc.get("last_login")), "last_admin_action": _iso((last or {}).get("timestamp")),
+            "admin_actions_6m": len(recent), "demos_handled_6m": len(demo_ids), "cities_handled": sorted(cities)}
+
+
 def hallinto_list(db, now: Optional[datetime] = None) -> list[dict]:
     """Stamped accounts for Hallinto's review list. No email addresses."""
     now = now or utcnow()
@@ -186,7 +214,7 @@ def hallinto_list(db, now: Optional[datetime] = None) -> list[dict]:
                  else "open" if is_open(review, now) else "confirmed")
         items.append({"id": str(doc["_id"]), "username": doc.get("username"),
                       "name": doc.get("displayname") or "", "holds": current or review.get("holds") or [],
-                      "roles": removable_roles(db, doc),
+                      "roles": removable_roles(db, doc), "contact": contact_view(review), "evidence": evidence(db, doc, now),
                       "state": state, "deadline": _deadline(review).strftime("%Y-%m-%dT%H:%M:%SZ"),
                       "decision": review.get("decision_id") or ""})
     return items
@@ -252,3 +280,101 @@ def send_reminders(db, now: Optional[datetime] = None, dry_run: bool = True) -> 
                                   {"$setOnInsert": job}, upsert=True)
         queued += 1
     return {"due": due, "queued": queued, "dry_run": dry_run}
+
+
+# --- "Ota yhteyttä": ask the holder whether they still need the rights -------------------------
+
+REPLIES = ("keep", "drop", "none")
+
+
+class ContactError(Exception):
+    def __init__(self, code: str, status: int = 409):
+        super().__init__(code)
+        self.code, self.status = code, status
+
+
+def contact_enabled() -> bool:
+    value = _config("ACCESS_REVIEW_CONTACT_ENABLED", False)
+    return value if isinstance(value, bool) else str(value).lower() in {"1", "true", "on", "yes"}
+
+
+def contact_view(review: dict) -> Optional[dict]:
+    """The contact made in the current round, or None. Older rounds do not count."""
+    c = review.get("contact")
+    if not c or c.get("round") != _deadline(review):
+        return None
+    fmt = lambda t: t.strftime("%Y-%m-%dT%H:%M:%SZ") if t else ""
+    return {"at": fmt(c.get("at")), "by": c.get("by") or "", "reply": c.get("reply") or "",
+            "reply_at": fmt(c.get("reply_at")), "note": c.get("note") or ""}
+
+
+def contact_message(doc: dict) -> tuple[str, str]:
+    review = doc[FIELD]
+    deadline = _deadline(review).replace(tzinfo=timezone.utc).astimezone(HELSINKI)
+    holds_text = ", ".join(holds_labels(doc)) or "ylläpito-oikeudet"
+    body = (f"Hei {doc.get('username')},\n\n"
+            f"Mielenosoitukset.fi:n ylläpito-oikeudet tarkistetaan kuuden kuukauden välein. Tililläsi on: {holds_text}.\n\n"
+            "Tarvitsetko oikeuksia edelleen? Vastaa tähän viestiin: \"tarvitsen\" tai \"en tarvitse\". "
+            f"Jos oikeuksia ei vahvisteta ennen {deadline:%-d.%-m.%Y}, ne päättyvät silloin. "
+            "Mitään ei poisteta, ja oikeudet voi palauttaa myöhemmin.\n\n"
+            "Ystävällisin terveisin\nMielenosoitukset.fi:n ylläpito\n")
+    return "Mielenosoitukset.fi: tarvitsetko vielä ylläpito-oikeuksiasi?", body
+
+
+def holds_labels(doc: dict) -> list[str]:
+    return list((doc.get(FIELD) or {}).get("holds") or [])
+
+
+def _open_doc(db, account: str, now: datetime) -> dict:
+    if not ObjectId.is_valid(account or ""):
+        raise ContactError("invalid_request", 400)
+    doc = db.users.find_one({"_id": ObjectId(account)})
+    review = (doc or {}).get(FIELD) or {}
+    if not doc or not review.get("required"):
+        raise ContactError("not_found", 404)
+    if not is_open(review, now) or not holds(db, doc):
+        raise ContactError("not_open")
+    return doc
+
+
+def contact_preview(db, account: str, now: Optional[datetime] = None) -> dict:
+    subject, body = contact_message(_open_doc(db, account, now or utcnow()))
+    return {"subject": subject, "body": body}
+
+
+def contact_send(db, account: str, by: str, now: Optional[datetime] = None) -> dict:
+    """Queue one mail to the holder and record it. Off unless ACCESS_REVIEW_CONTACT_ENABLED."""
+    from mielenosoitukset_fi.emailer.EmailJob import EmailJob
+
+    if not contact_enabled():
+        raise ContactError("disabled")
+    now = now or utcnow()
+    doc = _open_doc(db, account, now)
+    review = doc[FIELD]
+    if contact_view(review):
+        raise ContactError("already_contacted")
+    if not doc.get("email"):
+        raise ContactError("no_address", 422)
+    subject, body = contact_message(doc)
+    deadline = _deadline(review)
+    # Fixed queue id: a repeat can never mail twice for the same round.
+    job = EmailJob(subject, [doc["email"]], body=body).to_dict()
+    db.email_queue.update_one({"_id": f"access-review-contact:{deadline:%Y%m%d}:{doc['_id']}"},
+                              {"$setOnInsert": job}, upsert=True)
+    db.users.update_one({"_id": doc["_id"]}, {"$set": {f"{FIELD}.contact": {
+        "round": deadline, "at": now, "by": by, "reply": "", "reply_at": None, "note": ""}}})
+    return contact_view(db.users.find_one({"_id": doc["_id"]})[FIELD])
+
+
+def contact_reply(db, account: str, reply: str, by: str, note: str = "", now: Optional[datetime] = None) -> dict:
+    """Record the holder's answer by hand. Works without a sent mail (they may have been asked in person)."""
+    if reply not in REPLIES or not isinstance(note, str) or len(note) > 500:
+        raise ContactError("invalid_request", 400)
+    now = now or utcnow()
+    doc = _open_doc(db, account, now)
+    review = doc[FIELD]
+    old = review.get("contact") if contact_view(review) else None
+    contact = {"round": _deadline(review), "at": (old or {}).get("at") or now, "by": (old or {}).get("by") or by,
+               "reply": reply, "reply_at": now, "note": note.strip()}
+    db.users.update_one({"_id": doc["_id"]}, {"$set": {f"{FIELD}.contact": contact}})
+    return contact_view({"deadline": contact["round"], "contact": contact})
