@@ -240,3 +240,12 @@
   .guide-image-spec { gap: 1.25rem; padding: 1rem; }
   .guide-note { padding: 1rem; }
 }
+
+.guide-video-group { margin-top: 1.75rem; }
+.guide-video-group h3 { margin: 0 0 .25rem; }
+.guide-video-intro { margin: 0 0 1rem; color: var(--guide-text-muted); }
+.guide-video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); gap: 1.25rem; }
+.guide-video-card video { width: 100%; aspect-ratio: 16 / 9; background: #0b1220; border-radius: .75rem; display: block; }
+.guide-video-card h4 { margin: .75rem 0 .25rem; font-size: 1.05rem; }
+.guide-video-card p { margin: 0; }
+.guide-video-length { white-space: nowrap; font-weight: 700; color: var(--guide-blue-strong); }

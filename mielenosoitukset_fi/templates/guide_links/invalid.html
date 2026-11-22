@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Linkki ei toimi{% endblock %}
+{% block meta %}<meta name="robots" content="noindex, nofollow" />{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/guide_videos.css') }}">{% endblock %}
+{% block content %}
+<div class="guide-videos">
+  <h1 class="h2">Linkki ei toimi</h1>
+  <p>Linkki on vanhentunut tai väärä. Pyydä uusi linkki ylläpidolta. Voit myös liittää saamasi linkin tai koodin alle.</p>
+  <form method="post" action="{{ url_for('guide_links.code_form') }}" class="guide-videos__code">
+    <label for="guide-code">Koodi</label>
+    <input id="guide-code" name="code" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+    <button type="submit">Avaa ohjeet</button>
+  </form>
+  <p><a href="/ohjeet">Kaikille avoimet ohjeet</a></p>
+</div>
+{% endblock %}

@@ -185,6 +185,11 @@ function confirmAction(action, taskId) {
             <i class="fas fa-house me-2"></i>{{ _('Hallintapaneeli') }}
           </a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link admin-sidebar-link {% if admin_endpoint == 'guide_links.admin_page' %}active{% endif %}" href="{{ url_for('guide_links.admin_page') }}">
+            <i class="fas fa-circle-play me-2"></i>{{ _('Ohjeet') }}
+          </a>
+        </li>
       {% endif %}
       {% if current_user.is_authenticated and current_user.has_city_admin_scope_grants() %}
         <li class="nav-item">

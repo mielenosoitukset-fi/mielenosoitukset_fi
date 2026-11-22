@@ -1,0 +1,28 @@
+{% extends 'admin_base.html' %}
+{% from 'admin_V2/macros.html' import admin_page_hero %}
+{% block title %}Ohjeet – Mielenosoitukset.fi{% endblock %}
+{% block main_content %}
+<section class="admin-page admin-workspace">
+  {{ admin_page_hero('Ohjeet', 'Videoohjeet tehtäviisi. Tekstitys on päällä.', 'Ohjeet', [('Hallintapaneeli', url_for('admin.admin_dashboard')), ('Ohjeet', none)], back_url=url_for('admin.admin_dashboard')) }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/guide_videos.css') }}">
+  <div class="guide-videos">
+    {% if groups %}{% include '_partials/guide_video_groups.html' %}{% else %}<p>Sinulle ei ole vielä ohjevideoita. Kaikille avoimet ohjeet ovat sivulla <a href="/ohjeet">Ohjeet</a>.</p>{% endif %}
+    <section class="admin-form-section p-3 mt-3">
+      <h2 class="h5">Henkilökohtainen linkki</h2>
+      <p>Linkillä pääset katsomaan videot ilman kirjautumista. Uusi linkki korvaa vanhan.</p>
+      <form method="post" class="d-flex flex-wrap gap-2 align-items-end">
+        <input type="hidden" name="csrf_token" value="{{ governance_csrf_token }}">
+        <button class="btn btn-primary" type="submit">Lähetä linkki sähköpostiini</button>
+      </form>
+      {% if can_send_to_others %}
+      <form method="post" class="d-flex flex-wrap gap-2 align-items-end mt-3">
+        <input type="hidden" name="csrf_token" value="{{ governance_csrf_token }}">
+        <div class="admin-field"><label for="guide-username">Lähetä toiselle käyttäjälle</label>
+          <input id="guide-username" name="username" class="form-control" placeholder="Käyttäjätunnus" required></div>
+        <button class="btn btn-outline-primary" type="submit">Lähetä linkki</button>
+      </form>
+      {% endif %}
+    </section>
+  </div>
+</section>
+{% endblock %}
