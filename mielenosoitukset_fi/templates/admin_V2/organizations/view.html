@@ -14,6 +14,7 @@
   ) %}
       <a class="admin-page-hero__action" href="{{ url_for('org', org_id=organization._id) }}"><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>{{ _('Julkinen sivu') }}</a>
       {% if can_edit_organization %}<a class="admin-page-hero__action" href="{{ url_for('admin_org.edit_organization', org_id=organization._id) }}"><i class="fas fa-pen" aria-hidden="true"></i>{{ _('Muokkaa') }}</a>{% endif %}
+      {% if approval_right and approval_right.sees_cases %}<a class="admin-page-hero__action" href="{{ url_for('admin_case.cases', tila='all') }}"><i class="fas fa-folder-open" aria-hidden="true"></i>{{ _('Tapaukset') }}</a>{% endif %}
       {% if can_edit_organization %}<a class="admin-page-hero__action" href="{{ url_for('admin_org.organization_history', org_id=organization._id) }}"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i>{{ _('Muutoshistoria') }}</a>{% endif %}
   {% endcall %}
 
@@ -41,18 +42,18 @@
                 <td><div class="admin-entity-identity"><span class="admin-entity-avatar">{{ (user.displayname or user.username or '?')[:1] }}</span><div class="admin-entity-identity__copy"><strong>{{ user.displayname or user.username }}</strong><span>@{{ user.username }}</span></div></div></td>
                 <td>{{ user.email }}</td>
                 <td>
-                  {% if can_edit_organization %}
+                  {% if can_edit_organization and (can_assign_owner or user.role != 'owner') %}
                   <select class="form-select admin-control--compact role-select" aria-label="{{ _('Pääsytaso') }}">
-                    <option value="owner" {% if user.role == 'owner' %}selected{% endif %}>{{ _('Omistaja') }}</option>
+                    {% if can_assign_owner %}<option value="owner" {% if user.role == 'owner' %}selected{% endif %}>{{ _('Omistaja') }}</option>{% endif %}
                     <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ _('Admin') }}</option>
                     <option value="member" {% if user.role == 'member' %}selected{% endif %}>{{ _('Jäsen') }}</option>
                   </select>
                   {% else %}<span class="admin-status-badge">{% if user.role == 'owner' %}{{ _('Omistaja') }}{% elif user.role == 'admin' %}{{ _('Admin') }}{% else %}{{ _('Jäsen') }}{% endif %}</span>{% endif %}
                 </td>
-                <td>{% if can_edit_organization %}<div class="admin-row-actions">
+                <td>{% if can_edit_organization and (can_assign_owner or user.role != 'owner') %}<div class="admin-row-actions">
                   <button class="btn btn-outline-primary save-role-btn" type="button" data-user-id="{{ user._id }}" data-org-id="{{ organization._id }}"><i class="fas fa-check" aria-hidden="true"></i>{{ _('Tallenna') }}</button>
                   <button class="btn btn-outline-danger confirm-action-btn" type="button" data-action="delete-member" data-ship-id="{{ user._ship_id }}" data-label="{{ user.displayname or user.username }}"><i class="fas fa-user-minus" aria-hidden="true"></i>{{ _('Poista') }}</button>
-                </div>{% else %}<span class="text-muted">{{ _('Ei muokkausoikeutta') }}</span>{% endif %}</td>
+                </div>{% elif can_edit_organization %}<span class="text-muted">{{ _('Vain omistaja muuttaa omistajan roolia') }}</span>{% else %}<span class="text-muted">{{ _('Ei muokkausoikeutta') }}</span>{% endif %}</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -72,7 +73,7 @@
               <tr>
                 <td><div class="admin-entity-identity"><span class="admin-entity-avatar"><i class="fas fa-envelope" aria-hidden="true"></i></span><div class="admin-entity-identity__copy"><strong>{{ invite.email }}</strong><span>{{ _('Kutsu lähetetty') }}</span></div></div></td>
                 <td><span class="admin-status-badge admin-status-badge--warning"><i class="fas fa-clock" aria-hidden="true"></i>{{ _('Odottaa hyväksyntää') }}</span></td>
-                <td>{% if can_invite_members %}<select class="form-select admin-control--compact invited-role-select" data-invite-email="{{ invite.email }}" aria-label="{{ _('Kutsutun rooli') }}"><option value="owner" {% if invite.role == 'owner' %}selected{% endif %}>{{ _('Omistaja') }}</option><option value="admin" {% if invite.role == 'admin' %}selected{% endif %}>{{ _('Admin') }}</option><option value="member" {% if invite.role == 'member' or not invite.role %}selected{% endif %}>{{ _('Jäsen') }}</option></select>{% else %}<span class="admin-status-badge">{{ invite.role or _('Jäsen') }}</span>{% endif %}</td>
+                <td>{% if can_invite_members %}<select class="form-select admin-control--compact invited-role-select" data-invite-email="{{ invite.email }}" aria-label="{{ _('Kutsutun rooli') }}">{% if can_assign_owner or invite.role == 'owner' %}<option value="owner" {% if invite.role == 'owner' %}selected{% endif %}>{{ _('Omistaja') }}</option>{% endif %}<option value="admin" {% if invite.role == 'admin' %}selected{% endif %}>{{ _('Admin') }}</option><option value="member" {% if invite.role == 'member' or not invite.role %}selected{% endif %}>{{ _('Jäsen') }}</option></select>{% else %}<span class="admin-status-badge">{{ invite.role or _('Jäsen') }}</span>{% endif %}</td>
                 <td><div class="admin-row-actions">
                   {% if current_user.global_admin %}<button class="btn btn-outline-warning confirm-action-btn" type="button" data-action="accept-invite" data-invite-email="{{ invite.email }}" data-label="{{ invite.email }}" data-role="{{ invite.role or 'member' }}"><i class="fas fa-user-check" aria-hidden="true"></i>{{ _('Hyväksy puolesta') }}</button>{% endif %}
                   {% if can_invite_members %}<button class="btn btn-outline-danger confirm-action-btn" type="button" data-action="cancel-invite" data-invite-email="{{ invite.email }}" data-label="{{ invite.email }}"><i class="fas fa-xmark" aria-hidden="true"></i>{{ _('Peruuta') }}</button>{% endif %}
@@ -87,6 +88,45 @@
     </div>
 
     <aside class="admin-stack">
+      <section class="admin-section-card" id="rights-panel">
+        <div class="admin-section-card__header"><div class="admin-section-card__title"><i class="fas fa-user-shield" aria-hidden="true"></i><h2>{{ _('Roolit ja oikeudet') }}</h2></div></div>
+        <div class="admin-section-card__body admin-stack">
+          <dl class="admin-role-help mb-0">
+            <dt>{{ _('Jäsen') }}</dt><dd>{{ _('Kuuluu organisaation tiimiin ja näkee organisaation tiedot. Ei muokkaus- eikä hallintaoikeuksia.') }}</dd>
+            <dt>{{ _('Admin') }}</dt><dd>{{ _('Muokkaa organisaation tietoja, hallinnoi jäseniä ja admineja, luo ja muokkaa organisaation mielenosoituksia sekä lukee organisaation tapauksia ja lisää niihin merkintöjä. Saa tilille org_admin-roolin automaattisesti.') }}</dd>
+            <dt>{{ _('Omistaja') }}</dt><dd>{{ _('Kaikki mitä admin voi, lisäksi omistajien hallinta ja organisaation poisto. Organisaatiolla on oltava aina vähintään yksi omistaja.') }}</dd>
+          </dl>
+          <p class="admin-field__help mb-0">{{ _('Rooli antaa oikeudet vain tähän organisaatioon. Mielenosoituksen hyväksyminen ei kuulu rooleihin: se vaatii, että Hallinto on myöntänyt organisaatiolle oikeuden hyväksyä omat mielenosoituksensa.') }}</p>
+        </div>
+      </section>
+
+      {% if approval_right %}
+      <section class="admin-section-card" id="approval-right-panel">
+        <div class="admin-section-card__header"><div class="admin-section-card__title"><i class="fas fa-stamp" aria-hidden="true"></i><h2>{{ _('Oikeus hyväksyä omat mielenosoitukset') }}</h2></div></div>
+        <div class="admin-section-card__body admin-stack">
+          {% if approval_right.status == 'live' %}
+          <p class="mb-0"><span class="admin-status-badge admin-status-badge--success"><i class="fas fa-check" aria-hidden="true"></i>{{ _('Voimassa %(day)s asti', day=approval_right.valid_until) }}</span></p>
+          <p class="admin-field__help mb-0">{{ _('Organisaation omistajat ja adminit päättävät organisaation omien mielenosoitusten tapaukset. Jos mielenosoituksella on myös muita järjestäjiä, joilla ei ole omaa oikeutta, päätös kuuluu moderaattoreille.') }}</p>
+          {% elif approval_right.request_case_id %}
+          <p class="mb-0"><span class="admin-status-badge admin-status-badge--warning"><i class="fas fa-clock" aria-hidden="true"></i>{{ _('Pyyntö on käsiteltävänä Hallinnossa') }}</span></p>
+          {% if approval_right.sees_cases %}<a class="admin-link-list__item" href="{{ url_for('admin_case.single_case', case_id=approval_right.request_case_id) }}"><span>{{ _('Avaa pyyntö') }}</span><i class="fas fa-arrow-right" aria-hidden="true"></i></a>{% endif %}
+          {% else %}
+          <p class="mb-0"><span class="admin-status-badge"><i class="fas fa-minus" aria-hidden="true"></i>
+            {% if approval_right.status == 'expired' %}{{ _('Päättynyt %(day)s', day=approval_right.valid_until) }}
+            {% elif approval_right.status == 'revoked' %}{{ _('Peruttu Hallinnon päätöksellä') }}
+            {% elif approval_right.status == 'frozen' %}{{ _('Jäädytetty Hallinnon päätöksellä') }}
+            {% elif approval_right.status == 'given_up' %}{{ _('Organisaatio on luopunut oikeudesta') }}
+            {% elif approval_right.status == 'unverified' or not approval_right.verified %}{{ _('Organisaatio ei ole vahvistettu') }}
+            {% else %}{{ _('Ei oikeutta') }}{% endif %}</span></p>
+          <p class="admin-field__help mb-0">{{ _('Organisaation mielenosoitukset hyväksyy moderaattori.') }}{% if approval_right.status == 'frozen' %} {{ _('Uuden pyynnön voi tehdä vasta Hallinnon uuden päätöksen jälkeen.') }}{% elif not approval_right.verified %} {{ _('Vain vahvistettu organisaatio voi pyytää oikeutta.') }}{% endif %}</p>
+          {% if approval_right.refused_reason %}<p class="admin-field__help mb-0"><strong>{{ _('Viimeisin pyyntö hylättiin:') }}</strong> {{ approval_right.refused_reason }}</p>{% endif %}
+          {% endif %}
+          {% if approval_right.can_request %}<button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#rightRequestModal"><i class="fas fa-paper-plane" aria-hidden="true"></i>{{ _('Pyydä hyväksymisoikeutta') }}</button>{% endif %}
+          {% if approval_right.can_give_up %}<button class="btn btn-outline-danger confirm-action-btn" type="button" data-action="give-up-right" data-label=""><i class="fas fa-hand" aria-hidden="true"></i>{{ _('Luovu oikeudesta') }}</button>{% endif %}
+        </div>
+      </section>
+      {% endif %}
+
       <section class="admin-section-card">
         <div class="admin-section-card__header"><div class="admin-section-card__title"><i class="fas fa-address-card" aria-hidden="true"></i><h2>{{ _('Profiilin tiedot') }}</h2></div></div>
         <div class="admin-section-card__body admin-stack">
@@ -110,6 +150,16 @@
   </div>
 
   {% if can_invite_members %}{{ invite_modal(organization) }}{% endif %}
+  {% if approval_right and approval_right.can_request %}
+  <div class="modal fade admin-modal admin-workflow-modal" id="rightRequestModal" tabindex="-1" aria-labelledby="rightRequestTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h2 class="modal-title" id="rightRequestTitle">{{ _('Pyydä hyväksymisoikeutta') }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Sulje') }}"></button></div>
+      <div class="modal-body admin-stack">
+        <p class="admin-field__help mb-0">{{ _('Hallinto päättää pyynnöstä. Jos oikeus myönnetään, organisaation omistajat ja adminit saavat päättää organisaation omien mielenosoitusten tapaukset.') }}</p>
+        <label class="admin-field"><span class="admin-field__label">{{ _('Huomautus Hallinnolle (valinnainen)') }}</span><textarea class="form-control" id="rightRequestNote" rows="3" maxlength="300"></textarea><span class="admin-field__help">{{ _('Enintään 300 merkkiä, yksi rivi.') }}</span></label>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('Peruuta') }}</button><button type="button" class="btn btn-primary" id="rightRequestSend">{{ _('Lähetä pyyntö') }}</button></div></div></div>
+  </div>
+  {% endif %}
   <div class="modal fade admin-modal admin-workflow-modal" id="confirmActionModal" tabindex="-1" aria-labelledby="confirmActionTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content"><div class="modal-header"><h2 class="modal-title" id="confirmActionTitle">{{ _('Vahvista toiminto') }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Sulje') }}"></button></div><div class="modal-body"><p class="admin-field__help" id="confirmActionCopy"></p></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('Peruuta') }}</button><button type="button" class="btn btn-danger" id="confirmActionButton">{{ _('Vahvista') }}</button></div></div></div>
   </div>
@@ -152,9 +202,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.querySelector('.admin-toast__close').addEventListener('click', () => toast.classList.remove('show'));
-  // Organisation admin and owner roles also open the admin workspace for a
-  // regular user account (the site role becomes "admin"). Say so before saving.
-  const adminAccessNote = '{{ _("Jos käyttäjällä ei vielä ole pääsyä ylläpitoon, hän saa sen samalla. Pääsy ei poistu automaattisesti, jos rooli myöhemmin lasketaan.") }}';
+  // Owners and admins get the org_admin account role for this organisation
+  // automatically, and lose it when the role ends. Say so before saving.
+  const adminAccessNote = '{{ _("Admin ja omistaja saavat organisaation ylläpito-oikeudet (org_admin-rooli) automaattisesti. Oikeudet päättyvät, kun rooli päättyy.") }}';
   const elevates = (role) => role === 'admin' || role === 'owner';
   async function saveRole(button, role) {
     button.disabled = true;
@@ -188,7 +238,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const messages = {
       'delete-member': `{{ _("Poistetaanko käyttäjä organisaatiosta?") }} ${button.dataset.label}`,
       'cancel-invite': `{{ _("Peruutetaanko käyttäjälle lähetetty kutsu?") }} ${button.dataset.label}`,
-      'accept-invite': `{{ _("Hyväksytäänkö kutsu käyttäjän puolesta?") }} ${button.dataset.label}`
+      'accept-invite': `{{ _("Hyväksytäänkö kutsu käyttäjän puolesta?") }} ${button.dataset.label}`,
+      'give-up-right': `{{ _("Luovutaanko oikeudesta hyväksyä organisaation omat mielenosoitukset? Mielenosoitukset hyväksyy jatkossa moderaattori, ja oikeutta pitää pyytää Hallinnolta uudelleen.") }}`
     };
     let message = messages[button.dataset.action];
     if (button.dataset.action === 'accept-invite' && elevates(button.dataset.role)) message += `. ${adminAccessNote}`;
@@ -197,6 +248,17 @@ document.addEventListener('DOMContentLoaded', () => {
     confirmButton.classList.toggle('btn-warning', button.dataset.action === 'accept-invite');
     confirmModal.show();
   }));
+  const requestSend = document.getElementById('rightRequestSend');
+  if (requestSend) requestSend.addEventListener('click', async () => {
+    requestSend.disabled = true;
+    try {
+      const note = document.getElementById('rightRequestNote').value.replace(/\s+/g, ' ').trim();
+      await postJson('/admin/organization/api/request_approval_right/', { organization_id: orgId, note });
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('rightRequestModal')).hide();
+      showNotice('{{ _("Pyyntö lähetettiin Hallinnolle.") }}');
+      setTimeout(() => window.location.reload(), 900);
+    } catch (error) { showNotice(error.message, true); } finally { requestSend.disabled = false; }
+  });
   confirmButton.addEventListener('click', async () => {
     if (!pendingAction) return;
     confirmButton.disabled = true;
@@ -206,6 +268,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = pendingAction;
         confirmModal.hide();
         await saveRole(button, button.dataset.pendingRole);
+        return;
+      }
+      if (action === 'give-up-right') {
+        await postJson('/admin/organization/api/give_up_approval_right/', { organization_id: orgId });
+        showNotice('{{ _("Oikeudesta luovuttiin.") }}');
+        confirmModal.hide();
+        setTimeout(() => window.location.reload(), 900);
         return;
       }
       if (action === 'delete-member') {

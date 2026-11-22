@@ -468,6 +468,11 @@ body {
   .admin-message-meta { grid-template-columns: minmax(0, 1fr); }
 }
 
+.admin-role-help { display: grid; gap: .15rem; margin: 0; }
+.admin-role-help dt { color: var(--admin-workspace-text); font-weight: 700; margin-top: .6rem; }
+.admin-role-help dt:first-child { margin-top: 0; }
+.admin-role-help dd { margin: 0; color: var(--admin-workspace-muted); overflow-wrap: anywhere; }
+
 .admin-recurrence-preview {
   display: grid;
   gap: .85rem;

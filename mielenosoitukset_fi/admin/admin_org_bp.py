@@ -964,6 +964,9 @@ def view_organization(org_id):
 
     members = organization.members
 
+    from mielenosoitukset_fi.admin import org_rights
+
+    can_assign_owner = bool(current_user.has_full_permissions() or current_user.role_in(organization_doc["_id"]) == "owner")
     _log_org_event("organization_view", org_id=org_id)
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}organizations/view.html",
@@ -972,6 +975,8 @@ def view_organization(org_id):
         invited_users=invited_users,
         can_invite_members=_can_invite_to_organization(current_user, organization_doc),
         can_edit_organization=_can_edit_organization(current_user, organization_doc),
+        can_assign_owner=can_assign_owner,
+        approval_right=org_rights.panel_state(mongo, organization_doc, current_user),
     )
 
 
