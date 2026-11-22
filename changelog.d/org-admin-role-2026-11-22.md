@@ -1,0 +1,1 @@
+- New account role `org_admin`: owners and admins of an organisation get it automatically for that organisation and lose it when they stop being owner or admin. It gives the organisation's admin rights through one grant per organisation, and Hallinto can end it. Existing owners and admins get it within five minutes of the deploy.

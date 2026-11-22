@@ -96,7 +96,7 @@ def _live_marker(db, markers, reference: str, subject: str) -> dict | None:
 # Hallinto links group memberships to accounts. Only admins signed in to
 # Hallinto may search, and they see only a name, username and status.
 _ACCOUNT_LOOKUP_ROLES = {"admin", "global_admin"}
-_ACCOUNT_FIELDS = {"username": 1, "displayname": 1, "active": 1, "confirmed": 1, "banned": 1, "security_suspension": 1}
+_ACCOUNT_FIELDS = {"username": 1, "displayname": 1, "profile_picture": 1, "active": 1, "confirmed": 1, "banned": 1, "security_suspension": 1}
 _ACCOUNT_ID = re.compile(r"[0-9a-f]{24}\Z")
 _ACCOUNT_SEARCH_LIMIT = 10
 # Organization request states Hallinto may see and set (docs/organization-requests.md).
@@ -162,6 +162,10 @@ def _account_view(doc: dict, roles: Optional[list] = None) -> dict:
     }
     if roles:
         view["roles"] = roles
+    # Only a plain https address; Hallinto shows it in its account menu.
+    picture = doc.get("profile_picture")
+    if isinstance(picture, str) and picture.startswith("https://") and len(picture) <= 500:
+        view["picture"] = picture
     return view
 
 
@@ -573,6 +577,30 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         actor = db.users.find_one({"_id": ObjectId(payload["sub"])}, {"role": 1}) or {}
         rank = flask_orders._actor_rank(type("Actor", (), {"role": actor.get("role")})())
         return [_account_view(row, flask_orders.held_removable_roles(db, row, rank)) for row in rows]
+
+    @bp.post("/access-reviews/contact")
+    def access_reviews_contact():
+        """Preview, send or record the reply of the "do you still need your rights?" contact."""
+        from mielenosoitukset_fi.utils import access_review
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        account, action = payload.get("id"), payload.get("action")
+        by = str((db.users.find_one({"_id": ObjectId(payload["sub"])}, {"username": 1}) or {}).get("username") or "")
+        try:
+            if action == "preview":
+                return jsonify(access_review.contact_preview(db, account))
+            if action == "send":
+                return jsonify(contact=access_review.contact_send(db, account, by))
+            if action == "reply":
+                return jsonify(contact=access_review.contact_reply(
+                    db, account, payload.get("reply"), by, payload.get("note") or "",
+                    situation=payload.get("situation") or "", roles=payload.get("roles"),
+                    until=payload.get("until") or ""))
+        except access_review.ContactError as exc:
+            return jsonify(error=exc.code), exc.status
+        return jsonify(error="invalid_request"), 400
 
     @bp.post("/accounts/search")
     def account_search():

@@ -150,6 +150,54 @@ def stamp(db, apply: bool = False, now: Optional[datetime] = None) -> dict:
     return {"applied": apply, "holders": len(rows), "newly_stamped": stamped, "accounts": rows}
 
 
+# Roles an order of kind role_removal can take away (admin/flask_orders.REMOVABLE_ROLES).
+REMOVABLE = ("city_admin", "admin", "global_admin", "superuser", "god")
+
+
+def removable_roles(db, doc: dict) -> list[str]:
+    """Machine role names the account holds now that a role_removal order would take away."""
+    from mielenosoitukset_fi.utils.scope_grants import live_grant_filter
+
+    uid = doc["_id"]
+    roles = []
+    if doc.get("role") in REMOVABLE:
+        roles.append(doc["role"])
+    if doc.get("global_admin") is True and "global_admin" not in roles:
+        roles.append("global_admin")
+    if "city_admin" not in roles and db.admin_scope_grants.count_documents(
+            {"user_id": {"$in": [uid, str(uid)]}, "scope_type": "city", **live_grant_filter()}, limit=1):
+        roles.append("city_admin")
+    return roles
+
+
+EVIDENCE_MONTHS = 6
+
+
+def _iso(moment) -> Optional[str]:
+    return moment.strftime("%Y-%m-%dT%H:%M:%SZ") if moment else None
+
+
+def evidence(db, doc: dict, now: datetime) -> dict:
+    """Use of the account in the last six months, for judging whether the rights are still needed.
+
+    Counts demonstration audit entries the person made themselves (not automatic ones).
+    No addresses, no content.
+    """
+    since = now - timedelta(days=30 * EVIDENCE_MONTHS)
+    mine = {"user_id": str(doc["_id"]), "automatic": {"$ne": True}}
+    last = db.demo_audit_logs.find_one(mine, {"timestamp": 1}, sort=[("timestamp", -1)])
+    recent = list(db.demo_audit_logs.find({**mine, "timestamp": {"$gte": since}}, {"demo_id": 1}))
+    demo_ids = sorted({r.get("demo_id") for r in recent if r.get("demo_id")})
+    cities = set()
+    valid = [ObjectId(d) for d in demo_ids if ObjectId.is_valid(d)]
+    if valid:
+        for d in db.demonstrations.find({"_id": {"$in": valid}}, {"city": 1}):
+            if d.get("city"):
+                cities.add(str(d["city"]))
+    return {"last_login": _iso(doc.get("last_login")), "last_admin_action": _iso((last or {}).get("timestamp")),
+            "admin_actions_6m": len(recent), "demos_handled_6m": len(demo_ids), "cities_handled": sorted(cities)}
+
+
 def hallinto_list(db, now: Optional[datetime] = None) -> list[dict]:
     """Stamped accounts for Hallinto's review list. No email addresses."""
     now = now or utcnow()
@@ -157,11 +205,16 @@ def hallinto_list(db, now: Optional[datetime] = None) -> list[dict]:
     items = []
     for doc in db.users.find({f"{FIELD}.required": True}).sort("username", 1):
         review = doc[FIELD]
-        state = ("protected" if str(doc["_id"]) in protected and is_open(review, now)
+        current = holds(db, doc)
+        # An account that lost all its reviewable rights (role removal, a Flask removal) is
+        # no longer open: Hallinto closes its review case.
+        state = ("removed" if not current
+                 else "protected" if str(doc["_id"]) in protected and is_open(review, now)
                  else "lapsed" if lapsed_doc(doc, now)
                  else "open" if is_open(review, now) else "confirmed")
         items.append({"id": str(doc["_id"]), "username": doc.get("username"),
-                      "name": doc.get("displayname") or "", "holds": review.get("holds") or [],
+                      "name": doc.get("displayname") or "", "holds": current or review.get("holds") or [],
+                      "roles": removable_roles(db, doc), "contact": contact_view(review), "evidence": evidence(db, doc, now),
                       "state": state, "deadline": _deadline(review).strftime("%Y-%m-%dT%H:%M:%SZ"),
                       "decision": review.get("decision_id") or ""})
     return items
@@ -198,7 +251,7 @@ def confirmable(db, accounts: list[str], now: Optional[datetime] = None) -> bool
     now = now or utcnow()
     docs = list(db.users.find({"_id": {"$in": [ObjectId(a) for a in accounts]}}))
     return len(docs) == len(accounts) and all(
-        (d.get(FIELD) or {}).get("required") and is_open(d[FIELD], now) for d in docs)
+        (d.get(FIELD) or {}).get("required") and is_open(d[FIELD], now) and holds(db, d) for d in docs)
 
 
 def send_reminders(db, now: Optional[datetime] = None, dry_run: bool = True) -> dict:
@@ -227,3 +280,137 @@ def send_reminders(db, now: Optional[datetime] = None, dry_run: bool = True) -> 
                                   {"$setOnInsert": job}, upsert=True)
         queued += 1
     return {"due": due, "queued": queued, "dry_run": dry_run}
+
+
+# --- "Ota yhteyttä": ask the holder whether they still need the rights -------------------------
+
+# What a holder can answer. Each situation maps to the coarse reply (keep, drop, none) that older callers know.
+# Same set as Hallinto's account review panel.
+SITUATIONS = {
+    "needs": ("keep", "tarvitsen oikeuksia ja käytän niitä"),
+    "keep_idle": ("keep", "haluan pitää oikeudet, mutta en tarvitse niitä aktiivisesti"),
+    "partial": ("keep", "tarvitsen vain osaa oikeuksista (kerro mitä)"),
+    "give_up": ("drop", "haluan luopua oikeuksista"),
+    "inactive": ("drop", "olen tilapäisesti poissa (kerro, mihin asti)"),
+    "no_answer": ("none", "ei vastannut"),
+    "unreachable": ("none", "ei ole tavoitettavissa"),
+}
+REPLIES = ("keep", "drop", "none")
+
+
+class ContactError(Exception):
+    def __init__(self, code: str, status: int = 409):
+        super().__init__(code)
+        self.code, self.status = code, status
+
+
+def contact_enabled() -> bool:
+    value = _config("ACCESS_REVIEW_CONTACT_ENABLED", False)
+    return value if isinstance(value, bool) else str(value).lower() in {"1", "true", "on", "yes"}
+
+
+def contact_view(review: dict) -> Optional[dict]:
+    """The contact made in the current round, or None. Older rounds do not count."""
+    c = review.get("contact")
+    if not c or c.get("round") != _deadline(review):
+        return None
+    fmt = lambda t: t.strftime("%Y-%m-%dT%H:%M:%SZ") if t else ""
+    return {"at": fmt(c.get("at")), "by": c.get("by") or "", "reply": c.get("reply") or "",
+            "situation": c.get("situation") or "", "roles": list(c.get("roles") or []), "until": c.get("until") or "",
+            "reply_at": fmt(c.get("reply_at")), "note": c.get("note") or ""}
+
+
+def contact_message(doc: dict) -> tuple[str, str]:
+    review = doc[FIELD]
+    deadline = _deadline(review).replace(tzinfo=timezone.utc).astimezone(HELSINKI)
+    holds_text = ", ".join(holds_labels(doc)) or "ylläpito-oikeudet"
+    body = (f"Hei {doc.get('username')},\n\n"
+            f"Mielenosoitukset.fi:n ylläpito-oikeudet tarkistetaan kuuden kuukauden välein. Tililläsi on: {holds_text}.\n\n"
+            "Tarvitsetko oikeuksia edelleen? Vastaa tähän viestiin yhdellä näistä:\n"
+            + "".join(f"- {text}\n" for key, (_, text) in SITUATIONS.items() if key not in {"no_answer", "unreachable"})
+            + f"\nJos oikeuksia ei vahvisteta ennen {deadline:%-d.%-m.%Y}, ne päättyvät silloin. "
+            "Mitään ei poisteta, ja oikeudet voi palauttaa myöhemmin.\n\n"
+            "Ystävällisin terveisin\nMielenosoitukset.fi:n ylläpito\n")
+    return "Mielenosoitukset.fi: tarvitsetko vielä ylläpito-oikeuksiasi?", body
+
+
+def holds_labels(doc: dict) -> list[str]:
+    return list((doc.get(FIELD) or {}).get("holds") or [])
+
+
+def _open_doc(db, account: str, now: datetime) -> dict:
+    if not ObjectId.is_valid(account or ""):
+        raise ContactError("invalid_request", 400)
+    doc = db.users.find_one({"_id": ObjectId(account)})
+    review = (doc or {}).get(FIELD) or {}
+    if not doc or not review.get("required"):
+        raise ContactError("not_found", 404)
+    if not is_open(review, now) or not holds(db, doc):
+        raise ContactError("not_open")
+    return doc
+
+
+def contact_preview(db, account: str, now: Optional[datetime] = None) -> dict:
+    subject, body = contact_message(_open_doc(db, account, now or utcnow()))
+    return {"subject": subject, "body": body}
+
+
+def contact_send(db, account: str, by: str, now: Optional[datetime] = None) -> dict:
+    """Queue one mail to the holder and record it. Off unless ACCESS_REVIEW_CONTACT_ENABLED."""
+    from mielenosoitukset_fi.emailer.EmailJob import EmailJob
+
+    if not contact_enabled():
+        raise ContactError("disabled")
+    now = now or utcnow()
+    doc = _open_doc(db, account, now)
+    review = doc[FIELD]
+    if contact_view(review):
+        raise ContactError("already_contacted")
+    if not doc.get("email"):
+        raise ContactError("no_address", 422)
+    subject, body = contact_message(doc)
+    deadline = _deadline(review)
+    # Fixed queue id: a repeat can never mail twice for the same round.
+    job = EmailJob(subject, [doc["email"]], body=body).to_dict()
+    db.email_queue.update_one({"_id": f"access-review-contact:{deadline:%Y%m%d}:{doc['_id']}"},
+                              {"$setOnInsert": job}, upsert=True)
+    db.users.update_one({"_id": doc["_id"]}, {"$set": {f"{FIELD}.contact": {
+        "round": deadline, "at": now, "by": by, "reply": "", "reply_at": None, "note": ""}}})
+    return contact_view(db.users.find_one({"_id": doc["_id"]})[FIELD])
+
+
+def contact_reply(db, account: str, reply: Optional[str], by: str, note: str = "", now: Optional[datetime] = None,
+                  situation: str = "", roles: Optional[list] = None, until: str = "") -> dict:
+    """Record the holder's answer by hand. Works without a sent mail (they may have been asked in person).
+
+    Give a `situation` (preferred) or just a coarse `reply`; the coarse reply follows from the situation.
+    "partial" needs the roles kept, "inactive" the date they are away until (YYYY-MM-DD).
+    """
+    roles = list(roles or [])
+    if situation:
+        if situation not in SITUATIONS or (reply and reply != SITUATIONS[situation][0]):
+            raise ContactError("invalid_request", 400)
+        reply = SITUATIONS[situation][0]
+    if reply not in REPLIES or not isinstance(note, str) or len(note) > 500 or not isinstance(until, str):
+        raise ContactError("invalid_request", 400)
+    if (any(not isinstance(r, str) or not r or len(r) > 80 or any(c in r for c in "|,[]") for r in roles) or len(roles) > 10
+            or (situation == "partial") != bool(roles)):
+        raise ContactError("invalid_request", 400)
+    if situation == "inactive":
+        try:
+            day = datetime.strptime(until, "%Y-%m-%d")
+        except ValueError:
+            raise ContactError("invalid_request", 400)
+        if not utcnow() - timedelta(days=1) <= day <= utcnow() + timedelta(days=731):
+            raise ContactError("invalid_request", 400)
+    elif until:
+        raise ContactError("invalid_request", 400)
+    now = now or utcnow()
+    doc = _open_doc(db, account, now)
+    review = doc[FIELD]
+    old = review.get("contact") if contact_view(review) else None
+    contact = {"round": _deadline(review), "at": (old or {}).get("at") or now, "by": (old or {}).get("by") or by,
+               "reply": reply, "situation": situation, "roles": roles, "until": until,
+               "reply_at": now, "note": note.strip()}
+    db.users.update_one({"_id": doc["_id"]}, {"$set": {f"{FIELD}.contact": contact}})
+    return contact_view({"deadline": contact["round"], "contact": contact})

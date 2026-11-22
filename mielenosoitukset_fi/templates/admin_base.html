@@ -280,7 +280,7 @@ function confirmAction(action, taskId) {
         </li>
       {% endif %}
 
-      {% if current_user.has_permission("LIST_CASES") %}
+      {% if current_user.has_permission("LIST_CASES") or (current_user.manages_an_organization and current_user.manages_an_organization()) %}
         <li class="nav-item">
           <a class="nav-link admin-sidebar-link {% if admin_endpoint.startswith('admin_case.') %}active{% endif %}" href="{{ url_for('admin_case.cases') }}">
             <i class="fas fa-briefcase me-2"></i>{{ _('Tapaukset') }}

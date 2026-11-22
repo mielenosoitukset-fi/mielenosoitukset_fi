@@ -299,6 +299,15 @@ def has_demo_permission(user, _id, permission_name, collection="demonstrations")
             )
             return True
 
+    if permission_name == "ACCEPT_DEMO" and collection == "demonstrations":
+        # The organisations' own approval right (granted in Hallinto) lets their admins decide.
+        from mielenosoitukset_fi.utils import org_approval_right
+
+        if org_approval_right.user_may_approve(user, demo_doc):
+            logger.info("Demo permission granted: user %s by organisation approval right for %s.",
+                        getattr(user, "id", None), demo_id)
+            return True
+
     logger.info(
         "Demo permission denied: user %s lacks '%s' for demonstration %s.",
         getattr(user, "id", None),
@@ -309,6 +318,17 @@ def has_demo_permission(user, _id, permission_name, collection="demonstrations")
 
 
 def has_demo_approval_permission(user, demo=None):
+    """May the user decide the demonstration: an ACCEPT_DEMO grant or the organisation's approval right."""
+    if has_site_demo_approval_permission(user, demo):
+        return True
+    from mielenosoitukset_fi.utils import org_approval_right
+
+    if demo is None:
+        return org_approval_right.user_holds_any_right(user)
+    return org_approval_right.user_may_approve(user, demo)
+
+
+def has_site_demo_approval_permission(user, demo=None):
     """Check explicit ACCEPT_DEMO grants without treating edit access as approval."""
     if user is None or not getattr(user, "is_authenticated", False):
         return False

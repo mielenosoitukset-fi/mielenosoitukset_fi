@@ -8,7 +8,9 @@ from bson import ObjectId
 from mielenosoitukset_fi.admin import grant_proofs, moderator_appointments
 from mielenosoitukset_fi.admin.hallinto_city_grant_api import (
     AUDIENCE, attestation_message, moderator_attestation_message, moderator_end_attestation_message,
+    shift_approval_attestation_message,
 )
+from mielenosoitukset_fi.admin import shift_approvals
 from mielenosoitukset_fi.utils import duty_shifts
 from tests.conftest import _user_doc
 from tests.test_hallinto_city_grant_api import (  # noqa: F401  (api is a fixture)
@@ -298,9 +300,63 @@ def test_duty_shift_read_route_shows_names_and_times_only(api):
     assert response.status_code == 200, response.get_json()
     shifts = response.get_json()["shifts"]
     assert [(s["moderator"], s["state"]) for s in shifts] == [("Maija Moderaattori", "requested")]
-    assert set(shifts[0]) == {"starts_at", "ends_at", "moderator", "state"}
+    assert set(shifts[0]) == {"starts_at", "ends_at", "moderator", "state", "id", "approvers"}
+    assert shifts[0]["approvers"] == [str(approver)]
     assert kept["_id"]
     # Only the workload may read it, and only a sensible window.
     assert client.get(f"/internal/hallinto/v1/duty-shifts?from={day}").status_code == 403
     assert client.get("/internal/hallinto/v1/duty-shifts?from=nonsense", headers=headers).status_code == 422
     assert client.get(f"/internal/hallinto/v1/duty-shifts?from={day}&days=60", headers=headers).status_code == 422
+
+
+def _decide(client, shift, action, approver, *, reason="", issued=None, message=shift_approval_attestation_message,
+            headers=True):
+    body = {"shift_id": str(shift["_id"]), "action": action, "approver_account_id": str(approver),
+            "issued_at": (issued or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "reason": reason, "authority_attestation": "-"}
+    digest = shift_approvals.intent_digest(body) or "0" * 64
+    body["authority_attestation"] = _b64url(SIGNER.sign(message(digest)))
+    return client.post("/internal/hallinto/v1/shift-approvals", json=body,
+                       headers=_headers(key=None) if headers else {})
+
+
+def test_a_shift_is_approved_or_rejected_by_an_approver_named_by_hallinto(api):
+    env, _ = _env(api)
+    app, client, db, seeded = env
+    moderator, approver, stranger = _person(db, "moderator"), _person(db, "approver"), _person(db, "stranger")
+    body, digest = _body(app, db, moderator, [approver])
+    assert _post(env, body, digest).status_code == 200
+    grant = db[duty_shifts.GRANTS].find_one({"user_id": moderator})
+    start = duty_shifts.block_start(datetime.now(timezone.utc)) + timedelta(hours=2)
+    book = lambda offset: duty_shifts.add_shift(
+        db, grant_id=grant["_id"], starts_at=start + timedelta(hours=offset),
+        ends_at=start + timedelta(hours=offset + 2), source={"decision": "vuoro"}, actor={"id": str(moderator)})
+    first, second = book(0), book(2)
+
+    # Not the workload, a wrong signature, a stranger and the moderator are all refused.
+    assert _decide(client, first, "approve", approver, headers=False).status_code == 403
+    assert _decide(client, first, "approve", approver, message=moderator_attestation_message).status_code == 403
+    assert _decide(client, first, "approve", stranger).status_code == 403
+    assert _decide(client, first, "approve", moderator).status_code == 403
+    assert not db.moderator_shifts.find_one({"_id": first["_id"]}).get("approved_at")
+    # A stale order is refused.
+    old = datetime.now(timezone.utc) - timedelta(minutes=20)
+    assert _decide(client, first, "approve", approver, issued=old).status_code == 409
+
+    ok = _decide(client, first, "approve", approver)
+    assert ok.status_code == 200 and ok.get_json()["state"] == "approved"
+    assert _decide(client, first, "approve", approver).status_code == 200  # replay changes nothing
+    saved = db.moderator_shifts.find_one({"_id": first["_id"]})
+    assert saved["approved_by"]["id"] == str(approver) and saved["approved_by"]["via"] == "hallinto"
+    assert _decide(client, first, "reject", approver, reason="ei käy").status_code == 409  # already approved
+
+    assert _decide(client, second, "reject", approver).status_code == 422  # reason required
+    rejected = _decide(client, second, "reject", approver, reason="päällekkäinen")
+    assert rejected.status_code == 200 and rejected.get_json()["state"] == "cancelled"
+    assert "Hylätty" in db.moderator_shifts.find_one({"_id": second["_id"]})["cancel_reason"]
+    assert _decide(client, second, "approve", approver).status_code == 409
+
+    # A frozen appointment approves nothing.
+    third = book(4)
+    duty_shifts.set_frozen(db, grant_id=grant["_id"], frozen=True, reason="tutkinta", actor={"id": str(approver)})
+    assert _decide(client, third, "approve", approver).status_code == 409

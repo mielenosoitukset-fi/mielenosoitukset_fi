@@ -331,6 +331,13 @@ class Config:
         # Outbound organization invitations from Hallinto (O6). Off until OT and the maintainer switch it on.
         cls.ORG_OUTREACH_ENABLED = config.get("ORG_OUTREACH_ENABLED", False)
         cls.ORG_RECOVERY_ENABLED = config.get("ORG_RECOVERY_ENABLED", False)
+        # org_admin role follows owner/admin membership (Olivia, 22 Nov 2026). The
+        # grants carry no rights beyond the membership role until the cutover, so
+        # the sync is on by default; Hallinto's end route is a separate, off switch.
+        cls.ORG_ADMIN_ROLE_ENABLED = config.get("ORG_ADMIN_ROLE_ENABLED", True)
+        cls.ORG_ADMIN_HALLINTO_ENABLED = config.get("ORG_ADMIN_HALLINTO_ENABLED", False)
+        # Organisation right to approve its own demos (Hallinto grants it). Off until all Flask parts are live.
+        cls.ORG_APPROVAL_RIGHT_ENABLED = config.get("ORG_APPROVAL_RIGHT_ENABLED", False)
         # Hätäsulku ordered from Hallinto (decision recorded there). Off: the order route answers 404. The Flask page always works.
         cls.HALLINTO_LOCKDOWN_ORDERS_ENABLED = config.get("HALLINTO_LOCKDOWN_ORDERS_ENABLED", False)
         # Hallinto server egress IPs: their /hallinto-oidc/ backchannel calls skip the per-IP rate limit.

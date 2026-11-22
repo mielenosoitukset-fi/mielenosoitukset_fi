@@ -530,6 +530,10 @@ def _receipt_identity(operation: dict) -> dict:
         "decision_id": intent["decision_id"],
         "decision_revision": intent["decision_revision"],
     }
+    if "right" in intent:
+        # An organisation right (org_rights.py); it names an organisation, not an account.
+        named = {key: intent[key] for key in ("grant_id", "refusal_id", "case_id", "kind") if key in intent}
+        return {**identity, **named, "organization_id": intent["organization_id"], "right": intent["right"]}
     if "request_id" in intent:
         # An organization access recovery (org_recovery.py); it names an organization, not an account.
         return {**identity, "request_id": intent["request_id"], "case_id": intent["case_id"],
@@ -544,6 +548,10 @@ def _receipt_identity(operation: dict) -> dict:
             identity["account_id"] = intent["account_id"]
         return identity
     identity["account_id"] = operation["account_id"]
+    if "end_id" in intent:
+        # Ending an org_admin grant (org_admin_grants.py); it names an organisation.
+        return {**identity, "end_id": intent["end_id"], "kind": intent["kind"],
+                "organization_id": intent["organization_id"]}
     if "kind" in intent:
         return {**identity, "appointment_id": intent["appointment_id"], "kind": intent["kind"]}
     return {**identity, "valid_until": intent["valid_until"]}

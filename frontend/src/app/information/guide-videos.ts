@@ -28,6 +28,7 @@ export const guideVideoGroups: GuideVideoGroup[] = [
     videos: [
       { id: 'd1-organisaatiotili', title: 'Hae organisaatiotiliä', minutes: 4, summary: 'Organisaation tilin hakeminen.' },
       { id: 'd3-ota-kutsu-vastaan', title: 'Ota kutsu vastaan', minutes: 3, summary: 'Organisaation kutsun hyväksyminen.' },
+      { id: 'd5-paasy-hukassa', title: 'Pääsy organisaation tiliin hukassa', minutes: 3, summary: 'Pyyntö uudesta hallinnoijasta, kun kukaan ei pääse tiliin.' },
     ],
   },
   {

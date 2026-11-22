@@ -416,7 +416,11 @@ class User(UserMixin):
     def memberships(self) -> List[MemberShip]:
         """Lazy‑load & cache MemberShip rows for this user."""
         if self._memberships is None:
-            self._memberships = MemberShip.all_per_user(self._id)
+            from mielenosoitukset_fi.utils.org_admin_role import with_org_admin_grants
+
+            self._memberships = with_org_admin_grants(
+                MemberShip.all_per_user(self._id), self.admin_scope_grants,
+            )
         return self._memberships
 
     def org_ids(self) -> List[ObjectId]:

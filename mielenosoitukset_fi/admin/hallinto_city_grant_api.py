@@ -34,8 +34,8 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Blueprint, current_app, g, jsonify, request, url_for
 
 from . import (
-    city_grants, elevated_grants, flask_orders, grant_proofs, moderator_appointments, org_outreach, org_recovery,
-    role_bundles,
+    city_grants, elevated_grants, flask_orders, grant_proofs, moderator_appointments, org_admin_grants,
+    org_outreach, org_recovery, org_rights, role_bundles,
 )
 
 HELSINKI = ZoneInfo("Europe/Helsinki")
@@ -48,9 +48,14 @@ MODERATOR_ATTESTATION_CONTEXT = b"hallinto-national-moderator-v1-attestation\n"
 MODERATOR_END_ATTESTATION_CONTEXT = b"hallinto-national-moderator-end-v1-attestation\n"
 BUNDLE_ATTESTATION_CONTEXT = b"hallinto-role-bundle-v1-attestation\n"
 BUNDLE_END_ATTESTATION_CONTEXT = b"hallinto-role-bundle-end-v1-attestation\n"
+SHIFT_APPROVAL_ATTESTATION_CONTEXT = b"hallinto-shift-approval-v1-attestation\n"
 ELEVATED_ATTESTATION_CONTEXT = b"hallinto-elevated-v1-attestation\n"
 INVITATION_ATTESTATION_CONTEXT = b"hallinto-org-invitation-v1-attestation\n"
 RECOVERY_ATTESTATION_CONTEXT = b"hallinto-org-recovery-v1-attestation\n"
+ORG_ADMIN_END_ATTESTATION_CONTEXT = b"hallinto-org-admin-end-v1-attestation\n"
+ORG_RIGHT_ATTESTATION_CONTEXT = b"hallinto-org-right-v1-attestation\n"
+ORG_RIGHT_REFUSAL_ATTESTATION_CONTEXT = b"hallinto-org-right-refusal-v1-attestation\n"
+ORG_RIGHT_END_ATTESTATION_CONTEXT = b"hallinto-org-right-end-v1-attestation\n"
 
 
 def attestation_message(intent_digest: str) -> bytes:
@@ -85,6 +90,10 @@ def moderator_attestation_message(intent_digest: str) -> bytes:
     return MODERATOR_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
+def shift_approval_attestation_message(intent_digest: str) -> bytes:
+    return SHIFT_APPROVAL_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
 def moderator_end_attestation_message(intent_digest: str) -> bytes:
     """Ending signs its own context, so an appointment signature never ends one."""
     return MODERATOR_END_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
@@ -92,6 +101,25 @@ def moderator_end_attestation_message(intent_digest: str) -> bytes:
 
 def bundle_attestation_message(intent_digest: str) -> bytes:
     return BUNDLE_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def org_admin_end_attestation_message(intent_digest: str) -> bytes:
+    """Ending an org_admin grant signs its own context."""
+    return ORG_ADMIN_END_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def org_right_attestation_message(intent_digest: str) -> bytes:
+    """Granting the organisation's approval right signs its own context."""
+    return ORG_RIGHT_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def org_right_refusal_attestation_message(intent_digest: str) -> bytes:
+    return ORG_RIGHT_REFUSAL_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def org_right_end_attestation_message(intent_digest: str) -> bytes:
+    """A grant signature can never end a right."""
+    return ORG_RIGHT_END_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def bundle_end_attestation_message(intent_digest: str) -> bytes:
@@ -245,9 +273,29 @@ def build_blueprint(db) -> Blueprint:
             span = int(request.args.get("days", "7"))
             start = datetime(day.year, day.month, day.day, tzinfo=HELSINKI).astimezone(timezone.utc)
             return jsonify({"shifts": duty_shifts.week_overview(
-                db, start, start + timedelta(days=span))})
+                db, start, start + timedelta(days=span), with_approval=True)})
         except (ValueError, OverflowError, duty_shifts.DutyError):
             return _error("unsupported_scope")
+
+    @bp.post("/shift-approvals")
+    def decide_shift():
+        """Approve or reject a booked shift for an approver Hallinto names.
+
+        Signed by Hallinto for exactly this shift, action, approver and moment.
+        Flask still checks that the account approves this moderator's shifts.
+        """
+        from . import shift_approvals
+
+        body = request.get_json(silent=True)
+        digest = shift_approvals.intent_digest(body)
+        if digest is None:
+            return _error("unsupported_scope")
+        if not _attestation_ok(body["authority_attestation"], digest, shift_approval_attestation_message):
+            return _error("denied")
+        status, payload = shift_approvals.apply(db, body)
+        response = jsonify(payload)
+        response.status_code = status
+        return response
 
     @bp.post("/moderator-appointments")
     def apply_moderator_appointment():
@@ -318,6 +366,121 @@ def build_blueprint(db) -> Blueprint:
         return _reply(role_bundles.apply_role_bundle_end_v1(
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
         ))
+
+    def _org_admin_on() -> bool:
+        return current_app.config.get("ORG_ADMIN_HALLINTO_ENABLED") is True
+
+    @bp.post("/org-admin-ends")
+    def end_org_admin():
+        if not _org_admin_on():
+            return "", 404
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = org_admin_grants.end_digest(body)
+        if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key) or body["end_id"] != key:
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_ORG_ADMIN_END_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, org_admin_end_attestation_message):
+            return _error("denied")
+        return _reply(org_admin_grants.apply_org_admin_end_v1(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
+    @bp.get("/org-admins/<account_id>")
+    def read_org_admin_account(account_id):
+        """Read only, workload identity only: which organisations the account administers."""
+        if not _org_admin_on():
+            return "", 404
+        state = org_admin_grants.read_account_state(db, account_id)
+        return jsonify(state) if state is not None else _error("unsupported_scope")
+
+    @bp.get("/organizations/<organization_id>/org-admins")
+    def read_organization_org_admins(organization_id):
+        if not _org_admin_on():
+            return "", 404
+        state = org_admin_grants.read_organization_admins(db, organization_id)
+        return jsonify(state) if state is not None else _error("unsupported_scope")
+
+    def _org_right_on() -> bool:
+        return current_app.config.get("ORG_APPROVAL_RIGHT_ENABLED") is True
+
+    @bp.get("/org-right-requests")
+    def read_org_right_requests():
+        """Read only, workload identity only: the organisations' requests for the approval right."""
+        if not _org_right_on():
+            return "", 404
+        feed = org_rights.request_feed(db, request.args.get("status", "open"))
+        return jsonify(feed) if feed is not None else _error("unsupported_scope")
+
+    @bp.post("/org-rights")
+    def grant_org_right():
+        if not _org_right_on():
+            return "", 404
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = org_rights.grant_digest(body)
+        if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key) or body["grant_id"] != key:
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_ORG_RIGHT_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, org_right_attestation_message):
+            return _error("denied")
+        return _reply(org_rights.apply_grant(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
+    @bp.post("/org-right-requests/<case_id>/refusal")
+    def refuse_org_right(case_id):
+        if not _org_right_on():
+            return "", 404
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = org_rights.refusal_digest(body)
+        if (digest is None or not city_grants.IDEMPOTENCY_KEY.match(key) or body["refusal_id"] != key
+                or body["case_id"] != case_id):
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_ORG_RIGHT_REFUSAL_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest,
+                                                   org_right_refusal_attestation_message):
+            return _error("denied")
+        return _reply(org_rights.apply_refusal(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
+    @bp.post("/org-rights/<grant_id>/end")
+    def end_org_right(grant_id):
+        if not _org_right_on():
+            return "", 404
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = org_rights.end_digest(body)
+        if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key) or body["grant_id"] != grant_id:
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_ORG_RIGHT_END_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest,
+                                                   org_right_end_attestation_message):
+            return _error("denied")
+        return _reply(org_rights.apply_end(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
+    @bp.get("/org-rights/<organization_id>")
+    def read_org_right(organization_id):
+        if not _org_right_on():
+            return "", 404
+        state = org_rights.read_state(db, organization_id)
+        return jsonify(state) if state is not None else _error("unsupported_scope")
 
     def _outreach_on() -> bool:
         return current_app.config.get("ORG_OUTREACH_ENABLED") is True
@@ -466,6 +629,14 @@ def _decode_fields(raw: str):
         if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN and not _lockdown_orders_on():
             return None
         return fields if set(fields) == ORDER_APPROVAL_FIELDS.get(fields.get("kind")) else None
+    if org_admin_grants.is_org_admin_fields(fields):
+        if current_app.config.get("ORG_ADMIN_HALLINTO_ENABLED") is not True:
+            return None
+        return fields if set(fields) == org_admin_grants.END_APPROVAL_FIELDS else None
+    if org_rights.is_right_fields(fields):
+        if current_app.config.get("ORG_APPROVAL_RIGHT_ENABLED") is not True:
+            return None
+        return fields if org_rights.field_kind(fields) else None
     if "request_id" in fields and "need" in fields:
         return fields if set(fields) == RECOVERY_APPROVAL_FIELDS else None
     if "invitation_id" in fields:
@@ -542,6 +713,25 @@ def build_approval_blueprint(db) -> Blueprint:
         state_param = request.values.get("state", "")
         if fields is None or not STATE.match(state_param):
             abort(400)
+        if org_rights.is_right_fields(fields):
+            state = org_rights.approval_state(db, fields)
+            if state is None:
+                abort(400)
+            kind = state["kind"]
+            terms = {**fields, "authority_attestation": "-"}
+            digest = (org_rights.grant_digest({**terms, "expected_state": state["expected_state"]}) if kind == "grant"
+                      else org_rights.refusal_digest(terms) if kind == "refusal" else org_rights.end_digest(terms))
+            if digest is None:
+                abort(400)
+            return fields, state_param, state, digest
+        if org_admin_grants.is_org_admin_fields(fields):
+            digest = org_admin_grants.end_digest({**fields, "authority_attestation": "-"})
+            organization = (db.organizations.find_one({"_id": ObjectId(fields["organization_id"])}, {"name": 1})
+                            if digest and org_admin_grants._id_ok(fields["organization_id"]) else None)
+            if digest is None or organization is None or not org_admin_grants._id_ok(fields["account_id"]):
+                abort(400)
+            # Ending is idempotent and only removes access: no expected_state.
+            return fields, state_param, {"eligible": True, "organization_name": organization.get("name") or ""}, digest
         if "request_id" in fields:
             if current_app.config.get("ORG_RECOVERY_ENABLED") is not True:
                 abort(404)
@@ -645,6 +835,9 @@ def build_approval_blueprint(db) -> Blueprint:
             added_names = [names.get(a, "?") for a in fields["roster"] if a not in current]
         is_end = "kind" in fields and not is_order and not is_invite
         is_elevated = _is_elevated(fields)
+        is_org_admin = org_admin_grants.is_org_admin_fields(fields)
+        is_org_right = org_rights.is_right_fields(fields)
+        right_kind = state.get("kind") if is_org_right else ""
         is_bundle = _is_bundle(fields)
         bundle = role_bundles.BUNDLES.get(fields.get("template")) if is_bundle else None
         is_moderator = moderator_appointments.is_moderator_fields(fields)
@@ -663,11 +856,14 @@ def build_approval_blueprint(db) -> Blueprint:
                       else "Vahvista sivuston avaaminen" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN
                       else "Vahvista ylläpitotilien tarkistus" if fields.get("kind") == flask_orders.KIND_ACCESS_REVIEW
                       else "Vahvista hallitustiimin päivitys" if is_order
+                      else {"grant": "Vahvista hyväksymisoikeuden myöntäminen", "refusal": "Vahvista hyväksymisoikeuspyynnön hylkääminen",
+                            "end": "Vahvista hyväksymisoikeuden päättäminen"}[right_kind] if is_org_right
+                      else "Vahvista organisaation ylläpito-oikeuden päättäminen" if is_org_admin
                       else "Vahvista roolipaketin päättäminen" if (is_end and is_bundle)
                       else "Vahvista roolipaketti" if is_bundle
                       else "Vahvista nimityksen päättäminen" if is_end else "Vahvista nimitys")
         last_day = ""
-        if not is_end and not is_order and not is_invite and not is_recovery:
+        if not is_end and not is_order and not is_invite and not is_recovery and "valid_until" in fields:
             end = city_grants.parse_valid_until(fields["valid_until"])
             last_day = (end.replace(tzinfo=timezone.utc).astimezone(HELSINKI)
                         - timedelta(seconds=1)).strftime("%-d.%-m.%Y")
@@ -683,6 +879,8 @@ def build_approval_blueprint(db) -> Blueprint:
             recovery_replaced=(state.get("replaced_owners", 0) if is_recovery else 0),
             is_elevated=is_elevated, elevated_label=elevated_grants.TEMPLATES.get(fields.get("template"), ""),
             is_moderator=is_moderator, approver_names=approver_names,
+            is_org_right=is_org_right, right_kind=right_kind, right_state=(state if is_org_right else {}),
+            is_org_admin=is_org_admin, org_admin_organization=(state.get("organization_name", "") if is_org_admin else ""),
             is_bundle=is_bundle, bundle_label=(bundle or {}).get("label", ""), permission_copy=permission_copy,
             page_title=page_title,
             eligible=state["eligible"],
@@ -706,7 +904,11 @@ def build_approval_blueprint(db) -> Blueprint:
         is_recovery = "request_id" in fields
         is_end = "kind" in fields and not is_order and not is_invite
         is_bundle = _is_bundle(fields)
-        action = (grant_proofs.ACTION_ELEVATED_V1 if _is_elevated(fields)
+        is_org_right = org_rights.is_right_fields(fields)
+        action = ({"grant": grant_proofs.ACTION_ORG_RIGHT_V1, "refusal": grant_proofs.ACTION_ORG_RIGHT_REFUSAL_V1,
+                   "end": grant_proofs.ACTION_ORG_RIGHT_END_V1}[state["kind"]] if is_org_right
+                  else grant_proofs.ACTION_ORG_ADMIN_END_V1 if org_admin_grants.is_org_admin_fields(fields)
+                  else grant_proofs.ACTION_ELEVATED_V1 if _is_elevated(fields)
                   else (grant_proofs.ACTION_MODERATOR_END_V1 if is_end else grant_proofs.ACTION_MODERATOR_V1)
                   if moderator_appointments.is_moderator_fields(fields)
                   else grant_proofs.ACTION_ORG_INVITATION_V1 if is_invite
@@ -719,7 +921,10 @@ def build_approval_blueprint(db) -> Blueprint:
             intent_digest=digest, factor=factor, subject=fields.get("account_id"),
         )
         returned = {"state": state_param, "proof": proof}
-        if not is_end and not is_order and not is_invite:
+        if is_org_right:
+            if state["kind"] == "grant":
+                returned["expected_state"] = state["expected_state"]
+        elif not is_end and not is_order and not is_invite:
             returned["expected_state"] = state["expected_state"]
         fragment = urlencode(returned)
         response = _no_framing(redirect(_settings()["return_url"] + "#" + fragment, code=303))

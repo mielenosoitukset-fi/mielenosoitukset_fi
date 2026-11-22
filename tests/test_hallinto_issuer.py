@@ -377,6 +377,12 @@ def test_account_search_needs_a_live_admin_sign_in(owner, db):
         db.users.update_one({"_id": member}, {"$set": {"security_suspension": {"active": True}}})
         looked = _accounts(app.test_client(), claims, "lookup", {"ids": [str(member), "0" * 24]}).json["items"]
         assert looked == [{"sub": str(member), "username": "hallinto-member", "name": "Jäsen Esimerkki", "active": False}]
+        # The profile picture is shared only as a plain https address.
+        db.users.update_one({"_id": member}, {"$set": {"profile_picture": "https://cdn.example.test/p.png"}})
+        pic = _accounts(app.test_client(), claims, "lookup", {"ids": [str(member)]}).json["items"][0]
+        assert pic["picture"] == "https://cdn.example.test/p.png"
+        db.users.update_one({"_id": member}, {"$set": {"profile_picture": "http://cdn.example.test/p.png"}})
+        assert "picture" not in _accounts(app.test_client(), claims, "lookup", {"ids": [str(member)]}).json["items"][0]
         assert _accounts(app.test_client(), claims, "lookup", {"ids": ["not-an-id"]}).status_code == 400
         assert _accounts(app.test_client(), claims, "lookup", {"ids": [str(member)] * 101}).status_code == 400
         # Signing out of Hallinto ends access.

@@ -123,6 +123,35 @@ def _candidate_users(db):
     return [doc for doc in db.users.find({"_id": {"$in": list(ids)}}) if active_account(doc)]
 
 
+def _org_admin_candidates(db, case_id):
+    """Admins and owners of the organisations a case is about."""
+    from mielenosoitukset_fi.utils.case_access import ORG_ROLES
+
+    case = db.cases.find_one({"_id": case_id}, {"demo_id": 1, "organization_id": 1}) or {}
+    org_ids = set()
+    if case.get("organization_id") and ObjectId.is_valid(str(case["organization_id"])):
+        org_ids.add(ObjectId(str(case["organization_id"])))
+    demo_id = case.get("demo_id")
+    if demo_id and ObjectId.is_valid(str(demo_id)):
+        demo = db.demonstrations.find_one({"_id": ObjectId(str(demo_id))}, {"organizers": 1}) or {}
+        for organizer in demo.get("organizers") or []:
+            org_id = organizer.get("organization_id") if isinstance(organizer, dict) else None
+            if org_id and ObjectId.is_valid(str(org_id)):
+                org_ids.add(ObjectId(str(org_id)))
+    if not org_ids:
+        return []
+    forms = list(org_ids) + [str(value) for value in org_ids]
+    user_ids = {
+        ObjectId(str(doc["user_id"]))
+        for doc in db.memberships.find(
+            {"organization_id": {"$in": forms}, "role": {"$in": sorted(ORG_ROLES)}}, {"user_id": 1})
+        if ObjectId.is_valid(str(doc.get("user_id", "")))
+    }
+    if not user_ids:
+        return []
+    return [doc for doc in db.users.find({"_id": {"$in": list(user_ids)}}) if active_account(doc)]
+
+
 def _can_view(db, user, case_id):
     scope = case_scope_query(user, "VIEW_CASE")
     if scope is None:
@@ -135,7 +164,11 @@ def case_recipients(db, case_id, users=None):
     from mielenosoitukset_fi.users.models import User
 
     recipients = []
-    for doc in users if users is not None else _candidate_users(db):
+    if users is None:
+        users = _candidate_users(db)
+        known = {doc["_id"] for doc in users}
+        users = users + [doc for doc in _org_admin_candidates(db, case_id) if doc["_id"] not in known]
+    for doc in users:
         try:
             user = User.from_db(doc)
             if _can_view(db, user, case_id):
@@ -156,7 +189,7 @@ def _payload(db, case):
 
 
 def wants_email(doc, user):
-    """Global case admins always get mail; city-scoped admins opt in."""
+    """Global case admins always get mail; city-scoped and organisation admins opt in."""
     return global_case_permission(user, "VIEW_CASE") or doc.get("case_notice_emails") is True
 
 
@@ -211,7 +244,9 @@ def deliver_pending(db, now=None, limit=100, email_sender=None):
     delivered = 0
     for case in cases:
         try:
-            notified = notify_case(db, case, users=users, email_sender=email_sender)
+            known = {doc["_id"] for doc in users}
+            case_users = users + [doc for doc in _org_admin_candidates(db, case["_id"]) if doc["_id"] not in known]
+            notified = notify_case(db, case, users=case_users, email_sender=email_sender)
         except Exception:
             logger.exception("Failed to notify admins about case %s", case.get("_id"))
             continue

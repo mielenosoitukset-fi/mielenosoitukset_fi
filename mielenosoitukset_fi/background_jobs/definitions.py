@@ -30,6 +30,7 @@ from mielenosoitukset_fi.scripts.notify_overdue_moderation_reviews import main a
 from mielenosoitukset_fi.scripts.deliver_city_admin_applications import main as deliver_city_admin_applications
 from mielenosoitukset_fi.scripts.purge_city_admin_applications import main as purge_city_admin_applications
 from mielenosoitukset_fi.scripts.deliver_case_notices import main as deliver_case_notices
+from mielenosoitukset_fi.scripts.sync_org_admins import main as sync_org_admins
 from mielenosoitukset_fi.scripts.deliver_fundraising_reminder_confirmations import main as deliver_fundraising_reminder_confirmations
 from mielenosoitukset_fi.scripts.send_fundraising_reminders import main as send_fundraising_reminders
 from mielenosoitukset_fi.scripts.purge_fundraising_reminders import main as purge_fundraising_reminders
@@ -56,6 +57,9 @@ class JobDefinition:
     default_trigger: Dict[str, Any]
     allow_manual_trigger: bool = True
     allow_interval_override: bool = True
+    # One-time jobs: run this many seconds after the scheduler starts instead of one
+    # interval later, so frequent restarts (deploys) cannot keep pushing the first run away.
+    first_run_delay_seconds: int = 0
 
     def to_document(self) -> Dict[str, Any]:
         """Return the MongoDB document fragment containing immutable job info."""
@@ -209,6 +213,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         default_trigger=_interval(minutes=2),
     ),
     JobDefinition(
+        key="sync_org_admins",
+        name="Organisation admin roles",
+        description="Keeps each account's org_admin grants equal to its owner/admin memberships, including changes made by the Go API. Switch off with ORG_ADMIN_ROLE_ENABLED=0.",
+        func=sync_org_admins,
+        default_trigger=_interval(minutes=5),
+    ),
+    JobDefinition(
         key="deliver_case_notices",
         name="Demo suggestions and new case notices",
         description="Opens a case for each open demonstration suggestion (DEMO_SUGGESTION_CASES_ENABLED) and sends a site inbox notice about each new case to the admins who may view it (CASE_NOTIFICATIONS_ENABLED). Does nothing unless a switch is set. Sends no e-mail.",
@@ -277,6 +288,7 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         description="One-time job: copies old organization events from admin_logs (who, when, action; verified before/after) into the change history, marked as legacy. Safe to repeat; does nothing after its first finished run.",
         func=backfill_org_history,
         default_trigger=_interval(hours=1),
+        first_run_delay_seconds=90,
     ),
     JobDefinition(
         key="deliver_pride_banner_confirmations",
