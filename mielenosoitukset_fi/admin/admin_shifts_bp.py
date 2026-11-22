@@ -25,6 +25,7 @@ HELSINKI = ZoneInfo("Europe/Helsinki")
 ERRORS = {
     "invalid_window": "Tarkista vuoron alku ja loppu: lopun pitää olla alun jälkeen ja tulevaisuudessa.",
     "outside_appointment": "Vuoro ei mahdu nimityksen voimassaoloon.",
+    "frozen_appointment": "Nimitys on jäädytetty, vuoroja ei voi varata eikä hyväksyä.",
     "unknown_grant": "Nimitystä ei löytynyt tai se on peruttu.",
     "unknown_shift": "Vuoroa ei löytynyt.",
     "not_allowed": "Sinulla ei ole oikeutta tähän vuoroon.",

@@ -75,9 +75,15 @@ def test_cancel_freeze_and_revoke_end_rights_at_once(app, db):
 
     assert duty_shifts.set_frozen(db, grant_id=grant["_id"], frozen=True, reason="tutkinta", actor=actor)
     assert duty_shifts.active_duty(db, user_id, now) is None
+    # A freeze cancels the open shifts; lifting it brings none of them back.
+    assert db.moderator_shifts.find_one({"_id": shift["_id"]})["cancelled_at"]
     assert duty_shifts.set_frozen(db, grant_id=grant["_id"], frozen=False, reason="selvitetty", actor=actor)
+    assert duty_shifts.active_duty(db, user_id, now) is None
+    assert duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=start, ends_at=end,
+                                 source=SOURCE, actor=actor, now=now)
     assert duty_shifts.active_duty(db, user_id, now)
 
+    shift = db.moderator_shifts.find_one({"grant_id": grant["_id"], "cancelled_at": None})
     assert duty_shifts.cancel_shift(db, shift_id=shift["_id"], reason="sairastui", actor=actor)
     # A cancelled shift gets no grace period either.
     assert duty_shifts.active_duty(db, user_id, now) is None
@@ -268,3 +274,35 @@ def test_calendar_shows_every_moderators_shifts_to_each_moderator(app, db, seede
     week = start.astimezone(duty_shifts.HELSINKI).date().isoformat()
     text = _client_for_user(app, mine).get(f"/admin/vuorot/?viikko={week}").get_data(as_text=True)
     assert "Toinen Moderaattori" in text and "Minä" in text
+
+
+def test_a_frozen_appointment_takes_no_bookings_and_loses_open_shifts(app, db):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    start, end = _block(now, 3)
+    grant, shift, actor = _appoint_with_shift(db, user_id, start, end, now=now)
+    later_start, later_end = _block(now, 5)
+    other = duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=later_start, ends_at=later_end,
+                                  source=SOURCE, actor=actor, now=now)
+
+    assert duty_shifts.set_frozen(db, grant_id=grant["_id"], frozen=True, reason="tutkinta", actor=actor)
+    for row in (shift, other):
+        assert db.moderator_shifts.find_one({"_id": row["_id"]})["cancelled_at"]
+
+    own = {"id": str(user_id), "username": "moderator", "via": "test"}
+    new_start, new_end = _block(now, 7)
+    for who in (own, actor):
+        with pytest.raises(DutyError) as refused:
+            duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=new_start, ends_at=new_end,
+                                  source=SOURCE, actor=who, now=now)
+        assert refused.value.code == "frozen_appointment"
+    assert db.moderator_shifts.count_documents({"grant_id": grant["_id"], "cancelled_at": None}) == 0
+
+
+def test_revoking_cancels_open_shifts(app, db):
+    now = datetime.now(timezone.utc)
+    user_id = _moderator(db)
+    start, end = _block(now, 3)
+    grant, shift, actor = _appoint_with_shift(db, user_id, start, end, now=now)
+    assert duty_shifts.revoke(db, grant_id=grant["_id"], reason="päättyi", actor=actor)
+    assert db.moderator_shifts.find_one({"_id": shift["_id"]})["cancelled_at"]
