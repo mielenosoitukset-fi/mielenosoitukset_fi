@@ -143,6 +143,17 @@ An account gets one named bundle by an appointment decision: a role and an exact
 
 `POST /internal/hallinto/v1/role-bundles/{appointment_id}/end` ends the bundle that appointment wrote (revoke or freeze). Body: `appointment_id` (must equal the path), `kind`, `account_id`, `template`, `decision_id`, `decision_revision`, `authority_attestation`. Proof action `role_bundle_end_v1`, attestation context `hallinto-role-bundle-end-v1-attestation\n`. It removes exactly the bundle's role and permissions at once, is idempotent, and leaves a newer bundle alone. Receipt `effective`: `{role, permissions, global_admin, bundle}`; a plain user has `bundle: null`.
 
+## National moderator appointments (`national_moderator_v1`)
+
+A national moderator appointment records who may book duty shifts and who approves them. It grants no rights; rights exist only during an approved shift (`utils/duty_shifts.py`, `admin/moderator_appointments.py`).
+
+`POST /internal/hallinto/v1/moderator-appointments`, Idempotency-Key = appointment id. Same workload identity and proof rules as city appointments, with proof action `national_moderator_v1` and attestation context `hallinto-national-moderator-v1-attestation\n`. Body: `account_id`, `template`, `decision_id`, `decision_revision`, `valid_until`, `self_booking` (bool), `shift_approvers` (sorted, unique Flask account ids, at most 50, never the appointee), `expected_state`, `authority_attestation`. The signed digest is the canonical JSON of the body without the attestation plus the sorted `permissions` (the eight national moderator rights), which Flask adds itself. The approval page takes the same terms without `expected_state` and returns it in the fragment.
+
+- Eligible: an active, confirmed personal account (not an organization account) without a live moderator appointment. Every approver must be an existing account. Otherwise `422 unsupported_scope`.
+- Flask writes one `national_moderators` record (approvers, `self_booking`, the decision and operation ids). It does not touch `users.role` or `users.global_permissions`.
+- Receipt `effective`: `{city: "", permissions (sorted), valid_until}`, plus `resulted_in_city_enablement: false`.
+- Ending (revoke or freeze) is not part of this route yet; it stays an operator step through `duty_shifts.revoke` / `set_frozen`.
+
 ## Outbound organization invitations (O6)
 
 Off unless `ORG_OUTREACH_ENABLED: true` is in `config.yaml` (default `false`) AND the grant config exists. With the flag off the routes answer 404 and the approval page answers 404. The opt-out page is always on.

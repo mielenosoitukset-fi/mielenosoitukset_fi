@@ -33,7 +33,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Blueprint, current_app, g, jsonify, request, url_for
 
-from . import city_grants, flask_orders, grant_proofs, org_outreach, org_recovery, role_bundles
+from . import city_grants, flask_orders, grant_proofs, moderator_appointments, org_outreach, org_recovery, role_bundles
 
 HELSINKI = ZoneInfo("Europe/Helsinki")
 INTEGRATION = "hallinto"
@@ -41,6 +41,7 @@ AUDIENCE = "hallinto-city-grants"
 ATTESTATION_CONTEXT = b"hallinto-city-admin-v1-attestation\n"
 END_ATTESTATION_CONTEXT = b"hallinto-city-admin-end-v1-attestation\n"
 ORDER_ATTESTATION_CONTEXT = b"hallinto-flask-order-v1-attestation\n"
+MODERATOR_ATTESTATION_CONTEXT = b"hallinto-national-moderator-v1-attestation\n"
 BUNDLE_ATTESTATION_CONTEXT = b"hallinto-role-bundle-v1-attestation\n"
 BUNDLE_END_ATTESTATION_CONTEXT = b"hallinto-role-bundle-end-v1-attestation\n"
 INVITATION_ATTESTATION_CONTEXT = b"hallinto-org-invitation-v1-attestation\n"
@@ -68,6 +69,10 @@ def invitation_attestation_message(intent_digest: str) -> bytes:
 
 def recovery_attestation_message(intent_digest: str) -> bytes:
     return RECOVERY_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def moderator_attestation_message(intent_digest: str) -> bytes:
+    return MODERATOR_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def bundle_attestation_message(intent_digest: str) -> bytes:
@@ -206,6 +211,23 @@ def build_blueprint(db) -> Blueprint:
         if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, order_attestation_message):
             return _error("denied")
         return _reply(flask_orders.apply_order(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
+    @bp.post("/moderator-appointments")
+    def apply_moderator_appointment():
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = moderator_appointments.intent_digest(body)
+        if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key):
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_MODERATOR_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, moderator_attestation_message):
+            return _error("denied")
+        return _reply(moderator_appointments.apply_v1(
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
         ))
 
@@ -357,6 +379,8 @@ def _decode_fields(raw: str):
     if "invitation_id" in fields:
         allowed = INVITATION_APPROVAL_FIELDS
         return fields if INVITATION_APPROVAL_FIELDS <= set(fields) <= allowed | {"note"} else None
+    if moderator_appointments.is_moderator_fields(fields):
+        return fields if set(fields) == moderator_appointments.APPROVAL_FIELDS else None
     if fields.get("template") in role_bundles.BUNDLES and "city" not in fields:
         wanted = BUNDLE_END_APPROVAL_FIELDS if "kind" in fields else BUNDLE_APPROVAL_FIELDS
         return fields if set(fields) == wanted else None
@@ -437,6 +461,15 @@ def build_approval_blueprint(db) -> Blueprint:
                     {"_id": ObjectId(fields["account_id"])}, {"_id": 1}) is None):
                 abort(400)
             return fields, state_param, {"eligible": True}, digest
+        if moderator_appointments.is_moderator_fields(fields):
+            state = moderator_appointments.read_state(db, str(fields.get("account_id", "")))
+            if state is None:
+                abort(400)
+            digest = moderator_appointments.intent_digest(
+                {**fields, "expected_state": state["expected_state"], "authority_attestation": "-"})
+            if digest is None:
+                abort(400)
+            return fields, state_param, state, digest
         if _is_bundle(fields):
             state = role_bundles.read_bundle_state(db, str(fields.get("account_id", "")), fields["template"])
             if state is None:
@@ -492,7 +525,14 @@ def build_approval_blueprint(db) -> Blueprint:
         is_end = "kind" in fields and not is_order and not is_invite
         is_bundle = _is_bundle(fields)
         bundle = role_bundles.BUNDLES.get(fields.get("template")) if is_bundle else None
+        is_moderator = moderator_appointments.is_moderator_fields(fields)
+        approver_names = []
         permission_copy = []
+        if is_moderator:
+            from mielenosoitukset_fi.admin.permission_copy import PERMISSION_DESCRIPTIONS
+            permission_copy = [str(PERMISSION_DESCRIPTIONS.get(p, p)) for p in moderator_appointments.PERMISSIONS]
+            approver_names = sorted(u.get("displayname") or u.get("username") or "?" for u in db.users.find(
+                {"_id": {"$in": [ObjectId(a) for a in fields["shift_approvers"]]}}, {"username": 1, "displayname": 1}))
         if bundle:
             from mielenosoitukset_fi.admin.permission_copy import PERMISSION_DESCRIPTIONS
             permission_copy = [str(PERMISSION_DESCRIPTIONS.get(p, p)) for p in bundle["permissions"]]
@@ -518,6 +558,7 @@ def build_approval_blueprint(db) -> Blueprint:
             is_invite=is_invite, masked_address=masked, is_recovery=is_recovery,
             recovery_organization=(state.get("name") if is_recovery else ""),
             recovery_replaced=(state.get("replaced_owners", 0) if is_recovery else 0),
+            is_moderator=is_moderator, approver_names=approver_names,
             is_bundle=is_bundle, bundle_label=(bundle or {}).get("label", ""), permission_copy=permission_copy,
             page_title=page_title,
             eligible=state["eligible"],
@@ -541,7 +582,8 @@ def build_approval_blueprint(db) -> Blueprint:
         is_recovery = "request_id" in fields
         is_end = "kind" in fields and not is_order and not is_invite
         is_bundle = _is_bundle(fields)
-        action = (grant_proofs.ACTION_ORG_INVITATION_V1 if is_invite
+        action = (grant_proofs.ACTION_MODERATOR_V1 if moderator_appointments.is_moderator_fields(fields)
+                  else grant_proofs.ACTION_ORG_INVITATION_V1 if is_invite
                   else grant_proofs.ACTION_ORG_RECOVERY_V1 if is_recovery
                   else grant_proofs.ACTION_FLASK_ORDER_V1 if is_order
                   else (grant_proofs.ACTION_ROLE_BUNDLE_END_V1 if is_end else grant_proofs.ACTION_ROLE_BUNDLE_V1) if is_bundle
