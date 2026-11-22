@@ -122,6 +122,16 @@ gentle enough. **Weekly full dump:** it reads the 13.6 GB audit logs; if the
 measured run is still not gentle, change `OnCalendar` of the full timer to the
 first Sunday of the month (`Sun *-*-1..7 01:30:00 UTC`).
 
+## Reaching the old database host (lc-db)
+
+From the maintainer's Mac, take the `IdentityFile` that `~/.ssh/config` names for `lc-db` and
+add `_nopass` to its file name: that sibling key has no passphrase, so
+`ssh -i <IdentityFile>_nopass -o IdentitiesOnly=yes emilia@<lc-db address>` does not prompt.
+Without it the passphrase key is refused when no agent holds it, and moso-prod cannot reach lc-db.
+Mongo on lc-db listens on localhost only, so use an SSH tunnel. Use only this key; do not edit
+`~/.ssh/config` or print key contents. Old `admin_logs` and `super_audit_logs` (before
+20 November 2026) exist only on lc-db until copied to production.
+
 ## Off-site copy, pull model (production since 21 November 2026)
 
 Production moved from lc-main to **lc-moso-01** (`moso-prod`, 10.20.0.20 behind the
