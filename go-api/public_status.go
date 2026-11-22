@@ -67,7 +67,10 @@ func publicAvailability(next http.Handler, read func(context.Context) (bool, err
 	var locked, answered, everLocked bool
 	var readErr error
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/health" || r.URL.Path == "/api/status" {
+		// The campaign page stays readable during a lockdown (it is what the
+		// maintenance page links to), so its two read endpoints pass.
+		if r.URL.Path == "/health" || r.URL.Path == "/api/status" ||
+			r.URL.Path == campaignPublicationPath || r.URL.Path == fundraisingDetailsPath {
 			next.ServeHTTP(w, r)
 			return
 		}

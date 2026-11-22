@@ -1,0 +1,1 @@
+- The access review contact switch (`ACCESS_REVIEW_CONTACT_ENABLED`) is now read from config.yaml, so setting it there turns the mail on.

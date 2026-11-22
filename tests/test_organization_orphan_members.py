@@ -107,7 +107,9 @@ def test_members_batch_loading_cache_and_serialization(db, seeded_data, monkeypa
     collection_type = type(db.users)
     original_find = collection_type.find
     def tracked_find(collection, *args, **kwargs):
-        if collection.name == "users":
+        # Only the batched member lookup ({"_id": {"$in": [...]}}); the org_admin
+        # sync after a membership write reads one account by id.
+        if collection.name == "users" and isinstance(args[0].get("_id"), dict):
             calls.append(args[0])
         return original_find(collection, *args, **kwargs)
     monkeypatch.setattr(collection_type, "find", tracked_find)

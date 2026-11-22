@@ -1,30 +1,28 @@
-# Roles:
+# Organisaation roolit
+
+Rooli antaa oikeudet vain siihen organisaatioon, jossa se on. Omistajat ja adminit saavat ylläpito-oikeudet automaattisesti, ja ne päättyvät, kun rooli päättyy. Rooleja ei nimitetä erikseen.
 
 ## Jäsen
-### Techical:
 slug: member
 
-- Näkee organisaation
-- Pystyy kutsumaan uusia jäseniä organisaatioon
+- Kuuluu organisaation tiimiin ja näkee organisaation tiedot.
+- Ei muokkaus- eikä hallintaoikeuksia.
 
 ## Admin
-### Techical:
 slug: admin
 
-### Mielenosoitukset
-- Pystyy muokkaamaan mielenosoituksia
-- Pystyy hyväksymään järjestäjäpyyntöjä (Tulossa)
-- Pystyy luomaan uusia mielenosoituksia
-- Pystyy poistamaan mielensoituksia
-- Pystyy lähettämään järjestäjäpyyntöjä (Tulossa)
-
-### Organisaatio
-- Pystyy muokkaamaan organisaation tietoja
-- Pystyy antamaan admin tai jäsen tason käyttöoikeudet organisaation jäsenelle.
+- Muokkaa organisaation tietoja.
+- Kutsuu jäseniä ja hallinnoi jäseniä ja admineja.
+- Luo ja muokkaa organisaation mielenosoituksia.
+- Lukee organisaation tapauksia ja lisää niihin merkintöjä (ei muiden ihmisten yhteystietoja).
 
 ## Omistaja
-### Techical:
 slug: owner
-Admin +
 
-Pystyy poistamaan organisaation.
+- Kaikki mitä admin voi.
+- Hallinnoi omistajia: vain omistaja antaa omistajan roolin tai poistaa omistajan. Viimeistä omistajaa ei voi poistaa eikä alentaa.
+- Poistaa organisaation.
+
+## Mielenosoitusten hyväksyminen
+
+Ei kuulu rooleihin. Organisaation omistajat ja adminit päättävät organisaation omien mielenosoitusten tapaukset vain, jos Hallinto on myöntänyt organisaatiolle oikeuden hyväksyä omat mielenosoituksensa. Muuten mielenosoitukset hyväksyy moderaattori.

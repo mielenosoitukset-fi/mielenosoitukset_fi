@@ -1,0 +1,1 @@
+- The admin account review list now tells Hallinto which roles each account holds that a role removal can take away, and marks an account `removed` once it has no reviewable rights left, so its review case can close.
