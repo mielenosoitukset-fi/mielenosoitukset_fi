@@ -1,0 +1,1 @@
+- Superadmin and god appointments decided in Hallinto can now be carried out by Flask through a signed internal route with step-up approval; it is switched off until production activation.
