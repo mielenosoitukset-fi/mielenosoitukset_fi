@@ -309,6 +309,14 @@ def _seed_database(app, db):
                 _mod.mongo = db
             except Exception:
                 pass
+        # Some modules (e.g. ``utils.classes.Organization``) keep the database
+        # that was current when they were first imported as ``DB``; a later app
+        # reset leaves it on a previous test's database.
+        if isinstance(getattr(_mod, "DB", None), type(db)):
+            try:
+                _mod.DB = db
+            except Exception:
+                pass
 
     for collection_name in db.list_collection_names():
         if collection_name.startswith("system."):
