@@ -1,0 +1,1 @@
+- Organisaation muutoshistoria näyttää arvioidun luontiajan organisaation tunnisteesta, kun tekijää ei ole kirjattu.

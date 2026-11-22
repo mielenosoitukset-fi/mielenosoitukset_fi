@@ -55,6 +55,8 @@
           {% endif %}
           {% elif row.op.key == 'delete' %}
           <span class="text-muted">{{ _('Asiakirja poistettiin.') }}</span>
+          {% elif row.estimated %}
+          <span class="text-muted">{{ _('Luotaessa asetettuja tietoja ei ole kirjattu.') }}</span>
           {% elif row.legacy %}
           <span class="text-muted">{{ _('Kenttien arvoja ei kirjattu tuolloin.') }}</span>
           {% else %}
