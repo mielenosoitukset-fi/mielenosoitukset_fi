@@ -157,6 +157,10 @@ A national moderator appointment records who may book duty shifts and who approv
 
 `GET /internal/hallinto/v1/duty-shifts?from=YYYY-MM-DD&days=7` (1 to 14 days) is a read-only feed for Hallinto's Vuorot page: `{"shifts": [{starts_at, ends_at, moderator, state}]}` with the moderator's display name, UTC times and the shift state (`requested`, `approved`, `running`, `grace`, `ended`, `inactive`). Cancelled shifts are left out. The mTLS workload identity is the only check; it takes no proof because it changes nothing and shows nothing beyond the calendar.
 
+Rows of that feed also carry the shift `id` and, while a shift waits for approval, `approvers` (the Flask account ids that may approve it), so Hallinto can show the Hyväksy and Hylkää buttons to the right people.
+
+`POST /internal/hallinto/v1/shift-approvals` approves or rejects one booked shift for the approver Hallinto names. Body: `shift_id`, `action` (`approve` or `reject`), `approver_account_id`, `issued_at` (UTC, `%Y-%m-%dT%H:%M:%SZ`, at most five minutes old), `reason` (required for `reject`, at most 200 characters) and `authority_attestation`, Hallinto's Ed25519 signature over `hallinto-shift-approval-v1-attestation\n` plus the canonical intent digest. It needs the mTLS workload identity and takes no step-up proof; Hallinto has already signed the approver in. Flask re-checks that the account is an approver of that moderator's appointment, is not the moderator, and that the appointment is not frozen or revoked. Replaying an approval changes nothing; rejecting an approved shift or approving a cancelled one answers 409. Flask's own Vuorot page no longer approves; it points to Hallinto.
+
 ## Outbound organization invitations (O6)
 
 Off unless `ORG_OUTREACH_ENABLED: true` is in `config.yaml` (default `false`) AND the grant config exists. With the flag off the routes answer 404 and the approval page answers 404. The opt-out page is always on.

@@ -48,6 +48,7 @@ MODERATOR_ATTESTATION_CONTEXT = b"hallinto-national-moderator-v1-attestation\n"
 MODERATOR_END_ATTESTATION_CONTEXT = b"hallinto-national-moderator-end-v1-attestation\n"
 BUNDLE_ATTESTATION_CONTEXT = b"hallinto-role-bundle-v1-attestation\n"
 BUNDLE_END_ATTESTATION_CONTEXT = b"hallinto-role-bundle-end-v1-attestation\n"
+SHIFT_APPROVAL_ATTESTATION_CONTEXT = b"hallinto-shift-approval-v1-attestation\n"
 ELEVATED_ATTESTATION_CONTEXT = b"hallinto-elevated-v1-attestation\n"
 INVITATION_ATTESTATION_CONTEXT = b"hallinto-org-invitation-v1-attestation\n"
 RECOVERY_ATTESTATION_CONTEXT = b"hallinto-org-recovery-v1-attestation\n"
@@ -83,6 +84,10 @@ def recovery_attestation_message(intent_digest: str) -> bytes:
 
 def moderator_attestation_message(intent_digest: str) -> bytes:
     return MODERATOR_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def shift_approval_attestation_message(intent_digest: str) -> bytes:
+    return SHIFT_APPROVAL_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def moderator_end_attestation_message(intent_digest: str) -> bytes:
@@ -245,9 +250,29 @@ def build_blueprint(db) -> Blueprint:
             span = int(request.args.get("days", "7"))
             start = datetime(day.year, day.month, day.day, tzinfo=HELSINKI).astimezone(timezone.utc)
             return jsonify({"shifts": duty_shifts.week_overview(
-                db, start, start + timedelta(days=span))})
+                db, start, start + timedelta(days=span), with_approval=True)})
         except (ValueError, OverflowError, duty_shifts.DutyError):
             return _error("unsupported_scope")
+
+    @bp.post("/shift-approvals")
+    def decide_shift():
+        """Approve or reject a booked shift for an approver Hallinto names.
+
+        Signed by Hallinto for exactly this shift, action, approver and moment.
+        Flask still checks that the account approves this moderator's shifts.
+        """
+        from . import shift_approvals
+
+        body = request.get_json(silent=True)
+        digest = shift_approvals.intent_digest(body)
+        if digest is None:
+            return _error("unsupported_scope")
+        if not _attestation_ok(body["authority_attestation"], digest, shift_approval_attestation_message):
+            return _error("denied")
+        status, payload = shift_approvals.apply(db, body)
+        response = jsonify(payload)
+        response.status_code = status
+        return response
 
     @bp.post("/moderator-appointments")
     def apply_moderator_appointment():

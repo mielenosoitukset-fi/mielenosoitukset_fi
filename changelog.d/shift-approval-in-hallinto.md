@@ -1,0 +1,1 @@
+- Shift approval moved to Hallinto: approvers approve or reject booked duty shifts on Hallinto's Vuorot page (signed order to the new internal route); the Hyväksy button on Flask's Vuorot page is gone.

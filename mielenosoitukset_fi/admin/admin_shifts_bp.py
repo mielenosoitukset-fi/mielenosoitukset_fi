@@ -115,9 +115,6 @@ def shifts():
                     ends_at=start + duty_shifts.SHIFT_LENGTH,
                     source={"decision": "Vuorovaraus", "via": "admin"}, actor=_actor())
                 flash("Vuoro varattu.", "success")
-            elif action == "approve":
-                duty_shifts.approve_shift(mongo, shift_id=request.form.get("shift_id"), actor=_actor())
-                flash("Vuoro hyväksytty.", "success")
             elif action == "cancel":
                 duty_shifts.cancel_shift(mongo, shift_id=request.form.get("shift_id"),
                                          reason=request.form.get("reason", ""), actor=_actor())
