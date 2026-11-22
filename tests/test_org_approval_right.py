@@ -503,3 +503,16 @@ def test_approval_page_unknown_organisation_and_extra_fields(env):
     assert _page(env, {**fields, "extra": 1}).status_code == 400
     env["app"].config["ORG_APPROVAL_RIGHT_ENABLED"] = False
     assert _page(env, fields).status_code == 400
+
+
+def test_organisation_with_a_right_still_loads_and_saves_without_losing_it(env):
+    from mielenosoitukset_fi.utils.classes.Organization import Organization
+
+    _granted(env)
+    with env["app"].app_context():
+        org = Organization.from_dict(env["db"].organizations.find_one({"_id": env["org"]}))
+        org.description = "Uusi kuvaus"
+        org.save()
+    stored = env["db"].organizations.find_one({"_id": env["org"]})
+    assert stored["description"] == "Uusi kuvaus" and stored["rights"][right.RIGHT]["status"] == "live"
+    assert env["as_user"]("admin").get(f"/admin/organization/view/{env['org']}").status_code == 200
