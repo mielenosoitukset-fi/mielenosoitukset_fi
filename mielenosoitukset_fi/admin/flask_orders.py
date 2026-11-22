@@ -328,6 +328,30 @@ def _plan_site_lockdown(db, operation, intent, actor):
     return write, verify
 
 
+def held_removable_roles(db, doc, max_rank: int = 5) -> list[str]:
+    """The roles of an account that a role removal could take, strongest first.
+
+    Hallinto shows these in a list when a role removal is started, so the choice
+    is never typed. It follows the same test as the removal itself, so a role
+    listed here is one the removal finds. Roles above ``max_rank`` (the rank of
+    the person asking) and the protected owner account are left out.
+    """
+    from mielenosoitukset_fi.users.models import User
+    from mielenosoitukset_fi.utils.system_teams import olivia_user_id
+
+    if str(doc["_id"]) == olivia_user_id():
+        return []
+    held = set()
+    role = doc.get("role")
+    if role in REMOVABLE_ROLES:
+        held.add(role)
+    if (doc.get("global_admin") is True or "national" in User.from_db(doc).system_team_access) and role not in {"superuser", "god"}:
+        held.add("global_admin")
+    if cg._active_grants(db, doc["_id"]):
+        held.add("city_admin")
+    return sorted((r for r in held if ROLE_RANK[r] <= max_rank), key=lambda r: -ROLE_RANK[r])
+
+
 def _actor_rank(actor) -> int:
     """An authorized actor manages grants, which makes them at least global admin."""
     return {"god": 5, "superuser": 4}.get(getattr(actor, "role", None), 3)
