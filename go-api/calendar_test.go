@@ -111,7 +111,7 @@ func TestMongoCalendarMonthVisibilityAndDates(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := ciMongoDB(t, client, "moso_go_calendar_test_" + bson.NewObjectID().Hex(), "main")
+	db := ciMongoDB(t, client, "moso_go_calendar_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	store := mongoStore{db.Collection("demonstrations"), client}
 	for _, extra := range []bson.M{{}, {"date": "2028-02-29"}, {"date": "2028-01-31"}, {"date": "2028-03-01"}, {"date": "2028-02-30"}, {"date": bson.A{"2028-02-09"}}, {"approved": false}, {"hide": true}, {"hide": "false"}, {"rejected": true}, {"cancelled": true}} {

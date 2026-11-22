@@ -134,7 +134,7 @@ func TestMongoDeveloperStoreNeverReturnsSecrets(t *testing.T) {
 	if client.Ping(ctx, nil) != nil {
 		t.Skip("no local MongoDB")
 	}
-	db := ciMongoDB(t, client, "moso_developer_test_" + bson.NewObjectID().Hex(), "main")
+	db := ciMongoDB(t, client, "moso_developer_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	owner, other := bson.NewObjectID(), bson.NewObjectID()
 	appID := bson.NewObjectID()

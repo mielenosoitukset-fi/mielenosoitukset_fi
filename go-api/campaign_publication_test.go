@@ -69,7 +69,7 @@ func TestReadCampaignPublicationMatchesFlaskStrictness(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := ciMongoDB(t, client, "moso_go_api_test_" + bson.NewObjectID().Hex(), "main")
+	db := ciMongoDB(t, client, "moso_go_api_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	read := readCampaignPublication(db)
 	settings := db.Collection("campaign_settings")

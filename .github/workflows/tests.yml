@@ -1,6 +1,7 @@
 name: Tests
 
 on:
+  workflow_dispatch:
   pull_request:
   # Required merge check for the GitHub merge queue: the queue runs this
   # workflow on the temporary merge group commit.
@@ -176,7 +177,7 @@ jobs:
         if: env.SHARED_MONGO == '1'
         env:
           SHARD: ${{ matrix.shard }}
-        run: python scripts/ci_mongo_reset.py start
+        run: python -m tests._ci_mongo_reset start
 
       - name: Verify Go public API and MongoDB boundaries
         if: matrix.shard == 1
@@ -217,7 +218,7 @@ jobs:
         if: always() && env.SHARED_MONGO == '1'
         env:
           SHARD: ${{ matrix.shard }}
-        run: python scripts/ci_mongo_reset.py finish
+        run: python -m tests._ci_mongo_reset finish
 
       - name: Tear down test services
         if: always()

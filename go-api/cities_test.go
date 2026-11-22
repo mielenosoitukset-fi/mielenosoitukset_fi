@@ -45,7 +45,7 @@ func TestMongoCitiesAndToday(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := ciMongoDB(t, client, "moso_go_cities_test_" + bson.NewObjectID().Hex(), "main")
+	db := ciMongoDB(t, client, "moso_go_cities_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	store := mongoStore{db.Collection("demonstrations"), client}
 	day := localDay(time.Now())

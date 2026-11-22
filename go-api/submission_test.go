@@ -88,7 +88,7 @@ func TestMongoSubmissionTokenOutlivesFingerprintWindow(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := ciMongoDB(t, client, "moso_go_submission_lifetime_" + bson.NewObjectID().Hex(), "main")
+	db := ciMongoDB(t, client, "moso_go_submission_lifetime_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	_, err = db.Collection("demo_submission_tokens").Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "token", Value: 1}}, Options: options.Index().SetUnique(true)})
 	if err != nil {
@@ -232,7 +232,7 @@ func TestMongoSubmissionConcurrencyAndRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := ciMongoDB(t, client, "moso_go_submission_test_" + bson.NewObjectID().Hex(), "main")
+	db := ciMongoDB(t, client, "moso_go_submission_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	if checkSubmissionIndexes(ctx, db) == nil {
 		t.Fatal("missing unique index accepted")

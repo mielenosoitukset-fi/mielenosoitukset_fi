@@ -154,7 +154,7 @@ func TestMongoFindSeries(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(context.Background())
-	db := ciMongoDB(t, client, "moso_go_series_test_" + bson.NewObjectID().Hex(), "main")
+	db := ciMongoDB(t, client, "moso_go_series_test_"+bson.NewObjectID().Hex(), "main")
 	defer db.Drop(context.Background())
 	collection := db.Collection("demonstrations")
 	store := mongoStore{collection, client}

@@ -829,7 +829,7 @@ func TestCampaignVolunteerAgainstMongo(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Disconnect(ctx)
-	db := ciMongoDB(t, client, "campaign_volunteer_test_" + strings.ReplaceAll(t.Name(), "/", "_"), "main")
+	db := ciMongoDB(t, client, "campaign_volunteer_test_"+strings.ReplaceAll(t.Name(), "/", "_"), "main")
 	defer db.Drop(ctx)
 	store := mongoCampaignVolunteerStore{db: db}
 	_, _ = db.Collection("campaign_settings").InsertOne(ctx, bson.M{"_id": "public_pages", "published": true})
