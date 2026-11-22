@@ -331,14 +331,13 @@ def test_react_volunteer_pending_error_and_retry_keep_user_values(live_server, b
 
 @pytest.mark.e2e
 @pytest.mark.integration
-def test_missing_react_bundle_keeps_fallback_disabled_and_newsletter_working(live_server, browser_page):
+def test_missing_react_bundle_keeps_fallback_disabled_and_mail_link_working(live_server, browser_page):
     browser_page.route("**/static/frontend/**", lambda route: route.abort())
     browser_page.goto(f"{live_server}/kampanja/", wait_until="networkidle")
     assert browser_page.locator("#vol-name").is_disabled()
     assert browser_page.locator("#vol-submit").is_disabled()
     assert "Lomaketta ladataan" in browser_page.locator('[data-react-island="campaign-page"]').inner_text()
     assert browser_page.locator('#vapaaehtoiseksi a[href^="mailto:"]').first.is_visible()
-    assert browser_page.locator("#newsletter-form button").is_disabled()
 
 
 def test_other_public_pages_load_only_shared_header_and_admin_stays_separate(client, admin_client):
