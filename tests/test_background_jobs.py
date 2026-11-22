@@ -630,3 +630,19 @@ def test_admin_pending_reminder_keeps_recent_completed_notifications_as_blockers
         )
         == 1
     )
+
+
+@pytest.mark.integration
+@pytest.mark.jobs
+def test_one_time_job_runs_soon_after_start_not_one_interval_later(app):
+    """A deploy restarts the scheduler; the backfill must not wait a full hour each time."""
+    from datetime import datetime, timedelta, timezone
+
+    job_manager = app.extensions["job_manager"]
+    job_manager.reload_job("backfill_org_history")
+    job = job_manager.scheduler.get_job("backfill_org_history")
+    assert job is not None
+    when = job.next_run_time if hasattr(job, "next_run_time") else job.trigger.get_next_fire_time(None, datetime.now(timezone.utc))
+    assert when is not None
+    assert when - datetime.now(timezone.utc) < timedelta(minutes=5)
+    job_manager.reload_job("prep")

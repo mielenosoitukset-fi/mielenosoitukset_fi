@@ -1,0 +1,1 @@
+- Henkilökohtaisen linkin ohjesivulle lisättiin video organisaation tietojen päivittämisestä.
