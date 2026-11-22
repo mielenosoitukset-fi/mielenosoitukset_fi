@@ -150,7 +150,7 @@ The checked visual follow-ups above record implementation, not a blanket visual 
 
 ## Operations
 
-- [ ] **OPS-01 remaining:** off-site copy and who holds the encryption key, failure alert channel, and evidence from the first weekly full run. `docs/backups.md` status updated 17 November.
+- [x] **OPS-01:** off-site copy, key holder, alerts and first weekly full run done (22 November). lc-moso-01 encrypts each verified dump with age into an outbox (#1355, #1357); the maintainer's homelab pulls it daily with a read-only key into its vault. The maintainer holds both private keys offline. Alerts: Bark push for a failed dump, a stale local backup (#1269) or a missing off-site archive (homelab). Evidence: vault holds core 20 and 21 November and the full of 22 November (71.9 MB encrypted; check why the full is much smaller than lc-main's 419 MB in OPS-02).
   - [x] Nightly core and weekly full backup timers are installed and active; core archives exist (read-only production check, 13 November). This is not proof of restoration.
   - [x] Backup units and failure alerts ship with every production deploy (`deploy/backup/install_units.sh`), plus a daily local freshness alert (20 November). Off-site copy waits for the homelab target and the maintainer's public age key.
 - [ ] **OPS-02:** authorized recovery exercises with recorded RPO and RTO.
