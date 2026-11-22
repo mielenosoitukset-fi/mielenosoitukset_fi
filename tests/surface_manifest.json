@@ -118,7 +118,7 @@
     ]
   },
   "background_jobs": {
-    "count": 32,
+    "count": 33,
     "coverage": [
       "jobs",
       "tests/test_urgent_review_delivery.py",
@@ -130,9 +130,10 @@
       "tests/test_user_erasure.py",
       "tests/test_scrub_admin_log_secrets.py",
       "tests/test_audit_history.py",
+      "tests/test_org_admin_role.py",
       "tests/test_expire_undecided_demos.py"
     ],
-    "sha256": "2f293a71a926aabd8fefb36980ca444f809afaaba6039b3dc211f9a0fb8ab1d1"
+    "sha256": "005e0077745ad60d89013c18b9fa67a417e99d8d0171f174bf9e19f544e1fe89"
   },
   "routes": {
     "mielenosoitukset_fi/admin/admin_bp.py": {
@@ -204,13 +205,14 @@
       "sha256": "40efed3111b17e32140d0dacd9c155c684bbbbf52dddd17f84b9149da165c242"
     },
     "mielenosoitukset_fi/admin/admin_org_bp.py": {
-      "count": 17,
+      "count": 19,
       "coverage": [
         "integration",
         "e2e-admin",
-        "tests/test_case_resolving_actions.py"
+        "tests/test_case_resolving_actions.py",
+        "tests/test_org_approval_right.py"
       ],
-      "sha256": "e89cc83aa6102c8d264c23b5b995302e67b79a4252a28f5d59f4a2015c08d59d"
+      "sha256": "c5744e0e8c2b6dfa5bf9ba8773a18ebfc0406008444f3b4022cfa6b064f4d838"
     },
     "mielenosoitukset_fi/admin/admin_recu_demo_bp.py": {
       "count": 8,
