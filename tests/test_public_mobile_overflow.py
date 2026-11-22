@@ -77,35 +77,36 @@ def test_home_and_organization_layout_preserves_content(live_server, browser_pag
     path = '/' if view == 'home' else f"/organization/{seeded_data['org_id']}"
     browser_page.set_viewport_size({'width': width, 'height': 1000})
     browser_page.add_init_script(f"localStorage.setItem('theme', '{theme}')")
-    browser_page.route('**/api/demonstrations?*', lambda route: route.fulfill(
-        content_type='application/json', body='{"page":1,"total_pages":1,"total":0,"results":[]}'))
+    if view == 'home':
+        browser_page.route('**/api/home**', lambda route: route.fulfill(
+            content_type='application/json', body=json.dumps({'events': [], 'recommended': False})))
     browser_page.goto(f'{live_server}{path}', wait_until='domcontentloaded')
-    hero = browser_page.locator('.site-hero')
-    # The React home shell mounts its hero after DOMContentLoaded; on a busy
-    # parallel runner that can take longer than the first assertion.
-    hero.first.wait_for(state='attached')
+    hero = browser_page.locator('.home-intro' if view == 'home' else '.site-hero')
+    hero.wait_for(state='visible')
     assert theme in (browser_page.locator('html').get_attribute('class') or '').split()
     assert hero.count() == 1
     title = hero.locator('h1')
     assert title.is_visible()
     assert title.inner_text().strip()
-    if width <= 720:
-        # The shared responsive scale must win over legacy container heading resets.
-        expected_size = max(24, min(width * 0.07, 39.2))
-        assert title.evaluate('element => parseFloat(getComputedStyle(element).fontSize)') == pytest.approx(expected_size, abs=0.1)
     sizes = browser_page.evaluate('''() => ({
       viewport: document.documentElement.clientWidth,
       width: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth)})''')
     assert sizes['width'] <= sizes['viewport'] + 1, sizes
     assert title.evaluate('element => element.scrollWidth <= element.clientWidth + 1')
-    assert title.evaluate('element => getComputedStyle(element).color') == 'rgb(255, 255, 255)'
     assert hero.evaluate('element => element.scrollWidth <= element.clientWidth + 1')
     bounds = hero.bounding_box()
     assert bounds['x'] >= -1 and bounds['x'] + bounds['width'] <= width + 1
-    assert abs(bounds['x'] - (width - bounds['x'] - bounds['width'])) <= 2
-    links = hero.locator('a[href]')
     if view == 'home':
+        links = hero.locator('.home-links a[href]')
         assert links.count() == 3
+    else:
+        if width <= 720:
+            # The shared responsive scale must win over legacy container heading resets.
+            expected_size = max(24, min(width * 0.07, 39.2))
+            assert title.evaluate('element => parseFloat(getComputedStyle(element).fontSize)') == pytest.approx(expected_size, abs=0.1)
+        assert title.evaluate('element => getComputedStyle(element).color') == 'rgb(255, 255, 255)'
+        assert abs(bounds['x'] - (width - bounds['x'] - bounds['width'])) <= 2
+        links = hero.locator('a[href]')
     for link in links.all():
         box = link.bounding_box()
         assert box['x'] >= bounds['x'] - 1 and box['x'] + box['width'] <= bounds['x'] + bounds['width'] + 1

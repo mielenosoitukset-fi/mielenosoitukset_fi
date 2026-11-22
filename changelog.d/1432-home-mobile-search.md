@@ -1,0 +1,1 @@
+- Keep the homepage search and navigation within the page at narrow mobile widths.
