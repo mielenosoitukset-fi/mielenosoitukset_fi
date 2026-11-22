@@ -111,8 +111,11 @@ def test_backfill_copies_old_org_events_once_and_history_shows_them(admin_client
     monkeypatch.delenv("ORG_HISTORY_BACKFILL_DISABLED", raising=False)
     org_id = ObjectId(seeded_data["org_id"])
     now = datetime.now(timezone.utc)
-    db.audit_events.delete_many({})
     db.maintenance_markers.delete_many({"_id": backfill.MARKER_ID})
+    db.maintenance_markers.delete_many({"_id": backfill.IMPORT_DONE_ID})
+    assert backfill.main(db=db) == {"waiting_for": backfill.IMPORT_DONE_ID}  # waits for the old logs
+    db.maintenance_markers.insert_one({"_id": backfill.IMPORT_DONE_ID})
+    db.audit_events.delete_many({})
     db.audit_events.insert_one(_event(org_id, now - timedelta(hours=1), "update", [{"$set": {"name": "Nyt"}}],
                                       {"kind": "user", "user_id": str(seeded_data["admin_id"])}))
     _legacy_logs(db, org_id, now)
@@ -181,6 +184,7 @@ def test_backfill_adds_sent_field_names_and_collapses_double_logged_edits(db, se
         {**form_row, "timestamp": at + timedelta(days=3), "request": {"method": "POST", "path": "/admin/demo/edit/x",
                                                                       "form_keys": ["name"]}},
     ])
+    db.maintenance_markers.update_one({"_id": backfill.IMPORT_DONE_ID}, {"$set": {"x": 1}}, upsert=True)
     result = backfill.main(db=db)
     assert result["fields"]["matched_events"] == 2 and result["fields"]["new_rows"] == 1
     legacy = list(db.audit_events.find({"legacy": True, "collection": "organizations"}))
@@ -210,6 +214,7 @@ def test_backfill_gives_admin_form_creations_their_creator(db, monkeypatch):
         {"timestamp": when, "user": {"_id": "u-creator"},  # a second org created far from this request
          "request": {"method": "POST", "path": "/admin/organization/create"}},
     ])
+    db.maintenance_markers.update_one({"_id": backfill.IMPORT_DONE_ID}, {"$set": {"x": 1}}, upsert=True)
     try:
         result = backfill.main(db=db)["fields"]
         assert result["new_rows"] == 1 and result["create_rows"] == 2 and result["create_unmatched"] == 0
