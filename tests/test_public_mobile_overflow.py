@@ -81,6 +81,9 @@ def test_home_and_organization_layout_preserves_content(live_server, browser_pag
         content_type='application/json', body='{"page":1,"total_pages":1,"total":0,"results":[]}'))
     browser_page.goto(f'{live_server}{path}', wait_until='domcontentloaded')
     hero = browser_page.locator('.site-hero')
+    # The React home shell mounts its hero after DOMContentLoaded; on a busy
+    # parallel runner that can take longer than the first assertion.
+    hero.first.wait_for(state='attached')
     assert theme in (browser_page.locator('html').get_attribute('class') or '').split()
     assert hero.count() == 1
     title = hero.locator('h1')
