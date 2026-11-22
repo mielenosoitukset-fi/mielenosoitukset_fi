@@ -40,6 +40,8 @@ class User(UserMixin):
     def system_team_access(self):
         if not self.active or self.banned or not self.confirmed:
             return frozenset()
+        if self.access_lapsed:
+            return frozenset()
         if self._system_team_access is None:
             from mielenosoitukset_fi.utils.system_teams import user_team_access
             self._system_team_access = user_team_access(_get_mongo(), self._id)
@@ -69,6 +71,8 @@ class User(UserMixin):
     @property
     def is_national_moderator(self) -> bool:
         """Holds a national moderator appointment (rights only on shift)."""
+        if self.access_lapsed:
+            return False
         if self._is_national_moderator is None:
             from mielenosoitukset_fi.utils.duty_shifts import is_moderator
             self._is_national_moderator = bool(self.is_active) and is_moderator(_get_mongo(), self._id)
@@ -307,7 +311,10 @@ class User(UserMixin):
         governance_managed: bool = False,
         security_suspended: bool = False,
         auth_epoch: int = 0,
+        access_lapsed: bool = False,
     ):
+        # Stamped admin account not reviewed by the deadline (utils/access_review).
+        self.access_lapsed = bool(access_lapsed)
         self.id                = str(user_id)  # flask‑login expects .id str
         self._id               = ObjectId(user_id)
         self.username          = username
@@ -355,8 +362,14 @@ class User(UserMixin):
     def from_db(cls, doc: dict) -> "User":
         from mielenosoitukset_fi.utils.role_bundle_expiry import effective_role_permissions
 
+        from mielenosoitukset_fi.utils.access_review import lapsed_doc
+
         role, global_permissions = effective_role_permissions(doc, DEFAULT_ROLE)
+        lapsed = lapsed_doc(doc)
+        if lapsed:
+            role, global_permissions = DEFAULT_ROLE, []
         return cls(
+            access_lapsed   = lapsed,
             user_id         = doc["_id"],
             username        = doc["username"],
             password_hash   = doc["password_hash"],
@@ -370,8 +383,8 @@ class User(UserMixin):
             following       = doc.get("following", []),
             followed_organizations = doc.get("followed_organizations", []),
             followed_recurring_demos = doc.get("followed_recurring_demos", []),
-            global_admin    = doc.get("global_admin", False)
-                              or doc.get("role") in {"global_admin", "god", "superuser"},
+            global_admin    = (doc.get("global_admin", False)
+                              or doc.get("role") in {"global_admin", "god", "superuser"}) and not lapsed,
             confirmed       = doc.get("confirmed", False),
             global_permissions = global_permissions,
             role            = role,
@@ -412,6 +425,8 @@ class User(UserMixin):
     @property
     def admin_scope_grants(self) -> List[dict]:
         """Lazy-load active scoped admin grants for this user."""
+        if self.access_lapsed:
+            return []
         if self._admin_scope_grants is None:
             self._admin_scope_grants = list(
                 _get_mongo().admin_scope_grants.find(

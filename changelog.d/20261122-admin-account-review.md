@@ -1,0 +1,1 @@
+- Admin accounts must be reviewed in Hallinto twice a year (1.1. and 1.7.; first round 1.1.2027). An account not confirmed by its deadline becomes a normal user until a decision confirms it again. Off until `ACCESS_REVIEW_ENFORCE` is switched on; Olivia's account is always protected.
