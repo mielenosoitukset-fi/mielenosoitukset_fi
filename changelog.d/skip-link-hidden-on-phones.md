@@ -1,0 +1,1 @@
+- "Siirry sisältöön" -linkki ei enää näy kaistaleena sivun yläreunassa puhelimella. Se tulee näkyviin vain, kun siihen siirrytään näppäimistöllä.
