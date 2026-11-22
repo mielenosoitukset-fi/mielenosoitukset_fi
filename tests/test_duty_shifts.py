@@ -204,9 +204,11 @@ def test_schedule_page_books_approves_and_lists_states(app, db, seeded_data):
     assert approver.get("/admin/vuorot/").status_code == 200
     with approver.session_transaction() as session:
         token = session["governance_csrf_token"]
+    # Approving happens in Hallinto: the Flask page only points there and takes no approval.
+    page = approver.get("/admin/vuorot/").get_data(as_text=True)
+    assert "Hyväksy Hallinnon Vuorot-sivulla" in page and ">Hyväksy<" not in page
     approver.post("/admin/vuorot/", data={"csrf_token": token, "action": "approve", "shift_id": str(shift["_id"])})
-    assert db.moderator_shifts.find_one({"_id": shift["_id"]})["approved_at"]
-    assert "Hyväksytty" in approver.get("/admin/vuorot/").get_data(as_text=True)
+    assert not db.moderator_shifts.find_one({"_id": shift["_id"]}).get("approved_at")
 
     outsider = _client_for_user(app, _moderator(db))
     assert outsider.get("/admin/vuorot/").status_code == 403

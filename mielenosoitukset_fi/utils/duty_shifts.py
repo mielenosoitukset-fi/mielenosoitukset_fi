@@ -478,10 +478,11 @@ def schedule(db, viewer, now: Optional[datetime] = None, limit: int = 300,
 
 
 def week_overview(db, since: datetime, until: datetime, now: Optional[datetime] = None,
-                  limit: int = 500, viewer_id: Any = None) -> list[dict]:
+                  limit: int = 500, viewer_id: Any = None, with_approval: bool = False) -> list[dict]:
     """Who is on duty when: names, times and state only. Cancelled shifts are
     left out. Oldest first. With ``viewer_id`` each row also says whether it
-    is the viewer's own shift."""
+    is the viewer's own shift. With ``with_approval`` each row also carries
+    the shift id and, while it waits, the accounts that may approve it."""
     start, end = _utc(since, "since"), _utc(until, "until")
     if end <= start or end - start > timedelta(days=14):
         raise DutyError("invalid_window")
@@ -494,13 +495,19 @@ def week_overview(db, since: datetime, until: datetime, now: Optional[datetime] 
     for shift in shifts:
         user = users.get(shift["user_id"]) or {}
         row_own = {"own": shift["user_id"] == _oid(viewer_id, "invalid_user")} if viewer_id is not None else {}
-        rows.append({
+        row = {
             **row_own,
             "starts_at": _utc(shift["starts_at"], "starts_at").strftime("%Y-%m-%dT%H:%M:%SZ"),
             "ends_at": _utc(shift["ends_at"], "ends_at").strftime("%Y-%m-%dT%H:%M:%SZ"),
             "moderator": user.get("displayname") or user.get("username") or "",
             "state": shift_state(shift, grants.get(shift["grant_id"]), now),
-        })
+        }
+        if with_approval:
+            row["id"] = str(shift["_id"])
+            if row["state"] == REQUESTED:
+                grant = grants.get(shift["grant_id"]) or {}
+                row["approvers"] = [str(a) for a in grant.get("approvers") or ()]
+        rows.append(row)
     return rows
 
 
