@@ -38,6 +38,7 @@ from mielenosoitukset_fi.scripts.purge_suggestion_ips import main as purge_sugge
 from mielenosoitukset_fi.scripts.purge_erased_accounts import main as purge_erased_accounts
 from mielenosoitukset_fi.scripts.scrub_admin_log_secrets import main as scrub_admin_log_secrets
 from mielenosoitukset_fi.scripts.backfill_org_history import main as backfill_org_history
+from mielenosoitukset_fi.scripts.diagnose_admin_log_forms import main as diagnose_admin_log_forms
 from mielenosoitukset_fi.scripts.deliver_pride_banner_confirmations import main as deliver_pride_banner_confirmations
 from mielenosoitukset_fi.scripts.purge_pride_banner_volunteers import main as purge_pride_banner_volunteers
 from mielenosoitukset_fi.scripts.deliver_opening_interest_confirmations import main as deliver_opening_interest_confirmations
@@ -276,6 +277,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         name="Organization history backfill",
         description="One-time job: copies old organization events from admin_logs (who, when, action; verified before/after) into the change history, marked as legacy. Safe to repeat; does nothing after its first finished run.",
         func=backfill_org_history,
+        default_trigger=_interval(hours=1),
+    ),
+    JobDefinition(
+        key="diagnose_admin_log_forms",
+        name="Old admin log form check",
+        description="One-time read-only job: samples six days before 20.11.2026 and counts admin request rows that hold posted form values (counts and field names only). Does nothing after its first run.",
+        func=diagnose_admin_log_forms,
         default_trigger=_interval(hours=1),
     ),
     JobDefinition(

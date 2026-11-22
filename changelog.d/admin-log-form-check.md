@@ -1,0 +1,1 @@
+- Ylläpitäjän lokirivien tarkistus: kertaluonteinen vain luku -työ laskee vanhat pyyntörivit, joissa on tallennettuja lomakearvoja (vain määrät ja kenttien nimet).

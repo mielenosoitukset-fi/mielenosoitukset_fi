@@ -67,3 +67,26 @@ def test_scrub_job_is_registered():
     from mielenosoitukset_fi.background_jobs.definitions import JOB_DEFINITION_MAP
 
     assert "scrub_admin_log_secrets" in JOB_DEFINITION_MAP
+
+
+def test_form_check_counts_stored_forms_without_values(db):
+    from datetime import datetime
+    from mielenosoitukset_fi.scripts import diagnose_admin_log_forms as check
+
+    db.maintenance_markers.delete_many({"_id": check.MARKER_ID})
+    db.admin_logs.delete_many({"seeded_by": "form-check-test"})
+    day = datetime(2026, 3, 15, 10, 0)
+    base = {"seeded_by": "form-check-test", "timestamp": day}
+    db.admin_logs.insert_many([
+        {**base, "request": {"method": "POST", "path": "/admin/organization/edit/abc", "form": {"name": "Salainen nimi"}}},
+        {**base, "request": {"method": "POST", "path": "/admin/demo/edit/abc"}},
+        {**base, "request": {"method": "GET", "path": "/admin/"}},
+    ])
+    result = check.main(db=db)
+    march = [s for s in result["samples"] if s["day"] == "2026-03-15"][0]
+    assert march["post_with_form"] == 1 and march["org_edit_with_form"] == 1
+    assert march["org_form_field_names"] == ["name"]
+    assert "Salainen nimi" not in str(result)
+    assert check.main(db=db) == {"already_done": True}
+    db.maintenance_markers.delete_many({"_id": check.MARKER_ID})
+    db.admin_logs.delete_many({"$or": [{"seeded_by": "form-check-test"}, {"event": "admin_log_form_check"}]})

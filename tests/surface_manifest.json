@@ -118,7 +118,7 @@
     ]
   },
   "background_jobs": {
-    "count": 32,
+    "count": 33,
     "coverage": [
       "jobs",
       "tests/test_urgent_review_delivery.py",
@@ -132,7 +132,7 @@
       "tests/test_audit_history.py",
       "tests/test_expire_undecided_demos.py"
     ],
-    "sha256": "2f293a71a926aabd8fefb36980ca444f809afaaba6039b3dc211f9a0fb8ab1d1"
+    "sha256": "deea812e2b3d16a702712562cd885d800bae34d267aa298993ba6228cd77dcf2"
   },
   "routes": {
     "mielenosoitukset_fi/admin/admin_bp.py": {
