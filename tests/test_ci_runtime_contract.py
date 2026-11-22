@@ -10,11 +10,15 @@ def test_mongo_compatible_runner_keeps_database_and_required_suite():
     root = Path(__file__).resolve().parents[1]
     workflow = yaml.safe_load((root / ".github/workflows/tests.yml").read_text())
     compose = yaml.safe_load((root / "compose.test.yml").read_text())
-    job = workflow["jobs"]["python-tests-shard"]
+    reusable = yaml.safe_load((root / ".github/workflows/python-shards.yml").read_text())
+    job = reusable["jobs"]["shard"]
+    call = workflow["jobs"]["python-tests-shard"]
+    assert call["uses"].startswith("mielenosoitukset-fi/mielenosoitukset_fi/.github/workflows/python-shards.yml@")
+    assert len(call["uses"].rsplit("@", 1)[1]) == 40
     # Fork PRs always run on GitHub-hosted ubuntu-22.04; pushes and same-repo
     # PRs default to the self-hosted AX41 runners (MOSO_CI_RUNS_ON overrides).
     runs_on = job["runs-on"]
-    assert "github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-22.04'" in runs_on
+    assert "github.event.pull_request.head.repo.full_name == github.repository" in runs_on
     assert "fromJSON(vars.MOSO_CI_RUNS_ON || '[\"self-hosted\",\"self-hosted-moso\"]')" in runs_on
     assert compose["services"]["mongo"]["image"] == "mongo:8"
     assert not job.get("continue-on-error", False)
@@ -37,7 +41,9 @@ def test_mongo_compatible_runner_keeps_database_and_required_suite():
     assert not job["strategy"]["fail-fast"]
     gate = workflow["jobs"]["python-tests"]
     assert gate["needs"] == "python-tests-shard" and gate["if"] == "always()"
-    assert gate["runs-on"] == job["runs-on"]
+    assert gate["runs-on"] == "ubuntu-22.04"
+    assert runs_on.endswith("|| 'ubuntu-22.04' }}")
+    assert "merge_group" not in runs_on
 
     concurrency = workflow["concurrency"]
     assert "github.event.pull_request.number" in concurrency["group"]

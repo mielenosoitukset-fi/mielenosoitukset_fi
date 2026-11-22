@@ -48,8 +48,8 @@ def test_bootstrap_uses_hashed_wheel_and_propagates_failure(tmp_path, exit_code)
 
 
 def test_dependency_entrypoints_bootstrap_before_index_install():
-    workflow = yaml.safe_load((ROOT / ".github/workflows/tests.yml").read_text())
-    install = next(step["run"] for step in workflow["jobs"]["python-tests-shard"]["steps"]
+    workflow = yaml.safe_load((ROOT / ".github/workflows/python-shards.yml").read_text())
+    install = next(step["run"] for step in workflow["jobs"]["shard"]["steps"]
                    if step.get("name") == "Install dependencies")
     docker = (ROOT / "Dockerfile").read_text()
     assert install.index("bash deploy/bootstrap_python_trust.sh python") < install.index("python -m pip install")
