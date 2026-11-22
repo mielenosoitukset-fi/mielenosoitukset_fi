@@ -38,6 +38,12 @@ APPROVAL_FIELDS = {"account_id", "template", "decision_id", "decision_revision",
                    "self_booking", "shift_approvers"}
 
 
+END_FIELDS = {"appointment_id", "kind", "account_id", "template", "decision_id", "decision_revision",
+              "authority_attestation"}
+END_APPROVAL_FIELDS = END_FIELDS - {"authority_attestation"}
+END_KINDS = {"revoke": "hallinto_revoked", "freeze": "hallinto_frozen"}
+
+
 def is_moderator_fields(fields: Any) -> bool:
     return isinstance(fields, dict) and fields.get("template") == TEMPLATE
 
@@ -79,9 +85,10 @@ def intent_digest(request: Any) -> Optional[str]:
 # --------------------------------------------------------------------------- #
 
 def _live_grants(db, account_id: ObjectId) -> list:
-    """Appointments not revoked and not expired."""
+    """Appointments not revoked, frozen or expired. A frozen one is lifted only by a new decision."""
     now = utcnow()
-    return [g for g in db[duty_shifts.GRANTS].find({"user_id": account_id, "revoked_at": None})
+    return [g for g in db[duty_shifts.GRANTS].find(
+                {"user_id": account_id, "revoked_at": None, "frozen_at": None})
             if duty_shifts._naive(duty_shifts._utc(g["valid_until"], "valid_until")) > duty_shifts._naive(now)]
 
 
@@ -190,4 +197,92 @@ def _apply_fenced(db, operation, intent, actor, integration, account_id, fence) 
         "effective": {"city": "", "permissions": list(PERMISSIONS), "valid_until": intent["valid_until"]},
         "resulted_in_city_enablement": False,
     }
+    return cg._outcome_for(cg._transition(db, operation, {"pending"}, "confirmed", receipt))
+
+
+# --------------------------------------------------------------------------- #
+# End (revoke or freeze)
+# --------------------------------------------------------------------------- #
+
+def validate_end(request: Any) -> Optional[dict]:
+    """Canonical end intent. ``appointment_id`` is the Idempotency-Key of the appointment."""
+    if not isinstance(request, dict) or set(request) != END_FIELDS:
+        return None
+    revision, attestation = request["decision_revision"], request["authority_attestation"]
+    if not (isinstance(request["account_id"], str) and cg.ACCOUNT_ID.match(request["account_id"])
+            and request["template"] == TEMPLATE and request["kind"] in END_KINDS
+            and isinstance(request["appointment_id"], str) and cg.IDEMPOTENCY_KEY.match(request["appointment_id"])
+            and cg._non_empty_id(request["decision_id"]) and type(revision) is int and revision >= 1
+            and isinstance(attestation, str) and 1 <= len(attestation) <= 16384):
+        return None
+    return {key: request[key] for key in sorted(END_APPROVAL_FIELDS)}
+
+
+def end_digest(request: Any) -> Optional[str]:
+    intent = validate_end(request)
+    return cg._digest(intent) if intent is not None else None
+
+
+def apply_end_v1(db, *, integration: str, actor_id, idempotency_key: str, request: Any) -> cg.Outcome:
+    """Revoke or freeze the appointment an earlier operation wrote. Idempotent."""
+    intent = validate_end(request)
+    actor, error = rb._precheck(db, integration, idempotency_key, intent, actor_id)
+    if error is not None:
+        return error
+    operation, replayed = rb._new_operation(db, actor, integration, idempotency_key, intent, cg._digest(intent))
+    if operation is None:
+        return replayed
+    return rb._run_fenced(db, operation, intent, actor, integration, _end_fenced)
+
+
+def _original(db, integration: str, intent: dict) -> Optional[dict]:
+    """The appointment operation this end refers to, for the same account.
+
+    Not only a confirmed one: a write that ended in reconciliation_required may
+    have left the appointment recorded, and it must still be endable.
+    """
+    return db[cg.OPERATIONS].find_one({
+        "integration": integration, "idempotency_key": intent["appointment_id"],
+        "account_id": intent["account_id"], "status": {"$ne": "rejected"},
+        "intent.template": TEMPLATE, "intent.kind": {"$exists": False},
+    })
+
+
+def _end_fenced(db, operation, intent, actor, integration, account_id, fence) -> cg.Outcome:
+    doc = db.users.find_one({"_id": account_id})
+    if doc is None:
+        return cg._outcome_for(cg._reject(db, operation, "denied"))
+    original = _original(db, integration, intent)
+    if original is None:
+        return cg._outcome_for(cg._reject(db, operation, "unsupported_scope"))
+
+    def write(acting):
+        grant = _grant_of(db, original["_id"])
+        if grant is None:
+            return  # Nothing was written, or it is gone: ending is idempotent.
+        who = {"id": str(acting._id), "username": getattr(acting, "username", None), "via": "hallinto"}
+        reason = f"{END_KINDS[intent['kind']]}: {intent['decision_id']} v{intent['decision_revision']}"
+        try:
+            if intent["kind"] == "revoke":
+                duty_shifts.revoke(db, grant_id=grant["_id"], reason=reason, actor=who)
+            else:
+                duty_shifts.set_frozen(db, grant_id=grant["_id"], frozen=True, reason=reason, actor=who)
+        except DutyError as exc:
+            raise cg.CityGrantConflict(f"end refused: {exc}") from exc
+
+    operation, failed = rb._write(db, operation, intent, actor, integration, account_id, fence,
+                                  "national_moderator_end_v1", write)
+    if failed is not None:
+        return failed
+
+    grant = _grant_of(db, original["_id"])
+    still_usable = bool(grant and not grant.get("revoked_at") and not grant.get("frozen_at"))
+    if still_usable or not cg.fence_held(db, account_id, fence):
+        return cg._outcome_for(cg._transition(db, operation, {"pending"}, "reconciliation_required"))
+    after = db.users.find_one({"_id": account_id}) or {}
+    receipt = {**cg._receipt_identity(operation), "status": "confirmed",
+               "checked_at": utcnow().strftime(cg.INSTANT),
+               # Nothing here comes from the appointment any more: no role, no city, no rights.
+               "effective": {"account_id": intent["account_id"], "role": "", "city": "", "cities": [],
+                             "permissions": [], "global_admin": bool(after.get("global_admin"))}}
     return cg._outcome_for(cg._transition(db, operation, {"pending"}, "confirmed", receipt))

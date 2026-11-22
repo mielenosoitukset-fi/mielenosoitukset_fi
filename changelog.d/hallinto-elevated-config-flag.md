@@ -1,0 +1,1 @@
+- The Hallinto superadmin and god appointment route can now be switched on from `config.yaml` (`HALLINTO_ELEVATED_ENABLED: true`); before, the setting was never read.

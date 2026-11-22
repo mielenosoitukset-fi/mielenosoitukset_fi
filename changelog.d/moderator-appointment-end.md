@@ -1,0 +1,1 @@
+- Hallinto can end a national moderator appointment (revoke or freeze) over the internal route; shifts stop giving rights at once.

@@ -1,0 +1,1 @@
+- The "Hallinto" tab is gone from the admin UI. The sidebar item now opens Hallinto itself (when `HALLINTO_URL` is set), `/admin/governance/` redirects there, and the tab strip is removed from the technical pages that stay: security cases, board approvals (for now), approval log and city switch. They remain reachable by address, not linked.

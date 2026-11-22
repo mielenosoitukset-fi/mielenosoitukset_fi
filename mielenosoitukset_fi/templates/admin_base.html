@@ -288,9 +288,9 @@ function confirmAction(action, taskId) {
         </li>
       {% endif %}
 
-      {% if current_user.global_admin or current_user.has_permission("MANAGE_CLEARANCE") or current_user.has_permission("VIEW_CLEARANCE_AUDIT") or current_user.has_permission("MANAGE_CITIES") %}
+      {% if config.get('HALLINTO_URL') and (current_user.global_admin or current_user.has_permission("MANAGE_CLEARANCE") or current_user.has_permission("VIEW_CLEARANCE_AUDIT") or current_user.has_permission("MANAGE_CITIES")) %}
       <li class="nav-item">
-        <a class="nav-link admin-sidebar-link {% if admin_endpoint.startswith('admin_governance.') or admin_endpoint.startswith('admin_city.') %}active{% endif %}" href="{{ url_for('admin_governance.dashboard') }}">
+        <a class="nav-link admin-sidebar-link" href="{{ config.get('HALLINTO_URL') }}" rel="noopener">
           <i class="fas fa-landmark me-2"></i>{{ _('Hallinto') }}
         </a>
       </li>

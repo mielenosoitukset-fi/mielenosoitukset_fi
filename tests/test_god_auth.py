@@ -47,7 +47,7 @@ def test_god_cannot_use_password_or_existing_session_cookie(app, db, god):
     client = app.test_client()
     response = client.post('/users/auth/login', data={'username': 'alice', 'password': PASSWORD})
     assert response.status_code == 302 and response.location == '/auth/god'
-    assert _client_for_user(app, god['id']).get('/admin/governance/').status_code == 302
+    assert _client_for_user(app, god['id']).get('/admin/governance/security').status_code == 302
     with client.session_transaction() as state:
         assert '_user_id' not in state
 
@@ -74,9 +74,9 @@ def test_every_factor_required_before_login_and_receipt_revokes_on_credential_ch
         assert '_user_id' not in state
     assert action('email_link', token=token).json['stage'] == 'final_secret'
     assert action('final_secret', secret=SECRET).json['stage'] == 'complete'
-    assert client.get('/admin/governance/').status_code == 200
+    assert client.get('/admin/governance/security').status_code == 200
     db.users.update_one({'_id': god['id']}, {'$set': {'password_hash': generate_password_hash('changed')}})
-    assert client.get('/admin/governance/').status_code == 302
+    assert client.get('/admin/governance/security').status_code == 302
 
 
 def test_failed_stage_locks_after_five_attempts_and_expiry_is_enforced(app, db, god):
@@ -236,7 +236,7 @@ def test_wrong_final_secret_does_not_sign_in(app, db, god, monkeypatch):
     assert action('final_secret', secret='short').status_code == 403
     with client.session_transaction() as state:
         assert '_user_id' not in state and god_auth.RECEIPT_KEY not in state
-    assert client.get('/admin/governance/').status_code == 302
+    assert client.get('/admin/governance/security').status_code == 302
     assert db.board_audit_logs.count_documents({'action': 'god-kirjautuminen'}) == 0
     # Positive control for the same prepared proof.
     assert action('final_secret', secret=SECRET).json['stage'] == 'complete'

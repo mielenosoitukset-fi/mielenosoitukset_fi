@@ -600,7 +600,6 @@ def test_access_management_pages_use_canonical_hero_navigation():
     pages = (
         "mielenosoitukset_fi/templates/admin_V2/user/list.html",
         "mielenosoitukset_fi/templates/admin_V2/user/edit.html",
-        "mielenosoitukset_fi/templates/admin_V2/governance/dashboard.html",
         "mielenosoitukset_fi/templates/admin_V2/governance/clearances.html",
         "mielenosoitukset_fi/templates/admin_V2/governance/audit.html",
     )
@@ -610,25 +609,19 @@ def test_access_management_pages_use_canonical_hero_navigation():
         assert "import admin_page_hero" in source
         assert "admin_page_hero(" in source
         assert "admin.admin_dashboard" in source
-    for name in pages[1:2] + pages[3:]:
+    for name in pages[1:2] + pages[2:]:
         assert "back_url=" in Path(name).read_text(encoding="utf-8")
 
 
 def test_governance_workspaces_use_shared_collection_components():
-    dashboard = Path(
-        "mielenosoitukset_fi/templates/admin_V2/governance/dashboard.html"
-    ).read_text(encoding="utf-8")
     clearances = Path(
         "mielenosoitukset_fi/templates/admin_V2/governance/clearances.html"
     ).read_text(encoding="utf-8")
     audit = Path(
         "mielenosoitukset_fi/templates/admin_V2/governance/audit.html"
     ).read_text(encoding="utf-8")
-    tabs = Path(
-        "mielenosoitukset_fi/templates/admin_V2/governance/_tabs.html"
-    ).read_text(encoding="utf-8")
 
-    for source in (dashboard, clearances, audit):
+    for source in (clearances, audit):
         assert "admin-page admin-workspace" in source
         assert "admin-page-hero" not in source or "admin_page_hero(" in source
         assert "admin-data-view__header admin-result-summary" in source
@@ -644,8 +637,9 @@ def test_governance_workspaces_use_shared_collection_components():
         assert "admin-filter-bar" in source
         assert "admin_pagination(" in source
 
-    assert "admin-workspace-summary" in dashboard
-    assert "admin-section-tabs" in tabs
+    # The Hallinto tab moved to Hallinto: no overview page and no tab strip remain.
+    assert not Path("mielenosoitukset_fi/templates/admin_V2/governance/dashboard.html").exists()
+    assert not Path("mielenosoitukset_fi/templates/admin_V2/governance/_tabs.html").exists()
     assert not Path("mielenosoitukset_fi/static/css/admin/governance.css").exists()
 
 
@@ -1091,7 +1085,7 @@ def test_every_full_admin_v2_page_uses_canonical_hero_macro():
     assert Path('mielenosoitukset_fi/templates/admin_V2/kampanja/signups.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/kampanja/signup_delete.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/guides.html') in pages  # Ohjeet: video guides
-    assert len(pages) == 59
+    assert len(pages) == 58
     for locale in ("en", "fi", "sv"):
         catalog = Path(
             f"mielenosoitukset_fi/translations/{locale}/LC_MESSAGES/messages.po"
@@ -1114,7 +1108,6 @@ def test_full_admin_pages_use_breadcrumbs_and_standard_back_actions():
         "cases/all.html",
         "dashboard.html",
         "demonstrations/dashboard.html",
-        "governance/dashboard.html",
         "kampanja/list.html",
         "organizations/dashboard.html",
         "site_analytics.html",
