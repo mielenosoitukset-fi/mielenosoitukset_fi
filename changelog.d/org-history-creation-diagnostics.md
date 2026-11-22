@@ -1,1 +1,1 @@
-Organisaation muutoshistoriassa näkyy nyt, mitkä vanhat lokilähteet tarkistettiin, kun tekijää ei löydy.
+- The organization change history page now lists which old log sources were checked when no creator is known (old events, create requests near the creation time, backfill counts).
