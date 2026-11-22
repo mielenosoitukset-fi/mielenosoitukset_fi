@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block meta %}<meta name="robots" content="noindex, nofollow" />{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/guide_videos.css') }}">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/guide_videos.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/access_review_reply.css') }}">{% endblock %}
 {% block title %}Tarvitsetko ylläpito-oikeuksiasi?{% endblock %}
 {% block content %}
 <div class="guide-videos">
@@ -13,14 +14,14 @@
     {% for key, label in options %}
     <p><label><input type="radio" name="situation" value="{{ key }}" required {% if current and current.situation == key %}checked{% endif %}> {{ label }}</label></p>
     {% if key == 'partial' %}
-    <fieldset style="margin-left:1.5rem"><legend>Mitkä oikeudet pidät?</legend>
-      {% for role, rlabel in role_labels.items() %}<label style="display:block"><input type="checkbox" name="roles" value="{{ role }}"> {{ rlabel }}</label>{% endfor %}
+    <fieldset class="ar-indent"><legend>Mitkä oikeudet pidät?</legend>
+      {% for role, rlabel in role_labels.items() %}<label class="ar-block"><input type="checkbox" name="roles" value="{{ role }}"> {{ rlabel }}</label>{% endfor %}
     </fieldset>
     {% elif key == 'inactive' %}
-    <p style="margin-left:1.5rem"><label>Poissa asti: <input type="date" name="until"></label></p>
+    <p class="ar-indent"><label>Poissa asti: <input type="date" name="until"></label></p>
     {% endif %}
     {% endfor %}
-    <p><label>Lisätietoja (vapaaehtoinen)<br><textarea name="note" rows="3" maxlength="500" style="width:100%"></textarea></label></p>
+    <p><label>Lisätietoja (vapaaehtoinen)<br><textarea name="note" rows="3" maxlength="500" class="ar-wide"></textarea></label></p>
     <p><button type="submit">Lähetä vastaus</button></p>
   </form>
 </div>
