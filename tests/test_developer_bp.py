@@ -19,7 +19,7 @@ def test_developer_app_detail_hides_rate_limits_when_enforcement_disabled(seeded
 
 @pytest.mark.integration
 def test_developer_app_detail_shows_actual_rate_limits_when_enforcement_enabled(app_factory, db):
-    app = app_factory(ENFORCE_RATELIMIT=True, RATELIMIT_STORAGE_OPTIONS={"database_name": db.name})
+    app = app_factory(ENFORCE_RATELIMIT=True)
     seeded_data = _seed_database(app, db)
     developer_client = _client_for_user(app, seeded_data["developer_id"])
 

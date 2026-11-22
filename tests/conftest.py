@@ -931,6 +931,7 @@ def app_factory(external_side_effects):
             "ENABLE_EMAIL_WORKER": False,
             "ENABLE_CHAT": False,
             "SOCKETIO_MESSAGE_QUEUE": "",
+            "RATELIMIT_STORAGE_OPTIONS": {"database_name": TEST_DB_NAME},
         }
         config_overrides.update(overrides)
         return create_app(config_overrides)
