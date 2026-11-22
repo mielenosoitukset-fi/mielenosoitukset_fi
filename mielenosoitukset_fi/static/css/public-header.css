@@ -33,6 +33,10 @@
     top: 0;
     left: 0;
     transform: translateY(-120%);
+    /* Keep it fully off-screen until focused, also when a parent or the
+       banner shifts it (seen as a 38px strip on phones). */
+    clip-path: inset(50%);
+    pointer-events: none;
     background: var(--product-action-bg);
     color: var(--product-on-action);
     padding: 0.75rem 1.5rem;
@@ -44,6 +48,8 @@
 
   .skip-link:focus {
     transform: translateY(0);
+    clip-path: none;
+    pointer-events: auto;
   }
 
   /* Top Header */

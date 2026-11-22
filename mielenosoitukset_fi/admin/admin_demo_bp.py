@@ -2038,10 +2038,12 @@ def _case_link_open(token, *, allow_bind=False):
     case_links.begin_session(session, doc, case_id)
     response = redirect(url_for("admin_case.single_case", case_id=str(case_id)))
     response.headers["Cache-Control"] = "no-store"
+    # A browser bound before 22 Nov 2026 holds the cookie for /admin only; the effects preview lives under /api.
+    new_cookie = new_cookie or request.cookies.get(case_links.COOKIE_NAME)
     if new_cookie:
         response.set_cookie(
             case_links.COOKIE_NAME, new_cookie, max_age=MAGIC_TTL_SECONDS, httponly=True,
-            secure=request.is_secure or not current_app.debug, samesite="Lax", path="/admin",
+            secure=request.is_secure or not current_app.debug, samesite="Lax", path="/",
         )
     return response
 
