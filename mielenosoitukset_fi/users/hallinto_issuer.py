@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import re
+from typing import Optional
 import secrets
 from mielenosoitukset_fi.utils.cities import CITY_KEY_TO_NAME
 from dataclasses import dataclass
@@ -148,15 +149,20 @@ def invite_sender():
     return _invite_sender
 
 
-def _account_view(doc: dict) -> dict:
+def _account_view(doc: dict, roles: Optional[list] = None) -> dict:
+    """What Hallinto may see of an account. ``roles`` are its removable roles,
+    given only to the searches that feed the role removal form."""
     suspended = bool((doc.get("security_suspension") or {}).get("active"))
-    return {
+    view = {
         "sub": str(doc["_id"]),
         "username": doc.get("username", ""),
         "name": doc.get("displayname") or doc.get("username", ""),
         "active": bool(doc.get("active", True) and doc.get("confirmed", False)
                        and not doc.get("banned") and not suspended),
     }
+    if roles:
+        view["roles"] = roles
+    return view
 
 
 @dataclass(frozen=True)
@@ -547,21 +553,36 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             return error
         return jsonify(items=access_review.hallinto_list(db))
 
+    def _with_roles(rows, payload):
+        """Account views that also list each account's removable roles, up to
+        the rank of the signed-in admin who asks."""
+        from mielenosoitukset_fi.admin import flask_orders
+
+        actor = db.users.find_one({"_id": ObjectId(payload["sub"])}, {"role": 1}) or {}
+        rank = flask_orders._actor_rank(type("Actor", (), {"role": actor.get("role")})())
+        return [_account_view(row, flask_orders.held_removable_roles(db, row, rank)) for row in rows]
+
     @bp.post("/accounts/search")
     def account_search():
+        """Find accounts by the start of a username or name, by @username, or by
+        a whole email address. The address is only matched, never returned."""
         payload, error = admin_payload()
         if error:
             return error
         query = payload.get("q")
         if not isinstance(query, str) or not 3 <= len(query.strip()) <= 64:
             return jsonify(error="invalid_request"), 400
-        prefix = "^" + re.escape(query.strip())
-        rows = db.users.find(
-            {"$or": [{"username": {"$regex": prefix, "$options": "i"}},
-                     {"displayname": {"$regex": prefix, "$options": "i"}}]},
-            _ACCOUNT_FIELDS,
-        ).sort("username", 1).limit(_ACCOUNT_SEARCH_LIMIT)
-        return jsonify(items=[_account_view(row) for row in rows])
+        query = query.strip()
+        if "@" in query[1:]:
+            email = normalize_email(query)
+            match = {"$or": [{"email_canonical": email},
+                             {"email": {"$regex": "^" + re.escape(email) + "$", "$options": "i"}}]}
+        else:
+            prefix = "^" + re.escape(query.lstrip("@"))
+            match = {"$or": [{"username": {"$regex": prefix, "$options": "i"}},
+                             {"displayname": {"$regex": prefix, "$options": "i"}}]}
+        rows = db.users.find(match).sort("username", 1).limit(_ACCOUNT_SEARCH_LIMIT)
+        return jsonify(items=_with_roles(rows, payload))
 
     @bp.post("/accounts/lookup")
     def account_lookup():
