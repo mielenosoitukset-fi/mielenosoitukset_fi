@@ -33,7 +33,10 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Blueprint, current_app, g, jsonify, request, url_for
 
-from . import city_grants, flask_orders, grant_proofs, org_outreach, org_recovery, role_bundles
+from . import (
+    city_grants, elevated_grants, flask_orders, grant_proofs, moderator_appointments, org_outreach, org_recovery,
+    role_bundles,
+)
 
 HELSINKI = ZoneInfo("Europe/Helsinki")
 INTEGRATION = "hallinto"
@@ -41,8 +44,10 @@ AUDIENCE = "hallinto-city-grants"
 ATTESTATION_CONTEXT = b"hallinto-city-admin-v1-attestation\n"
 END_ATTESTATION_CONTEXT = b"hallinto-city-admin-end-v1-attestation\n"
 ORDER_ATTESTATION_CONTEXT = b"hallinto-flask-order-v1-attestation\n"
+MODERATOR_ATTESTATION_CONTEXT = b"hallinto-national-moderator-v1-attestation\n"
 BUNDLE_ATTESTATION_CONTEXT = b"hallinto-role-bundle-v1-attestation\n"
 BUNDLE_END_ATTESTATION_CONTEXT = b"hallinto-role-bundle-end-v1-attestation\n"
+ELEVATED_ATTESTATION_CONTEXT = b"hallinto-elevated-v1-attestation\n"
 INVITATION_ATTESTATION_CONTEXT = b"hallinto-org-invitation-v1-attestation\n"
 RECOVERY_ATTESTATION_CONTEXT = b"hallinto-org-recovery-v1-attestation\n"
 
@@ -62,12 +67,21 @@ def order_attestation_message(intent_digest: str) -> bytes:
     return ORDER_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
+def elevated_attestation_message(intent_digest: str) -> bytes:
+    """Superadmin and god appointments sign their own context; no other signature can grant them."""
+    return ELEVATED_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
 def invitation_attestation_message(intent_digest: str) -> bytes:
     return INVITATION_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def recovery_attestation_message(intent_digest: str) -> bytes:
     return RECOVERY_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def moderator_attestation_message(intent_digest: str) -> bytes:
+    return MODERATOR_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def bundle_attestation_message(intent_digest: str) -> bytes:
@@ -209,6 +223,23 @@ def build_blueprint(db) -> Blueprint:
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
         ))
 
+    @bp.post("/moderator-appointments")
+    def apply_moderator_appointment():
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = moderator_appointments.intent_digest(body)
+        if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key):
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_MODERATOR_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, moderator_attestation_message):
+            return _error("denied")
+        return _reply(moderator_appointments.apply_v1(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
     @bp.post("/role-bundles")
     def apply_role_bundle():
         key = request.headers.get("Idempotency-Key", "")
@@ -294,12 +325,49 @@ def build_blueprint(db) -> Blueprint:
             return _error("unsupported_scope")
         return jsonify(org_outreach.read_check(db, body["address"]))
 
+    def _elevated_on() -> bool:
+        return current_app.config.get("HALLINTO_ELEVATED_ENABLED") is True
+
+    @bp.post("/elevated-appointments")
+    def apply_elevated_appointment():
+        if not _elevated_on():
+            return "", 404
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = elevated_grants.elevated_digest(body)
+        if digest is None or not city_grants.IDEMPOTENCY_KEY.match(key):
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_ELEVATED_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, elevated_attestation_message):
+            return _error("denied")
+        return _reply(elevated_grants.apply_elevated_v1(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
+    @bp.get("/elevated-grants/<account_id>")
+    def read_elevated(account_id):
+        if not _elevated_on():
+            return "", 404
+        actor_id = grant_proofs.proof_actor(db, _bearer(), audience=AUDIENCE, subject=account_id)
+        if actor_id is None or city_grants.authorized_actor(db, actor_id) is None:
+            return _error("denied")
+        state = elevated_grants.read_elevated_state(db, account_id)
+        return jsonify(state) if state else _error("denied")
+
     @bp.get("/operations/by-key")
     def read_receipt():
         key = request.headers.get("Idempotency-Key", "")
         actor_id = grant_proofs.proof_actor(db, _bearer(), audience=AUDIENCE, idempotency_key=key)
         if actor_id is None:
             return _error("denied")
+        if _elevated_on():
+            outcome = elevated_grants.read_elevated_receipt(
+                db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key)
+            if outcome.status_code != 404:
+                return _reply(outcome)
         return _reply(city_grants.read_operation_receipt(
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key,
         ))
@@ -327,6 +395,7 @@ ORDER_APPROVAL_FIELDS = {
     flask_orders.KIND_SITE_LOCKDOWN: {"order_id", "kind", "decision_id", "decision_revision", "action"},
     flask_orders.KIND_ACCESS_REVIEW: {"order_id", "kind", "decision_id", "decision_revision", "roster"},
 }
+ELEVATED_APPROVAL_FIELDS = {"account_id", "template", "decision_id", "decision_revision", "valid_until"}
 BUNDLE_APPROVAL_FIELDS = {"account_id", "template", "decision_id", "decision_revision", "valid_until"}
 BUNDLE_END_APPROVAL_FIELDS = {"appointment_id", "kind", "account_id", "template", "decision_id", "decision_revision"}
 INVITATION_APPROVAL_FIELDS = {"invitation_id", "case_id", "decision_id", "decision_revision",
@@ -358,12 +427,27 @@ def _decode_fields(raw: str):
     if "invitation_id" in fields:
         allowed = INVITATION_APPROVAL_FIELDS
         return fields if INVITATION_APPROVAL_FIELDS <= set(fields) <= allowed | {"note"} else None
+    if fields.get("template") in elevated_grants.TEMPLATES:
+        if not _elevated_enabled():
+            return None
+        extra = {"concurring_decision_id"} if fields["template"] == elevated_grants.GOD_V1 else set()
+        return fields if set(fields) == ELEVATED_APPROVAL_FIELDS | extra else None
+    if moderator_appointments.is_moderator_fields(fields):
+        return fields if set(fields) == moderator_appointments.APPROVAL_FIELDS else None
     if fields.get("template") in role_bundles.BUNDLES and "city" not in fields:
         wanted = BUNDLE_END_APPROVAL_FIELDS if "kind" in fields else BUNDLE_APPROVAL_FIELDS
         return fields if set(fields) == wanted else None
     if "kind" in fields:
         return fields if set(fields) == END_APPROVAL_FIELDS else None
     return fields if not set(fields) - APPROVAL_FIELDS else None
+
+
+def _elevated_enabled() -> bool:
+    return current_app.config.get("HALLINTO_ELEVATED_ENABLED") is True
+
+
+def _is_elevated(fields: dict) -> bool:
+    return fields.get("template") in elevated_grants.TEMPLATES
 
 
 def _is_bundle(fields: dict) -> bool:
@@ -438,6 +522,24 @@ def build_approval_blueprint(db) -> Blueprint:
                     {"_id": ObjectId(fields["account_id"])}, {"_id": 1}) is None):
                 abort(400)
             return fields, state_param, {"eligible": True}, digest
+        if _is_elevated(fields):
+            state = elevated_grants.read_elevated_state(db, str(fields.get("account_id", "")))
+            if state is None:
+                abort(400)
+            digest = elevated_grants.elevated_digest(
+                {**fields, "expected_state": state["expected_state"], "authority_attestation": "-"})
+            if digest is None:
+                abort(400)
+            return fields, state_param, {**state, "eligible": state["eligible"][fields["template"]]}, digest
+        if moderator_appointments.is_moderator_fields(fields):
+            state = moderator_appointments.read_state(db, str(fields.get("account_id", "")))
+            if state is None:
+                abort(400)
+            digest = moderator_appointments.intent_digest(
+                {**fields, "expected_state": state["expected_state"], "authority_attestation": "-"})
+            if digest is None:
+                abort(400)
+            return fields, state_param, state, digest
         if _is_bundle(fields):
             state = role_bundles.read_bundle_state(db, str(fields.get("account_id", "")), fields["template"])
             if state is None:
@@ -491,13 +593,21 @@ def build_approval_blueprint(db) -> Blueprint:
                 {"_id": {"$in": [ObjectId(a) for a in leaving]}}, {"username": 1, "displayname": 1})]
             added_names = [names.get(a, "?") for a in fields["roster"] if a not in current]
         is_end = "kind" in fields and not is_order and not is_invite
+        is_elevated = _is_elevated(fields)
         is_bundle = _is_bundle(fields)
         bundle = role_bundles.BUNDLES.get(fields.get("template")) if is_bundle else None
+        is_moderator = moderator_appointments.is_moderator_fields(fields)
+        approver_names = []
         permission_copy = []
+        if is_moderator:
+            from mielenosoitukset_fi.admin.permission_copy import PERMISSION_DESCRIPTIONS
+            permission_copy = [str(PERMISSION_DESCRIPTIONS.get(p, p)) for p in moderator_appointments.PERMISSIONS]
+            approver_names = sorted(u.get("displayname") or u.get("username") or "?" for u in db.users.find(
+                {"_id": {"$in": [ObjectId(a) for a in fields["shift_approvers"]]}}, {"username": 1, "displayname": 1}))
         if bundle:
             from mielenosoitukset_fi.admin.permission_copy import PERMISSION_DESCRIPTIONS
             permission_copy = [str(PERMISSION_DESCRIPTIONS.get(p, p)) for p in bundle["permissions"]]
-        page_title = ("Vahvista kutsun lähetys" if is_invite else "Vahvista pääsyn palautus" if is_recovery else "Vahvista roolin poisto" if fields.get("kind") == flask_orders.KIND_ROLE_REMOVAL
+        page_title = ("Vahvista superadmin- tai god-nimitys" if is_elevated else "Vahvista kutsun lähetys" if is_invite else "Vahvista pääsyn palautus" if is_recovery else "Vahvista roolin poisto" if fields.get("kind") == flask_orders.KIND_ROLE_REMOVAL
                       else "Vahvista hätäsulku" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN and fields.get("action") == "close"
                       else "Vahvista sivuston avaaminen" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN
                       else "Vahvista ylläpitotilien tarkistus" if fields.get("kind") == flask_orders.KIND_ACCESS_REVIEW
@@ -520,6 +630,8 @@ def build_approval_blueprint(db) -> Blueprint:
             is_invite=is_invite, masked_address=masked, is_recovery=is_recovery,
             recovery_organization=(state.get("name") if is_recovery else ""),
             recovery_replaced=(state.get("replaced_owners", 0) if is_recovery else 0),
+            is_elevated=is_elevated, elevated_label=elevated_grants.TEMPLATES.get(fields.get("template"), ""),
+            is_moderator=is_moderator, approver_names=approver_names,
             is_bundle=is_bundle, bundle_label=(bundle or {}).get("label", ""), permission_copy=permission_copy,
             page_title=page_title,
             eligible=state["eligible"],
@@ -543,7 +655,9 @@ def build_approval_blueprint(db) -> Blueprint:
         is_recovery = "request_id" in fields
         is_end = "kind" in fields and not is_order and not is_invite
         is_bundle = _is_bundle(fields)
-        action = (grant_proofs.ACTION_ORG_INVITATION_V1 if is_invite
+        action = (grant_proofs.ACTION_ELEVATED_V1 if _is_elevated(fields)
+                  else grant_proofs.ACTION_MODERATOR_V1 if moderator_appointments.is_moderator_fields(fields)
+                  else grant_proofs.ACTION_ORG_INVITATION_V1 if is_invite
                   else grant_proofs.ACTION_ORG_RECOVERY_V1 if is_recovery
                   else grant_proofs.ACTION_FLASK_ORDER_V1 if is_order
                   else (grant_proofs.ACTION_ROLE_BUNDLE_END_V1 if is_end else grant_proofs.ACTION_ROLE_BUNDLE_V1) if is_bundle

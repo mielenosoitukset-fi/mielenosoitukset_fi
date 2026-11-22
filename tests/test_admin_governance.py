@@ -12,19 +12,21 @@ def _governance_csrf_headers(client):
     return {"X-CSRF-Token": "governance-test-token"}
 
 
-def test_governance_dashboard_collects_admin_tools(app, db, seeded_data):
+def test_governance_overview_lives_in_hallinto(app, db, seeded_data):
     client = _client_for_user(app, seeded_data["admin_id"])
 
+    app.config["HALLINTO_URL"] = None
+    assert client.get("/admin/governance/").headers["Location"].endswith("/admin/dashboard")
+    app.config["HALLINTO_URL"] = "https://hallinto.example.test/"
     response = client.get("/admin/governance/")
+    assert response.status_code == 302 and response.headers["Location"] == "https://hallinto.example.test/"
 
-    assert response.status_code == 200
-    page = response.get_data(as_text=True)
-    assert "Hallinto ja käyttöoikeudet" in page
-    assert "Superkäyttäjäroolin hyväksynnät" in page
-    assert "Kaupunkihallinta" in page
-    assert "Tapahtumaloki" in page
-    assert 'data-bs-target="#sidebar"' in page
-    assert "Avaa admin-valikko" in page
+    page = client.get("/admin/dashboard").get_data(as_text=True)
+    assert 'href="https://hallinto.example.test/"' in page
+    assert "/admin/governance/" not in page
+    assert "admin-section-tabs" not in client.get("/admin/governance/audit").get_data(as_text=True)
+    app.config["HALLINTO_URL"] = None
+    assert "fa-landmark" not in client.get("/admin/dashboard").get_data(as_text=True)
 
 
 def test_board_clearance_is_persisted_and_audited(app, db, seeded_data, teams):
@@ -78,7 +80,6 @@ def test_city_management_explains_unsaved_and_risky_changes(app, seeded_data):
     assert "Vain käytössä olevat" in page
     assert "Tallentamattomia muutoksia" in page
     assert "Olet poistamassa käytöstä kaupunkeja" in page
-    assert "/admin/governance/" in page
 
 
 def test_admin_management_views_share_workspace_design(app, seeded_data):

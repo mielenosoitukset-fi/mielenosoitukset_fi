@@ -4,16 +4,15 @@ from bson import ObjectId
 from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 
-from mielenosoitukset_fi.utils.city_settings import enabled_city_keys
 from mielenosoitukset_fi.utils.wrappers import (
-    admin_required, permission_required, global_permission_required, has_global_permission,
+    admin_required, permission_required, global_permission_required,
 )
 
 from .board_audit import audit_rows
 from .board_compliance import clearance_rows, governance_csrf_token
 from .pagination import build_admin_pagination, parse_admin_pagination
 from .utils import _ADMIN_TEMPLATE_FOLDER, mongo
-from mielenosoitukset_fi.utils.system_teams import board_ids, clearance_record_approved
+from mielenosoitukset_fi.utils.system_teams import board_ids
 from mielenosoitukset_fi.utils.team_governance import override_role
 from mielenosoitukset_fi.utils.security_cases import actor_access, decide, open_case
 from mielenosoitukset_fi.utils.team_governance import GovernanceConflict
@@ -70,32 +69,17 @@ def security():
                            governance_csrf_token=governance_csrf_token()), status
 
 
-def _can(permission):
-    return bool(
-        getattr(current_user, "global_admin", False)
-    ) or current_user.has_permission(permission)
-
-
 @admin_governance_bp.route("/")
 @login_required
 @admin_required
 def dashboard():
-    permissions = {
-        "clearances": has_global_permission(current_user, "MANAGE_CLEARANCE"),
-        "audit": _can("VIEW_CLEARANCE_AUDIT"),
-        "cities": _can("MANAGE_CITIES"),
-    }
-    if not any(permissions.values()):
-        abort(403)
+    """The overview moved to Hallinto; the technical pages stay as unlinked routes."""
+    from flask import current_app
 
-    clearance_count = sum(clearance_record_approved(row) for row in mongo.board_clearances.find({"approved": True}))
-    return render_template(
-        f"{_ADMIN_TEMPLATE_FOLDER}governance/dashboard.html",
-        permissions=permissions,
-        clearance_count=clearance_count,
-        active_city_count=len(enabled_city_keys(mongo)),
-        recent_events=audit_rows(limit=5) if permissions["audit"] else [],
-    )
+    target = current_app.config.get("HALLINTO_URL")
+    if isinstance(target, str) and target.startswith("https://"):
+        return redirect(target, code=302)
+    return redirect(url_for("admin.admin_dashboard"), code=302)
 
 
 @admin_governance_bp.route("/clearances")
