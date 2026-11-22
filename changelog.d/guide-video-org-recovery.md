@@ -1,0 +1,1 @@
+- Julkiselle ohjesivulle lisättiin video organisaation tilin käytön palauttamisesta, kun pääsy on hukassa.
