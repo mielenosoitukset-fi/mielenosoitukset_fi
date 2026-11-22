@@ -121,6 +121,8 @@ def _via_label(via: Dict[str, Any]) -> str:
         return f"{service} · {via.get('method') or ''} {route}".strip()
     if kind == "job":
         return f"{_('Taustatyö')} · {via.get('name') or ''}".strip()
+    if kind == "legacy_admin_log":
+        return _("Vanha ylläpitoloki")
     if kind in ("process", "script"):
         return f"{_('Skripti')} · {via.get('script') or via.get('name') or ''}".strip()
     return kind or "—"
@@ -191,10 +193,15 @@ def load_history(db, collection: str, doc_id: Any) -> Dict[str, Any]:
             first_known_create = True
         succeeded = bool(outcome.get("ok", True)) and not outcome.get("errors")
         fields = []
+        legacy = bool(event.get("legacy"))
+        for name in event.get("legacy_fields") or []:
+            fields.append({"field": str(name), "kind": "set", "before": None, "after": _("(arvo ei tiedossa)")})
         for field, change in sorted(_field_changes(event).items()):
             if field in _NOISE_FIELDS:
                 continue
             before = known.get(field, UNKNOWN) if op["key"] != "create" else UNKNOWN
+            if legacy and field in (event.get("legacy_before") or {}):
+                before = event["legacy_before"][field]
             after = change["value"] if change["kind"] == "set" else None
             # A failed write changed nothing, so it does not move old values on.
             if succeeded and change["kind"] == "set":
@@ -226,6 +233,7 @@ def load_history(db, collection: str, doc_id: Any) -> Dict[str, Any]:
             "reason": event.get("reason"),
             "fields": fields,
             "multi": bool(event.get("multi")),
+            "legacy": legacy,
         })
     rows.reverse()  # newest first for display
     return {
@@ -238,12 +246,15 @@ def load_history(db, collection: str, doc_id: Any) -> Dict[str, Any]:
 
 def first_event_at(db) -> Optional[Any]:
     """When the trail started in this database (for the 'history starts' note)."""
-    first = db[AUDIT_COLLECTION].find_one({}, {"at": 1}, sort=[("at", 1)])
+    first = db[AUDIT_COLLECTION].find_one({"legacy": {"$ne": True}}, {"at": 1}, sort=[("at", 1)])
     return first.get("at") if first else None
 
 
+
 # Before the audit trail existed, admin_logs recorded who did what to an
-# organization, but not the changed field values. These events are write paths.
+# organization, but not the changed field values. scripts/backfill_org_history.py
+# copies these events into audit_events (marked ``legacy``) so one history view
+# shows both eras. Value: (operation, Finnish label shown to admins).
 LEGACY_EVENTS = {
     "organization_created": ("create", "Organisaatio luotu"),
     "organization_created_api": ("create", "Organisaatio luotu rajapinnan kautta"),
@@ -258,59 +269,3 @@ LEGACY_EVENTS = {
     "organization_invite_role_set": ("update", "Kutsun rooli asetettu"),
     "membership_deleted": ("update", "Jäsen poistettu"),
 }
-MAX_LEGACY = 300
-
-
-def _legacy_op(key: str) -> Dict[str, str]:
-    return {"create": {"key": "create", "label": _("Luotu")},
-            "delete": {"key": "delete", "label": _("Poistettu")}}.get(
-        key, {"key": "update", "label": _("Muokattu")})
-
-
-def load_legacy_organization_rows(db, org_id: Any, before: Optional[datetime]) -> List[Dict[str, Any]]:
-    """Newest-first rows from ``admin_logs`` older than ``before`` (trail start).
-
-    Read-only. Shows time, admin username and what kind of action; never the
-    logged email, request data or other personal data. Field values were not
-    logged then, except the old and new value of ``verified``.
-    """
-    ids = [str(i) for i in _id_forms(org_id) if not isinstance(i, ObjectId)]
-    query: Dict[str, Any] = {
-        "event": {"$in": list(LEGACY_EVENTS)},
-        "$or": [{"details.org_id": {"$in": ids}}, {"details.organization_id": {"$in": ids}}],
-    }
-    if before is not None:
-        query["timestamp"] = {"$lt": before}
-    entries = list(db.admin_logs.find(
-        query, {"event": 1, "timestamp": 1, "actor.id": 1, "actor.username": 1, "details": 1},
-    ).sort([("timestamp", -1), ("_id", -1)]).limit(MAX_LEGACY))
-    rows: List[Dict[str, Any]] = []
-    for entry in entries:
-        op_key, label = LEGACY_EVENTS[entry["event"]]
-        details = entry.get("details") or {}
-        at = entry.get("timestamp")
-        fields: List[Dict[str, Any]] = []
-        if entry["event"] == "organization_verified_changed":
-            fields.append({"field": "verified", "kind": "set",
-                           "before": display_value(details.get("previous")),
-                           "after": display_value(details.get("new"))})
-        elif entry["event"] == "organization_suggestion_fields_applied":
-            for name in (details.get("fields") or [])[:30]:
-                fields.append({"field": str(name), "kind": "set", "before": None,
-                               "after": _("(arvo ei tiedossa)")})
-        username = (entry.get("actor") or {}).get("username")
-        rows.append({
-            "id": str(entry["_id"]),
-            "at": at,
-            "at_display": helsinki_time(at) if isinstance(at, datetime) else "—",
-            "op": _legacy_op(op_key),
-            "ok": True,
-            "actor": {"kind": "user", "name": username or _("Tuntematon käyttäjä"), "username": None},
-            "legacy": True,
-            "via": _("Vanha ylläpitoloki"),
-            "via_is_actor": False,
-            "reason": _(label),
-            "fields": fields,
-            "multi": False,
-        })
-    return rows

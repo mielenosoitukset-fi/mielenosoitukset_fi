@@ -84,29 +84,58 @@ def test_demo_history_lists_every_recorded_change(admin_client, db, seeded_data)
     assert "Audit-otsikko" in page
 
 
-@pytest.mark.integration
-def test_organization_history_adds_old_admin_log_rows_before_trail(admin_client, db, seeded_data):
-    org_id = ObjectId(seeded_data["org_id"])
-    now = datetime.now(timezone.utc)
-    db.audit_events.delete_many({})
-    db.audit_events.insert_one(_event(org_id, now - timedelta(hours=1), "update", [{"$set": {"name": "Nyt"}}],
-                                      {"kind": "user", "user_id": str(seeded_data["admin_id"])}))
+def _legacy_logs(db, org_id, now):
+    other = str(ObjectId())
+    db.admin_logs.delete_many({})
     db.admin_logs.insert_many([
+        {"event": "organization_created", "timestamp": now - timedelta(days=30),
+         "actor": {"id": "1", "username": "olivia", "email": "secret@example.test"}, "details": {"org_id": str(org_id)}},
         {"event": "organization_verified_changed", "timestamp": now - timedelta(days=5),
          "actor": {"id": "1", "username": "vanha_admin", "email": "secret@example.test"},
          "details": {"organization_id": str(org_id), "previous": False, "new": True}},
         {"event": "organization_update", "timestamp": now - timedelta(days=4),
-         "actor": {"id": "1", "username": "vanha_admin", "email": "secret@example.test"},
-         "details": {"org_id": str(org_id)}},
+         "actor": {"id": "1", "username": "vanha_admin"}, "details": {"org_id": str(org_id)}},
         {"event": "organization_update", "timestamp": now - timedelta(days=4),
-         "actor": {"id": "1", "username": "toinen"}, "details": {"org_id": str(ObjectId())}},
+         "actor": {"id": "1", "username": "toinen"}, "details": {"org_id": other}},
         {"event": "organization_view", "timestamp": now - timedelta(days=4),
          "actor": {"id": "1", "username": "katsoja"}, "details": {"org_id": str(org_id)}},
         {"event": "organization_update", "timestamp": now + timedelta(days=1),
          "actor": {"id": "1", "username": "tuleva"}, "details": {"org_id": str(org_id)}},
     ])
+
+
+@pytest.mark.integration
+def test_backfill_copies_old_org_events_once_and_history_shows_them(admin_client, db, seeded_data, monkeypatch):
+    from mielenosoitukset_fi.scripts import backfill_org_history as backfill
+
+    monkeypatch.delenv("ORG_HISTORY_BACKFILL_DISABLED", raising=False)
+    org_id = ObjectId(seeded_data["org_id"])
+    now = datetime.now(timezone.utc)
+    db.audit_events.delete_many({})
+    db.maintenance_markers.delete_many({"_id": backfill.MARKER_ID})
+    db.audit_events.insert_one(_event(org_id, now - timedelta(hours=1), "update", [{"$set": {"name": "Nyt"}}],
+                                      {"kind": "user", "user_id": str(seeded_data["admin_id"])}))
+    _legacy_logs(db, org_id, now)
+
+    assert backfill.main(db=db, dry_run=True)["events_seen"] == 4
+    assert db.audit_events.count_documents({"legacy": True}) == 0
+
+    result = backfill.main(db=db)
+    assert result["written"] == 4 and result["no_org_id"] == 0
+    assert db.audit_events.count_documents({"legacy": True, "collection": "organizations", "doc_ids": org_id}) == 3
+    assert backfill.main(db=db) == {"already_done": True}
+    db.maintenance_markers.delete_many({"_id": backfill.MARKER_ID})
+    assert backfill.main(db=db)["already_there"] == 4  # idempotent
+    assert db.audit_events.count_documents({"legacy": True, "collection": "organizations"}) == 4
+
+    stored = db.audit_events.find_one({"source.id": str(db.admin_logs.find_one({"event": "organization_verified_changed"})["_id"])})
+    assert "secret@example.test" not in str(stored) and "vanha_admin" not in str(stored)
+
     page = admin_client.get(f"/admin/organization/history/{org_id}").get_data(as_text=True)
-    assert "Nyt" in page and "vanha_admin" in page and "Vanha ylläpitoloki" in page
-    assert "verified" in page
-    assert "secret@example.test" not in page
+    assert "Nyt" in page and "Vanha ylläpitoloki" in page and "verified" in page
     assert "toinen" not in page and "katsoja" not in page and "tuleva" not in page
+    assert "secret@example.test" not in page
+    assert "Muutoshistoria kirjataan" not in page  # creation is known now
+    from mielenosoitukset_fi.admin.audit_history import first_event_at
+    assert db.audit_events.find_one({"legacy": {"$ne": True}})["at"] == first_event_at(db)
+    assert "Organisaatio luotu" in page
