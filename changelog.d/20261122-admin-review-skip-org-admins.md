@@ -1,0 +1,1 @@
+- The admin account review no longer lists accounts that only have the plain `admin` role (organisation admins). Only accounts with site-level rights are reviewed.
