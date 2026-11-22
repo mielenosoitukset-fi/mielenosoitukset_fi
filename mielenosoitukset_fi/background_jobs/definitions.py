@@ -30,6 +30,7 @@ from mielenosoitukset_fi.scripts.notify_overdue_moderation_reviews import main a
 from mielenosoitukset_fi.scripts.deliver_city_admin_applications import main as deliver_city_admin_applications
 from mielenosoitukset_fi.scripts.purge_city_admin_applications import main as purge_city_admin_applications
 from mielenosoitukset_fi.scripts.deliver_case_notices import main as deliver_case_notices
+from mielenosoitukset_fi.scripts.sync_org_admins import main as sync_org_admins
 from mielenosoitukset_fi.scripts.deliver_fundraising_reminder_confirmations import main as deliver_fundraising_reminder_confirmations
 from mielenosoitukset_fi.scripts.send_fundraising_reminders import main as send_fundraising_reminders
 from mielenosoitukset_fi.scripts.purge_fundraising_reminders import main as purge_fundraising_reminders
@@ -207,6 +208,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         description="Creates a review case and national team inbox notices for each city admin application stored by the Go API.",
         func=deliver_city_admin_applications,
         default_trigger=_interval(minutes=2),
+    ),
+    JobDefinition(
+        key="sync_org_admins",
+        name="Organisation admin roles",
+        description="Keeps each account's org_admin grants equal to its owner/admin memberships, including changes made by the Go API. Switch off with ORG_ADMIN_ROLE_ENABLED=0.",
+        func=sync_org_admins,
+        default_trigger=_interval(minutes=5),
     ),
     JobDefinition(
         key="deliver_case_notices",

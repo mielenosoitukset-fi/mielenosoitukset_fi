@@ -1048,6 +1048,8 @@ def delete_membership() -> Tuple[Response, int]:
     })
 
     if result.deleted_count == 1:
+        from mielenosoitukset_fi.admin.org_admin_grants import sync_if_enabled
+        sync_if_enabled(membership_doc.get("user_id"))
         _log_org_event("membership_deleted", membership_id=membership_id)
         return jsonify({"message": "Käyttäjä poistettu organisaatiosta"}), 200
 

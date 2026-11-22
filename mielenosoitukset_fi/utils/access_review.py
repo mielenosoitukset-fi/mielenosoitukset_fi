@@ -34,7 +34,7 @@ DEADLINE = datetime(2026, 12, 31, 22, 0, 0)
 WINDOW_DAYS = 45  # Confirming opens this long before a deadline.
 MIN_NOTICE_DAYS = 30  # A round closer than this is skipped for newly stamped accounts.
 REMINDER_DAYS = (30, 14, 7, 3, 1)
-SITE_ROLES = {"admin": "Ylläpitäjä", "translator": "Kääntäjä", "city_admin": "Kaupunkiylläpitäjä",
+SITE_ROLES = {"admin": "Ylläpitäjä", "translator": "Kääntäjä", "city_admin": "Kaupunkiylläpitäjä", "org_admin": "Organisaation ylläpitäjä",
               "global_admin": "Pääkäyttäjä", "superuser": "Superuser", "god": "God"}
 TRANSLATION = {"TRANSLATE_DEMO", "REVIEW_DEMO_TRANSLATIONS", "TRANSLATE_UI", "REVIEW_UI_TRANSLATIONS"}
 

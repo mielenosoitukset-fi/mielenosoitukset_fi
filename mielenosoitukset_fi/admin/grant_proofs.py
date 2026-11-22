@@ -36,6 +36,7 @@ ACTION_MODERATOR_V1 = "national_moderator_v1"
 ACTION_MODERATOR_END_V1 = "national_moderator_end_v1"
 ACTION_ORG_INVITATION_V1 = "org_invitation_v1"
 ACTION_ORG_RECOVERY_V1 = "org_recovery_v1"
+ACTION_ORG_ADMIN_END_V1 = "org_admin_end_v1"
 
 
 def _hash(token: str) -> str:
