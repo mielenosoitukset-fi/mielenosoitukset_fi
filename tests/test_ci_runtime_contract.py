@@ -16,7 +16,7 @@ def test_mongo_compatible_runner_keeps_database_and_required_suite():
     runs_on = job["runs-on"]
     assert "github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-22.04'" in runs_on
     assert "fromJSON(vars.MOSO_CI_RUNS_ON || '[\"self-hosted\",\"self-hosted-moso\"]')" in runs_on
-    assert compose["services"]["mongo"]["image"] == "${TEST_MONGO_IMAGE:-mongo:8}"
+    assert compose["services"]["mongo"]["image"] == "mongo:8"
     assert not job.get("continue-on-error", False)
     assert job["timeout-minutes"] == 30
     setup = next(step for step in job["steps"] if step.get("uses", "").startswith("actions/setup-python@"))

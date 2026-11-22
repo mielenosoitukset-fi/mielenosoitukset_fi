@@ -81,12 +81,6 @@ jobs:
       - name: Install Chromium for Playwright
         run: python -m playwright install --with-deps chromium
 
-      - name: Pick the test MongoDB image
-        # MongoDB 8.0 refuses Linux 6.19-7.0.13 (SERVER-121912); the AX41 runners
-        # share the host kernel, so they use 8.2, which starts there.
-        run: |
-          if [ "$RUNNER_ENVIRONMENT" = self-hosted ]; then echo "TEST_MONGO_IMAGE=mongo:8.2" >> "$GITHUB_ENV"; fi
-
       - name: Start disposable test services
         run: docker compose -f compose.test.yml up -d mongo redis mailpit localstack
 

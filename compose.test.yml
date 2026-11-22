@@ -2,7 +2,7 @@ name: mielenosoitukset-fi-test
 
 services:
   mongo:
-    image: ${TEST_MONGO_IMAGE:-mongo:8}
+    image: mongo:8
     ports:
       - "127.0.0.1:27017:27017"
     healthcheck:
