@@ -89,3 +89,18 @@ def test_shared_ci_mongo_database_names_match_runner_grants(monkeypatch):
         for worker in (None, "gw0", "gw1"):
             monkeypatch.setattr(conftest, "XDIST_WORKER", worker)
             assert conftest._test_db_name() == f"mielenosoitukset_test_{slot}_{worker or 'controller'}"
+
+
+def test_shards_follow_recorded_durations_and_cover_every_file(tmp_path):
+    from scripts.ci_test_shard import shard_files
+
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "scripts").mkdir()
+    for name, size in {"a": 10, "b": 10, "c": 10, "d": 10}.items():
+        (tmp_path / "tests" / f"test_{name}.py").write_text("x" * size)
+    (tmp_path / "scripts" / "ci_test_durations.json").write_text(
+        '{"tests/test_a.py": 100, "tests/test_b.py": 50, "tests/test_c.py": 50, "tests/test_d.py": 10}'
+    )
+    shards = [shard_files(tmp_path, n, 2) for n in (1, 2)]
+    assert sorted(shards[0] + shards[1]) == [f"tests/test_{n}.py" for n in "abcd"]
+    assert "tests/test_a.py" in shards[1]  # shard 1 also builds the frontend
