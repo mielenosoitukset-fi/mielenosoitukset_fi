@@ -81,8 +81,29 @@ jobs:
       - name: Install Chromium for Playwright
         run: python -m playwright install --with-deps chromium
 
+      - name: Choose the test MongoDB
+        # Self-hosted runners may share one CI MongoDB (secret MOSO_CI_MONGO_URI,
+        # set only for same-repository runs). Every test database name carries the
+        # run, attempt, shard and worker, and a worker drops only its own. Without
+        # the secret, or on GitHub-hosted runners, each job starts its own mongo.
+        env:
+          SHARED_MONGO_URI: ${{ secrets.MOSO_CI_MONGO_URI }}
+        run: |
+          if [ "$RUNNER_ENVIRONMENT" = self-hosted ] && [ -n "$SHARED_MONGO_URI" ]; then
+            echo "::add-mask::$SHARED_MONGO_URI"
+            {
+              echo "SHARED_MONGO=1"
+              echo "TEST_MONGO_URI=$SHARED_MONGO_URI"
+            } >> "$GITHUB_ENV"
+          else
+            echo "TEST_MONGO_URI=mongodb://127.0.0.1:27017" >> "$GITHUB_ENV"
+          fi
+
       - name: Start disposable test services
-        run: docker compose -f compose.test.yml up -d mongo redis mailpit localstack
+        run: |
+          services="mongo redis mailpit localstack"
+          if [ -n "$SHARED_MONGO" ]; then services="redis mailpit localstack"; fi
+          docker compose -f compose.test.yml up -d $services
 
       - name: Debug service startup
         run: docker compose -f compose.test.yml ps
@@ -90,16 +111,21 @@ jobs:
       - name: Wait for test services
         run: |
           python - <<'PY'
+          import os
           import socket
           import time
           import urllib.request
 
           checks = [
-              ("mongo", "socket", ("127.0.0.1", 27017), 2),
               ("redis", "socket", ("127.0.0.1", 6379), 2),
               ("mailpit", "http", "http://127.0.0.1:8025/api/v1/info", 2),
               ("localstack", "http", "http://127.0.0.1:4566/_localstack/health", 5),
           ]
+
+          if os.environ.get("SHARED_MONGO"):
+              checks.append(("shared mongo", "mongo", os.environ["TEST_MONGO_URI"], 5))
+          else:
+              checks.append(("mongo", "socket", ("127.0.0.1", 27017), 2))
 
           deadline = time.time() + 240
           pending = list(checks)
@@ -109,7 +135,12 @@ jobs:
 
               for name, check_type, target, timeout in pending:
                   try:
-                      if check_type == "socket":
+                      if check_type == "mongo":
+                          from pymongo import MongoClient
+
+                          MongoClient(target, serverSelectionTimeoutMS=timeout * 1000).admin.command("ping")
+                          print(f"✓ {name} is ready")
+                      elif check_type == "socket":
                           with socket.create_connection(target, timeout=timeout):
                               print(f"✓ {name} is ready")
                       else:
@@ -142,7 +173,7 @@ jobs:
         if: matrix.shard == 1
         working-directory: go-api
         env:
-          TEST_MONGODB_URI: mongodb://127.0.0.1:27017
+          TEST_MONGODB_URI: ${{ env.TEST_MONGO_URI }}
         run: |
           test -z "$(gofmt -l .)"
           go vet ./...
@@ -150,7 +181,6 @@ jobs:
 
       - name: Run test suite
         env:
-          TEST_MONGO_URI: mongodb://127.0.0.1:27017
           TEST_REDIS_HOST: 127.0.0.1
           TEST_REDIS_PORT: "6379"
           TEST_MAIL_HOST: 127.0.0.1
@@ -173,6 +203,25 @@ jobs:
       - name: Dump test service logs on test failure
         if: failure()
         run: docker compose -f compose.test.yml logs --no-color --tail=40
+
+      - name: Drop this job's test databases on the shared MongoDB
+        # Workers drop their own databases; this catches crashed or killed ones.
+        if: always() && env.SHARED_MONGO == '1'
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          python - <<'PY'
+          import os
+          from pymongo import MongoClient
+
+          prefix = "mielenosoitukset_test_{}_{}_{}_".format(
+              os.environ["GITHUB_RUN_ID"], os.environ["GITHUB_RUN_ATTEMPT"], os.environ["SHARD"])
+          client = MongoClient(os.environ["TEST_MONGO_URI"], serverSelectionTimeoutMS=10000)
+          for name in client.list_database_names():
+              if name.startswith(prefix):
+                  client.drop_database(name)
+                  print("dropped", name)
+          PY
 
       - name: Tear down test services
         if: always()

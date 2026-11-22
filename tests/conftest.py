@@ -22,9 +22,32 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
-TEST_DB_NAME = f"mielenosoitukset_test_{uuid.uuid4().hex[:12]}"
 # pytest-xdist worker ("gw0", "gw1", ...) or None in a plain run.
 XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER")
+
+
+def _test_db_name():
+    """A database name no other worker, shard or CI run can share.
+
+    CI jobs may use one shared MongoDB, so the name carries the run, attempt,
+    shard and worker. The random suffix covers local runs. MongoDB limits
+    database names to 63 bytes: 22 + run (<=12) + 1 + attempt (<=2) + 1 +
+    shard (<=2) + 1 + worker (<=4) + 1 + 8 stays inside it.
+    """
+    parts = [
+        os.environ.get("GITHUB_RUN_ID", ""),
+        os.environ.get("GITHUB_RUN_ATTEMPT", ""),
+        os.environ.get("SHARD", ""),
+        XDIST_WORKER or "",
+    ]
+    prefix = "_".join(part for part in parts if part.isalnum())
+    middle = f"{prefix}_" if prefix else ""
+    return f"mielenosoitukset_test_{middle}{uuid.uuid4().hex[:8]}"[:63]
+
+
+TEST_DB_NAME = _test_db_name()
+# A shared CI MongoDB holds other jobs' databases, so never sweep by prefix.
+SHARED_TEST_MONGO = bool(os.environ.get("GITHUB_RUN_ID"))
 TEST_REDIS_DB = (int(XDIST_WORKER[2:]) % 15) + 1 if XDIST_WORKER else 0
 TEST_SECRET = "codex-test-secret"
 TEST_MONGO_URI = os.environ.get("TEST_MONGO_URI", "mongodb://127.0.0.1:27017")
@@ -809,7 +832,7 @@ def cleanup_test_resources():
             # Drop any test databases left behind by earlier crashed sessions so
             # MongoDB does not accumulate hundreds of disposable databases. Under
             # pytest-xdist the other workers' databases are still in use.
-            for _db_name in ([] if XDIST_WORKER else instance.get_db().client.list_database_names()):
+            for _db_name in ([] if (XDIST_WORKER or SHARED_TEST_MONGO) else instance.get_db().client.list_database_names()):
                 if _db_name.startswith("mielenosoitukset_test_"):
                     try:
                         instance.get_db().client.drop_database(_db_name)

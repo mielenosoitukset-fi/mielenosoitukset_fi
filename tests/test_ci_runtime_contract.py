@@ -55,3 +55,20 @@ def test_shards_cover_every_test_file_once():
     every = sorted(p.relative_to(root).as_posix() for p in root.glob("tests/**/test_*.py"))
     assert sorted(f for shard in shards for f in shard) == every
     assert all(shards)
+
+
+def test_shared_ci_mongo_database_names_are_unique_per_job_and_worker(monkeypatch):
+    from tests import conftest
+
+    for env, expected in (
+        ({"GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2", "SHARD": "4", "PYTEST_XDIST_WORKER": "gw3"},
+         "mielenosoitukset_test_123_2_4_gw3_"),
+    ):
+        for key in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "SHARD", "PYTEST_XDIST_WORKER"):
+            monkeypatch.delenv(key, raising=False)
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+        monkeypatch.setattr(conftest, "XDIST_WORKER", env["PYTEST_XDIST_WORKER"])
+        names = {conftest._test_db_name() for _ in range(5)}
+        assert len(names) == 5
+        assert all(name.startswith(expected) and len(name) <= 63 for name in names)
