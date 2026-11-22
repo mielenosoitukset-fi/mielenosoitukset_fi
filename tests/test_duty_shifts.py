@@ -263,6 +263,9 @@ def test_calendar_shows_every_moderators_shifts_to_each_moderator(app, db, seede
     mine, theirs = _moderator(db), _moderator(db)
     db.users.update_one({"_id": theirs}, {"$set": {"displayname": "Toinen Moderaattori"}})
     start = _block(now, 1)[0]
+    last = (start + timedelta(hours=4) - timedelta(seconds=1)).astimezone(duty_shifts.HELSINKI)
+    if last.isocalendar()[:2] != start.astimezone(duty_shifts.HELSINKI).isocalendar()[:2]:
+        start += timedelta(days=1)  # Sunday evening: keep both shifts in one week
     _appoint_with_shift(db, mine, start, start + duty_shifts.SHIFT_LENGTH, now=now)
     _appoint_with_shift(db, theirs, start + timedelta(hours=2), start + timedelta(hours=4), now=now)
     week = start.astimezone(duty_shifts.HELSINKI).date().isoformat()
