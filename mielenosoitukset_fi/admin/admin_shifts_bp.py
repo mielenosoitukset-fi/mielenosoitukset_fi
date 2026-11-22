@@ -6,7 +6,7 @@ page changes only shifts, through ``utils/duty_shifts.py``.
 """
 
 import hmac
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
@@ -32,7 +32,12 @@ ERRORS = {
     "reason_required": "Kirjoita perustelu.",
     "invalid_starts_at": "Tarkista vuoron alku.",
     "invalid_ends_at": "Tarkista vuoron loppu.",
+    "invalid_block": "Vuoro on aina kaksi tuntia ja alkaa parillisena kellonaikana.",
+    "already_booked": "Tämä vuoro on jo varattu tälle moderaattorille.",
+    "too_many_in_a_row": "Enintään 4 vuoroa (8 tuntia) voi varata peräkkäin.",
 }
+DAYS = ["Maanantai", "Tiistai", "Keskiviikko", "Torstai", "Perjantai", "Lauantai", "Sunnuntai"]
+BLOCK_HOURS = list(range(0, 24, 2))
 
 
 def _local(value: str, field: str) -> datetime:
@@ -44,6 +49,41 @@ def _local(value: str, field: str) -> datetime:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=HELSINKI)
     return parsed.astimezone(timezone.utc)
+
+
+def _week_start(value) -> date:
+    """The Monday of the week asked for (``viikko=YYYY-MM-DD``), or this week."""
+    try:
+        day = date.fromisoformat(value or "")
+    except ValueError:
+        day = datetime.now(HELSINKI).date()
+    return day - timedelta(days=day.weekday())
+
+
+def _calendar(rows: list, monday: date, can_book: bool) -> list:
+    """Seven days of two-hour blocks with the shifts in each."""
+    now = datetime.now(timezone.utc)
+    by_block: dict = {}
+    for row in rows:
+        local = row["starts_at"].replace(tzinfo=timezone.utc).astimezone(HELSINKI)
+        by_block.setdefault((local.date(), local.hour // 2 * 2), []).append(row)
+    days = []
+    for offset in range(7):
+        day = monday + timedelta(days=offset)
+        blocks = []
+        for hour in BLOCK_HOURS:
+            start = datetime(day.year, day.month, day.day, hour, tzinfo=HELSINKI)
+            shifts = [r for r in by_block.get((day, hour), []) if r["state"] != "cancelled"]
+            blocks.append({
+                "label": f"{hour:02d}–{hour + 2:02d}",
+                "slot": start.strftime("%Y-%m-%dT%H:%M"),
+                "shifts": shifts,
+                "past": start.astimezone(timezone.utc) + duty_shifts.SHIFT_LENGTH <= now,
+                "can_book": can_book,
+            })
+        days.append({"name": DAYS[offset], "date": day, "blocks": blocks,
+                     "today": day == datetime.now(HELSINKI).date()})
+    return days
 
 
 def _actor() -> dict:
@@ -67,10 +107,10 @@ def shifts():
         action = request.form.get("action")
         try:
             if action == "book":
+                start = _local(request.form.get("slot"), "starts_at")
                 duty_shifts.add_shift(
-                    mongo, grant_id=request.form.get("grant_id"),
-                    starts_at=_local(request.form.get("starts_at"), "starts_at"),
-                    ends_at=_local(request.form.get("ends_at"), "ends_at"),
+                    mongo, grant_id=request.form.get("grant_id"), starts_at=start,
+                    ends_at=start + duty_shifts.SHIFT_LENGTH,
                     source={"decision": "Vuorovaraus", "via": "admin"}, actor=_actor())
                 flash("Vuoro varattu.", "success")
             elif action == "approve":
@@ -84,11 +124,24 @@ def shifts():
                 abort(400)
         except DutyError as exc:
             flash(ERRORS.get(exc.code, "Muutosta ei voitu tehdä."), "danger")
-        return redirect(url_for("admin_shifts.shifts"), code=303)
+        week = request.form.get("viikko")
+        return redirect(url_for("admin_shifts.shifts", **({"viikko": week} if week else {})), code=303)
+    monday = _week_start(request.args.get("viikko"))
+    since = datetime(monday.year, monday.month, monday.day, tzinfo=HELSINKI)
+    grants = duty_shifts.bookable_grants(mongo, current_user)
+    week_rows = duty_shifts.schedule(mongo, current_user, since=since, until=since + timedelta(days=7))
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}shifts.html",
         rows=duty_shifts.schedule(mongo, current_user),
-        grants=duty_shifts.bookable_grants(mongo, current_user),
+        grants=grants,
+        days=_calendar(week_rows, monday, bool(grants)),
+        week=monday.isoformat(),
+        week_end=monday + timedelta(days=6),
+        monday=monday,
+        previous_week=(monday - timedelta(days=7)).isoformat(),
+        next_week=(monday + timedelta(days=7)).isoformat(),
+        this_week=_week_start(None).isoformat(),
+        max_blocks=duty_shifts.MAX_BLOCKS_IN_A_ROW,
         governance_csrf_token=governance_csrf_token(),
         grace_minutes=int(duty_shifts.END_GRACE.total_seconds() // 60),
     )

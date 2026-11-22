@@ -1,26 +1,54 @@
 {% extends 'admin_base.html' %}
 {% from 'admin_V2/macros.html' import admin_page_hero %}
 {% block title %}Vuorot – Mielenosoitukset.fi{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/shifts.css', v='20261122-week') }}">{% endblock %}
 {% block main_content %}
 {% set labels = {'requested': 'Odottaa hyväksyntää', 'approved': 'Hyväksytty', 'running': 'Käynnissä', 'grace': 'Jälkiaika', 'ended': 'Päättynyt', 'cancelled': 'Peruttu', 'inactive': 'Nimitys ei voimassa'} %}
 <section class="admin-page admin-workspace">
   {{ admin_page_hero('Vuorot', 'Valtakunnallisen moderaattorin oikeudet ovat voimassa vain hyväksytyn vuoron aikana ja ' ~ grace_minutes ~ ' minuuttia sen jälkeen.', 'Moderointi', [('Hallintapaneeli', url_for('admin.admin_dashboard')), ('Vuorot', none)], back_url=url_for('admin.admin_dashboard')) }}
-  {% if grants %}
-  <section class="admin-form-section p-3 mb-2" aria-labelledby="shift-book-heading">
-    <h2 id="shift-book-heading" class="h4">Varaa vuoro</h2>
-    <form method="post" class="admin-form-grid">
+  <section class="admin-form-section p-3 mb-3" aria-labelledby="shift-week-heading">
+    <div class="shift-week__head">
+      <h2 id="shift-week-heading" class="h4 mb-0">Viikko {{ monday.isocalendar()[1] }} · {{ monday.strftime('%-d.%-m.') }}–{{ week_end.strftime('%-d.%-m.%Y') }}</h2>
+      <nav class="shift-week__nav" aria-label="Viikon vaihto">
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin_shifts.shifts', viikko=previous_week) }}">← Edellinen</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin_shifts.shifts', viikko=this_week) }}">Tämä viikko</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin_shifts.shifts', viikko=next_week) }}">Seuraava →</a>
+      </nav>
+    </div>
+    <p class="admin-field__help">Jokainen vuoro on 2 tuntia (Suomen aikaa). Voit varata enintään {{ max_blocks }} vuoroa peräkkäin.{% if grants %} Varaa vuoro painamalla "Varaa" sopivan ajan kohdalla.{% endif %}</p>
+    <form method="post" class="shift-week">
       <input type="hidden" name="csrf_token" value="{{ governance_csrf_token }}">
       <input type="hidden" name="action" value="book">
-      <div class="admin-field"><label for="shift-grant">Moderaattori</label>
+      <input type="hidden" name="viikko" value="{{ week }}">
+      {% if grants|length == 1 %}
+      <input type="hidden" name="grant_id" value="{{ grants[0].id }}">
+      {% elif grants %}
+      <div class="admin-field shift-week__who"><label for="shift-grant">Varaa vuoro henkilölle</label>
         <select id="shift-grant" name="grant_id" class="form-select">
-          {% for grant in grants %}<option value="{{ grant.id }}">{{ 'Minä' if grant.own else grant.moderator }} · nimitys voimassa {{ grant.valid_until|datetimeformat('%d.%m.%Y') }} asti{% if grant.needs_approval %} · tarvitsee hyväksynnän{% endif %}</option>{% endfor %}
+          {% for grant in grants %}<option value="{{ grant.id }}">{{ 'Minä' if grant.own else grant.moderator }}{% if grant.needs_approval %} · tarvitsee hyväksynnän{% endif %}</option>{% endfor %}
         </select></div>
-      <div class="admin-field"><label for="shift-start">Alkaa</label><input id="shift-start" name="starts_at" type="datetime-local" class="form-control" required></div>
-      <div class="admin-field"><label for="shift-end">Päättyy</label><input id="shift-end" name="ends_at" type="datetime-local" class="form-control" required><span class="admin-field__help">Suomen aikaa.</span></div>
-      <div class="align-self-end"><button class="btn btn-primary" type="submit">Varaa</button></div>
+      {% endif %}
+      {% if grants and grants[0].needs_approval and grants|length == 1 %}<p class="admin-field__help">Varaus odottaa OT:n jäsenen hyväksyntää. Oikeudet alkavat vasta hyväksynnän jälkeen.</p>{% endif %}
+      <div class="shift-week__grid">
+        {% for day in days %}
+        <section class="shift-day{% if day.today %} shift-day--today{% endif %}" aria-label="{{ day.name }} {{ day.date.strftime('%-d.%-m.') }}">
+          <h3 class="shift-day__title">{{ day.name }} <span>{{ day.date.strftime('%-d.%-m.') }}</span></h3>
+          {% for block in day.blocks %}
+          <div class="shift-block{% if block.past %} shift-block--past{% endif %}">
+            <span class="shift-block__time">{{ block.label }}</span>
+            <div class="shift-block__body">
+              {% for shift in block.shifts %}
+              <span class="shift-chip shift-chip--{{ shift.state }}{% if shift.own %} shift-chip--own{% endif %}" title="{{ labels[shift.state] }}">{{ 'Minä' if shift.own else shift.moderator }} · {{ labels[shift.state] }}</span>
+              {% endfor %}
+              {% if block.can_book and not block.past %}<button class="btn btn-sm btn-outline-primary shift-block__book" type="submit" name="slot" value="{{ block.slot }}" aria-label="Varaa vuoro {{ day.name }} {{ day.date.strftime('%-d.%-m.') }} klo {{ block.label }}">Varaa</button>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </section>
+        {% endfor %}
+      </div>
     </form>
   </section>
-  {% endif %}
   <h2 class="h4 mb-0">Kaikki vuorot</h2>
   {% if rows %}
   <ul class="list-group">

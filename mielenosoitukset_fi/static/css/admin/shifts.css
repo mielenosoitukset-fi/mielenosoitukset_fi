@@ -1,0 +1,130 @@
+.shift-week__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.shift-week__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.shift-week__who {
+  max-width: 24rem;
+  margin-bottom: 0.75rem;
+}
+
+.shift-week__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.shift-day {
+  border: 1px solid var(--admin-workspace-border);
+  border-radius: 0.5rem;
+  background: var(--admin-workspace-surface);
+  min-width: 0;
+}
+
+.shift-day--today {
+  border-color: var(--admin-workspace-blue);
+}
+
+.shift-day__title {
+  margin: 0;
+  padding: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--admin-workspace-text);
+  background: var(--admin-workspace-surface-muted);
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.shift-day__title span {
+  font-weight: 400;
+  color: var(--admin-workspace-muted);
+}
+
+.shift-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 4.25rem;
+  padding: 0.4rem 0.5rem;
+  border-top: 1px solid var(--admin-workspace-border);
+}
+
+.shift-block--past {
+  opacity: 0.6;
+}
+
+.shift-block__time {
+  font-size: 0.8rem;
+  color: var(--admin-workspace-muted);
+}
+
+.shift-block__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.shift-chip {
+  display: block;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  border-radius: 0.35rem;
+  color: var(--admin-workspace-text);
+  background: var(--admin-workspace-surface-muted);
+  overflow-wrap: anywhere;
+}
+
+.shift-chip--own {
+  font-weight: 600;
+}
+
+.shift-chip--approved,
+.shift-chip--running {
+  color: var(--admin-workspace-success);
+  background: var(--admin-workspace-success-soft);
+}
+
+.shift-chip--grace {
+  color: var(--admin-workspace-orange-strong);
+  background: var(--admin-workspace-orange-soft);
+}
+
+.shift-chip--inactive {
+  color: var(--admin-workspace-danger);
+  background: var(--admin-workspace-danger-soft);
+}
+
+@media (max-width: 991.98px) {
+  .shift-week__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shift-block {
+    flex-direction: row;
+    gap: 0.75rem;
+    min-height: 0;
+    align-items: flex-start;
+  }
+
+  .shift-block__time {
+    flex: 0 0 4.5rem;
+    padding-top: 0.2rem;
+  }
+
+  .shift-block__body {
+    flex: 1 1 auto;
+  }
+
+  .shift-block__book {
+    align-self: flex-start;
+  }
+}

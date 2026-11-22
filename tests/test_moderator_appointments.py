@@ -83,7 +83,7 @@ def test_an_approver_in_the_appointment_approves_the_shift(api):
     assert _post(env, body, digest).status_code == 200
     grant = db[duty_shifts.GRANTS].find_one({"user_id": moderator})
     now = datetime.now(timezone.utc)
-    start = now + timedelta(hours=1)
+    start = duty_shifts.block_start(now) + timedelta(hours=2)
     shift = duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=start, ends_at=start + timedelta(hours=2),
                                   source={"decision": "vuoro"}, actor={"id": str(moderator)})
     during = start + timedelta(minutes=30)
@@ -194,7 +194,7 @@ def _end(env, moderator, kind="revoke", *, appointment=KEY, key="hallinto-modera
 def _on_duty(db, moderator, approver):
     grant = db[duty_shifts.GRANTS].find_one({"user_id": moderator})
     now = datetime.now(timezone.utc)
-    start = now + timedelta(hours=1)
+    start = duty_shifts.block_start(now) + timedelta(hours=2)
     shift = duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=start, ends_at=start + timedelta(hours=2),
                                   source={"decision": "vuoro"}, actor={"id": str(moderator)})
     duty_shifts.approve_shift(db, shift_id=shift["_id"], actor={"id": str(approver)}, now=now)
