@@ -468,6 +468,15 @@ body {
   .admin-message-meta { grid-template-columns: minmax(0, 1fr); }
 }
 
+.admin-role-help { display: grid; gap: .15rem; margin: 0; }
+.admin-role-help dt { color: var(--admin-workspace-text); font-weight: 700; margin-top: .6rem; }
+.admin-role-help dt:first-child { margin-top: 0; }
+.admin-role-help dd { margin: 0; color: var(--admin-workspace-muted); overflow-wrap: anywhere; }
+.admin-panel-note { color: var(--admin-workspace-muted); font-size: .9rem; line-height: 1.5; overflow-wrap: anywhere; }
+#approval-right-panel .admin-row-actions { justify-content: flex-start; }
+#approval-right-panel .admin-status-badge { font-size: .875rem; padding: .3rem .7rem; border: 1px solid var(--admin-workspace-border, currentColor); }
+@media (max-width: 575.98px) { #approval-right-panel .admin-row-actions .btn { flex: 1 1 100%; } }
+
 .admin-recurrence-preview {
   display: grid;
   gap: .85rem;
