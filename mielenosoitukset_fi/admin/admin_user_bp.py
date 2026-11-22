@@ -1028,8 +1028,6 @@ def delete_user():
         flash_message(success_message, "approved")
         return redirect(request.referrer or url_for("admin_user.user_control"))
 
-import random
-import string
 from werkzeug.security import generate_password_hash
 
 @admin_user_bp.route("/create_user", methods=["POST"])
@@ -1125,9 +1123,9 @@ def create_user():
         flash_message("Käyttäjänimi on jo käytössä.", "error")
         return redirect(request.referrer or url_for("admin_user.user_control"))
 
-    # Generate a random password
-    raw_password = "".join(random.choices(string.ascii_letters + string.digits, k=12))
-    password_hash = generate_password_hash(raw_password)
+    # No password is ever emailed or shown: the account gets an unknown random password
+    # and the person sets their own through a one-hour link (same as Hallinto invites).
+    password_hash = generate_password_hash(secrets.token_urlsafe(48))
 
     # Create user document
     user_doc = {
@@ -1138,7 +1136,7 @@ def create_user():
         "username_canonical": username,
         "displayname": displayname,
         "role": role,
-        "confirmed": True,
+        "confirmed": False,  # setting the password through the emailed link confirms the address
         "active": True,
         "banned": False,
         "password_hash": password_hash,
@@ -1167,25 +1165,24 @@ def create_user():
         _sync_city_scope_grant(user._id, city_scope_keys, CITY_ADMIN_PERMISSIONS)
 
 
-    # Send credentials via email
+    # Send a one-hour set-password link (never the password itself)
+    from mielenosoitukset_fi.utils.auth import generate_reset_token
+
     email_sender.queue_email(
-        template_name="new_user_credentials.html",
-        subject="Tilisi on luotu",
+        template_name="hallinto_account_invite.html",
+        subject="Sinulle on luotu tili mielenosoitukset.fi-palveluun",
         recipients=[email],
         context={
             "user_name": displayname,
             "username": username,
-            "email": email,
-            "role": role,
-            "password": raw_password,
-            "login_link": url_for("users.auth.login", _external=True),
-            "support_contact": "tuki@mielenosoitukset.fi",
+            "reset_url": url_for("users.auth.password_reset", token=generate_reset_token(email), _external=True),
+            "reset_request_url": url_for("users.auth.password_reset_request", _external=True),
         },
         extra_headers={"reply-to": "tuki@mielenosoitukset.fi"}
     )
 
     flash_message(
-        "Käyttäjä %(displayname)s luotiin ja tunnukset lähetettiin sähköpostiin.",
+        "Käyttäjä %(displayname)s luotiin ja salasanan asetuslinkki lähetettiin sähköpostiin.",
         "approved",
         displayname=displayname,
     )
