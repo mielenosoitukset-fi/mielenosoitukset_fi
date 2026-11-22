@@ -150,6 +150,26 @@ def stamp(db, apply: bool = False, now: Optional[datetime] = None) -> dict:
     return {"applied": apply, "holders": len(rows), "newly_stamped": stamped, "accounts": rows}
 
 
+# Roles an order of kind role_removal can take away (admin/flask_orders.REMOVABLE_ROLES).
+REMOVABLE = ("city_admin", "admin", "global_admin", "superuser", "god")
+
+
+def removable_roles(db, doc: dict) -> list[str]:
+    """Machine role names the account holds now that a role_removal order would take away."""
+    from mielenosoitukset_fi.utils.scope_grants import live_grant_filter
+
+    uid = doc["_id"]
+    roles = []
+    if doc.get("role") in REMOVABLE:
+        roles.append(doc["role"])
+    if doc.get("global_admin") is True and "global_admin" not in roles:
+        roles.append("global_admin")
+    if "city_admin" not in roles and db.admin_scope_grants.count_documents(
+            {"user_id": {"$in": [uid, str(uid)]}, "scope_type": "city", **live_grant_filter()}, limit=1):
+        roles.append("city_admin")
+    return roles
+
+
 def hallinto_list(db, now: Optional[datetime] = None) -> list[dict]:
     """Stamped accounts for Hallinto's review list. No email addresses."""
     now = now or utcnow()
@@ -157,11 +177,16 @@ def hallinto_list(db, now: Optional[datetime] = None) -> list[dict]:
     items = []
     for doc in db.users.find({f"{FIELD}.required": True}).sort("username", 1):
         review = doc[FIELD]
-        state = ("protected" if str(doc["_id"]) in protected and is_open(review, now)
+        current = holds(db, doc)
+        # An account that lost all its reviewable rights (role removal, a Flask removal) is
+        # no longer open: Hallinto closes its review case.
+        state = ("removed" if not current
+                 else "protected" if str(doc["_id"]) in protected and is_open(review, now)
                  else "lapsed" if lapsed_doc(doc, now)
                  else "open" if is_open(review, now) else "confirmed")
         items.append({"id": str(doc["_id"]), "username": doc.get("username"),
-                      "name": doc.get("displayname") or "", "holds": review.get("holds") or [],
+                      "name": doc.get("displayname") or "", "holds": current or review.get("holds") or [],
+                      "roles": removable_roles(db, doc),
                       "state": state, "deadline": _deadline(review).strftime("%Y-%m-%dT%H:%M:%SZ"),
                       "decision": review.get("decision_id") or ""})
     return items
@@ -198,7 +223,7 @@ def confirmable(db, accounts: list[str], now: Optional[datetime] = None) -> bool
     now = now or utcnow()
     docs = list(db.users.find({"_id": {"$in": [ObjectId(a) for a in accounts]}}))
     return len(docs) == len(accounts) and all(
-        (d.get(FIELD) or {}).get("required") and is_open(d[FIELD], now) for d in docs)
+        (d.get(FIELD) or {}).get("required") and is_open(d[FIELD], now) and holds(db, d) for d in docs)
 
 
 def send_reminders(db, now: Optional[datetime] = None, dry_run: bool = True) -> dict:

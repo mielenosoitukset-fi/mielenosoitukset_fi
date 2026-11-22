@@ -116,3 +116,15 @@ def test_order_confirms_stamped_accounts_and_refuses_others(orders):
     response, _ = _send(env, body, digest, key="hallinto-order-0000000000002")
     assert response.get_json().get("status") != "confirmed"
     assert db.users.find_one({"_id": b}).get("access_review") is None
+
+
+def test_list_reports_removable_roles_and_marks_removed_accounts(app, db, clean_users):
+    with app.app_context():
+        uid = _add(db, "poistuva", role="admin", global_admin=True, global_permissions=["VIEW_LOGS"])
+        access_review.stamp(db, apply=True)
+        item = access_review.hallinto_list(db)[0]
+        assert item["state"] == "open" and item["roles"] == ["admin", "global_admin"]
+        db.users.update_one({"_id": uid}, {"$set": {"role": "user", "global_admin": False, "global_permissions": []}})
+        item = access_review.hallinto_list(db)[0]
+        assert item["state"] == "removed" and item["roles"] == []
+        assert not access_review.confirmable(db, [str(uid)])
