@@ -317,6 +317,13 @@ def _seed_database(app, db):
                 _mod.DB = db
             except Exception:
                 pass
+        # Likewise module-level collections such as ``auth.login_logs``.
+        for _attr, _value in list(vars(_mod).items()):
+            if isinstance(_value, type(db["x"])) and _value.database.name != db.name:
+                try:
+                    setattr(_mod, _attr, db[_value.name])
+                except Exception:
+                    pass
 
     for collection_name in db.list_collection_names():
         if collection_name.startswith("system."):
