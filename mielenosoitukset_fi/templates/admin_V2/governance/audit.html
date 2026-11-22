@@ -1,5 +1,4 @@
 {% extends 'admin_base.html' %}
-{% set governance_tab = 'audit' %}
 {% from 'admin_V2/macros.html' import admin_page_hero, admin_pagination %}
 
 {% block title %}{{ _('Hallinnon tapahtumaloki') }} – Mielenosoitukset.fi{% endblock %}
@@ -10,12 +9,11 @@
     _('Hyväksyntöjen tapahtumaloki'),
     _('Tarkastele, kuka myönsi tai perui hallinnollisen hyväksynnän ja milloin muutos tehtiin.'),
     _('Hallinto'),
-    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Hallinto ja käyttöoikeudet'), url_for('admin_governance.dashboard')), (_('Hyväksyntöjen tapahtumaloki'), none)],
-    back_url=url_for('admin_governance.dashboard'),
-    back_label=_('Hallinto ja käyttöoikeudet'),
+    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Hyväksyntöjen tapahtumaloki'), none)],
+    back_url=url_for('admin.admin_dashboard'),
+    back_label=_('Hallintapaneeli'),
   ) }}
 
-  {% include 'admin_V2/governance/_tabs.html' %}
   <p class="admin-field__help mb-3"><i class="fa-solid fa-list-check me-1" aria-hidden="true"></i>{{ _('Muut lokit, kuten hallintatoiminnot ja mielenosoitushistoria:') }} <a href="{{ url_for('admin.logs') }}">{{ _('Lokit ja tapahtumat') }}</a></p>
 
   <section class="admin-workspace-toolbar" aria-label="{{ _('Tapahtumalokin suodattimet') }}">
