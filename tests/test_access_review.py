@@ -116,3 +116,95 @@ def test_order_confirms_stamped_accounts_and_refuses_others(orders):
     response, _ = _send(env, body, digest, key="hallinto-order-0000000000002")
     assert response.get_json().get("status") != "confirmed"
     assert db.users.find_one({"_id": b}).get("access_review") is None
+
+
+def test_list_reports_removable_roles_and_marks_removed_accounts(app, db, clean_users):
+    with app.app_context():
+        uid = _add(db, "poistuva", role="admin", global_admin=True, global_permissions=["VIEW_LOGS"])
+        access_review.stamp(db, apply=True)
+        item = access_review.hallinto_list(db)[0]
+        assert item["state"] == "open" and item["roles"] == ["admin", "global_admin"]
+        db.users.update_one({"_id": uid}, {"$set": {"role": "user", "global_admin": False, "global_permissions": []}})
+        item = access_review.hallinto_list(db)[0]
+        assert item["state"] == "removed" and item["roles"] == []
+        assert not access_review.confirmable(db, [str(uid)])
+
+
+def test_contact_is_off_by_default_and_records_one_mail_per_round(app, db, clean_users):
+    with app.app_context():
+        uid = str(_add(db, "kontakti", role="city_admin", global_permissions=["VIEW_LOGS"]))
+        access_review.stamp(db, apply=True)
+        assert access_review.hallinto_list(db)[0]["contact"] is None
+        preview = access_review.contact_preview(db, uid)
+        assert set(preview) == {"subject", "body"} and "@" not in preview["body"]
+        app.config["ACCESS_REVIEW_CONTACT_ENABLED"] = False
+        with pytest.raises(access_review.ContactError) as off:
+            access_review.contact_send(db, uid, "olivia")
+        assert off.value.code == "disabled" and db.email_queue.count_documents({}) == 0
+        app.config["ACCESS_REVIEW_CONTACT_ENABLED"] = True
+        try:
+            contact = access_review.contact_send(db, uid, "olivia")
+            assert contact["by"] == "olivia" and contact["reply"] == ""
+            assert db.email_queue.count_documents({}) == 1
+            with pytest.raises(access_review.ContactError) as twice:
+                access_review.contact_send(db, uid, "olivia")
+            assert twice.value.code == "already_contacted" and db.email_queue.count_documents({}) == 1
+        finally:
+            app.config["ACCESS_REVIEW_CONTACT_ENABLED"] = False
+
+
+def test_contact_reply_by_hand_and_old_rounds_do_not_count(app, db, clean_users):
+    with app.app_context():
+        uid = str(_add(db, "vastaaja", role="city_admin", global_permissions=["VIEW_LOGS"]))
+        access_review.stamp(db, apply=True)
+        with pytest.raises(access_review.ContactError):
+            access_review.contact_reply(db, uid, "maybe", "olivia")
+        got = access_review.contact_reply(db, uid, "keep", "olivia", "Tarvitsee Tampereella")
+        assert got["reply"] == "keep" and got["note"] == "Tarvitsee Tampereella" and got["reply_at"]
+        assert access_review.hallinto_list(db)[0]["contact"]["reply"] == "keep"
+        # A confirmed account is no longer open and the next round starts clean.
+        db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"access_review.deadline": access_review.DEADLINE - timedelta(days=400),
+                                                               "access_review.confirmed_at": access_review.DEADLINE - timedelta(days=500)}})
+        assert access_review.hallinto_list(db)[0]["contact"] is None
+        with pytest.raises(access_review.ContactError) as unknown:
+            access_review.contact_preview(db, str(ObjectId()))
+        assert unknown.value.code == "not_found"
+
+
+def test_list_carries_evidence_of_use(app, db, clean_users):
+    with app.app_context():
+        db.demo_audit_logs.delete_many({})
+        uid = _add(db, "aktiivinen", role="city_admin", global_permissions=["VIEW_LOGS"],
+                   last_login=datetime(2026, 11, 1, 12, 0))
+        _add(db, "hiljainen", role="city_admin", global_permissions=["VIEW_LOGS"])
+        access_review.stamp(db, apply=True)
+        now = datetime(2026, 11, 22)
+        for demo, when, auto in (("d1", datetime(2026, 10, 1), False), ("d1", datetime(2026, 10, 2), False),
+                                 ("d2", datetime(2026, 9, 1), False), ("d3", datetime(2026, 9, 2), True),
+                                 ("d4", datetime(2025, 1, 1), False)):
+            db.demo_audit_logs.insert_one({"demo_id": demo, "user_id": str(uid), "timestamp": when, "automatic": auto})
+        rows = {r["username"]: r["evidence"] for r in access_review.hallinto_list(db, now)}
+        assert rows["aktiivinen"] == {"last_login": "2026-11-01T12:00:00Z", "last_admin_action": "2026-10-02T00:00:00Z",
+                                      "admin_actions_6m": 3, "demos_handled_6m": 2, "cities_handled": []}
+        assert rows["hiljainen"]["last_admin_action"] is None and rows["hiljainen"]["admin_actions_6m"] == 0
+        db.demo_audit_logs.delete_many({})
+
+
+def test_contact_reply_takes_a_situation_with_roles_and_date(app, db, clean_users):
+    with app.app_context():
+        uid = str(_add(db, "tilanne", role="city_admin", global_permissions=["VIEW_LOGS"]))
+        access_review.stamp(db, apply=True)
+        bad = [dict(situation="partial"), dict(situation="needs", roles=["city_admin"]), dict(situation="inactive"),
+               dict(situation="inactive", until="2020-01-01"), dict(situation="needs", until="2027-01-01"),
+               dict(situation="nonsense"), dict(situation="give_up", reply="keep"), dict(situation="partial", roles=["a|b"])]
+        for kwargs in bad:
+            with pytest.raises(access_review.ContactError) as err:
+                access_review.contact_reply(db, uid, kwargs.pop("reply", None), "olivia", **kwargs)
+            assert err.value.status == 400, kwargs
+        got = access_review.contact_reply(db, uid, None, "olivia", "vain Tampere", situation="partial", roles=["city_admin"])
+        assert (got["reply"], got["situation"], got["roles"], got["until"]) == ("keep", "partial", ["city_admin"], "")
+        until = (datetime.utcnow() + timedelta(days=60)).strftime("%Y-%m-%d")
+        got = access_review.contact_reply(db, uid, None, "olivia", situation="inactive", until=until)
+        assert (got["reply"], got["situation"], got["until"], got["roles"]) == ("drop", "inactive", until, [])
+        assert access_review.hallinto_list(db)[0]["contact"]["situation"] == "inactive"
+        assert access_review.contact_reply(db, uid, "none", "olivia")["situation"] == ""
