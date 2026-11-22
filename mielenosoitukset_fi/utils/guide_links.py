@@ -49,6 +49,8 @@ GUIDES = [
      "Poistopyyntö, toisen ylläpitäjän vahvistus ja palautus."),
     ("d2-kutsu-ihmisia-organisaatioon", "organization", ("organization",), "Kutsu ihmisiä organisaatioon", 3,
      "Kutsulinkin lähettäminen organisaation jäsenille."),
+    ("d4-organisaation-tiedot", "organization", ("organization",), "Päivitä organisaation tiedot", 3,
+     "Kuvaus, verkkosivu, logo ja some-linkit."),
     ("e1-aloita-kaantajana", "translator", ("translator",), "Aloita kääntäjänä", 3,
      "Kääntäjän työkalut ja ensimmäinen käännös."),
 ]
