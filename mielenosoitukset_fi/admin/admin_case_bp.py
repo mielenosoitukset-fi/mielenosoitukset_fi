@@ -134,6 +134,7 @@ def _case_type_label(case_type):
         "support_ticket": _("Tukipyyntö"),
         "city_admin_application": _("Kaupunkiadminhakemus"),
         "account_deletion_request": _("Tilin poistopyyntö"),
+        "organization_right_request": _("Hyväksymisoikeuspyyntö"),
     }
     return labels.get(case_type, str(case_type).replace("_", " ").capitalize())
 
@@ -289,6 +290,11 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         title = _("Kaupunkiadminhakemus")
         description = ", ".join(applications.city_names((case_obj.meta or {}).get("city_keys")))
         meta_line = submitter.get("submitter_name") or ""
+    elif case_obj.case_type == "organization_right_request":
+        org_doc = mongo.organizations.find_one({"_id": _safe_objectid(case_obj.organization_id)}, {"name": 1}) if case_obj.organization_id else None
+        title = _("Hyväksymisoikeuspyyntö: {name}").format(name=(org_doc or {}).get("name") or "")
+        description = (case_obj.meta or {}).get("note") or _("Organisaatio pyytää oikeutta hyväksyä omat mielenosoituksensa.")
+        meta_line = submitter.get("submitter_name") or ""
     elif case_obj.case_type == "account_deletion_request":
         title = _("Tilin poistopyyntö")
         description = ((case_obj.meta or {}).get("reason") or _("Ei perustelua"))[:200]
@@ -433,7 +439,7 @@ def cases():
         row = _build_case_row(case, demo_doc=demo_doc, org_doc=org_doc)
         if org_view:
             row["submitter_label"] = _("Piilotettu")
-            if case.case_type == "organization_edit_suggestion":
+            if case.case_type in {"organization_edit_suggestion", "organization_right_request"}:
                 row["meta_line"] = ""
         case_rows.append(row)
 
@@ -1287,6 +1293,14 @@ def demo_action(case_id):
             return jsonify({"error": _("Tapaus on siirretty ylemmälle tasolle. Päätöksen tekee se taso.")}), 403
 
     response_status = ""
+    # A decision made only because of the organisations' approval right is marked in the case history.
+    right_names = []
+    if data["action"] in {"accept", "reject", "undo_approval"}:
+        from mielenosoitukset_fi.utils import org_approval_right
+        from mielenosoitukset_fi.utils.wrappers import has_site_demo_approval_permission
+
+        if not has_site_demo_approval_permission(current_user, demo):
+            right_names = org_approval_right.approving_names(current_user, demo)
 
     if data["action"] == "accept":
         failed = _decision_failed(approve_demo(demo_id=case.demo_id))
@@ -1356,6 +1370,12 @@ def demo_action(case_id):
 
     else:
         return jsonify({"error": _("Tuntematon toiminto.")}), 400
+    if right_names:
+        mongo.cases.update_one({"_id": case._id}, {"$push": {"case_history": {
+            "timestamp": utcnow(),
+            "action": "Päätös tehty organisaation " + ", ".join(right_names) + " hyväksymisoikeudella",
+            "user": current_user.username, "mech_action": "org_right_decision",
+            "metadata": {"organizations": right_names}, "meta_schema": {"organizations": "list"}}}})
     flash_message(_("Mielenosoituksen tila päivitettiin."), "success")
     return jsonify({"success": True, "status": response_status})
 

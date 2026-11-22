@@ -23,3 +23,13 @@ Rights that come from the membership role itself are phased out by 1.1.2027, 1.3
 ## Rights
 
 Edit the organisation profile, invite and manage members (owners stay with owners, see `_can_manage_member`), create and edit its demos and recurring demos, read and add notes to its cases, and decide `new_demo` cases when the organisation holds the approval right. Never: verified flag, other organisations, site-wide pages, account roles, deleting the organisation (owners only, by membership).
+
+## Organisation approval right (`ORG_APPROVAL_RIGHT_ENABLED`, off)
+
+An organisation right, not a person's: "saa hyväksyä omat mielenosoituksensa". Hallinto grants and ends it; Flask adds no permission to any account.
+
+- Stored at `organizations.rights.approve_own_demos` (`grant_id`, `case_id`, `decision_id`, `granted_by`, `valid_until`, `status`, `ended_at`, `ended_reason`); a replaced record moves to `organizations.rights_history.approve_own_demos`. Effective status (`utils/org_approval_right.py:status_of`): `live`, `expired` (on read, no job), `revoked`, `frozen`, `given_up`, `unverified`, `none`.
+- Request: an owner or admin posts `/admin/organization/api/request_approval_right/`; Flask opens one `organization_right_request` case per organisation. Frozen organisations cannot ask; the right is for verified organisations only.
+- Hallinto: `GET /org-right-requests`, `POST /org-rights` (grant), `POST /org-right-requests/{case}/refusal`, `POST /org-rights/{grant}/end`, `GET /org-rights/{org}`. Own proof actions (`org_right_v1`, `org_right_refusal_v1`, `org_right_end_v1`) and attestation contexts; the approval page shows the terms. Shapes: contract v3 in the project files. Journal key `org-right:<organization id>`.
+- Effect: `has_demo_approval_permission` and the demo `ACCEPT_DEMO` check also accept an owner or admin (or org_admin grant holder) of an organisation with a live right, when **every** organiser of the demonstration is an organisation with a live right. Anything else goes to moderators. Escalated cases, the undo window and "Poista julkaisusta" are unchanged. A decision made only because of the right is marked in the case history ("Päätös tehty organisaation X hyväksymisoikeudella").
+- Ends: Hallinto revoke or freeze; the owner gives it up (`/api/give_up_approval_right/`); the organisation loses `verified` (the check fails at once, the record is closed with `unverified`).

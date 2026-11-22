@@ -530,6 +530,10 @@ def _receipt_identity(operation: dict) -> dict:
         "decision_id": intent["decision_id"],
         "decision_revision": intent["decision_revision"],
     }
+    if "right" in intent:
+        # An organisation right (org_rights.py); it names an organisation, not an account.
+        named = {key: intent[key] for key in ("grant_id", "refusal_id", "case_id", "kind") if key in intent}
+        return {**identity, **named, "organization_id": intent["organization_id"], "right": intent["right"]}
     if "request_id" in intent:
         # An organization access recovery (org_recovery.py); it names an organization, not an account.
         return {**identity, "request_id": intent["request_id"], "case_id": intent["case_id"],

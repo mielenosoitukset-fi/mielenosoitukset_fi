@@ -607,6 +607,11 @@ def update_organization(org_id):
             previous=previous_verified,
             new=update_payload["verified"],
         )
+        if not update_payload["verified"]:
+            # An organisation that is no longer verified loses the right to approve its own demos.
+            from mielenosoitukset_fi.utils import org_approval_right
+
+            org_approval_right.end_right(mongo, ObjectId(org_id), "unverified")
     return True
 
 
@@ -1761,6 +1766,55 @@ def set_invite_role() -> Tuple[Response, int]:
         role=role,
         updated=updated,
     )
+    return jsonify({"status": "OK"}), 200
+
+
+_RIGHT_ERRORS = {
+    "disabled": ("Hyväksymisoikeus ei ole vielä käytössä.", 404),
+    "not_verified": ("Vain vahvistettu organisaatio voi pyytää hyväksymisoikeutta.", 409),
+    "already_live": ("Organisaatiolla on jo hyväksymisoikeus.", 409),
+    "frozen": ("Hyväksymisoikeus on jäädytetty. Uusi pyyntö on mahdollinen vasta Hallinnon uuden päätöksen jälkeen.", 409),
+    "already_open": ("Pyyntö on jo käsiteltävänä.", 409),
+    "bad_note": ("Huomautus saa olla enintään 300 merkkiä ja yksi rivi.", 400),
+}
+
+
+@admin_org_bp.route("/api/request_approval_right/", methods=["POST"])
+@admin_required
+def request_approval_right() -> Tuple[Response, int]:
+    """An owner or admin asks Hallinto for the right to approve the organisation's own demos."""
+    from mielenosoitukset_fi.admin import org_rights
+
+    data, error = _validated_org_action_input("organization_id")
+    if error:
+        return error
+    org_doc = mongo.organizations.find_one({"_id": ObjectId(data["organization_id"])})
+    if not org_doc or current_user.role_in(org_doc["_id"]) not in ("owner", "admin"):
+        return jsonify({"status": "error", "error": _("Sinulla ei ole oikeutta tähän toimintoon.")}), 403
+    note = data.get("note")
+    case_id, problem = org_rights.open_request(mongo, org_doc, current_user, note if isinstance(note, str) else "")
+    if problem:
+        message, status = _RIGHT_ERRORS[problem]
+        return jsonify({"status": "error", "error": _(message)}), status
+    _log_org_event("organization_approval_right_requested", organization_id=data["organization_id"], case_id=case_id)
+    return jsonify({"status": "OK", "case_id": case_id}), 200
+
+
+@admin_org_bp.route("/api/give_up_approval_right/", methods=["POST"])
+@admin_required
+def give_up_approval_right() -> Tuple[Response, int]:
+    """An owner gives the organisation's approval right up."""
+    from mielenosoitukset_fi.admin import org_rights
+
+    data, error = _validated_org_action_input("organization_id")
+    if error:
+        return error
+    org_doc = mongo.organizations.find_one({"_id": ObjectId(data["organization_id"])})
+    if not org_doc or current_user.role_in(org_doc["_id"]) != "owner":
+        return jsonify({"status": "error", "error": _("Vain omistaja voi luopua oikeudesta.")}), 403
+    if not org_rights.give_up(mongo, org_doc):
+        return jsonify({"status": "error", "error": _("Organisaatiolla ei ole voimassa olevaa oikeutta.")}), 409
+    _log_org_event("organization_approval_right_given_up", organization_id=data["organization_id"])
     return jsonify({"status": "OK"}), 200
 
 

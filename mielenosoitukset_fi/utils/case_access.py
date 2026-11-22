@@ -18,7 +18,7 @@ ORG_DEMO_CASE_TYPES = (
     "new_demo", "demo_error_report", "demo_cancellation_request",
     "demo_cancelled", "demo_edit_suggestion",
 )
-ORG_OWN_CASE_TYPES = ("organization_edit_suggestion",)
+ORG_OWN_CASE_TYPES = ("organization_edit_suggestion", "organization_right_request")
 
 
 def managed_organization_ids(user):

@@ -9,7 +9,7 @@
     <div class="admin-form-section__header">
       <span class="admin-form-section__icon"><i class="fas fa-user-shield" aria-hidden="true"></i></span>
       <div>
-        <h2 id="approve-terms-heading">{{ ('God-nimitys' if elevated_label == 'god' else 'Superadmin-nimitys') if is_elevated else 'Pääsyn palautus organisaatiolle' if is_recovery else 'Kutsu organisaatiolle' if is_invite else 'Hallitustiimi' if fields.kind == 'board_roster' else 'Ylläpitotilien tarkistus' if fields.kind == 'access_review' else ('Hätäsulku' if fields.action == 'close' else 'Sivuston avaaminen') if fields.kind == 'site_lockdown' else 'Roolin pysyvä poisto' if is_order else 'Organisaation ylläpitäjä' if is_org_admin else ('Roolipaketti: ' ~ bundle_label) if is_bundle else 'Valtakunnallinen moderaattori' if is_moderator else 'Kaupunkiadmin' }}</h2>
+        <h2 id="approve-terms-heading">{{ 'Organisaation hyväksymisoikeus' if is_org_right else ('God-nimitys' if elevated_label == 'god' else 'Superadmin-nimitys') if is_elevated else 'Pääsyn palautus organisaatiolle' if is_recovery else 'Kutsu organisaatiolle' if is_invite else 'Hallitustiimi' if fields.kind == 'board_roster' else 'Ylläpitotilien tarkistus' if fields.kind == 'access_review' else ('Hätäsulku' if fields.action == 'close' else 'Sivuston avaaminen') if fields.kind == 'site_lockdown' else 'Roolin pysyvä poisto' if is_order else 'Organisaation ylläpitäjä' if is_org_admin else ('Roolipaketti: ' ~ bundle_label) if is_bundle else 'Valtakunnallinen moderaattori' if is_moderator else 'Kaupunkiadmin' }}</h2>
         <p>{{ 'Hallinnossa hyväksytty päätös' if (is_end or is_order or is_invite or is_recovery) else 'Hallinnossa hyväksytyt ehdot' }}</p>
       </div>
     </div>
@@ -61,6 +61,17 @@
       <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
       {% if fields.concurring_decision_id %}<div><dt>Toinen päätös</dt><dd>{{ fields.concurring_decision_id }}</dd></div>{% endif %}
     </dl>
+    {% elif is_org_right %}
+    <dl class="admin-message-meta">
+      <div><dt>Organisaatio</dt><dd>{{ right_state.organization_name }}</dd></div>
+      <div><dt>Vahvistettu organisaatio</dt><dd>{{ 'Kyllä' if right_state.verified else 'Ei' }}</dd></div>
+      <div><dt>Ylläpitäjät</dt><dd>{{ right_state.org_admins|join(', ') if right_state.org_admins else 'ei ketään' }}</dd></div>
+      <div><dt>Toimenpide</dt><dd>{{ {'grant': 'Oikeuden myöntäminen', 'refusal': 'Pyynnön hylkääminen', 'end': ('Oikeuden peruminen' if fields.kind == 'revoke' else 'Oikeuden jäädytys')}[right_kind] }}</dd></div>
+      {% if right_kind == 'grant' %}<div><dt>Voimassa</dt><dd>{{ last_day }} asti</dd></div>{% endif %}
+      {% if right_kind == 'refusal' %}<div><dt>Syy</dt><dd>{{ fields.reason }}</dd></div>{% endif %}
+      {% if right_state.note %}<div><dt>Pyynnön huomautus</dt><dd>{{ right_state.note }}</dd></div>{% endif %}
+      <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
+    </dl>
     {% elif is_org_admin %}
     <dl class="admin-message-meta">
       <div><dt>Käyttäjä</dt><dd>{{ account.displayname or account.username }}{% if account.displayname and account.username %} ({{ account.username }}){% endif %}</dd></div>
@@ -78,6 +89,8 @@
     </dl>
     {% endif %}
     {% if is_invite or is_recovery %}
+    {% elif is_org_right %}
+    <p class="mb-0">{% if right_kind == 'grant' %}Organisaation ylläpitäjät ja omistajat saavat päättää organisaation omien mielenosoitusten tapaukset. Oikeus ei anna kenellekään yksittäisiä lupia. Jos mielenosoituksella on myös muita järjestäjiä, joilla ei ole omaa oikeutta, päätös kuuluu moderaattoreille.{% elif right_kind == 'refusal' %}Pyyntötapaus suljetaan hylättynä, ja syy lähetetään organisaation omistajille ja ylläpitäjille.{% else %}Organisaation oikeus hyväksyä omat mielenosoituksensa päättyy heti.{% if fields.kind == 'freeze' %} Jäädytys estää uuden pyynnön, kunnes Hallinto tekee uuden päätöksen.{% endif %}{% endif %}</p>
     {% elif is_order %}
     <p class="mb-0">{% if fields.kind == 'role_removal' and fields.role == 'city_admin' %}Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% elif fields.kind == 'role_removal' %}Käyttäjä menettää roolin pysyvästi, ja hänen istuntonsa ja avaimensa mitätöidään.{% elif fields.kind == 'site_lockdown' and fields.action == 'close' %}Julkinen sivusto ja rajapinta sulkeutuvat heti kaikilta vierailijoilta, ja he näkevät huoltosivun. Hallintapaneeli ja kirjautuminen toimivat. Mitään ei poisteta. Sulun voi purkaa Hallinnosta tai Flaskin turvatoimisivulta.{% elif fields.kind == 'site_lockdown' %}Julkinen sivusto ja rajapinta avautuvat heti kaikille vierailijoille.{% elif fields.kind == 'access_review' %}Tilien oikeuksiin ei tehdä muutoksia. Seuraava tarkistus on puolen vuoden kuluttua.{% else %}Tiimistä poistetaan ne, jotka eivät ole listalla. Yksi vahvistus voi poistaa enintään puolet tiimistä.{% endif %}</p>
     {% elif is_moderator and is_end %}
@@ -97,7 +110,7 @@
     {% else %}
     <p class="mb-0">Käyttäjä saa kaupungin mielenosoitusten ja asioiden käsittelyoikeudet.{% if fields.allow_city_enablement %} Jos kaupunki ei ole vielä käytössä, se otetaan käyttöön.{% endif %}</p>
     {% endif %}
-    {% if not eligible and is_recovery %}<div class="alert alert-warning mb-0" role="alert">Tätä palautusta ei voi tehdä nyt. Tilanne on voinut muuttua, tai henkilölle ei voi antaa tätä roolia. Palautusta ei voi vahvistaa.</div>{% elif not eligible and is_invite %}<div class="alert alert-warning mb-0" role="alert">Tähän osoitteeseen ei voi lähettää kutsua: osoite on kutsukiellossa tai se on yleisosoite. Kutsua ei voi vahvistaa.</div>{% elif not eligible and is_moderator %}<div class="alert alert-warning mb-0" role="alert">Tätä nimitystä ei voi tehdä nyt: käyttäjätili ei ole käytössä, se on organisaation tili tai käyttäjällä on jo voimassa oleva moderaattorinimitys. Nimitystä ei voi vahvistaa.</div>{% elif not eligible %}<div class="alert alert-warning mb-0" role="alert">Käyttäjälle ei voi antaa tätä nimitystä nyt: hänellä on jo ylläpito-oikeuksia tai käyttäjätili ei ole käytössä. Nimitystä ei voi vahvistaa.</div>{% endif %}
+    {% if not eligible and is_org_right %}<div class="alert alert-warning mb-0" role="alert">Tätä päätöstä ei voi tehdä nyt: organisaatio ei ole vahvistettu, sillä on jo voimassa oleva oikeus, pyyntötapaus ei ole auki tai organisaatiolla ei ole omistajaa. Päätöstä ei voi vahvistaa.</div>{% elif not eligible and is_recovery %}<div class="alert alert-warning mb-0" role="alert">Tätä palautusta ei voi tehdä nyt. Tilanne on voinut muuttua, tai henkilölle ei voi antaa tätä roolia. Palautusta ei voi vahvistaa.</div>{% elif not eligible and is_invite %}<div class="alert alert-warning mb-0" role="alert">Tähän osoitteeseen ei voi lähettää kutsua: osoite on kutsukiellossa tai se on yleisosoite. Kutsua ei voi vahvistaa.</div>{% elif not eligible and is_moderator %}<div class="alert alert-warning mb-0" role="alert">Tätä nimitystä ei voi tehdä nyt: käyttäjätili ei ole käytössä, se on organisaation tili tai käyttäjällä on jo voimassa oleva moderaattorinimitys. Nimitystä ei voi vahvistaa.</div>{% elif not eligible %}<div class="alert alert-warning mb-0" role="alert">Käyttäjälle ei voi antaa tätä nimitystä nyt: hänellä on jo ylläpito-oikeuksia tai käyttäjätili ei ole käytössä. Nimitystä ei voi vahvistaa.</div>{% endif %}
     </div>
   </section>
 
@@ -105,7 +118,7 @@
     <input type="hidden" name="r" value="{{ raw }}">
     <input type="hidden" name="state" value="{{ state_param }}">
     {% if elevated and eligible %}
-    <button type="submit" class="workflow-button btn btn-primary"><i class="fas fa-check" aria-hidden="true"></i>{{ 'Vahvista ja lähetä' if (is_invite or is_recovery) else 'Vahvista' if is_order else 'Vahvista päättäminen' if is_end else 'Vahvista nimitys' }}</button>
+    <button type="submit" class="workflow-button btn btn-primary"><i class="fas fa-check" aria-hidden="true"></i>{{ 'Vahvista ja lähetä' if (is_invite or is_recovery) else 'Vahvista' if is_order else 'Vahvista päätös' if is_org_right else 'Vahvista päättäminen' if is_end else 'Vahvista nimitys' }}</button>
     <a class="workflow-button btn btn-outline-secondary" href="{{ hallinto_url }}">Peruuta</a>
     {% endif %}
   </form>
