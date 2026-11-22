@@ -22,7 +22,7 @@ pyqrcode==1.2.1
 pypng==0.20220715.0
 python_dateutil==2.9.0.post0
 PyYAML==6.0.2
-Requests==2.33.0
+Requests==2.34.2
 tqdm==4.67.2
 webauthn==3.0.0
 cryptography==50.0.2
