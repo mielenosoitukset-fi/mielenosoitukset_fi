@@ -251,6 +251,39 @@ def _can_grant_organization_role(user, organization, role) -> bool:
     return user.role_in(org_id) == "owner"
 
 
+_MEMBER_GUARD_ERRORS = {
+    "role_not_grantable": "Sinulla ei ole oikeutta antaa tätä roolia.",
+    "owner_needs_owner": "Vain omistaja voi muuttaa toisen omistajan roolia tai poistaa omistajan.",
+    "last_owner": "Organisaation viimeistä omistajaa ei voi poistaa eikä alentaa. Lisää ensin toinen omistaja.",
+}
+
+
+def _owner_count(org_id) -> int:
+    return mongo.memberships.count_documents({"organization_id": org_id, "role": "owner"})
+
+
+def _can_manage_member(user, organization, target_role, new_role=None) -> tuple[bool, str]:
+    """Whether ``user`` may change (``new_role``) or remove (``None``) a member.
+
+    Organisation admins manage members and admins; only owners (or accounts with
+    full rights) touch owners, and an organisation never loses its last owner
+    through these routes.
+    """
+    org_id = organization.get("_id") if isinstance(organization, dict) else getattr(organization, "_id", None)
+    if org_id is None:
+        return False, "organization_not_found"
+    if new_role is not None and not _can_grant_organization_role(user, organization, new_role):
+        return False, "role_not_grantable"
+    if user.has_full_permissions():
+        return True, ""
+    if target_role == "owner":
+        if user.role_in(org_id) != "owner":
+            return False, "owner_needs_owner"
+        if new_role != "owner" and _owner_count(org_id) <= 1:
+            return False, "last_owner"
+    return True, ""
+
+
 
 
 # Organization control panel
@@ -943,7 +976,9 @@ def view_organization(org_id):
 @permission_required("EDIT_ORGANIZATION")
 def organization_history(org_id):
     """Who created the organization and every later change, from audit_events."""
-    from mielenosoitukset_fi.admin.audit_history import first_event_at, helsinki_time, load_history
+    from mielenosoitukset_fi.admin.audit_history import (
+        estimated_creation_row, first_event_at, helsinki_time, load_history,
+    )
     from mielenosoitukset_fi.admin.pagination import build_admin_pagination, parse_admin_pagination
 
     if not ObjectId.is_valid(org_id):
@@ -956,6 +991,9 @@ def organization_history(org_id):
 
     history = load_history(mongo, "organizations", organization_doc["_id"])
     started = first_event_at(mongo)
+    estimated = None if history["has_create"] else estimated_creation_row(organization_doc["_id"])
+    if estimated:
+        history["rows"] = history["rows"] + [estimated]
     page, per_page = parse_admin_pagination(request.args)
     pagination = build_admin_pagination(
         "admin_org.organization_history",
@@ -1038,6 +1076,10 @@ def delete_membership() -> Tuple[Response, int]:
     if not _can_edit_organization(current_user, org_doc):
         _log_org_event("membership_delete_error", membership_id=membership_id, reason="forbidden")
         return jsonify({"error": "Sinulla ei ole oikeutta muokata varmennettua organisaatiota."}), 403
+    allowed, reason = _can_manage_member(current_user, org_doc, membership_doc.get("role"))
+    if not allowed:
+        _log_org_event("membership_delete_error", membership_id=membership_id, reason=reason)
+        return jsonify({"error": _(_MEMBER_GUARD_ERRORS.get(reason, "Sinulla ei ole oikeutta tähän toimintoon."))}), 403
 
     # Protected memberships are changed only by the governance service.
     from mielenosoitukset_fi.utils.system_teams import forbid_ordinary_team_write
@@ -1755,8 +1797,11 @@ def change_access_level() -> Tuple[Response, int]:
 
     Notes
     -----
-    - If the new role is "admin" or "owner" and the user's current global role
-      is "user" or "member", their global role is elevated to "admin".
+    - The account role is never changed; the organisation role lives in the
+      membership only.
+    - Organisation admins may grant member and admin. Only owners (or accounts
+      with full rights) may change an owner's role, and the last owner cannot
+      be demoted.
     - Silently ignores errors during user global role update, but organization
       update always proceeds.
     - Requires `@admin_required` decorator; only admins can change access levels.
@@ -1807,10 +1852,27 @@ def change_access_level() -> Tuple[Response, int]:
         )
         return jsonify({"status": "error", "error": _("Sinulla ei ole oikeutta tähän toimintoon.")}), 403
 
+    target_membership = mongo.memberships.find_one(
+        {"organization_id": org_doc["_id"], "user_id": {"$in": [_safe_oid(user_id), str(user_id)]}},
+        {"role": 1},
+    )
+    if target_membership:
+        allowed, reason = _can_manage_member(current_user, org_doc, target_membership.get("role"), role)
+        if not allowed:
+            _log_org_event(
+                "organization_access_change_error",
+                reason=reason,
+                organization_id=organization_id,
+                user_id=user_id,
+                role=role,
+            )
+            return jsonify({"status": "error", "error": _(_MEMBER_GUARD_ERRORS.get(
+                reason, "Sinulla ei ole oikeutta tähän toimintoon."))}), 403
+
     organization = Organization.from_dict(org_doc)
 
     # --- Update member in organization ---
-    if organization.is_member(None, user_id):
+    if target_membership and organization.is_member(None, user_id):
         organization.update_member(user_id, role)
 
         # Organisation roles live in the membership only; the account role is never raised.

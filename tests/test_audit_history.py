@@ -142,6 +142,18 @@ def test_backfill_copies_old_org_events_once_and_history_shows_them(admin_client
 
 
 @pytest.mark.integration
+def test_history_shows_estimated_creation_time_when_no_creator_is_recorded(admin_client, db, seeded_data):
+    org_id = ObjectId(seeded_data["org_id"])
+    db.audit_events.delete_many({})
+    page = admin_client.get(f"/admin/organization/history/{org_id}").get_data(as_text=True)
+    assert "Tekijä ei tiedossa" in page and "Luontiaika arvioitu" in page
+    assert helsinki_time(org_id.generation_time, seconds=True) in page
+
+    db.audit_events.insert_one(_event(org_id, datetime.now(timezone.utc), "insert", [{"_id": org_id, "name": "X"}],
+                                      {"kind": "user", "user_id": str(seeded_data["admin_id"])}))
+    page = admin_client.get(f"/admin/organization/history/{org_id}").get_data(as_text=True)
+    assert "Luontiaika arvioitu" not in page
+
 def test_backfill_adds_sent_field_names_and_collapses_double_logged_edits(db, seeded_data, monkeypatch):
     from mielenosoitukset_fi.scripts import backfill_org_history as backfill
 

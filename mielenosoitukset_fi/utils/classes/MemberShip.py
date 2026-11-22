@@ -76,6 +76,15 @@ class MemberShip(BaseModel):
         ]
     }
 
+    @classmethod
+    def effective_permissions(cls, role: str, permissions=None) -> List[str]:
+        """Return the role's defaults plus the given permissions that no role grants."""
+        role = role if role in cls.VALID_ROLES else "member"
+        own = set(cls.DEFAULT_PERMISSIONS[role])
+        role_bound = set().union(*cls.DEFAULT_PERMISSIONS.values())
+        custom = {perm for perm in (permissions or []) if perm not in role_bound}
+        return sorted(own | custom)
+
     def __init__(
         self,
         user_id: ObjectId,
@@ -112,11 +121,15 @@ class MemberShip(BaseModel):
 
         if existing:
             self._id = existing["_id"]
-            # Merge permissions in case previous entry missed any default
-            existing_perms = set(existing.get("permissions", []))
-            default_perms = set(self.DEFAULT_PERMISSIONS[self.role])
-            merged = default_perms | existing_perms | set(self.permissions)
-            self.permissions = sorted(merged)
+            stored = set(existing.get("permissions", [])) | set(self.permissions)
+            if existing.get("role") != self.role:
+                # A role change takes the old role's rights away: a demoted
+                # owner must not keep DELETE_ORGANIZATION. Permissions that no
+                # role grants (explicit extras) stay.
+                self.permissions = self.effective_permissions(self.role, stored)
+            else:
+                # Merge permissions in case previous entry missed any default
+                self.permissions = sorted(set(self.DEFAULT_PERMISSIONS[self.role]) | stored)
 
         db["memberships"].update_one(
             {
