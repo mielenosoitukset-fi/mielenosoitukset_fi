@@ -10,6 +10,15 @@ import time
 import uuid
 import hashlib
 from mielenosoitukset_fi.utils.public_gate import PublicGate
+
+# Served during a lockdown: Hallinto sign-in (OIDC issuer and the internal
+# backchannel) and the campaign pages the maintenance page links to.
+LOCKDOWN_EXEMPT_PREFIXES = ("/hallinto-oidc", "/internal/hallinto", "/kampanja", "/keräys")
+
+
+def lockdown_exempt(path):
+    """Whether ``path`` is one of the exempt prefixes or below one (not ``/kampanjaX``)."""
+    return any(path == p or path.startswith(p + "/") for p in LOCKDOWN_EXEMPT_PREFIXES)
 from mielenosoitukset_fi.utils.site_lock import site_locked
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from mielenosoitukset_fi.utils.logout_token import make_logout_token
@@ -4955,6 +4964,10 @@ def init_routes(app):
         # Administration, authentication and diagnostics remain available for
         # recovery. Read current shared state rather than a worker-local flag.
         if request.path.startswith(("/admin", "/board", "/users/auth", "/auth/god", "/static", "/health")):
+            return None
+        # Hallinto sign-in and its backchannel keep working, so a lockdown can be
+        # decided and lifted in Hallinto; the campaign the page links to stays open.
+        if lockdown_exempt(request.path):
             return None
         if _public_gate.locked():
             return render_template("heavy.html"), 503, {"Cache-Control": "no-store", "Retry-After": "60", "X-Robots-Tag": "noindex"}

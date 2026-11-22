@@ -563,3 +563,45 @@ def give_up(db, organization: dict) -> bool:
     if right.status_of(organization) != right.LIVE:
         return False
     return right.end_right(db, organization["_id"], "given_up")
+
+
+# --------------------------------------------------------------------------- #
+# Organisation page
+# --------------------------------------------------------------------------- #
+
+def panel_state(db, organization: dict, user) -> Optional[dict]:
+    """What the organisation page shows about the right; None while the feature is off."""
+    from zoneinfo import ZoneInfo
+
+    if not right.enabled():
+        return None
+    status = right.status_of(organization)
+    row = right.record(organization) or {}
+    managed = right.managed_organization_ids(user)
+    full = bool(getattr(user, "has_full_permissions", lambda: False)())
+    role = user.role_in(organization["_id"]) if hasattr(user, "role_in") else None
+    waiting = _open_request(db, organization["_id"])
+    verified = organization.get("verified") is True and not protected_organization(organization["_id"])
+    refused = None
+    if waiting is None and status != right.LIVE:
+        last = db.cases.find_one({"type": right.CASE_TYPE, "organization_id": organization["_id"],
+                                  "meta.closed": True}, sort=[("created_at", -1)])
+        if last and (last.get("meta") or {}).get("outcome") == "refused":
+            refused = (last.get("meta") or {}).get("closed_reason") or ""
+
+    def day(value, last_day=False):
+        if not value:
+            return ""
+        local = value.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Europe/Helsinki"))
+        return (local - timedelta(seconds=1) if last_day else local).strftime("%-d.%-m.%Y")
+
+    sees_cases = organization["_id"] in managed or full
+    return {
+        "status": status, "verified": verified,
+        "valid_until": day(row.get("valid_until"), last_day=True), "ended_at": day(row.get("ended_at")),
+        "request_case_id": str(waiting["_id"]) if waiting else None, "refused_reason": refused,
+        "can_request": bool(role in ("owner", "admin") and verified and not waiting
+                            and status in ("none", "expired", "revoked", "given_up", "unverified")),
+        "can_give_up": bool(role == "owner" and status == right.LIVE),
+        "sees_cases": sees_cases,
+    }
