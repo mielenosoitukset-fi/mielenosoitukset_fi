@@ -33,7 +33,7 @@ def test_mongo_compatible_runner_keeps_database_and_required_suite():
         "--durations=25", "--timeout=180", "--timeout-method=thread",
         "-o", "faulthandler_timeout=120",
     ]
-    assert job["strategy"]["matrix"]["shard"] == [1, 2, 3, 4]
+    assert job["strategy"]["matrix"]["shard"] == [1, 2, 3]
     assert not job["strategy"]["fail-fast"]
     gate = workflow["jobs"]["python-tests"]
     assert gate["needs"] == "python-tests-shard" and gate["if"] == "always()"
@@ -51,15 +51,16 @@ def test_shards_cover_every_test_file_once():
     spec = importlib.util.spec_from_file_location("ci_test_shard", root / "scripts/ci_test_shard.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    shards = [module.shard_files(root, n, 4) for n in range(1, 5)]
+    shards = [module.shard_files(root, n, 3) for n in range(1, 4)]
     every = sorted(p.relative_to(root).as_posix() for p in root.glob("tests/**/test_*.py"))
     assert sorted(f for shard in shards for f in shard) == every
     assert all(shards)
 
 
-def test_shared_ci_mongo_database_names_are_unique_per_job_and_worker(monkeypatch):
+def test_disposable_ci_mongo_database_names_are_unique_per_job_and_worker(monkeypatch):
     from tests import conftest
 
+    monkeypatch.delenv("MOSO_CI_MONGO_SLOT", raising=False)
     for env, expected in (
         ({"GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2", "SHARD": "4", "PYTEST_XDIST_WORKER": "gw3"},
          "mielenosoitukset_test_123_2_4_gw3_"),
@@ -72,3 +73,13 @@ def test_shared_ci_mongo_database_names_are_unique_per_job_and_worker(monkeypatc
         names = {conftest._test_db_name() for _ in range(5)}
         assert len(names) == 5
         assert all(name.startswith(expected) and len(name) <= 63 for name in names)
+
+
+def test_shared_ci_mongo_database_names_match_runner_grants(monkeypatch):
+    from tests import conftest
+
+    for slot in ("02", "03", "04"):
+        monkeypatch.setenv("MOSO_CI_MONGO_SLOT", slot)
+        for worker in (None, "gw0", "gw1"):
+            monkeypatch.setattr(conftest, "XDIST_WORKER", worker)
+            assert conftest._test_db_name() == f"mielenosoitukset_test_{slot}_{worker or 'controller'}"

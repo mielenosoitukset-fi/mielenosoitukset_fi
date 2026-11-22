@@ -1,6 +1,7 @@
 """Exercise the isolated issuer against the existing Flask login owner."""
 
 import json
+import os
 from base64 import urlsafe_b64encode
 from concurrent.futures import ThreadPoolExecutor
 from hashlib import sha256
@@ -183,7 +184,8 @@ def test_protected_config_uses_dedicated_database_and_server_https(app_factory, 
     from mielenosoitukset_fi.users import hallinto_issuer_config as config
 
     name = "hallinto_issuer_" + str(ObjectId())
-    state = db.client[name]
+    shared = os.environ.get("MOSO_CI_MONGO_SLOT")
+    state = db.client[f"{db.name}_issuer" if shared else name]
     settings = _production_settings(name)
     path = tmp_path / "issuer.json"
     path.write_text(json.dumps(settings))
@@ -193,7 +195,9 @@ def test_protected_config_uses_dedicated_database_and_server_https(app_factory, 
 
     def connect(uri, **kw):
         opened.append((uri, kw))
-        return db.client
+        # Keep production name validation exercised while using the CI role's
+        # separately granted database for the fixture's issuer state.
+        return {name: state} if shared else db.client
 
     monkeypatch.setattr(config, "mongo_client", connect)
     subject = db.users.insert_one({
@@ -223,7 +227,7 @@ def test_protected_config_uses_dedicated_database_and_server_https(app_factory, 
         assert opened[0][1]["connect"] is False and opened[0][1]["w"] == "majority"
     finally:
         db.users.delete_one({"_id": subject})
-        db.client.drop_database(name)
+        db.client.drop_database(state.name)
 
 
 @pytest.mark.parametrize("file_kind", ["world-readable", "symlink", "invalid-json"])

@@ -28,7 +28,7 @@ func reminderTestDB(t *testing.T) *mongo.Database {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db := client.Database("rt_" + hex.EncodeToString([]byte(t.Name()))[:20])
+	db := ciMongoDB(t, client, "rt_" + hex.EncodeToString([]byte(t.Name()))[:20], "main")
 	ctx := context.Background()
 	_ = db.Drop(ctx)
 	if _, err := db.Collection(reminderCollection).Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "email", Value: 1}}, Options: options.Index().SetUnique(true)}); err != nil {

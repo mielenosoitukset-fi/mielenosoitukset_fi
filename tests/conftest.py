@@ -27,13 +27,20 @@ XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER")
 
 
 def _test_db_name():
-    """A database name no other worker, shard or CI run can share.
+    """Give each worker its own database.
 
-    CI jobs may use one shared MongoDB, so the name carries the run, attempt,
-    shard and worker. The random suffix covers local runs. MongoDB limits
+    Shared MongoDB uses exact grants per runner and worker. Disposable MongoDB
+    names carry the run, attempt, shard and worker. The random suffix covers local runs. MongoDB limits
     database names to 63 bytes: 22 + run (<=12) + 1 + attempt (<=2) + 1 +
     shard (<=2) + 1 + worker (<=4) + 1 + 8 stays inside it.
     """
+    slot = os.environ.get("MOSO_CI_MONGO_SLOT")
+    if slot:
+        worker = XDIST_WORKER or "controller"
+        if slot not in {"02", "03", "04"} or worker not in {"controller", "gw0", "gw1"}:
+            raise ValueError("Invalid shared MongoDB slot or pytest worker")
+        return f"mielenosoitukset_test_{slot}_{worker}"
+
     parts = [
         os.environ.get("GITHUB_RUN_ID", ""),
         os.environ.get("GITHUB_RUN_ATTEMPT", ""),

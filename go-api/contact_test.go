@@ -738,7 +738,7 @@ func contactTestMongo(t *testing.T) (*mongo.Database, *mongo.Database) {
 		t.Fatal(err)
 	}
 	suffix := hex.EncodeToString([]byte(t.Name()))[:16]
-	db, limits := client.Database("ct_"+suffix), client.Database("ctl_"+suffix)
+	db, limits := ciMongoDB(t, client, "ct_"+suffix, "main"), ciMongoDB(t, client, "ctl_"+suffix, "limits")
 	ctx := context.Background()
 	_ = db.Drop(ctx)
 	_ = limits.Drop(ctx)

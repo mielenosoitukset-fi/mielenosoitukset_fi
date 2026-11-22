@@ -24,13 +24,13 @@ jobs:
     # (2026-11-22, Olivia). Set the repository variable MOSO_CI_RUNS_ON to
     # '"ubuntu-22.04"' to move back to GitHub-hosted runners. Fork PRs always
     # stay on GitHub-hosted runners, so untrusted code never reaches our host.
-    # The suite runs as four shards side by side, each with pytest-xdist.
+    # The suite runs as three shards side by side, each with pytest-xdist.
     runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-22.04' || fromJSON(vars.MOSO_CI_RUNS_ON || '["self-hosted","self-hosted-moso"]') }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3]
 
     steps:
       - name: Checkout repository
@@ -82,17 +82,20 @@ jobs:
         run: python -m playwright install --with-deps chromium
 
       - name: Choose the test MongoDB
-        # Self-hosted runners may share one CI MongoDB (secret MOSO_CI_MONGO_URI,
-        # set only for same-repository runs). Every test database name carries the
-        # run, attempt, shard and worker, and a worker drops only its own. Without
-        # the secret, or on GitHub-hosted runners, each job starts its own mongo.
+        # MongoDB grants exact names. A GitHub runner takes one job at a time.
+        # Hosted and unconfigured runners retain their own disposable MongoDB.
         env:
           SHARED_MONGO_URI: ${{ secrets.MOSO_CI_MONGO_URI }}
         run: |
-          if [ "$RUNNER_ENVIRONMENT" = self-hosted ] && [ -n "$SHARED_MONGO_URI" ]; then
+          case "$RUNNER_ENVIRONMENT:$RUNNER_NAME" in
+            self-hosted:moso-vm-0[234]) slot="${RUNNER_NAME##*-}" ;;
+            *) slot="" ;;
+          esac
+          if [ -n "$slot" ] && [ -n "$SHARED_MONGO_URI" ]; then
             echo "::add-mask::$SHARED_MONGO_URI"
             {
               echo "SHARED_MONGO=1"
+              echo "MOSO_CI_MONGO_SLOT=$slot"
               echo "TEST_MONGO_URI=$SHARED_MONGO_URI"
             } >> "$GITHUB_ENV"
           else
@@ -169,6 +172,12 @@ jobs:
 
 
 
+      - name: Reset this runner's shared test databases
+        if: env.SHARED_MONGO == '1'
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: python scripts/ci_mongo_reset.py start
+
       - name: Verify Go public API and MongoDB boundaries
         if: matrix.shard == 1
         working-directory: go-api
@@ -187,12 +196,12 @@ jobs:
           TEST_MAIL_PORT: "1025"
           TEST_S3_ENDPOINT: http://127.0.0.1:4566
           SHARD: ${{ matrix.shard }}
-          SHARDS: "4"
+          SHARDS: "3"
         # Override pytest.ini's quiet flag so stalled runs retain each test ID.
         # Keep every test and the 30-minute job limit. Bound each test including
         # fixture setup/teardown; thread mode also exits on an uninterruptible
         # lock wait and prints thread stacks before failing the job.
-        # Each shard takes a quarter of the test files, balanced by size, and
+        # Each shard takes about a third of the test files, balanced by size, and
         # runs them with two xdist workers (one file stays on one worker).
         run: |
           set -o pipefail
@@ -204,24 +213,11 @@ jobs:
         if: failure()
         run: docker compose -f compose.test.yml logs --no-color --tail=40
 
-      - name: Drop this job's test databases on the shared MongoDB
-        # Workers drop their own databases; this catches crashed or killed ones.
+      - name: Drop this runner's shared test databases
         if: always() && env.SHARED_MONGO == '1'
         env:
           SHARD: ${{ matrix.shard }}
-        run: |
-          python - <<'PY'
-          import os
-          from pymongo import MongoClient
-
-          prefix = "mielenosoitukset_test_{}_{}_{}_".format(
-              os.environ["GITHUB_RUN_ID"], os.environ["GITHUB_RUN_ATTEMPT"], os.environ["SHARD"])
-          client = MongoClient(os.environ["TEST_MONGO_URI"], serverSelectionTimeoutMS=10000)
-          for name in client.list_database_names():
-              if name.startswith(prefix):
-                  client.drop_database(name)
-                  print("dropped", name)
-          PY
+        run: python scripts/ci_mongo_reset.py finish
 
       - name: Tear down test services
         if: always()
