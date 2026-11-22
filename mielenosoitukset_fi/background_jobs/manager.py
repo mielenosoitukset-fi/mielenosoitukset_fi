@@ -7,7 +7,7 @@ import threading
 import traceback
 import uuid
 from mielenosoitukset_fi.utils.time_utils import utcnow
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -167,11 +167,15 @@ class BackgroundJobManager:
 
         trigger = doc.get("trigger", "interval")
         trigger_args = doc.get("trigger_args") or {}
+        extra = {}
+        if job_def.first_run_delay_seconds and trigger == "interval":
+            extra["next_run_time"] = datetime.now(timezone.utc) + timedelta(seconds=job_def.first_run_delay_seconds)
         scheduler_job = self.scheduler.add_job(
             func=lambda jk=job_key: self._execute_job(jk),
             trigger=trigger,
             id=job_key,
             replace_existing=True,
+            **extra,
             **trigger_args,
         )
         self._update_next_run(job_key, self._get_next_run_time(scheduler_job))
