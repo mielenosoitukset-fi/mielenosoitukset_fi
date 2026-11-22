@@ -88,25 +88,13 @@
     </div>
 
     <aside class="admin-stack">
-      <section class="admin-section-card" id="rights-panel">
-        <div class="admin-section-card__header"><div class="admin-section-card__title"><i class="fas fa-user-shield" aria-hidden="true"></i><h2>{{ _('Roolit ja oikeudet') }}</h2></div></div>
-        <div class="admin-section-card__body admin-stack">
-          <dl class="admin-role-help mb-0">
-            <dt>{{ _('Jäsen') }}</dt><dd>{{ _('Kuuluu organisaation tiimiin ja näkee organisaation tiedot. Ei muokkaus- eikä hallintaoikeuksia.') }}</dd>
-            <dt>{{ _('Admin') }}</dt><dd>{{ _('Muokkaa organisaation tietoja, hallinnoi jäseniä ja admineja, luo ja muokkaa organisaation mielenosoituksia sekä lukee organisaation tapauksia ja lisää niihin merkintöjä. Saa tilille org_admin-roolin automaattisesti.') }}</dd>
-            <dt>{{ _('Omistaja') }}</dt><dd>{{ _('Kaikki mitä admin voi, lisäksi omistajien hallinta ja organisaation poisto. Organisaatiolla on oltava aina vähintään yksi omistaja.') }}</dd>
-          </dl>
-          <p class="admin-field__help mb-0">{{ _('Rooli antaa oikeudet vain tähän organisaatioon. Mielenosoituksen hyväksyminen ei kuulu rooleihin: se vaatii, että Hallinto on myöntänyt organisaatiolle oikeuden hyväksyä omat mielenosoituksensa.') }}</p>
-        </div>
-      </section>
-
       {% if approval_right %}
       <section class="admin-section-card" id="approval-right-panel">
         <div class="admin-section-card__header"><div class="admin-section-card__title"><i class="fas fa-stamp" aria-hidden="true"></i><h2>{{ _('Oikeus hyväksyä omat mielenosoitukset') }}</h2></div></div>
         <div class="admin-section-card__body admin-stack">
           {% if approval_right.status == 'live' %}
           <p class="mb-0"><span class="admin-status-badge admin-status-badge--success"><i class="fas fa-check" aria-hidden="true"></i>{{ _('Voimassa %(day)s asti', day=approval_right.valid_until) }}</span></p>
-          <p class="admin-field__help mb-0">{{ _('Organisaation omistajat ja adminit päättävät organisaation omien mielenosoitusten tapaukset. Jos mielenosoituksella on myös muita järjestäjiä, joilla ei ole omaa oikeutta, päätös kuuluu moderaattoreille.') }}</p>
+          <p class="admin-panel-note mb-0">{{ _('Organisaation omistajat ja adminit päättävät organisaation omien mielenosoitusten tapaukset. Jos mielenosoituksella on myös muita järjestäjiä, joilla ei ole omaa oikeutta, päätös kuuluu moderaattoreille.') }}</p>
           {% elif approval_right.request_case_id %}
           <p class="mb-0"><span class="admin-status-badge admin-status-badge--warning"><i class="fas fa-clock" aria-hidden="true"></i>{{ _('Pyyntö on käsiteltävänä Hallinnossa') }}</span></p>
           {% if approval_right.sees_cases %}<a class="admin-link-list__item" href="{{ url_for('admin_case.single_case', case_id=approval_right.request_case_id) }}"><span>{{ _('Avaa pyyntö') }}</span><i class="fas fa-arrow-right" aria-hidden="true"></i></a>{% endif %}
@@ -118,14 +106,27 @@
             {% elif approval_right.status == 'given_up' %}{{ _('Organisaatio on luopunut oikeudesta') }}
             {% elif approval_right.status == 'unverified' or not approval_right.verified %}{{ _('Organisaatio ei ole vahvistettu') }}
             {% else %}{{ _('Ei oikeutta') }}{% endif %}</span></p>
-          <p class="admin-field__help mb-0">{{ _('Organisaation mielenosoitukset hyväksyy moderaattori.') }}{% if approval_right.status == 'frozen' %} {{ _('Uuden pyynnön voi tehdä vasta Hallinnon uuden päätöksen jälkeen.') }}{% elif not approval_right.verified %} {{ _('Vain vahvistettu organisaatio voi pyytää oikeutta.') }}{% endif %}</p>
-          {% if approval_right.refused_reason %}<p class="admin-field__help mb-0"><strong>{{ _('Viimeisin pyyntö hylättiin:') }}</strong> {{ approval_right.refused_reason }}</p>{% endif %}
+          <p class="admin-panel-note mb-0">{{ _('Organisaation mielenosoitukset hyväksyy moderaattori.') }}{% if approval_right.status == 'frozen' %} {{ _('Uuden pyynnön voi tehdä vasta Hallinnon uuden päätöksen jälkeen.') }}{% elif not approval_right.verified %} {{ _('Vain vahvistettu organisaatio voi pyytää oikeutta.') }}{% endif %}</p>
+          {% if approval_right.refused_reason %}<p class="admin-panel-note mb-0"><strong>{{ _('Viimeisin pyyntö hylättiin:') }}</strong> {{ approval_right.refused_reason }}</p>{% endif %}
           {% endif %}
-          {% if approval_right.can_request %}<button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#rightRequestModal"><i class="fas fa-paper-plane" aria-hidden="true"></i>{{ _('Pyydä hyväksymisoikeutta') }}</button>{% endif %}
-          {% if approval_right.can_give_up %}<button class="btn btn-outline-danger confirm-action-btn" type="button" data-action="give-up-right" data-label=""><i class="fas fa-hand" aria-hidden="true"></i>{{ _('Luovu oikeudesta') }}</button>{% endif %}
+          <div class="admin-row-actions">{% if approval_right.can_request %}<button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#rightRequestModal"><i class="fas fa-paper-plane" aria-hidden="true"></i>{{ _('Pyydä hyväksymisoikeutta') }}</button>{% endif %}
+          {% if approval_right.can_give_up %}<button class="btn btn-outline-danger confirm-action-btn" type="button" data-action="give-up-right" data-label=""><i class="fas fa-hand" aria-hidden="true"></i>{{ _('Luovu oikeudesta') }}</button>{% endif %}</div>
         </div>
       </section>
       {% endif %}
+
+      <section class="admin-section-card" id="rights-panel">
+        <div class="admin-section-card__header"><div class="admin-section-card__title"><i class="fas fa-user-shield" aria-hidden="true"></i><h2>{{ _('Roolit ja oikeudet') }}</h2></div></div>
+        <div class="admin-section-card__body admin-stack">
+          <dl class="admin-role-help mb-0">
+            <dt>{{ _('Jäsen') }}</dt><dd>{{ _('Kuuluu organisaation tiimiin ja näkee organisaation tiedot. Ei muokkaus- eikä hallintaoikeuksia.') }}</dd>
+            <dt>{{ _('Admin') }}</dt><dd>{{ _('Muokkaa organisaation tietoja, hallinnoi jäseniä ja admineja, luo ja muokkaa organisaation mielenosoituksia sekä lukee organisaation tapauksia ja lisää niihin merkintöjä.') }}</dd>
+            <dt>{{ _('Omistaja') }}</dt><dd>{{ _('Kaikki mitä admin voi, lisäksi omistajien hallinta ja organisaation poisto. Organisaatiolla on oltava aina vähintään yksi omistaja.') }}</dd>
+          </dl>
+          <p class="admin-panel-note mb-0">{{ _('Rooli antaa oikeudet vain tähän organisaatioon. Mielenosoituksen hyväksyminen ei kuulu rooleihin: se vaatii, että Hallinto on myöntänyt organisaatiolle oikeuden hyväksyä omat mielenosoituksensa.') }}</p>
+        </div>
+      </section>
+
 
       <section class="admin-section-card">
         <div class="admin-section-card__header"><div class="admin-section-card__title"><i class="fas fa-address-card" aria-hidden="true"></i><h2>{{ _('Profiilin tiedot') }}</h2></div></div>
@@ -154,7 +155,7 @@
   <div class="modal fade admin-modal admin-workflow-modal" id="rightRequestModal" tabindex="-1" aria-labelledby="rightRequestTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h2 class="modal-title" id="rightRequestTitle">{{ _('Pyydä hyväksymisoikeutta') }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Sulje') }}"></button></div>
       <div class="modal-body admin-stack">
-        <p class="admin-field__help mb-0">{{ _('Hallinto päättää pyynnöstä. Jos oikeus myönnetään, organisaation omistajat ja adminit saavat päättää organisaation omien mielenosoitusten tapaukset.') }}</p>
+        <p class="admin-panel-note mb-0">{{ _('Hallinto päättää pyynnöstä. Jos oikeus myönnetään, organisaation omistajat ja adminit saavat päättää organisaation omien mielenosoitusten tapaukset.') }}</p>
         <label class="admin-field"><span class="admin-field__label">{{ _('Huomautus Hallinnolle (valinnainen)') }}</span><textarea class="form-control" id="rightRequestNote" rows="3" maxlength="300"></textarea><span class="admin-field__help">{{ _('Enintään 300 merkkiä, yksi rivi.') }}</span></label>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('Peruuta') }}</button><button type="button" class="btn btn-primary" id="rightRequestSend">{{ _('Lähetä pyyntö') }}</button></div></div></div>
@@ -204,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('.admin-toast__close').addEventListener('click', () => toast.classList.remove('show'));
   // Owners and admins get the org_admin account role for this organisation
   // automatically, and lose it when the role ends. Say so before saving.
-  const adminAccessNote = '{{ _("Admin ja omistaja saavat organisaation ylläpito-oikeudet (org_admin-rooli) automaattisesti. Oikeudet päättyvät, kun rooli päättyy.") }}';
+  const adminAccessNote = '{{ _("Admin ja omistaja saavat organisaation ylläpito-oikeudet automaattisesti. Oikeudet päättyvät, kun rooli päättyy.") }}';
   const elevates = (role) => role === 'admin' || role === 'owner';
   async function saveRole(button, role) {
     button.disabled = true;

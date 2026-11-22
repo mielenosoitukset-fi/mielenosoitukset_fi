@@ -34,7 +34,7 @@ def page(app, db, seeded_data):
 
 def test_role_help_replaces_the_stale_note(page):
     html = page["get"]("admin")
-    assert "Roolit ja oikeudet" in html and "org_admin-rooli" in html
+    assert "Roolit ja oikeudet" in html and "org_admin-rooli" not in html
     assert "Pääsy ei poistu automaattisesti" not in html
 
 

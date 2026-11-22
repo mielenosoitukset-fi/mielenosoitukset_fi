@@ -1,6 +1,6 @@
 # Organisaation roolit
 
-Rooli antaa oikeudet vain siihen organisaatioon, jossa se on. Omistajat ja adminit saavat tilille `org_admin`-roolin automaattisesti, ja se päättyy, kun rooli päättyy. Rooleja ei nimitetä erikseen.
+Rooli antaa oikeudet vain siihen organisaatioon, jossa se on. Omistajat ja adminit saavat ylläpito-oikeudet automaattisesti, ja ne päättyvät, kun rooli päättyy. Rooleja ei nimitetä erikseen.
 
 ## Jäsen
 slug: member
