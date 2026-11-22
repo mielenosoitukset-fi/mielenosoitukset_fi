@@ -1,0 +1,1 @@
+- The organisation page now explains member, admin and owner roles, hides the owner role from admins, shows whether the organisation may approve its own demos and lets owners and admins ask Hallinto for that right.

@@ -1,0 +1,1 @@
+- During a site lockdown (Hätäsulku), Hallinto sign-in (`/hallinto-oidc/`, the internal Hallinto backchannel) and the campaign pages (`/kampanja/`, `/keräys`) stay available, so a lockdown can be lifted from Hallinto and the maintenance page's campaign link works. The React maintenance page links to the campaign too.
