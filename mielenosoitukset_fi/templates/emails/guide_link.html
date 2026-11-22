@@ -1,0 +1,14 @@
+{% extends "admin_email_base.html" %}
+{% set eyebrow = "Ohjeet" %}
+{% set heading = "Henkilökohtainen linkkisi ohjevideoihin" %}
+
+{% block subject %}{{ heading }}{% endblock %}
+
+{% block body %}
+<p>Hei {{ user_name }}!</p>
+<p>Tästä linkistä pääset katsomaan tehtäviisi kuuluvat ohjevideot. Sinun ei tarvitse kirjautua.</p>
+<p><a href="{{ guides_url }}">Avaa ohjevideot</a></p>
+<div class="meta">
+    <p>Linkki on vain sinua varten, joten älä jaa sitä muille. Jos sait uuden linkin, vanha lakkasi toimimasta. Linkki lakkaa toimimasta myös, kun roolisi päättyy. Jos linkki ei aukea, liitä koko linkki sivulle {{ guides_url.rsplit('/', 1)[0] }}/.</p>
+</div>
+{% endblock %}

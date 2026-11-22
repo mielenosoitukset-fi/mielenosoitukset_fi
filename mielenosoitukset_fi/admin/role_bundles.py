@@ -210,6 +210,17 @@ def _recipients(db, account_doc: dict) -> list:
     return emails
 
 
+def _guides_url(db, account_doc):
+    """The account's personal guide link, when the new role has a guide."""
+    from mielenosoitukset_fi.admin.guide_links_bp import _load_user, link_url
+    from mielenosoitukset_fi.utils import guide_links
+
+    user = _load_user(account_doc["_id"])
+    if not user or not guide_links.audiences_for(user):
+        return None
+    return link_url(guide_links.issue_link(db, account_doc["_id"], actor="role_bundle"))
+
+
 def _notify(db, operation: dict, account_doc: dict, action: str) -> None:
     """Best effort: mail never changes what was written."""
     try:
@@ -224,12 +235,18 @@ def _notify(db, operation: dict, account_doc: dict, action: str) -> None:
                     "freeze": f"Roolipaketti jäädytetty: {bundle['label']}"}
         sender = _email_sender()
         # One mail per person: nobody sees the other recipients' addresses.
+        own_email = (account_doc.get("email") or "").strip().lower()
+        # Issue a link only when it will be mailed, so no live link goes unseen.
+        guides_url = (_guides_url(db, account_doc)
+                      if action == "applied" and own_email in {r.strip().lower() for r in recipients} else None)
         for recipient in recipients:
             sender.queue_email(
                 template_name="role_bundle_notification.html", subject=subjects[action], recipients=[recipient],
                 context={"action": action, "bundle_label": bundle["label"], "account_name": name,
                          "decision_id": intent["decision_id"], "decision_revision": intent["decision_revision"],
-                         "valid_until": intent.get("valid_until", ""), "permissions": bundle["permissions"]},
+                         "valid_until": intent.get("valid_until", ""), "permissions": bundle["permissions"],
+                         # Only the account holder gets the personal link.
+                         "guides_url": guides_url if recipient.strip().lower() == own_email else None},
             )
         db[cg.OPERATIONS].update_one({"_id": operation["_id"]}, {"$set": {"notified_at": utcnow()}})
     except Exception:  # noqa: BLE001 - notification must not fail the operation

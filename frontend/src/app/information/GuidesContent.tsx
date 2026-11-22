@@ -1,3 +1,5 @@
+import { GuideVideos } from './GuideVideos';
+
 export function GuidesContent() {
   return (
     <div className="guide-page">
@@ -12,6 +14,10 @@ export function GuidesContent() {
             <a className="guide-button guide-button-primary" href="/submit">
               <i className="fas fa-bullhorn" aria-hidden="true" />
               Ilmoita mielenosoitus
+            </a>
+            <a className="guide-button guide-button-secondary" href="#videoohjeet">
+              Katso videoohjeet
+              <i className="fas fa-play" aria-hidden="true" />
             </a>
             <a className="guide-button guide-button-secondary" href="#submit-checklist">
               Katso tarkistuslista
@@ -33,6 +39,7 @@ export function GuidesContent() {
         <aside className="guide-sidebar">
           <nav className="guide-nav" aria-label="Ohjesivun sisällysluettelo">
             <p>Sisällys</p>
+            <a href="#videoohjeet"><i className="fas fa-video" aria-hidden="true" /> Videoohjeet</a>
             <a href="#getting-started"><i className="fas fa-play-circle" aria-hidden="true" /> Aloita tästä</a>
             <a href="#submit-checklist"><i className="fas fa-check-circle" aria-hidden="true" /> Tarkistuslista</a>
             <a href="#submit-help"><i className="fas fa-life-ring" aria-hidden="true" /> Lähetys ei onnistu</a>
@@ -49,6 +56,8 @@ export function GuidesContent() {
         </aside>
 
         <div className="guide-content">
+          <GuideVideos />
+
           <section className="guide-section" id="getting-started">
             <div className="guide-section-heading">
               <span className="guide-section-number">01</span>

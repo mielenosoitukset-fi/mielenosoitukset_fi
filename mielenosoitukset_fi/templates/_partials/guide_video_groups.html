@@ -1,0 +1,17 @@
+{% for heading, videos in groups %}
+<section class="guide-videos__group" aria-labelledby="gv-{{ loop.index }}">
+  <h2 id="gv-{{ loop.index }}" class="h4">{{ heading }}</h2>
+  <div class="guide-videos__grid">
+    {% for video in videos %}
+    <article class="guide-videos__card">
+      <video controls preload="metadata" playsinline aria-label="{{ video.title }}">
+        <source src="{{ video.video }}" type="video/mp4">
+        <track default kind="captions" srclang="fi" label="Suomi" src="{{ video.captions }}">
+      </video>
+      <h3 class="h6">{{ video.title }}</h3>
+      <p>{{ video.summary }} <span class="guide-videos__length">{{ video.minutes }} min</span></p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}

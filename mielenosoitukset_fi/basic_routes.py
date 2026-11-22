@@ -1280,6 +1280,7 @@ def init_routes(app):
         txt = (
             "User-agent: *\n"
             "    Disallow: /admin/\n"
+            "    Disallow: /ohjeet/k/\n"
             "    Disallow: /users/auth/login/\n"
             "    Disallow: /users/auth/register/\n"
             "    Disallow: /users/auth/forgot/\n"

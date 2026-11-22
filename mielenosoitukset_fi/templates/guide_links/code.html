@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Avaa ohjevideot{% endblock %}
+{% block meta %}<meta name="robots" content="noindex, nofollow" />{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/guide_videos.css') }}">{% endblock %}
+{% block content %}
+<div class="guide-videos">
+  <h1 class="h2">Avaa ohjevideot</h1>
+  <p>Liitä tähän koko saamasi linkki tai pelkkä koodi.</p>
+  <form method="post" class="guide-videos__code">
+    <label for="guide-code">Koodi</label>
+    <input id="guide-code" name="code" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+    <button type="submit">Avaa ohjeet</button>
+  </form>
+</div>
+{% endblock %}
