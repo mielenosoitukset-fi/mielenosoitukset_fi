@@ -337,3 +337,22 @@ def test_link_can_preview_the_decision_effects_of_its_own_demo_only(app, db, see
         assert response.status_code == 200 and response.get_json()["success"] is True
     # Not another demonstration.
     assert browser.get(f"/api/admin/demo/{seeded_data['demo_id']}/decision_preview?decision=approved").status_code in (302, 401, 403)
+
+
+def test_link_cookie_is_useless_on_every_other_endpoint(app, db, seeded_data):
+    _case(db, seeded_data)
+    browser = app.test_client()
+    _open(browser, _link(app, db, seeded_data))
+    demo_id = seeded_data["pending_demo_id"]
+    for path in (
+        "/admin/",
+        "/admin/user/",
+        "/admin/demo/",
+        f"/admin/demo/edit_demo/{demo_id}",
+        "/admin/case/",
+        "/api/admin/demo/list",
+        f"/api/admin/demo/{demo_id}/approve",
+        "/profile",
+    ):
+        for method in (browser.get, browser.post):
+            assert method(path).status_code in (301, 302, 308, 401, 403, 404, 405), path
