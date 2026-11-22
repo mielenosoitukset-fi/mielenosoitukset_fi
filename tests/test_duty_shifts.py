@@ -270,7 +270,10 @@ def test_calendar_shows_every_moderators_shifts_to_each_moderator(app, db, seede
     now = datetime.now(timezone.utc)
     mine, theirs = _moderator(db), _moderator(db)
     db.users.update_one({"_id": theirs}, {"$set": {"displayname": "Toinen Moderaattori"}})
-    start = _block(now, 1)[0]
+    # Midday Helsinki time three days ahead: both shifts and the shown week stay
+    # inside one local day whatever day or hour the test runs.
+    local = (now + timedelta(days=3)).astimezone(duty_shifts.HELSINKI).replace(hour=10, minute=0, second=0, microsecond=0)
+    start = local.astimezone(timezone.utc)
     _appoint_with_shift(db, mine, start, start + duty_shifts.SHIFT_LENGTH, now=now)
     _appoint_with_shift(db, theirs, start + timedelta(hours=2), start + timedelta(hours=4), now=now)
     week = start.astimezone(duty_shifts.HELSINKI).date().isoformat()
