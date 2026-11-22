@@ -1,0 +1,1 @@
+- Admin: new accounts created in the admin panel no longer get a password by email. The person receives a one-hour link to set their own password, which also confirms the address.
