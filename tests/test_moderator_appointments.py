@@ -7,7 +7,7 @@ from bson import ObjectId
 
 from mielenosoitukset_fi.admin import grant_proofs, moderator_appointments
 from mielenosoitukset_fi.admin.hallinto_city_grant_api import (
-    AUDIENCE, attestation_message, moderator_attestation_message,
+    AUDIENCE, attestation_message, moderator_attestation_message, moderator_end_attestation_message,
 )
 from mielenosoitukset_fi.utils import duty_shifts
 from tests.conftest import _user_doc
@@ -175,3 +175,102 @@ def test_approval_page_names_the_approvers_and_binds_the_proof(api):
     # Unknown extra terms are not accepted by the page.
     bad = {**body, "city": "kuopio"}
     assert verifier.get("/admin/hallinto/approve", query_string={"r": _terms(bad), "state": STATE}).status_code == 400
+
+
+def _end(env, moderator, kind="revoke", *, appointment=KEY, key="hallinto-moderator-end-00001",
+         message=moderator_end_attestation_message, action=grant_proofs.ACTION_MODERATOR_END_V1, **over):
+    app, client, db, seeded = env
+    body = {"appointment_id": appointment, "kind": kind, "account_id": str(moderator),
+            "template": "national_moderator_v1", "decision_id": "synthetic-end", "decision_revision": 1,
+            "authority_attestation": "placeholder", **over}
+    digest = moderator_appointments.end_digest(body)
+    body["authority_attestation"] = _b64url(SIGNER.sign(message(digest)))
+    with app.app_context():
+        proof = grant_proofs.issue_proof(db, actor_id=seeded["admin_id"], audience=AUDIENCE, action=action,
+                                         intent_digest=digest, factor="passkey", subject=str(moderator))
+    return client.post(f"{URL}/{appointment}/end", json=body, headers=_headers(proof=proof, key=key))
+
+
+def _on_duty(db, moderator, approver):
+    grant = db[duty_shifts.GRANTS].find_one({"user_id": moderator})
+    now = datetime.now(timezone.utc)
+    start = now + timedelta(hours=1)
+    shift = duty_shifts.add_shift(db, grant_id=grant["_id"], starts_at=start, ends_at=start + timedelta(hours=2),
+                                  source={"decision": "vuoro"}, actor={"id": str(moderator)})
+    duty_shifts.approve_shift(db, shift_id=shift["_id"], actor={"id": str(approver)}, now=now)
+    return start + timedelta(minutes=30)
+
+
+def test_revoke_ends_the_rights_at_once_and_is_idempotent(api):
+    env, _ = _env(api)
+    app, client, db, seeded = env
+    moderator, approver = _person(db, "moderator"), _person(db, "approver")
+    body, digest = _body(app, db, moderator, [approver])
+    assert _post(env, body, digest).status_code == 200
+    during = _on_duty(db, moderator, approver)
+    assert duty_shifts.active_duty(db, moderator, during)
+
+    response = _end(env, moderator)
+    assert response.status_code == 200, response.get_json()
+    receipt = response.get_json()
+    assert receipt["status"] == "confirmed"
+    assert receipt["effective"]["role"] == "" and receipt["effective"]["cities"] == []
+    assert duty_shifts.active_duty(db, moderator, during) is None
+    assert db[duty_shifts.GRANTS].find_one({"user_id": moderator})["revoked_at"]
+    # The same command again replays the receipt; a new key ends nothing twice.
+    assert _end(env, moderator).get_json() == receipt
+    assert _end(env, moderator, key="hallinto-moderator-end-00002").status_code == 200
+
+
+def test_freeze_stops_shifts_and_a_new_decision_can_appoint_again(api):
+    env, _ = _env(api)
+    app, client, db, seeded = env
+    moderator, approver = _person(db, "moderator"), _person(db, "approver")
+    body, digest = _body(app, db, moderator, [approver])
+    assert _post(env, body, digest).status_code == 200
+    during = _on_duty(db, moderator, approver)
+    assert _end(env, moderator, "freeze").status_code == 200
+    grant = db[duty_shifts.GRANTS].find_one({"user_id": moderator})
+    assert grant["frozen_at"] and not grant.get("revoked_at")
+    assert duty_shifts.active_duty(db, moderator, during) is None
+    # A frozen appointment does not block a new decision.
+    again, again_digest = _body(app, db, moderator, [approver], decision_id="synthetic-mod-2")
+    assert _post(env, again, again_digest, key="hallinto-moderator-0000000009").status_code == 200
+
+
+def test_end_is_bound_to_its_own_signature_proof_and_appointment(api):
+    env, _ = _env(api)
+    app, client, db, seeded = env
+    moderator, approver = _person(db, "moderator"), _person(db, "approver")
+    body, digest = _body(app, db, moderator, [approver])
+    assert _post(env, body, digest).status_code == 200
+    # The appointment signature or proof action cannot end an appointment.
+    assert _end(env, moderator, message=moderator_attestation_message).status_code == 403
+    assert _end(env, moderator, action=grant_proofs.ACTION_MODERATOR_V1,
+                key="hallinto-moderator-end-00003").status_code == 403
+    # An appointment that was never made.
+    unknown = _end(env, moderator, appointment="hallinto-moderator-9999999999", key="hallinto-moderator-end-00004")
+    assert unknown.status_code == 422
+    assert db[duty_shifts.GRANTS].find_one({"user_id": moderator}).get("revoked_at") is None
+
+
+def test_end_approval_page_binds_a_proof_without_owner_state(api):
+    env, _ = _env(api)
+    app, client, db, seeded = env
+    moderator = _person(db, "moderator")
+    fields = {"appointment_id": KEY, "kind": "revoke", "account_id": str(moderator),
+              "template": "national_moderator_v1", "decision_id": "synthetic-end", "decision_revision": 1}
+    verifier = _verifier(app, seeded["admin_id"])
+    page = verifier.get("/admin/hallinto/approve", query_string={"r": _terms(fields), "state": STATE})
+    assert page.status_code == 200 and "perutaan heti" in page.get_data(as_text=True)
+    response = verifier.post("/admin/hallinto/approve", data={"r": _terms(fields), "state": STATE},
+                             headers={"Origin": "http://localhost"})
+    assert response.status_code == 303
+    fragment = parse_qs(urlsplit(response.headers["Location"]).fragment)
+    assert "expected_state" not in fragment
+    digest = moderator_appointments.end_digest({**fields, "authority_attestation": "-"})
+    with app.app_context():
+        spent = grant_proofs.consume_proof(db, fragment["proof"][0], audience=AUDIENCE,
+                                           action=grant_proofs.ACTION_MODERATOR_END_V1,
+                                           intent_digest=digest, idempotency_key="hallinto-moderator-end-00001")
+    assert str(spent) == str(seeded["admin_id"])

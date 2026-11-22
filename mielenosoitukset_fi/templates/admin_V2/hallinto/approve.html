@@ -52,7 +52,7 @@
     {% else %}
     <dl class="admin-message-meta">
       <div><dt>Käyttäjä</dt><dd>{{ account.displayname or account.username }}{% if account.displayname and account.username %} ({{ account.username }}){% endif %}</dd></div>
-      {% if is_moderator %}<div><dt>Nimitys</dt><dd>Valtakunnallinen moderaattori</dd></div><div><dt>Vuorojen varaus</dt><dd>{{ 'Ilman hyväksyntää' if fields.self_booking else 'OT:n jäsen hyväksyy' }}</dd></div><div><dt>Vuorot hyväksyy</dt><dd>{{ approver_names|join(', ') if approver_names else 'ei kukaan' }}</dd></div>{% elif is_bundle %}<div><dt>Paketti</dt><dd>{{ bundle_label }}</dd></div>{% else %}<div><dt>Kaupunki</dt><dd>{{ city_name }}</dd></div>{% endif %}
+      {% if is_moderator %}<div><dt>Nimitys</dt><dd>Valtakunnallinen moderaattori</dd></div>{% if not is_end %}<div><dt>Vuorojen varaus</dt><dd>{{ 'Ilman hyväksyntää' if fields.self_booking else 'OT:n jäsen hyväksyy' }}</dd></div><div><dt>Vuorot hyväksyy</dt><dd>{{ approver_names|join(', ') if approver_names else 'ei kukaan' }}</dd></div>{% endif %}{% elif is_bundle %}<div><dt>Paketti</dt><dd>{{ bundle_label }}</dd></div>{% else %}<div><dt>Kaupunki</dt><dd>{{ city_name }}</dd></div>{% endif %}
       <div>{% if is_end %}<dt>Toimenpide</dt><dd>{{ 'Nimityksen peruminen' if fields.kind == 'revoke' else 'Nimityksen jäädytys' }}</dd>{% else %}<dt>Voimassa</dt><dd>{{ last_day }} asti</dd>{% endif %}</div>
       <div><dt>Päätös</dt><dd>{{ fields.decision_id }}, versio {{ fields.decision_revision }}</dd></div>
     </dl>
@@ -60,6 +60,8 @@
     {% if is_invite or is_recovery %}
     {% elif is_order %}
     <p class="mb-0">{% if fields.kind == 'role_removal' and fields.role == 'city_admin' %}Käyttäjän kaupunkiadmin-oikeudet poistetaan heti.{% elif fields.kind == 'role_removal' %}Käyttäjä menettää roolin pysyvästi, ja hänen istuntonsa ja avaimensa mitätöidään.{% elif fields.kind == 'site_lockdown' and fields.action == 'close' %}Julkinen sivusto ja rajapinta sulkeutuvat heti kaikilta vierailijoilta, ja he näkevät huoltosivun. Hallintapaneeli ja kirjautuminen toimivat. Mitään ei poisteta. Sulun voi purkaa Hallinnosta tai Flaskin turvatoimisivulta.{% elif fields.kind == 'site_lockdown' %}Julkinen sivusto ja rajapinta avautuvat heti kaikille vierailijoille.{% else %}Tiimistä poistetaan ne, jotka eivät ole listalla. Yksi vahvistus voi poistaa enintään puolet tiimistä.{% endif %}</p>
+    {% elif is_moderator and is_end %}
+    <p class="mb-0">Moderaattorin nimitys {{ 'perutaan' if fields.kind == 'revoke' else 'jäädytetään' }} heti: päivystysvuorot eivät anna enää oikeuksia, myös käynnissä oleva vuoro päättyy.{% if fields.kind == 'freeze' %} Jäädytys päättyy vasta uudella nimityspäätöksellä.{% endif %}</p>
     {% elif is_moderator %}
     <p>Nimitys ei anna oikeuksia itsestään. Moderaattori saa nämä oikeudet koko maassa vain hyväksytyn päivystysvuoron aikana ja 30 minuuttia sen jälkeen:</p>
     <ul class="mb-0">{% for text in permission_copy %}<li>{{ text }}</li>{% endfor %}</ul>

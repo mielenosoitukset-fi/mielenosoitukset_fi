@@ -42,6 +42,7 @@ ATTESTATION_CONTEXT = b"hallinto-city-admin-v1-attestation\n"
 END_ATTESTATION_CONTEXT = b"hallinto-city-admin-end-v1-attestation\n"
 ORDER_ATTESTATION_CONTEXT = b"hallinto-flask-order-v1-attestation\n"
 MODERATOR_ATTESTATION_CONTEXT = b"hallinto-national-moderator-v1-attestation\n"
+MODERATOR_END_ATTESTATION_CONTEXT = b"hallinto-national-moderator-end-v1-attestation\n"
 BUNDLE_ATTESTATION_CONTEXT = b"hallinto-role-bundle-v1-attestation\n"
 BUNDLE_END_ATTESTATION_CONTEXT = b"hallinto-role-bundle-end-v1-attestation\n"
 INVITATION_ATTESTATION_CONTEXT = b"hallinto-org-invitation-v1-attestation\n"
@@ -73,6 +74,11 @@ def recovery_attestation_message(intent_digest: str) -> bytes:
 
 def moderator_attestation_message(intent_digest: str) -> bytes:
     return MODERATOR_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def moderator_end_attestation_message(intent_digest: str) -> bytes:
+    """Ending signs its own context, so an appointment signature never ends one."""
+    return MODERATOR_END_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def bundle_attestation_message(intent_digest: str) -> bytes:
@@ -231,6 +237,24 @@ def build_blueprint(db) -> Blueprint:
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
         ))
 
+    @bp.post("/moderator-appointments/<appointment_id>/end")
+    def end_moderator_appointment(appointment_id):
+        key = request.headers.get("Idempotency-Key", "")
+        body = request.get_json(silent=True)
+        digest = moderator_appointments.end_digest(body)
+        if (digest is None or not city_grants.IDEMPOTENCY_KEY.match(key)
+                or body["appointment_id"] != appointment_id):
+            return _error("unsupported_scope")
+        actor_id = grant_proofs.consume_proof(
+            db, _bearer(), audience=AUDIENCE, action=grant_proofs.ACTION_MODERATOR_END_V1,
+            intent_digest=digest, idempotency_key=key,
+        )
+        if actor_id is None or not _attestation_ok(body["authority_attestation"], digest, moderator_end_attestation_message):
+            return _error("denied")
+        return _reply(moderator_appointments.apply_end_v1(
+            db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
+        ))
+
     @bp.post("/role-bundles")
     def apply_role_bundle():
         key = request.headers.get("Idempotency-Key", "")
@@ -380,7 +404,9 @@ def _decode_fields(raw: str):
         allowed = INVITATION_APPROVAL_FIELDS
         return fields if INVITATION_APPROVAL_FIELDS <= set(fields) <= allowed | {"note"} else None
     if moderator_appointments.is_moderator_fields(fields):
-        return fields if set(fields) == moderator_appointments.APPROVAL_FIELDS else None
+        wanted = (moderator_appointments.END_APPROVAL_FIELDS if "kind" in fields
+                  else moderator_appointments.APPROVAL_FIELDS)
+        return fields if set(fields) == wanted else None
     if fields.get("template") in role_bundles.BUNDLES and "city" not in fields:
         wanted = BUNDLE_END_APPROVAL_FIELDS if "kind" in fields else BUNDLE_APPROVAL_FIELDS
         return fields if set(fields) == wanted else None
@@ -465,8 +491,13 @@ def build_approval_blueprint(db) -> Blueprint:
             state = moderator_appointments.read_state(db, str(fields.get("account_id", "")))
             if state is None:
                 abort(400)
-            digest = moderator_appointments.intent_digest(
-                {**fields, "expected_state": state["expected_state"], "authority_attestation": "-"})
+            if "kind" in fields:
+                # Ending needs no owner-state check: it is idempotent and removes access.
+                digest = moderator_appointments.end_digest({**fields, "authority_attestation": "-"})
+                state = {**state, "eligible": True}
+            else:
+                digest = moderator_appointments.intent_digest(
+                    {**fields, "expected_state": state["expected_state"], "authority_attestation": "-"})
             if digest is None:
                 abort(400)
             return fields, state_param, state, digest
@@ -532,7 +563,7 @@ def build_approval_blueprint(db) -> Blueprint:
             from mielenosoitukset_fi.admin.permission_copy import PERMISSION_DESCRIPTIONS
             permission_copy = [str(PERMISSION_DESCRIPTIONS.get(p, p)) for p in moderator_appointments.PERMISSIONS]
             approver_names = sorted(u.get("displayname") or u.get("username") or "?" for u in db.users.find(
-                {"_id": {"$in": [ObjectId(a) for a in fields["shift_approvers"]]}}, {"username": 1, "displayname": 1}))
+                {"_id": {"$in": [ObjectId(a) for a in fields.get("shift_approvers", [])]}}, {"username": 1, "displayname": 1}))
         if bundle:
             from mielenosoitukset_fi.admin.permission_copy import PERMISSION_DESCRIPTIONS
             permission_copy = [str(PERMISSION_DESCRIPTIONS.get(p, p)) for p in bundle["permissions"]]
@@ -582,7 +613,8 @@ def build_approval_blueprint(db) -> Blueprint:
         is_recovery = "request_id" in fields
         is_end = "kind" in fields and not is_order and not is_invite
         is_bundle = _is_bundle(fields)
-        action = (grant_proofs.ACTION_MODERATOR_V1 if moderator_appointments.is_moderator_fields(fields)
+        action = ((grant_proofs.ACTION_MODERATOR_END_V1 if is_end else grant_proofs.ACTION_MODERATOR_V1)
+                  if moderator_appointments.is_moderator_fields(fields)
                   else grant_proofs.ACTION_ORG_INVITATION_V1 if is_invite
                   else grant_proofs.ACTION_ORG_RECOVERY_V1 if is_recovery
                   else grant_proofs.ACTION_FLASK_ORDER_V1 if is_order
