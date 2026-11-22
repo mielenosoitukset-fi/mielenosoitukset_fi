@@ -37,6 +37,7 @@ from mielenosoitukset_fi.scripts.purge_campaign_volunteers import main as purge_
 from mielenosoitukset_fi.scripts.purge_suggestion_ips import main as purge_suggestion_ips
 from mielenosoitukset_fi.scripts.purge_erased_accounts import main as purge_erased_accounts
 from mielenosoitukset_fi.scripts.scrub_admin_log_secrets import main as scrub_admin_log_secrets
+from mielenosoitukset_fi.scripts.scrub_audit_log_secrets import main as scrub_audit_log_secrets
 from mielenosoitukset_fi.scripts.backfill_org_history import main as backfill_org_history
 from mielenosoitukset_fi.scripts.deliver_pride_banner_confirmations import main as deliver_pride_banner_confirmations
 from mielenosoitukset_fi.scripts.purge_pride_banner_volunteers import main as purge_pride_banner_volunteers
@@ -276,6 +277,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         name="Organization history backfill",
         description="One-time job: copies old organization events from admin_logs (who, when, action; verified before/after) into the change history, marked as legacy. Safe to repeat; does nothing after its first finished run.",
         func=backfill_org_history,
+        default_trigger=_interval(hours=1),
+    ),
+    JobDefinition(
+        key="scrub_audit_log_secrets",
+        name="Audit log credential cleanup, part 2",
+        description="One-time job: removes stored cookies from old admin log rows and stored cookies, request headers and password hashes from old super audit rows written before 20.11.2026. Keeps the rows. Works one day at a time. Does nothing after its first finished run.",
+        func=scrub_audit_log_secrets,
         default_trigger=_interval(hours=1),
     ),
     JobDefinition(
