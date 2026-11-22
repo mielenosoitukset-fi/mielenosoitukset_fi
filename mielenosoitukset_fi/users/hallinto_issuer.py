@@ -476,6 +476,18 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             return error
         return jsonify(active=bool(_live_marker(db, markers, payload.get("sid"), payload.get("sub"))))
 
+    def session_payload(limit=4096):
+        """Require the client and a live Hallinto sign-in, whatever role the
+        account has here. Hallinto decides who may use its forms; a person
+        whose power comes from a Hallinto group decision needs no admin role
+        on this site to look up accounts for them."""
+        payload, error = client_payload(limit)
+        if error:
+            return None, error
+        if not _live_marker(db, markers, payload.get("sid"), payload.get("sub")):
+            return None, (jsonify(error="access_denied"), 403)
+        return payload, None
+
     def admin_payload(limit=4096):
         """Require the client and a live Hallinto sign-in of an admin account."""
         payload, error = client_payload(limit)
@@ -566,7 +578,7 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
     def account_search():
         """Find accounts by the start of a username or name, by @username, or by
         a whole email address. The address is only matched, never returned."""
-        payload, error = admin_payload()
+        payload, error = session_payload()
         if error:
             return error
         query = payload.get("q")
@@ -586,7 +598,7 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
 
     @bp.post("/accounts/lookup")
     def account_lookup():
-        payload, error = admin_payload()
+        payload, error = session_payload()
         if error:
             return error
         ids = payload.get("ids")
