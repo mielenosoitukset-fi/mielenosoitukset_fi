@@ -224,7 +224,7 @@ def test_mail_carries_reply_to_and_a_signed_link_that_records_the_answer(app, db
         access_review.stamp(db, apply=True)
         _send_enabled(app, db, uid)
         mail = db.email_queue.find_one({})
-        assert mail["extra_headers"]["Reply-To"] == "tuki@mielenosoitukset.fi"
+        assert mail["extra_headers"]["Reply-To"] == "hallinto@mielenosoitukset.fi"
         assert "/ylla-vastaus/" in mail["body"] and "[henkilökohtainen" not in mail["body"]
         token = mail["body"].split("/ylla-vastaus/")[1].split()[0]
         client = app.test_client()

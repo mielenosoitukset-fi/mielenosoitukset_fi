@@ -321,8 +321,15 @@ def contact_view(review: dict) -> Optional[dict]:
             "followup_at": fmt(c.get("followup_at"))}
 
 
-# Replies to the mail land in the support mailbox (read by people) and the holder can answer with a signed link.
-REPLY_TO = "tuki@mielenosoitukset.fi"
+# Replies to the mail go to the Hallinto mailbox (not tuki@: that feeds the shared cases box); the holder can
+# also answer with a signed link. Set ACCESS_REVIEW_REPLY_TO to change the address.
+DEFAULT_REPLY_TO = "hallinto@mielenosoitukset.fi"
+
+
+def reply_to() -> str:
+    return _config("ACCESS_REVIEW_REPLY_TO") or DEFAULT_REPLY_TO
+
+
 REPLY_SALT = "access-review-reply-v1"
 REPLY_MAX_AGE = 120 * 24 * 3600
 
@@ -411,7 +418,7 @@ def contact_send(db, account: str, by: str, now: Optional[datetime] = None) -> d
     subject, body = contact_message(doc, reply_url(doc))
     deadline = _deadline(review)
     # Fixed queue id: a repeat can never mail twice for the same round.
-    job = EmailJob(subject, [doc["email"]], body=body, extra_headers={"Reply-To": REPLY_TO}).to_dict()
+    job = EmailJob(subject, [doc["email"]], body=body, extra_headers={"Reply-To": reply_to()}).to_dict()
     db.email_queue.update_one({"_id": f"access-review-contact:{deadline:%Y%m%d}:{doc['_id']}"},
                               {"$setOnInsert": job}, upsert=True)
     db.users.update_one({"_id": doc["_id"]}, {"$set": {f"{FIELD}.contact": {
@@ -439,7 +446,7 @@ def contact_followup(db, account: str, by: str, now: Optional[datetime] = None) 
     if not doc.get("email"):
         raise ContactError("no_address", 422)
     subject, body = contact_message(doc, reply_url(doc), followup=True)
-    job = EmailJob(subject, [doc["email"]], body=body, extra_headers={"Reply-To": REPLY_TO}).to_dict()
+    job = EmailJob(subject, [doc["email"]], body=body, extra_headers={"Reply-To": reply_to()}).to_dict()
     db.email_queue.update_one({"_id": f"access-review-contact-link:{_deadline(review):%Y%m%d}:{doc['_id']}"},
                               {"$setOnInsert": job}, upsert=True)
     db.users.update_one({"_id": doc["_id"]}, {"$set": {f"{FIELD}.contact.followup_at": now}})

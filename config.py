@@ -348,6 +348,8 @@ class Config:
         cls.ACCESS_REVIEW_ENFORCE = config.get("ACCESS_REVIEW_ENFORCE", False)
         cls.ACCESS_REVIEW_PROTECTED = config.get("ACCESS_REVIEW_PROTECTED", "")
         cls.ACCESS_REVIEW_CONTACT_ENABLED = config.get("ACCESS_REVIEW_CONTACT_ENABLED", False)
+        cls.ACCESS_REVIEW_REPLY_TO = config.get("ACCESS_REVIEW_REPLY_TO", "hallinto@mielenosoitukset.fi")
+        cls.ACCESS_REVIEW_REPLY_BASE = config.get("ACCESS_REVIEW_REPLY_BASE", "https://mielenosoitukset.fi")
         cls.GOD_AUTH_ORIGIN = config.get("GOD_AUTH_ORIGIN", "https://mielenosoitukset.fi")
         cls.GOD_EMERGENCY_ENABLED = config.get("GOD_EMERGENCY_ENABLED", False)
         cls.GOD_EMERGENCY_PANEL_KEYS = config.get("GOD_EMERGENCY_PANEL_KEYS", {})
