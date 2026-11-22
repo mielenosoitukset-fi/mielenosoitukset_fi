@@ -409,7 +409,7 @@
             <div class="detail-item"><strong>{{ _('Liittyvä mielenosoitus') }}</strong><span>{{ demo.title or '-' }}</span></div>
             <div class="detail-item"><strong>{{ _('Ehdotuksen tila') }}</strong><span>{{ demo_suggestion.status_label }}</span></div>
             <div class="detail-item"><strong>{{ _('Vastaanotettu') }}</strong><span>{% if demo_suggestion.created_at %}{{ demo_suggestion.created_at|datetimeformat("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</span></div>
-            {% if demo_suggestion.can_edit_demo %}
+            {% if demo_suggestion.can_edit_demo and not org_view %}
             <div class="detail-item"><strong>{{ _('Ilmoittajan sähköposti') }}</strong><span>{{ demo_suggestion.reporter_email or '-' }}</span></div>
             {% endif %}
           </div>
@@ -555,7 +555,7 @@
           <div class="admin-section-card__title"><h2>{{ _('Sisäiset muistiinpanot') }}</h2></div>
         </div>
         <div class="admin-section-card__body">
-{% if can_edit_case %}
+{% if can_add_note %}
           <form class="form-stack admin-stack" method="POST" action="{{ url_for('admin_case.add_action', case_id=case._id) }}">
             <label>
               {{ _('Merkinnän tyyppi') }}

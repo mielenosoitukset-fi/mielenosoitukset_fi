@@ -155,6 +155,12 @@ class Organization(BaseEntity):
         data = data.copy()
         data.pop("social_medias", None)  # prune legacy keys
         data.pop("members", None)
+        # The document may carry fields this class does not model (``rights``,
+        # ``rights_history``, ...): they stay in the database untouched.
+        import inspect
+
+        known = set(inspect.signature(cls.__init__).parameters) - {"self"}
+        data = {key: value for key, value in data.items() if key in known}
 
         # Ensure fill_url auto-assigns if org isn't verified
         org = cls(**data)

@@ -1,0 +1,52 @@
+{% extends "admin_email_base.html" %}
+{% set eyebrow = "Oikeudet" %}
+{% set heading = {"granted": "Hyväksymisoikeus myönnetty", "refused": "Hyväksymisoikeuspyyntö hylätty", "revoked": "Hyväksymisoikeus peruttu", "frozen": "Hyväksymisoikeus jäädytetty"}[event] %}
+
+{% block subject %}{{ heading }}: {{ organization_name }}{% endblock %}
+
+{% block body %}
+{% if event == "granted" %}
+<p>
+    Hallinto on myöntänyt organisaatiollenne oikeuden hyväksyä omat mielenosoituksensa. Organisaation ylläpitäjät ja omistajat voivat nyt päättää organisaationne mielenosoitusten tapaukset. Jos mielenosoituksella on myös muita järjestäjiä, joilla ei ole omaa oikeutta, päätös kuuluu edelleen moderaattoreille.
+</p>
+{% elif event == "refused" %}
+<p>
+    Hallinto ei myöntänyt organisaatiollenne oikeutta hyväksyä omat mielenosoituksenne. Mielenosoitusten tarkastus jatkuu entiseen tapaan moderaattoreiden kautta. Voitte pyytää oikeutta uudelleen, kun tilanne on muuttunut.
+</p>
+{% elif event == "revoked" %}
+<p>
+    Hallinnon päätöksellä organisaationne oikeus hyväksyä omat mielenosoituksensa on peruttu. Oikeus poistui heti, ja mielenosoitukset tarkastetaan jatkossa moderaattoreiden kautta.
+</p>
+{% else %}
+<p>
+    Hallinnon päätöksellä organisaationne oikeus hyväksyä omat mielenosoituksensa on jäädytetty. Oikeus poistui heti, eikä uutta pyyntöä voi tehdä ennen uutta Hallinnon päätöstä.
+</p>
+{% endif %}
+
+<ul class="data-list">
+    <li>
+        <strong>Organisaatio</strong>
+        {{ organization_name }}
+    </li>
+    <li>
+        <strong>Päätös</strong>
+        {{ decision_id }}
+    </li>
+    {% if event == "granted" and valid_until %}
+    <li>
+        <strong>Voimassa</strong>
+        {{ valid_until[:10] }} asti (UTC)
+    </li>
+    {% endif %}
+    {% if event == "refused" and reason %}
+    <li>
+        <strong>Syy</strong>
+        {{ reason }}
+    </li>
+    {% endif %}
+</ul>
+
+<div class="meta">
+    <p>Saat tämän viestin, koska olet organisaation omistaja tai ylläpitäjä.</p>
+</div>
+{% endblock %}

@@ -23,7 +23,8 @@ from mielenosoitukset_fi.utils.wrappers import admin_required, permission_requir
 from .utils import mongo, log_admin_action_V2, AdminActParser, _ADMIN_TEMPLATE_FOLDER
 from mielenosoitukset_fi.utils.demo_cancellation import cancel_demo
 from mielenosoitukset_fi.utils.case_access import (
-    case_scope_query, can_access_case, global_case_permission,
+    case_scope_query, can_access_case, global_case_permission, is_org_scope_only,
+    managed_organization_ids,
 )
 from mielenosoitukset_fi.utils import city_admin_applications as applications
 from mielenosoitukset_fi.utils import case_notifications
@@ -55,7 +56,7 @@ def _approves_new_demo(case_id):
     return bool(demo) and has_demo_approval_permission(current_user, demo)
 
 
-def case_permission(permission, *, allow_city=False, approver=False):
+def case_permission(permission, *, allow_city=False, approver=False, org_notes=False):
     """Declare capability, city boundary and target checks on the route itself."""
     def decorate(function):
         @wraps(function)
@@ -76,7 +77,7 @@ def case_permission(permission, *, allow_city=False, approver=False):
                 # decision right themselves (``_link_gate``).
                 log_admin_action_V2(AdminActParser().log_request_info(request.__dict__, current_user))
                 return function(*args, **kwargs)
-            scope = case_scope_query(current_user, required)
+            scope = case_scope_query(current_user, required, org_notes=org_notes)
             if scope is None or (scope and not allow_city):
                 abort(403)
             case_id = kwargs.get('case_id')
@@ -133,6 +134,7 @@ def _case_type_label(case_type):
         "support_ticket": _("Tukipyyntö"),
         "city_admin_application": _("Kaupunkiadminhakemus"),
         "account_deletion_request": _("Tilin poistopyyntö"),
+        "organization_right_request": _("Hyväksymisoikeuspyyntö"),
     }
     return labels.get(case_type, str(case_type).replace("_", " ").capitalize())
 
@@ -288,6 +290,11 @@ def _build_case_row(case_obj, demo_doc=None, org_doc=None):
         title = _("Kaupunkiadminhakemus")
         description = ", ".join(applications.city_names((case_obj.meta or {}).get("city_keys")))
         meta_line = submitter.get("submitter_name") or ""
+    elif case_obj.case_type == "organization_right_request":
+        org_doc = mongo.organizations.find_one({"_id": _safe_objectid(case_obj.organization_id)}, {"name": 1}) if case_obj.organization_id else None
+        title = _("Hyväksymisoikeuspyyntö: {name}").format(name=(org_doc or {}).get("name") or "")
+        description = (case_obj.meta or {}).get("note") or _("Organisaatio pyytää oikeutta hyväksyä omat mielenosoituksensa.")
+        meta_line = submitter.get("submitter_name") or ""
     elif case_obj.case_type == "account_deletion_request":
         title = _("Tilin poistopyyntö")
         description = ((case_obj.meta or {}).get("reason") or _("Ei perustelua"))[:200]
@@ -379,6 +386,7 @@ def cases():
     elsewhere are closed by the auto_close_cases background job.
     """
     scope = case_scope_query(current_user, "LIST_CASES")
+    has_org_scope = bool(scope) and bool(managed_organization_ids(current_user))
     state = request.args.get("tila", "open")
     if state not in CASE_LIST_STATES:
         state = "open"
@@ -425,7 +433,15 @@ def cases():
             org_doc = mongo.organizations.find_one({"_id": _safe_objectid(case.organization_id)}, {"name": 1, "updated_at": 1})
         if case.case_type == "demo_edit_suggestion" and not _can_edit_suggested_demo(demo_doc):
             _hide_suggestion_reporter(case)
-        case_rows.append(_build_case_row(case, demo_doc=demo_doc, org_doc=org_doc))
+        org_view = has_org_scope and is_org_scope_only(current_user, "LIST_CASES", case._id)
+        if org_view:
+            _hide_suggestion_reporter(case)
+        row = _build_case_row(case, demo_doc=demo_doc, org_doc=org_doc)
+        if org_view:
+            row["submitter_label"] = _("Piilotettu")
+            if case.case_type in {"organization_edit_suggestion", "organization_right_request"}:
+                row["meta_line"] = ""
+        case_rows.append(row)
 
     def page_url(number):
         args = {"tila": state, "tyyppi": case_type or None, "q": query_text or None, "sivu": number if number > 1 else None}
@@ -747,9 +763,30 @@ def single_case(case_id):
     # The email link, and an approver without case rights, see what is needed to
     # decide: no submitter contact details, notes, history or other admins.
     restricted = bool(link) or not can_access_case(current_user, "VIEW_CASE", case._id)
-    if restricted:
+    # An organisation admin reads its own cases without other people's contact
+    # details: submitter, reporters and the notified admins stay hidden.
+    org_view = not restricted and is_org_scope_only(current_user, "VIEW_CASE", case._id)
+    if restricted or org_view:
         case_data["submitter"] = {}
         case_data["submitter_label"] = _("Piilotettu")
+    if org_view:
+        case_data["notified_users"] = []
+        case_data["notified_at"] = None
+        _hide_suggestion_reporter(case)
+        if case_data.get("demo_suggestion"):
+            case_data["demo_suggestion"]["reporter_email"] = ""
+            case_data["demo_suggestion"]["comment"] = ""
+        if case_data.get("error_report"):
+            case_data["error_report"] = {
+                key: value for key, value in case_data["error_report"].items()
+                if key not in {"user", "ip", "reporter_email", "email", "user_agent"}
+            }
+        if case_data.get("cancellation"):
+            case_data["cancellation"]["requested_by"] = None
+        # Moderators' internal notes and names stay with moderators; the
+        # organisation sees its own notes and what happened, not who did it.
+        case.action_logs = [entry for entry in (case.action_logs or []) if entry.get("org_note")]
+        case.case_history = [{**event, "user": None} for event in (case.case_history or [])]
     if link:
         from mielenosoitukset_fi.utils import case_links
 
@@ -764,6 +801,8 @@ def single_case(case_id):
         link_ended=bool(link and link["ended"]),
         can_decide_demo=can_decide_demo,
         can_edit_case=False if link else can_access_case(current_user, "EDIT_CASE", case._id),
+        can_add_note=False if link else can_access_case(current_user, "EDIT_CASE", case._id, org_notes=True),
+        org_view=org_view,
         global_case_controls=False if link else global_case_permission(current_user, "EDIT_CASE"),
         escalation_level=_esc.current_level(case.meta),
         escalation_name=_esc.LEVEL_NAMES[_esc.current_level(case.meta)],
@@ -783,7 +822,7 @@ def single_case(case_id):
 @admin_case_bp.route("/<case_id>/add_action/", methods=["POST"])
 @login_required
 @admin_required
-@case_permission("EDIT_CASE", allow_city=True)
+@case_permission("EDIT_CASE", allow_city=True, org_notes=True)
 def add_action(case_id):
     case = Case.get(case_id)
     if not case:
@@ -803,6 +842,12 @@ def add_action(case_id):
         "reason": reason,
         "timestamp": utcnow()
     }
+    if is_org_scope_only(current_user, "VIEW_CASE", ObjectId(case_id)):
+        # Written by an organisation admin: shown to the organisation too.
+        action_entry["org_note"] = True
+        action_entry["organization_ids"] = [
+            str(org_id) for org_id in managed_organization_ids(current_user)
+        ]
 
     mongo.cases.update_one(
         {"_id": ObjectId(case_id)},
@@ -1248,6 +1293,14 @@ def demo_action(case_id):
             return jsonify({"error": _("Tapaus on siirretty ylemmälle tasolle. Päätöksen tekee se taso.")}), 403
 
     response_status = ""
+    # A decision made only because of the organisations' approval right is marked in the case history.
+    right_names = []
+    if data["action"] in {"accept", "reject", "undo_approval"}:
+        from mielenosoitukset_fi.utils import org_approval_right
+        from mielenosoitukset_fi.utils.wrappers import has_site_demo_approval_permission
+
+        if not has_site_demo_approval_permission(current_user, demo):
+            right_names = org_approval_right.approving_names(current_user, demo)
 
     if data["action"] == "accept":
         failed = _decision_failed(approve_demo(demo_id=case.demo_id))
@@ -1317,6 +1370,12 @@ def demo_action(case_id):
 
     else:
         return jsonify({"error": _("Tuntematon toiminto.")}), 400
+    if right_names:
+        mongo.cases.update_one({"_id": case._id}, {"$push": {"case_history": {
+            "timestamp": utcnow(),
+            "action": "Päätös tehty organisaation " + ", ".join(right_names) + " hyväksymisoikeudella",
+            "user": current_user.username, "mech_action": "org_right_decision",
+            "metadata": {"organizations": right_names}, "meta_schema": {"organizations": "list"}}}})
     flash_message(_("Mielenosoituksen tila päivitettiin."), "success")
     return jsonify({"success": True, "status": response_status})
 

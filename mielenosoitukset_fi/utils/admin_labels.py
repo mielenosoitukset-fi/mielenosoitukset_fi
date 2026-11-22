@@ -17,6 +17,7 @@ CASE_TYPES = {
     "support_ticket": _l("Tukipyyntö"),
     "city_admin_application": _l("Kaupunkiadminhakemus"),
     "account_deletion_request": _l("Tilin poistopyyntö"),
+    "organization_right_request": _l("Hyväksymisoikeuspyyntö"),
 }
 
 URGENCY = {
