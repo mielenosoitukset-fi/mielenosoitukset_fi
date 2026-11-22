@@ -1,0 +1,1 @@
+- Organisation admins can no longer make anyone an owner, demote an owner or remove an owner; only owners (or full site admins) change owners, and an organisation's last owner cannot step down or be removed. A role change now takes the old role's rights away, so a demoted owner no longer keeps the right to delete the organisation.
