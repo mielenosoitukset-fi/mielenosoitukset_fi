@@ -1,0 +1,1 @@
+- Organisaation muutoshistoria näyttää vanhoista muokkauksista myös lähetettyjen kenttien nimet (ei arvoja) ja kaksoislokitetut muokkaukset yhdistetään.
