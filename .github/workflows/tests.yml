@@ -177,7 +177,7 @@ jobs:
 
       - name: Dump test service logs on test failure
         if: failure()
-        run: docker compose -f compose.test.yml logs --no-color
+        run: docker compose -f compose.test.yml logs --no-color --tail=40
 
       - name: Tear down test services
         if: always()
