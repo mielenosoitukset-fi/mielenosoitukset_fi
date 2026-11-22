@@ -260,6 +260,8 @@ def add_shift(db, *, grant_id: Any, starts_at: datetime, ends_at: datetime,
     own = actor_ref["id"] == str(grant["user_id"])
     if not own and not _is_approver(grant, actor_ref):
         raise DutyError("not_allowed")
+    if grant.get("frozen_at"):
+        raise DutyError("frozen_appointment")
     start, end = _utc(starts_at, "starts_at"), _utc(ends_at, "ends_at")
     if end <= start or end <= _now(now):
         raise DutyError("invalid_window")
@@ -298,8 +300,11 @@ def approve_shift(db, *, shift_id: Any, actor: dict, now: Optional[datetime] = N
         raise DutyError("unknown_shift")
     if actor_ref["id"] == str(shift["user_id"]):
         raise DutyError("self_approval")
-    if not _is_approver(db[GRANTS].find_one({"_id": shift["grant_id"]}), actor_ref):
+    grant = db[GRANTS].find_one({"_id": shift["grant_id"]})
+    if not _is_approver(grant, actor_ref):
         raise DutyError("not_allowed")
+    if grant.get("frozen_at"):
+        raise DutyError("frozen_appointment")
     result = db[SHIFTS].update_one(
         {"_id": sid, "approved_at": None,
          "$or": [{"cancelled_at": {"$exists": False}}, {"cancelled_at": None}]},
@@ -333,6 +338,16 @@ def cancel_shift(db, *, shift_id: Any, reason: str, actor: dict,
     return bool(result.modified_count)
 
 
+def _cancel_open_shifts(db, gid, reason: str, actor: dict, now: Optional[datetime]) -> int:
+    """Cancel the appointment's shifts that have not ended, so a frozen or
+    revoked appointment leaves no booking behind (running ones end at once)."""
+    result = db[SHIFTS].update_many(
+        {"grant_id": gid, "cancelled_at": None, "ends_at": {"$gt": _naive(_now(now))}},
+        {"$set": {"cancelled_at": _now(now), "cancel_reason": reason, "cancelled_by": _actor_ref(actor)}},
+    )
+    return result.modified_count
+
+
 def set_frozen(db, *, grant_id: Any, frozen: bool, reason: str, actor: dict,
                now: Optional[datetime] = None) -> bool:
     """Freeze (or unfreeze) an appointment. A frozen one activates no shift."""
@@ -349,7 +364,10 @@ def set_frozen(db, *, grant_id: Any, frozen: bool, reason: str, actor: dict,
     )
     query = {"_id": gid, "revoked_at": None} if frozen else {"_id": gid, "frozen_at": {"$ne": None},
                                                              "revoked_at": None}
-    return bool(db[GRANTS].update_one(query, update).modified_count)
+    changed = bool(db[GRANTS].update_one(query, update).modified_count)
+    if changed and frozen:
+        _cancel_open_shifts(db, gid, "Nimitys jäädytetty: " + str(reason)[:200], actor, now)
+    return changed
 
 
 def revoke(db, *, grant_id: Any, reason: str, actor: dict,
@@ -362,6 +380,8 @@ def revoke(db, *, grant_id: Any, reason: str, actor: dict,
         {"$set": {"revoked_at": _now(now), "revoke_reason": str(reason)[:300],
                   "revoked_by": _actor_ref(actor)}},
     )
+    if result.modified_count:
+        _cancel_open_shifts(db, _oid(grant_id, "unknown_grant"), "Nimitys peruttu: " + str(reason)[:200], actor, now)
     return bool(result.modified_count)
 
 
