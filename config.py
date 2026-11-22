@@ -337,6 +337,9 @@ class Config:
         cls.HALLINTO_BACKCHANNEL_IPS = list(config.get("HALLINTO_BACKCHANNEL_IPS") or [])
         # Superadmin and god appointments carried out from Hallinto decisions (H8). Off: those routes answer 404.
         cls.HALLINTO_ELEVATED_ENABLED = config.get("HALLINTO_ELEVATED_ENABLED", False)
+        # Admin account review (access_review.py). Off: nothing lapses. Protected ids never lapse.
+        cls.ACCESS_REVIEW_ENFORCE = config.get("ACCESS_REVIEW_ENFORCE", False)
+        cls.ACCESS_REVIEW_PROTECTED = config.get("ACCESS_REVIEW_PROTECTED", "")
         cls.GOD_AUTH_ORIGIN = config.get("GOD_AUTH_ORIGIN", "https://mielenosoitukset.fi")
         cls.GOD_EMERGENCY_ENABLED = config.get("GOD_EMERGENCY_ENABLED", False)
         cls.GOD_EMERGENCY_PANEL_KEYS = config.get("GOD_EMERGENCY_PANEL_KEYS", {})

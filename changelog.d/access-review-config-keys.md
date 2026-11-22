@@ -1,0 +1,1 @@
+- The admin account review settings (`ACCESS_REVIEW_ENFORCE`, `ACCESS_REVIEW_PROTECTED`) are now read from `config.yaml`; before, the site ignored them.
