@@ -1,0 +1,1 @@
+- The organization history backfill now waits until the old logs have been copied from the previous database host, then runs once more, so creators of organizations made before 20.11.2026 show up.

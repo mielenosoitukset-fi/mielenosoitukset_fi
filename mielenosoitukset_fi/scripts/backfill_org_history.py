@@ -37,8 +37,12 @@ from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.utils.audit_trail import AUDIT_COLLECTION, SCHEMA_VERSION
 from mielenosoitukset_fi.utils.logger import logger
 
-MARKER_ID = "org_history_backfill_2026_11"
-FIELDS_MARKER_ID = "org_history_backfill_2026_11_fields"
+# The first run (22.11.2026) found no old logs: prod's admin_logs started 20.11.2026, the older
+# ones lived on the previous database host. They were copied over afterwards, which writes
+# IMPORT_DONE_ID; the runs below wait for it and use new markers so they run once on the full data.
+IMPORT_DONE_ID = "old_logs_imported_from_lc_db"
+MARKER_ID = "org_history_backfill_2026_11_full"
+FIELDS_MARKER_ID = "org_history_backfill_2026_11_full_fields"
 FIELDS_FIRST_DAY = datetime(2024, 11, 1)  # first row in admin_logs
 EDIT_PATH = re.compile(r"^/admin/organization/edit/([0-9a-f]{24})/?$")
 CREATE_PATH = re.compile(r"^/admin/organization/create/?$")
@@ -232,6 +236,8 @@ def main(db=None, dry_run=False):
         return backfill(db, dry_run=True)
     if is_disabled():
         return {"disabled": True}
+    if not db.maintenance_markers.find_one({"_id": IMPORT_DONE_ID}):
+        return {"waiting_for": IMPORT_DONE_ID}
     out = {}
     if not db.maintenance_markers.find_one({"_id": MARKER_ID}):
         out["events"] = _finish(db, MARKER_ID, backfill(db), "legacy_backfill",
