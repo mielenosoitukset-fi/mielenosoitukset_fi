@@ -987,7 +987,7 @@ def view_organization(org_id):
 def organization_history(org_id):
     """Who created the organization and every later change, from audit_events."""
     from mielenosoitukset_fi.admin.audit_history import (
-        estimated_creation_row, first_event_at, helsinki_time, load_history,
+        creation_diagnostics, estimated_creation_row, first_event_at, helsinki_time, load_history,
     )
     from mielenosoitukset_fi.admin.pagination import build_admin_pagination, parse_admin_pagination
 
@@ -1021,6 +1021,7 @@ def organization_history(org_id):
         truncated=history["truncated"],
         has_create=history["has_create"],
         legacy_count=sum(1 for r in history["rows"] if r.get("legacy")),
+        diagnostics=None if history["has_create"] else creation_diagnostics(mongo, organization_doc["_id"]),
         trail_started_at=helsinki_time(started, seconds=False) if started else None,
         **pagination,
     )

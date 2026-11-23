@@ -223,3 +223,16 @@ def test_backfill_gives_admin_form_creations_their_creator(db, monkeypatch):
         assert row["at"].replace(tzinfo=None) == when
     finally:
         db.organizations.delete_one({"_id": org_id})
+
+
+@pytest.mark.integration
+def test_history_lists_checked_sources_when_no_creator(admin_client, db, seeded_data):
+    org_id = ObjectId(seeded_data["org_id"])
+    db.audit_events.delete_many({"doc_ids": org_id})
+    page = admin_client.get(f"/admin/organization/history/{org_id}").get_data(as_text=True)
+    assert "Tarkistetut lähteet" in page
+    assert "Täydennysajoa ei ole vielä suoritettu" in page
+    db.maintenance_markers.insert_one({"_id": "org_history_backfill_2026_11", "written": 3,
+                                       "finished_at": datetime.now(timezone.utc)})
+    page = admin_client.get(f"/admin/organization/history/{org_id}").get_data(as_text=True)
+    assert "written=3" in page

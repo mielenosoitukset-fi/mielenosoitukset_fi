@@ -3,6 +3,8 @@ name: mielenosoitukset-fi-test
 services:
   mongo:
     image: mongo:8
+    # Small cache: several xdist workers share this one server on small CI VMs.
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.5"]
     ports:
       - "127.0.0.1:27017:27017"
     healthcheck:
