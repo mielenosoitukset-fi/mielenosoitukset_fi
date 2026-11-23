@@ -1,0 +1,1 @@
+- Hallinto's access review now offers the global admin role for accounts that hold it through the national system team, as the role removal itself already sees it.
