@@ -17,7 +17,7 @@ concurrency:
 jobs:
   python-tests-shard:
     # An immutable allowlisted workflow can run on AX41 from a PR merge ref.
-    uses: mielenosoitukset-fi/mielenosoitukset_fi/.github/workflows/python-shards.yml@8abb8d7b9d0f249c716f734def980a706ff51427
+    uses: mielenosoitukset-fi/mielenosoitukset_fi/.github/workflows/python-shards.yml@af0bf860cd0490dfa53d0653ec5e4ef8ea977438
     secrets:
       MOSO_CI_MONGO_URI: ${{ secrets.MOSO_CI_MONGO_URI }}
 
