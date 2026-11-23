@@ -8,7 +8,10 @@ Channels, tried in this order:
      BARK_ALERTS_ENABLED=false (or 0, no, off) turns Bark off; BARK_ALERT_GROUP
      names the Bark group (default "backup"). The push is plain, not encrypted:
      its content is only the label and the check name. The push says only the label and the name
-     of the failed check: no log lines, no host names.
+     of the failed check: no log lines, no host names. It is always silent (sound
+     "silence") and never time-sensitive or critical: level "passive" from 22:00 to
+     08:00 Helsinki time, "active" otherwise, so it never wakes anyone. ALERT_TITLE
+     replaces the default title "<label>: backup problem" for non-backup units.
   2. E-mail to ALERT_EMAIL, when Bark is not configured or failed.
 If no channel is configured, or every configured one failed, the script exits 1
 so the failure is visible. Settings (BARK_KEY, BARK_URL, ALERT_EMAIL, ALERT_LABEL)
@@ -32,6 +35,7 @@ import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from email.message import EmailMessage
 
 import yaml
@@ -39,6 +43,13 @@ import yaml
 APP_CONFIG = "/var/www/mielenosoitukset_fi/config.yaml"
 BARK_DEFAULT_URL = "https://api.day.app"
 BARK_SCHEMES = ("https",)  # tests widen this for a local fake server
+HELSINKI = ZoneInfo("Europe/Helsinki")
+
+
+def bark_level(now=None):
+    """Passive (no banner, no wake) at night 22:00-08:00 Helsinki, active by day."""
+    hour = (now or datetime.now(timezone.utc)).astimezone(HELSINKI).hour
+    return "passive" if hour >= 22 or hour < 8 else "active"
 
 
 def build_message(unit, host, sender, recipient, now):
@@ -104,7 +115,9 @@ def send_bark(env, unit):
         raise ValueError("BARK_URL must be https")
     label = (env.get("ALERT_LABEL") or "mielenosoitukset.fi").strip()
     group = (env.get("BARK_ALERT_GROUP") or "backup").strip()
-    payload = {"device_key": bark_key(env), "title": f"{label}: backup problem", "body": unit, "group": group}
+    title = (env.get("ALERT_TITLE") or "").strip() or f"{label}: backup problem"
+    payload = {"device_key": bark_key(env), "title": title, "body": unit, "group": group,
+               "sound": "silence", "level": bark_level()}
     request = urllib.request.Request(
         base + "/push", data=json.dumps(payload).encode(), method="POST",
         headers={"Content-Type": "application/json; charset=utf-8"},

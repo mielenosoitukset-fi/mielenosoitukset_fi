@@ -1,0 +1,1 @@
+- Server alert pushes (backup and Mastobot failures) are now always silent and passive from 22:00 to 08:00 Helsinki time, so they never wake the maintainer. Non-backup units can set their own alert title with `ALERT_TITLE`.
