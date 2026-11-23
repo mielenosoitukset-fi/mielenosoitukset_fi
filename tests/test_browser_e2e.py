@@ -1,4 +1,6 @@
 from datetime import datetime
+import json
+from pathlib import Path
 import re
 
 import pytest
@@ -24,6 +26,78 @@ def _submit_login_form(page, username, password):
 
 def _wait_for_url(page, pattern):
     page.wait_for_url(pattern, wait_until="domcontentloaded")
+
+_TESTS_DIR = Path(__file__).resolve().parent
+_BOOTSTRAP_BUNDLE = _TESTS_DIR / "assets" / "bootstrap-5.3.3.bundle.min.js"
+_BOOTSTRAP_CSS = (
+    _TESTS_DIR.parent
+    / "mielenosoitukset_fi"
+    / "static"
+    / "vendor"
+    / "bootstrap"
+    / "5.3.3"
+    / "bootstrap.min.css"
+)
+_BOOTSTRAP_BUNDLE_URL = re.compile(
+    r"^https://(cdn2\.mielenosoitukset\.fi/vendor/bootstrap/[\d.]+/bootstrap\.bundle\.min\.js"
+    r"|cdn\.jsdelivr\.net/npm/bootstrap@[\d.]+/dist/js/bootstrap\.bundle\.min\.js)"
+)
+_BOOTSTRAP_CSS_URL = re.compile(
+    r"^https://cdn2\.mielenosoitukset\.fi/vendor/bootstrap/[\d.]+/bootstrap\.min\.css"
+)
+
+
+def _serve_local_bootstrap(page):
+    """Serve the real Bootstrap bundle and CSS from disk, never from a CDN.
+
+    The browser fixtures abort every non-local request, so pages that load
+    Bootstrap from a CDN would otherwise run without dropdowns or modals.
+    """
+    page.route(
+        _BOOTSTRAP_BUNDLE_URL,
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/javascript",
+            body=_BOOTSTRAP_BUNDLE.read_bytes(),
+            headers={"Access-Control-Allow-Origin": "*"},
+        ),
+    )
+    page.route(
+        _BOOTSTRAP_CSS_URL,
+        lambda route: route.fulfill(
+            status=200,
+            content_type="text/css",
+            body=_BOOTSTRAP_CSS.read_bytes(),
+            headers={"Access-Control-Allow-Origin": "*"},
+        ),
+    )
+
+
+def _stub_public_home_api(page, seeded_data):
+    """Answer the React home page's API call with a card for the seeded demo."""
+    card = {
+        "_id": str(seeded_data["demo_id"]),
+        "title": "Climate March Helsinki",
+        "date": "2099-01-01",
+        "city": "Helsinki",
+        "address": "Mannerheimintie 1, Helsinki",
+        "tags": [],
+        "date_display": "1.1.2099",
+        "start_time_display": "12:00",
+        "end_time_display": "14:00",
+        "cancelled": False,
+        "cover_image": "",
+        "detail_url": f"/demonstration/{seeded_data['demo_id']}",
+    }
+    page.route(
+        re.compile(r"^https://api\.mielenosoitukset\.fi/api/home(\?.*)?$"),
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"events": [card], "recommended": False}),
+            headers={"Access-Control-Allow-Origin": "*"},
+        ),
+    )
 
 
 def _install_bootstrap_modal_test_double(page):
@@ -76,6 +150,7 @@ def _install_bootstrap_modal_test_double(page):
 @pytest.mark.integration
 def test_public_pages_render_in_real_browser(app, db, live_server, browser_page):
     seeded_data = _seed_database(app, db)
+    _stub_public_home_api(browser_page, seeded_data)
 
     browser_page.goto(f"{live_server}/", wait_until="domcontentloaded")
     _wait_for_body_text(browser_page, "Climate March Helsinki")
@@ -107,15 +182,14 @@ def test_standard_public_heroes_share_visual_foundation(
     seeded_data = _seed_database(app, db)
     browser_page.set_viewport_size({"width": viewport_width, "height": 1000})
 
+    # Pages that still render the shared Flask hero. The React pages ("/",
+    # "/demonstrations", "/mielenosoitukset-tanaan", "/submit") use a plain
+    # heading and are covered by the heading contract further down.
     paths = (
-        "/",
-        "/demonstrations",
         "/cities",
-        "/mielenosoitukset-tanaan",
         "/info",
         "/contact",
         "/privacy",
-        "/submit",
         "/upcoming/translations/",
         f"/demonstration/{seeded_data['demo_id']}",
         f"/organization/{seeded_data['org_id']}",
@@ -172,6 +246,43 @@ def test_standard_public_heroes_share_visual_foundation(
         theme_backgrounds[theme] = rendered_styles[0]["backgroundImage"]
 
     assert theme_backgrounds["light"] != theme_backgrounds["dark"]
+
+
+@pytest.mark.e2e
+@pytest.mark.integration
+@pytest.mark.parametrize("viewport_width", [390, 1440])
+def test_react_public_pages_use_plain_heading_inside_viewport(
+    app,
+    db,
+    live_server,
+    browser_page,
+    viewport_width,
+):
+    seeded_data = _seed_database(app, db)
+    _stub_public_home_api(browser_page, seeded_data)
+    browser_page.set_viewport_size({"width": viewport_width, "height": 1000})
+
+    for path in ("/", "/demonstrations", "/mielenosoitukset-tanaan", "/submit"):
+        browser_page.goto(f"{live_server}{path}", wait_until="domcontentloaded")
+        heading = browser_page.locator("h1").first
+        heading.wait_for(state="visible")
+        styles = heading.evaluate(
+            """element => {
+                const rect = element.getBoundingClientRect();
+                return {
+                    size: parseFloat(getComputedStyle(element).fontSize),
+                    left: rect.left,
+                    right: rect.right,
+                    viewport: document.documentElement.clientWidth,
+                    overflow: document.documentElement.scrollWidth
+                        - document.documentElement.clientWidth,
+                };
+            }"""
+        )
+        assert 0 < styles["size"] <= (40 if viewport_width == 390 else 52), path
+        assert styles["left"] >= 0, path
+        assert styles["right"] <= styles["viewport"] + 1, path
+        assert styles["overflow"] <= 1, path
 
 
 @pytest.mark.e2e
@@ -294,7 +405,7 @@ def test_submitter_modal_can_be_closed_and_reopened(
     live_server,
     browser_page,
 ):
-    _install_bootstrap_modal_test_double(browser_page)
+    _serve_local_bootstrap(browser_page)
     seeded_data = _seed_database(app, db)
     browser_page.goto(f"{live_server}/admin/demo/", wait_until="domcontentloaded")
     _submit_login_form(browser_page, "admin", "AdminPass1!")
@@ -319,7 +430,11 @@ def test_submitter_modal_can_be_closed_and_reopened(
         assert modal.locator("#submitterName").text_content() == "Alice Tester"
         modal.locator("#closeSubmitterInfo").click()
         modal.wait_for(state="hidden")
-        assert actions_toggle.evaluate("element => element === document.activeElement")
+        # Focus returns on hidden.bs.modal, which fires after the backdrop fades.
+        browser_page.wait_for_function(
+            "selector => document.querySelector(selector) === document.activeElement",
+            arg=f"#demo-{seeded_data['pending_demo_id']} .dropdown-toggle",
+        )
 
 
 @pytest.mark.e2e
@@ -503,6 +618,7 @@ def test_admin_demo_suggestion_selection_and_reject_modal_are_accessible(
     live_server,
     browser_page,
 ):
+    _serve_local_bootstrap(browser_page)
     seeded_data = _seed_database(app, db)
     browser_page.goto(f"{live_server}/admin/dashboard", wait_until="domcontentloaded")
     _submit_login_form(browser_page, "admin", "AdminPass1!")
@@ -544,6 +660,7 @@ def test_admin_demo_diff_toggle_and_rollback_modal_are_accessible(
     browser_page,
     viewport_width,
 ):
+    _serve_local_bootstrap(browser_page)
     seeded_data = _seed_database(app, db)
     db.demo_edit_history.update_one(
         {"_id": seeded_data["history_id"]},
