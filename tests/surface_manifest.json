@@ -136,6 +136,14 @@
     "sha256": "005e0077745ad60d89013c18b9fa67a417e99d8d0171f174bf9e19f544e1fe89"
   },
   "routes": {
+    "mielenosoitukset_fi/access_review_reply_bp.py": {
+      "count": 1,
+      "coverage": [
+        "integration",
+        "tests/test_access_review.py"
+      ],
+      "sha256": "156e2df53a6480d891ad29dc745a41cfcaad8c4e19ef6b4d3e600ac415740c59"
+    },
     "mielenosoitukset_fi/admin/admin_bp.py": {
       "count": 35,
       "coverage": [

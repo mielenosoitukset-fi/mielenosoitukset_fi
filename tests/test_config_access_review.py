@@ -7,3 +7,5 @@ def test_access_review_keys_loaded_from_config_yaml():
     assert 'cls.ACCESS_REVIEW_ENFORCE = config.get("ACCESS_REVIEW_ENFORCE", False)' in src
     assert 'cls.ACCESS_REVIEW_PROTECTED = config.get("ACCESS_REVIEW_PROTECTED", "")' in src
     assert 'cls.ACCESS_REVIEW_CONTACT_ENABLED = config.get("ACCESS_REVIEW_CONTACT_ENABLED", False)' in src
+    assert 'cls.ACCESS_REVIEW_REPLY_TO = config.get("ACCESS_REVIEW_REPLY_TO"' in src
+    assert 'cls.ACCESS_REVIEW_REPLY_BASE = config.get("ACCESS_REVIEW_REPLY_BASE"' in src
