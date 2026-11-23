@@ -66,8 +66,20 @@ jobs:
           bash deploy/bootstrap_python_trust.sh python
           python -m pip install -r requirements-dev.txt
 
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements-dev.txt', 'requirements.txt') }}
+
       - name: Install Chromium for Playwright
-        run: python -m playwright install --with-deps chromium
+        run: |
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            python -m playwright install-deps chromium
+          else
+            python -m playwright install --with-deps chromium
+          fi
 
       - name: Choose the test MongoDB
         # MongoDB grants exact names. A GitHub runner takes one job at a time.
@@ -195,7 +207,16 @@ jobs:
           set -o pipefail
           mapfile -t files < <(python3 scripts/ci_test_shard.py "$SHARD" "$SHARDS")
           echo "shard $SHARD/$SHARDS: ${#files[@]} files"
-          python -u -m pytest -o addopts='' -v --tb=short --durations=25 --timeout=180 --timeout-method=thread -o faulthandler_timeout=120 -n 2 --dist loadfile "${files[@]}" 2>&1 | tee pytest-shard.log
+          python -u -m pytest -o addopts='' -v --tb=short --durations=25 --timeout=180 --timeout-method=thread -o faulthandler_timeout=120 -n 2 --dist loadfile --junitxml=junit-shard.xml "${files[@]}" 2>&1 | tee pytest-shard.log
+
+      - name: Keep this shard's JUnit timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-shard-${{ matrix.shard }}
+          path: junit-shard.xml
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: Dump test service logs on test failure
         if: failure()
