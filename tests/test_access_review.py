@@ -208,3 +208,62 @@ def test_contact_reply_takes_a_situation_with_roles_and_date(app, db, clean_user
         assert (got["reply"], got["situation"], got["until"], got["roles"]) == ("drop", "inactive", until, [])
         assert access_review.hallinto_list(db)[0]["contact"]["situation"] == "inactive"
         assert access_review.contact_reply(db, uid, "none", "olivia")["situation"] == ""
+
+
+def _send_enabled(app, db, uid):
+    app.config["ACCESS_REVIEW_CONTACT_ENABLED"] = True
+    try:
+        return access_review.contact_send(db, uid, "olivia")
+    finally:
+        app.config["ACCESS_REVIEW_CONTACT_ENABLED"] = False
+
+
+def test_mail_carries_reply_to_and_a_signed_link_that_records_the_answer(app, db, clean_users):
+    with app.app_context():
+        uid = str(_add(db, "linkki", role="city_admin", global_admin=True, global_permissions=["VIEW_LOGS"]))
+        access_review.stamp(db, apply=True)
+        _send_enabled(app, db, uid)
+        mail = db.email_queue.find_one({})
+        assert mail["extra_headers"]["Reply-To"] == "hallinto@mielenosoitukset.fi"
+        assert "/ylla-vastaus/" in mail["body"] and "[henkilökohtainen" not in mail["body"]
+        token = mail["body"].split("/ylla-vastaus/")[1].split()[0]
+        client = app.test_client()
+        page = client.get(f"/ylla-vastaus/{token}")
+        assert page.status_code == 200 and "Cache-Control" in page.headers and "no-store" in page.headers["Cache-Control"]
+        assert access_review.hallinto_list(db)[0]["contact"]["reply"] == ""  # opening the page records nothing
+        bad = client.post(f"/ylla-vastaus/{token}", data={"situation": "partial"})
+        assert bad.status_code == 400
+        ok = client.post(f"/ylla-vastaus/{token}", data={"situation": "partial", "roles": ["city_admin", "god"], "note": "vain kaupunki"})
+        assert ok.status_code == 200
+        contact = access_review.hallinto_list(db)[0]["contact"]
+        assert (contact["reply"], contact["situation"], contact["roles"], contact["via"]) == ("keep", "partial", ["city_admin"], "link")
+        assert contact["by"] == "olivia" and contact["note"] == "vain kaupunki"  # the mailer stays the contact's author
+        assert client.get("/ylla-vastaus/not-a-token").status_code == 404
+        assert client.get(f"/ylla-vastaus/{token[:-3]}abc").status_code == 404
+
+
+def test_link_dies_with_the_round_and_followup_mails_once(app, db, clean_users):
+    with app.app_context():
+        uid = str(_add(db, "myohassa", role="city_admin", global_permissions=["VIEW_LOGS"]))
+        access_review.stamp(db, apply=True)
+        with pytest.raises(access_review.ContactError) as early:
+            access_review.contact_followup(db, uid, "olivia")
+        assert early.value.code == "disabled"
+        app.config["ACCESS_REVIEW_CONTACT_ENABLED"] = True
+        try:
+            with pytest.raises(access_review.ContactError) as none_yet:
+                access_review.contact_followup(db, uid, "olivia")
+            assert none_yet.value.code == "not_contacted"
+            access_review.contact_send(db, uid, "olivia")
+            access_review.contact_followup(db, uid, "olivia")
+            assert db.email_queue.count_documents({}) == 2
+            with pytest.raises(access_review.ContactError) as twice:
+                access_review.contact_followup(db, uid, "olivia")
+            assert twice.value.code == "already_followed_up"
+            token = access_review.reply_token(db.users.find_one({"_id": ObjectId(uid)}))
+            assert access_review.reply_doc(db, token) is not None
+            # The next round's deadline makes the old token useless.
+            db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"access_review.deadline": access_review.DEADLINE + timedelta(days=180)}})
+            assert access_review.reply_doc(db, token) is None
+        finally:
+            app.config["ACCESS_REVIEW_CONTACT_ENABLED"] = False

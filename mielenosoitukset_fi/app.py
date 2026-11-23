@@ -307,6 +307,8 @@ def create_app(config_overrides=None) -> Flask:
     app.register_blueprint(admin_shifts_bp)
     from mielenosoitukset_fi.admin.guide_links_bp import guide_links_bp
     app.register_blueprint(guide_links_bp)
+    from mielenosoitukset_fi.access_review_reply_bp import bp as access_review_reply_bp
+    app.register_blueprint(access_review_reply_bp)
     app.register_blueprint(admin_site_analytics_bp)
     #app.register_blueprint(admin_case_bp)
     

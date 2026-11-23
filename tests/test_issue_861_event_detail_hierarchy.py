@@ -1,8 +1,10 @@
 import json
+import re
 from pathlib import Path
 
 import pytest
 from babel.messages import pofile
+from playwright.sync_api import expect
 
 from tests.conftest import _seed_database
 
@@ -267,9 +269,11 @@ def test_long_event_description_expands_across_viewports_and_themes(
     assert accessible_preview.get_attribute("hidden") is not None
     assert content.is_visible()
     assert content.evaluate("node => node.scrollHeight <= node.clientHeight + 1")
-    assert content.locator('a[tabindex="-1"]').count() == 0
-    assert content.locator("a").first.get_attribute("tabindex") is None
-    assert content.locator("a").last.get_attribute("tabindex") == "2"
+    # The page restores the links' tabindex values after the expand click has been handled;
+    # wait for that instead of reading the attributes in the same instant (flaky in CI).
+    expect(content.locator('a[tabindex="-1"]')).to_have_count(0)
+    expect(content.locator("a").first).not_to_have_attribute("tabindex", re.compile(r".*"))
+    expect(content.locator("a").last).to_have_attribute("tabindex", "2")
     assert "Source 11" in description.aria_snapshot()
 
 
