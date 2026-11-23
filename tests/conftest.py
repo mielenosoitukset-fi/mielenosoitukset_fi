@@ -1057,3 +1057,34 @@ def browser_page(playwright_browser):
         yield page
     finally:
         context.close()
+
+
+_BROWSER_FIXTURES = {"browser_page", "playwright_browser"}
+
+
+def _is_browser_test(item):
+    return item.get_closest_marker("e2e") is not None or bool(
+        _BROWSER_FIXTURES & set(getattr(item, "fixturenames", ()))
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Keep Chromium tests out of the required GitHub check.
+
+    On GitHub Actions the browser tests are deselected unless
+    ``MOSO_BROWSER_TESTS`` is set: ``only`` runs just them (the non-required
+    browser workflow on main and nightly), ``include`` runs everything.
+    Local runs are untouched.
+    """
+    mode = os.environ.get("MOSO_BROWSER_TESTS", "")
+    if os.environ.get("GITHUB_ACTIONS") != "true" and not mode:
+        return
+    if mode == "include":
+        return
+    keep, drop = [], []
+    for item in items:
+        browser = _is_browser_test(item)
+        (keep if browser == (mode == "only") else drop).append(item)
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+        items[:] = keep

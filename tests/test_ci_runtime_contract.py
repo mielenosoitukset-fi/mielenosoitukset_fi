@@ -104,3 +104,14 @@ def test_shards_follow_recorded_durations_and_cover_every_file(tmp_path):
     shards = [shard_files(tmp_path, n, 2) for n in (1, 2)]
     assert sorted(shards[0] + shards[1]) == [f"tests/test_{n}.py" for n in "abcd"]
     assert "tests/test_a.py" in shards[1]  # shard 1 also builds the frontend
+
+
+def test_browser_tests_are_outside_the_required_check_but_run_on_main_and_nightly():
+    root = Path(__file__).resolve().parents[1]
+    workflow = yaml.safe_load((root / ".github/workflows/browser-tests.yml").read_text())
+    triggers = workflow.get("on") or workflow[True]
+    assert "pull_request" not in triggers and "merge_group" not in triggers
+    assert triggers["push"]["branches"] == ["main"] and triggers["schedule"]
+    assert workflow["jobs"]["browser"]["with"]["browser"] is True
+    reusable = yaml.safe_load((root / ".github/workflows/python-shards.yml").read_text())
+    assert reusable["jobs"]["shard"]["env"]["MOSO_BROWSER_TESTS"]

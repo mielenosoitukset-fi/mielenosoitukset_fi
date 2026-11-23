@@ -2,6 +2,11 @@ name: Python shards
 
 on:
   workflow_call:
+    inputs:
+      browser:
+        description: Run only the Chromium tests (the required check skips them).
+        type: boolean
+        default: false
     secrets:
       MOSO_CI_MONGO_URI:
         required: false
@@ -15,6 +20,8 @@ jobs:
     # A merge queue may contain fork code, so it uses a hosted runner.
     runs-on: ${{ github.repository == 'mielenosoitukset-fi/mielenosoitukset_fi' && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/'))) && fromJSON(vars.MOSO_CI_RUNS_ON || '["self-hosted","self-hosted-moso"]') || 'ubuntu-22.04' }}
     timeout-minutes: 30
+    env:
+      MOSO_BROWSER_TESTS: ${{ inputs.browser && 'only' || '' }}
     strategy:
       fail-fast: false
       matrix:
