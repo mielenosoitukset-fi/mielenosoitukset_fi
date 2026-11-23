@@ -130,6 +130,17 @@ def test_list_reports_removable_roles_and_marks_removed_accounts(app, db, clean_
         assert not access_review.confirmable(db, [str(uid)])
 
 
+def test_list_reports_global_admin_for_national_team_access(app, db, clean_users, monkeypatch):
+    # A national moderator holds Kansallinen moderaattori through the system team
+    # only; the removal list must still offer global_admin for that account.
+    monkeypatch.setattr("mielenosoitukset_fi.utils.system_teams.user_team_access",
+                        lambda _db, _uid: frozenset({"national"}))
+    with app.app_context():
+        _add(db, "kansallinen", role="user", global_permissions=["VIEW_LOGS"])
+        access_review.stamp(db, apply=True)
+        assert access_review.hallinto_list(db)[0]["roles"] == ["global_admin"]
+
+
 def test_contact_is_off_by_default_and_records_one_mail_per_round(app, db, clean_users):
     with app.app_context():
         uid = str(_add(db, "kontakti", role="city_admin", global_permissions=["VIEW_LOGS"]))

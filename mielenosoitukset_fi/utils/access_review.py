@@ -162,7 +162,12 @@ def removable_roles(db, doc: dict) -> list[str]:
     roles = []
     if doc.get("role") in REMOVABLE:
         roles.append(doc["role"])
-    if doc.get("global_admin") is True and "global_admin" not in roles:
+    # Access that comes from the national system team counts as global admin
+    # (the removal itself sees it the same way, admin/flask_orders).
+    from mielenosoitukset_fi.users.models import User
+
+    team = "national" in User.from_db(doc).system_team_access and doc.get("role") not in ("superuser", "god")
+    if (doc.get("global_admin") is True or team) and "global_admin" not in roles:
         roles.append("global_admin")
     if "city_admin" not in roles and db.admin_scope_grants.count_documents(
             {"user_id": {"$in": [uid, str(uid)]}, "scope_type": "city", **live_grant_filter()}, limit=1):
