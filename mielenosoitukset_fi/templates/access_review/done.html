@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block meta %}<meta name="robots" content="noindex, nofollow" />{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/guide_videos.css') }}">{% endblock %}
+{% block title %}Kiitos vastauksesta{% endblock %}
+{% block content %}
+<div class="guide-videos">
+  <h1 class="h2">Kiitos, vastaus tallennettiin</h1>
+  <p>Vastauksesi: <strong>{{ situation }}</strong>{% if roles %} ({{ roles|join(', ') }}){% endif %}{% if until %}, poissa {{ until }} asti{% endif %}.</p>
+  <p>Ylläpito käsittelee tarkistuksen. Voit muuttaa vastaustasi avaamalla saman linkin uudelleen.</p>
+</div>
+{% endblock %}

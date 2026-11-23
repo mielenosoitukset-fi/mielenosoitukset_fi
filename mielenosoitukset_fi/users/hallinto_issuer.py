@@ -593,6 +593,8 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
                 return jsonify(access_review.contact_preview(db, account))
             if action == "send":
                 return jsonify(contact=access_review.contact_send(db, account, by))
+            if action == "followup":
+                return jsonify(contact=access_review.contact_followup(db, account, by))
             if action == "reply":
                 return jsonify(contact=access_review.contact_reply(
                     db, account, payload.get("reply"), by, payload.get("note") or "",
