@@ -1,0 +1,1 @@
+- The admin account review answer page now uses the site's card layout, form styling and buttons (light and dark), shows the date and roles only when relevant, and works on phones.

@@ -14,6 +14,7 @@ from mielenosoitukset_fi.admin.utils import mongo
 bp = Blueprint("access_review_reply", __name__)
 
 # What the holder can pick (no_answer and unreachable are for the reviewer to record).
+ROLE_LABELS = {**access_review.SITE_ROLES, "admin": "Ylläpitäjä"}
 CHOICES = ("needs", "keep_idle", "partial", "give_up", "inactive")
 
 
@@ -36,7 +37,7 @@ def reply_page(token):
     if not doc:
         return _page("invalid.html", 404)
     roles = access_review.removable_roles(db, doc)
-    role_labels = {r: access_review.SITE_ROLES.get(r, r) for r in roles}
+    role_labels = {r: ROLE_LABELS.get(r, r) for r in roles}
     options = [(k, access_review.SITUATIONS[k][1].capitalize()) for k in CHOICES if k != "partial" or len(roles) > 1]
     context = dict(options=options, role_labels=role_labels, holds=access_review.holds_labels(doc),
                    current=access_review.contact_view(doc[access_review.FIELD]), error=None, token=token)
@@ -55,4 +56,5 @@ def reply_page(token):
         context["error"] = ("Tarkista vastaus: valitse vaihtoehto" + (", ainakin yksi pidettävä oikeus" if situation == "partial" else "")
                             + (" ja päivämäärä, johon asti olet poissa" if situation == "inactive" else "") + ".")
         return _page("reply.html", 400, **context)
-    return _page("done.html", situation=dict(options).get(situation, ""), roles=[role_labels[r] for r in picked], until=until)
+    return _page("done.html", situation=dict(options).get(situation, ""), roles=[role_labels[r] for r in picked],
+                 until=until, until_text=until and f"{int(until[8:])}.{int(until[5:7])}.{until[:4]}")

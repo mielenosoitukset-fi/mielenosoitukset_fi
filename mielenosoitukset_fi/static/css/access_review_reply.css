@@ -1,3 +1,46 @@
-.ar-indent{margin-left:1.5rem}
-.ar-block{display:block}
-.ar-wide{width:100%}
+/* Answer page for the admin account review (/ylla-vastaus/<token>). Uses the shared product tokens, light and dark. */
+.ar-page { padding: 2rem 1rem 3rem; }
+.ar-card {
+  max-width: 40rem; margin: 0 auto; padding: 1.75rem;
+  background: var(--product-surface); color: var(--product-text);
+  border: 1px solid var(--product-border); border-radius: 1rem; box-shadow: var(--product-shadow);
+}
+.ar-card h1 { margin: 0 0 .75rem; font-size: 1.6rem; line-height: 1.25; text-align: left; color: var(--product-text); }
+.ar-lead, .ar-hint { margin: 0 0 1rem; color: var(--product-text-muted); }
+.ar-holds { margin: 0 0 1rem; padding: .75rem 1rem; background: var(--product-primary-soft); border-radius: .75rem; color: var(--product-text); }
+.ar-error { margin: 0 0 1rem; padding: .75rem 1rem; border-radius: .75rem; background: var(--product-danger-soft); color: var(--product-danger); font-weight: 600; }
+.ar-notice { margin: 0 0 1rem; padding: .75rem 1rem; border-radius: .75rem; background: var(--product-success-soft); color: var(--product-success); }
+.ar-options { display: grid; gap: .6rem; margin: 0 0 1.25rem; padding: 0; border: 0; }
+.ar-option { display: block; padding: .85rem 1rem; border: 1px solid var(--product-border); border-radius: .75rem; background: var(--product-surface-muted); cursor: pointer; }
+.ar-option:hover { border-color: var(--product-primary); }
+.ar-option:has(input[type="radio"]:checked) { border-color: var(--product-primary); background: var(--product-primary-soft); }
+.ar-option label.ar-choice { display: flex; gap: .7rem; align-items: flex-start; margin: 0; font-weight: 600; color: var(--product-text); cursor: pointer; }
+.ar-option input[type="radio"] { flex: 0 0 auto; width: 1.15rem; height: 1.15rem; margin-top: .2rem; accent-color: var(--product-action-bg); }
+fieldset.ar-extra { border: 0; padding: 0; min-width: 0; }
+.ar-extra { display: none; margin: .8rem 0 0 1.85rem; }
+.ar-option:has(input[type="radio"]:checked) .ar-extra { display: block; }
+.ar-extra legend, .ar-extra label.ar-field { margin: 0 0 .35rem; font-size: .95rem; font-weight: 600; color: var(--product-text); }
+.ar-roles { display: grid; gap: .4rem; }
+.ar-roles label { display: flex; gap: .55rem; align-items: center; margin: 0; font-weight: 500; }
+.ar-roles input { width: 1.05rem; height: 1.05rem; accent-color: var(--product-action-bg); }
+.ar-card input[type="date"], .ar-card textarea {
+  display: block; width: 100%; max-width: 100%; box-sizing: border-box; padding: .65rem .8rem; font: inherit;
+  color: var(--product-text); background: var(--product-surface); border: 1px solid var(--product-border); border-radius: .6rem;
+}
+.ar-card input[type="date"] { max-width: 14rem; }
+.ar-card textarea { min-height: 6rem; resize: vertical; }
+.ar-card input:focus-visible, .ar-card textarea:focus-visible { outline: 3px solid var(--product-primary); outline-offset: 2px; }
+.ar-notes { margin: 0 0 1.25rem; }
+.ar-notes label { display: block; margin: 0 0 .35rem; font-weight: 600; color: var(--product-text); }
+.ar-submit {
+  display: inline-block; min-height: 2.75rem; padding: .7rem 1.6rem; border: 0; border-radius: .7rem; font: inherit; font-weight: 700;
+  color: var(--product-on-action); background: var(--product-action-bg); cursor: pointer;
+}
+.ar-submit:hover { background: var(--product-action-hover); }
+.ar-submit:focus-visible { outline: 3px solid var(--product-primary); outline-offset: 2px; }
+@media (max-width: 36rem) {
+  .ar-page { padding: 1rem .75rem 2rem; }
+  .ar-card { padding: 1.1rem; border-radius: .85rem; }
+  .ar-submit { width: 100%; }
+  .ar-extra { margin-left: 0; }
+}
