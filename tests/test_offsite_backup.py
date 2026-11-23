@@ -536,3 +536,28 @@ def test_bark_alerts_enabled_flag_turns_bark_off(bark_server, flag, capsys):
 def test_failed_unit_loads_the_shared_alerts_file_before_backup_env():
     text = _unit("mielenosoitukset-backup-failed.service")
     assert text.index("EnvironmentFile=-/etc/mielenosoitukset-alerts.env") < text.index("EnvironmentFile=-/etc/mielenosoitukset/backup.env")
+
+
+def test_bark_push_is_silent_and_never_wakes(bark_server):
+    module, config, url, received, _ = bark_server
+    env = {"BARK_KEY": "k", "BARK_URL": url, "APP_CONFIG": config, "MONITOR_UNIT": "x.service"}
+    assert module.main(env) == 0
+    payload = received[0][1]
+    assert payload["sound"] == "silence"
+    assert payload["level"] in ("passive", "active")
+
+
+@pytest.mark.parametrize("utc_hour,level", [(19, "active"), (20, "passive"), (3, "passive"), (5, "passive"), (6, "active")])
+def test_bark_level_is_passive_at_night_helsinki_time(notify, utc_hour, level):
+    module, _ = notify
+    from datetime import datetime, timezone
+    # 23 Nov is EET (UTC+2): 20 UTC = 22:00, 6 UTC = 08:00 Helsinki
+    assert module.bark_level(datetime(2026, 11, 23, utc_hour, 0, tzinfo=timezone.utc)) == level
+
+
+def test_alert_title_overrides_the_backup_title(bark_server):
+    module, config, url, received, _ = bark_server
+    env = {"BARK_KEY": "k", "BARK_URL": url, "APP_CONFIG": config, "MONITOR_UNIT": "mastobot.service",
+           "ALERT_LABEL": "Mastobot stopped", "ALERT_TITLE": "Mastobot stopped"}
+    assert module.main(env) == 0
+    assert received[0][1]["title"] == "Mastobot stopped"
