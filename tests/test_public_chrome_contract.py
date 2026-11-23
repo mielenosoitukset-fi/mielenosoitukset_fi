@@ -173,8 +173,10 @@ def test_api_docs_chrome_is_theme_aware_and_portrait_safe(live_server, browser_p
     footer = browser_page.locator(".public-site-footer")
     assert header.is_visible()
     assert footer.is_visible()
-    light_background = header.evaluate("node => getComputedStyle(node).backgroundImage")
-    assert light_background != "none"
+    # Public page headings are plain (maintainer decision 20.11.2026): no gradient
+    # card, only a bottom rule.
+    assert header.evaluate("node => getComputedStyle(node).backgroundImage") == "none"
+    assert header.evaluate("node => getComputedStyle(node).borderBottomWidth") != "0px"
 
     browser_page.locator(".theme-toggle").click()
     assert "dark" in (browser_page.locator("html").get_attribute("class") or "")
