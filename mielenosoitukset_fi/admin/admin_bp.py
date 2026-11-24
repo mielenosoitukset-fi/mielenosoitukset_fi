@@ -1235,6 +1235,40 @@ def dashboard_login_feed():
     return jsonify({"logs": logs})
 
 
+@admin_bp.route("/retention-preview")
+@login_required
+@admin_required
+@permission_required("VIEW_BACKGROUND_JOBS")
+def retention_preview():
+    """Read-only counts of what the retention jobs would remove. Global admins only.
+
+    Runs the jobs' own dry-run code, so the numbers match what a real run would
+    do, and changes nothing.
+    """
+    if not getattr(current_user, "global_admin", False):
+        abort(403)
+    from mielenosoitukset_fi.scripts import purge_personal_logs
+
+    db = DatabaseManager().get_instance().get_db()
+    result = purge_personal_logs.purge(db, dry_run=True)
+    rows = []
+    for key, count in result["counts"].items():
+        collection, days = key.split(":")
+        rows.append({
+            "collection": collection,
+            "days": int(days),
+            "count": count,
+            "total": db[collection].estimated_document_count(),
+        })
+    _log_admin_event("retention_preview_view", counts=result["counts"])
+    return render_template(
+        f"{_ADMIN_TEMPLATE_FOLDER}retention_preview.html",
+        rows=rows,
+        protected_users=result["protected_users"],
+        enabled=purge_personal_logs.is_enabled(),
+    )
+
+
 @admin_bp.route("/background-jobs")
 @login_required
 @admin_required
