@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.emailer.EmailJob import EmailJob
 from mielenosoitukset_fi.emailer.EmailSender import EmailSender
+from mielenosoitukset_fi.emailer.render import render_email
 from mielenosoitukset_fi.utils.city_assignment import (
     escalate_overdue,
     mark_escalated,
@@ -100,9 +101,11 @@ def _queue_escalation_email(
         for index, message in enumerate(delivery['messages']):
             if index in delivery.get('delivered_indices', []):
                 continue
-            rendered_body = email_sender._env.get_template(ASSIGNMENT_TEMPLATE).render(message["context"])
-            job = EmailJob(subject=message["subject"], recipients=message["recipients"], body=rendered_body,
-                           html=rendered_body, instance_id=email_sender._instance_id)
+            rendered_html, rendered_text = render_email(
+                email_sender._env, getattr(email_sender, "_db", None), ASSIGNMENT_TEMPLATE, message["context"],
+                track={"demo_id": demo_id})
+            job = EmailJob(subject=message["subject"], recipients=message["recipients"], body=rendered_text,
+                           html=rendered_html, instance_id=email_sender._instance_id)
             if email_sender.send_email(job, raise_on_error=True) is not True:
                 return False
             result = db.demonstrations.update_one(assignment_query,
