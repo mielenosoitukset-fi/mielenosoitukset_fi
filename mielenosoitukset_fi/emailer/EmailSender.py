@@ -7,8 +7,8 @@ from email.mime.text import MIMEText
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from mielenosoitukset_fi.database_manager import DatabaseManager
 from .EmailJob import EmailJob
-from .open_tracking import add_pixel, is_tracked
-from .polish import polish_html, html_to_text
+from .polish import polish_html
+from .render import render_email
 import time
 import uuid
 import pymongo
@@ -420,7 +420,9 @@ class EmailSender:
             if email_job.body:
                 alt_part.attach(MIMEText(email_job.body, "plain"))
             if email_job.html:
-                alt_part.attach(MIMEText(email_job.html, "html"))
+                # Jobs queued as finished HTML (e.g. by the Go API) get the shared
+                # layout here; already-wrapped mail passes through unchanged.
+                alt_part.attach(MIMEText(polish_html(email_job.html), "html"))
 
             # Attachments
             if has_attachments:
@@ -466,14 +468,11 @@ class EmailSender:
         require_acknowledged=False, track=None,
     ):
         """Queue an email; strict callers require an insert receipt without retries."""
-        template = self._env.get_template(template_name)
-        html_body = polish_html(template.render(context))
-        if is_tracked(template_name):
-            html_body = add_pixel(self._db, html_body, template_name, meta=track)
+        html_body, text_body = render_email(self._env, self._db, template_name, context, track)
         email_job = EmailJob(
             subject=subject,
             recipients=recipients,
-            body=plain_body if plain_body is not None else html_to_text(html_body),
+            body=plain_body if plain_body is not None else text_body,
             html=html_body,
             sender=sender,
             attachments=attachments,
@@ -507,14 +506,11 @@ class EmailSender:
         track=None,
     ):
         """Send email immediately without queueing"""
-        template = self._env.get_template(template_name)
-        html_body = polish_html(template.render(context))
-        if is_tracked(template_name):
-            html_body = add_pixel(self._db, html_body, template_name, meta=track)
+        html_body, text_body = render_email(self._env, self._db, template_name, context, track)
         email_job = EmailJob(
             subject=subject,
             recipients=recipients,
-            body=html_to_text(html_body),
+            body=text_body,
             html=html_body,
             sender=sender,
             attachments=attachments,

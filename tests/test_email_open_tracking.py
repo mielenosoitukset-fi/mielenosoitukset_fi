@@ -52,3 +52,48 @@ def test_opens_for_case_merges_rows_per_admin():
     out = ot.opens_for_case(db, "c1")
     assert out["u1"] == {"first_opened_at": datetime(2026, 11, 1), "open_count": 3}
     assert out["u2"]["first_opened_at"] is None
+
+
+def test_render_email_wraps_tracks_staff_mail_only():
+    from jinja2 import Environment, DictLoader
+    from mielenosoitukset_fi.emailer.render import render_email
+
+    env = Environment(loader=DictLoader({
+        "admin_case_notification.html": "<html><body><p>Hei!</p></body></html>",
+        "demo_reminder.html": "<html><body><p>Hei!</p></body></html>",
+    }), autoescape=True)
+    db = MagicMock()
+    staff_html, staff_text = render_email(env, db, "admin_case_notification.html", {}, {"demo_id": "d1"})
+    public_html, public_text = render_email(env, db, "demo_reminder.html", {})
+    assert "/e/o/" in staff_html and "/e/o/" not in public_html
+    assert "mfi-card" in public_html and "<" not in public_text
+    assert db[ot.COLLECTION].insert_one.call_args[0][0]["demo_id"] == "d1"
+    # no db (stub sender): no pixel, no crash
+    assert "/e/o/" not in render_email(env, None, "admin_case_notification.html", {})[0]
+
+
+def test_send_email_wraps_finished_html_from_go_queue(monkeypatch):
+    from mielenosoitukset_fi.emailer import EmailSender as mod
+
+    sent = []
+
+    class FakeSMTP:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def starttls(self): pass
+        def login(self, *a): pass
+        def sendmail(self, _s, _r, raw): sent.append(raw)
+
+    monkeypatch.setattr(mod.smtplib, "SMTP", FakeSMTP)
+    sender = object.__new__(mod.EmailSender)
+    sender._config = type("C", (), {"MAIL_SERVER": "x", "MAIL_DEFAULT_SENDER": "a@b.fi"})()
+    sender._logger = MagicMock()
+    sender._mailer_name, sender._mailer_version = "t", "1"
+    job = type("J", (), {"sender": None, "attachments": [], "subject": "s", "recipients": ["r@x.fi"],
+                         "extra_headers": {}, "body": "plain", "html": "<p>Hei!</p>"})()
+    assert sender.send_email(job) is True
+    import email, email.policy
+    msg = email.message_from_string(sent[0], policy=email.policy.default)
+    html = msg.get_body(("html",)).get_content()
+    assert "mfi-card" in html and "<p>Hei,</p>" in html

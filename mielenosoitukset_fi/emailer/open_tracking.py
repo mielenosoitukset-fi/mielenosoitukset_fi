@@ -52,7 +52,7 @@ def add_pixel(db, html, template_name, now=None, meta=None):
     """Register a token for this send and append the pixel to ``html``.
 
     ``meta`` may link the open to a staff account and case
-    (``{"case_id": ObjectId, "user_id": ObjectId}``) so the case page can show
+    (``{"case_id": ObjectId, "user_id": ObjectId}``) or a demonstration (``demo_id``) so the case page can show
     which admin read the notice. Never put an address, IP or user agent here.
     """
     now = now or datetime.now(timezone.utc)
@@ -65,7 +65,7 @@ def add_pixel(db, html, template_name, now=None, meta=None):
         "purge_at": now + timedelta(days=RETENTION_DAYS),
         "first_opened_at": None,
         "open_count": 0,
-        **{k: v for k, v in (meta or {}).items() if k in ("case_id", "user_id") and v is not None},
+        **{k: v for k, v in (meta or {}).items() if k in ("case_id", "user_id", "demo_id") and v is not None},
     })
     pixel = (f'<img src="{BASE_URL}/e/o/{token}.gif" width="1" height="1" alt="" '
              'style="display:block;width:1px;height:1px;border:0">')
