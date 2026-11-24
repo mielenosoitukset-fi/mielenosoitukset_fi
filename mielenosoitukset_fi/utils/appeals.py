@@ -13,6 +13,8 @@ Statuses: ``received`` (new), ``in_review`` (Hallinto has a case), ``decided``
 
 from __future__ import annotations
 
+import base64
+import binascii
 import re
 from datetime import timezone
 from typing import Optional
@@ -36,6 +38,7 @@ _DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\Z")
 _ID = re.compile(r"[0-9a-f]{24}\Z")
 MAX_TEXT = 10_000
 MAX_LETTER_TEXT = 12_000
+MAX_PDF = 400_000
 DEFAULT_REPLY_TO = "hallinto@mielenosoitukset.fi"
 
 
@@ -82,7 +85,23 @@ def new_row(payload: dict, by: str, now=None) -> dict:
     }
 
 
-def view(row: dict) -> dict:
+def original_deciders(db, reference: str) -> list[str]:
+    """The accounts that made the decision a valitus is about, so they cannot
+    handle it: for a rejected demonstration, whoever rejected it and whoever
+    confirmed that rejection in OT's review. The reference is whatever the
+    complainant wrote; the first 24-hex id in it is taken as the demonstration."""
+    found = re.search(r"[0-9a-f]{24}", reference or "")
+    if not found:
+        return []
+    ids: set[str] = set()
+    for row in db["moderation_reviews"].find({"demo_id": ObjectId(found.group(0))}):
+        ids.add(str((row.get("decided_by") or {}).get("id") or ""))
+        for entry in row.get("history") or []:
+            ids.add(str((entry.get("by") or {}).get("id") or ""))
+    return sorted(i for i in ids if _ID.match(i))
+
+
+def view(row: dict, db=None) -> dict:
     """What Hallinto may see. The complainant's name and address are never in it."""
     stamp = lambda value: value.replace(tzinfo=timezone.utc).isoformat() if value else None
     return {
@@ -93,6 +112,7 @@ def view(row: dict) -> dict:
         "text": row.get("text", ""), "case": row.get("hallinto_case") or "",
         "created_at": stamp(row.get("created_at")),
         "decision_ref": ((row.get("letter") or {}).get("decision_ref")) or "",
+        "original_deciders": original_deciders(db, (row.get("subject") or {}).get("reference", "")) if db is not None else [],
     }
 
 
@@ -121,11 +141,11 @@ def _reply_to() -> str:
     return reply_to() or DEFAULT_REPLY_TO
 
 
-def _queue(db, queue_id: str, subject: str, email: str, body: str) -> None:
+def _queue(db, queue_id: str, subject: str, email: str, body: str, attachments=None) -> None:
     """Queue one plain mail under a fixed id, so a repeat can never send it twice."""
     from mielenosoitukset_fi.emailer.EmailJob import EmailJob
 
-    job = EmailJob(subject, [email], body=body, extra_headers={"Reply-To": _reply_to()}).to_dict()
+    job = EmailJob(subject, [email], body=body, attachments=attachments, extra_headers={"Reply-To": _reply_to()}).to_dict()
     db.email_queue.update_one({"_id": queue_id}, {"$setOnInsert": job}, upsert=True)
 
 
@@ -145,14 +165,15 @@ def queue_confirmation(db, row: dict) -> None:
     _queue(db, f"appeal-received:{row['_id']}", "Valituksesi on otettu käsittelyyn", email, body)
 
 
-def queue_decision(db, row: dict, text: str) -> None:
+def queue_decision(db, row: dict, text: str, pdf: bytes = b"") -> None:
     email = (row.get("complainant") or {}).get("email")
     if not email:
         return
     ref = (row.get("letter") or {}).get("decision_ref", "")
     body = (f"{_greeting(row)}\n\nValituksesi on käsitelty. Päätös on alla.\n\n{text}\n"
             "Voit vastata tähän viestiin. Mainitse viestissä päätöksen numero.\n\nMielenosoitukset.fi\n")
-    _queue(db, f"appeal-decision:{row['_id']}", f"Päätös valitukseesi {ref}".strip(), email, body)
+    attachments = [{"filename": f"paatos-{ref.replace('/', '-')}.pdf", "content": pdf, "mime_type": "application/pdf"}] if pdf else None
+    _queue(db, f"appeal-decision:{row['_id']}", f"Päätös valitukseesi {ref}".strip(), email, body, attachments)
 
 
 def create(db, payload: dict, by: str, now=None) -> dict:
@@ -183,13 +204,21 @@ def record_step(db, payload: dict, by: str, now=None) -> tuple[dict, bool]:
         clean, text = clean_letter(payload.get("letter"), payload.get("text"))
     elif "letter" in payload or "text" in payload:
         raise AppealError("invalid_request")
+    pdf = b""
+    if payload.get("pdf"):
+        try:
+            pdf = base64.b64decode(payload["pdf"], validate=True)
+        except (binascii.Error, TypeError, ValueError):
+            raise AppealError("invalid_letter")
+        if not pdf.startswith(b"%PDF") or len(pdf) > MAX_PDF:
+            raise AppealError("invalid_letter")
     now = now or utcnow()
     before = db[COLLECTION].find_one({"_id": ObjectId(appeal_id)})
     if not before:
         raise AppealError("not_found", 404)
     if before["status"] in ("decided", "withdrawn"):
         if before["status"] == status and (status != "decided" or (before.get("letter") or {}) == clean):
-            return view(before), False
+            return view(before, db), False
         raise AppealError("closed", 409)
     update = {"status": status, "updated_at": now}
     if case:
@@ -199,12 +228,12 @@ def record_step(db, payload: dict, by: str, now=None) -> tuple[dict, bool]:
         update["decided_at"] = now
     unchanged = before["status"] == status and (not case or before.get("hallinto_case") == case)
     if unchanged and not clean:
-        return view(before), False
+        return view(before, db), False
     row = db[COLLECTION].find_one_and_update(
         {"_id": before["_id"], "status": before["status"]}, {"$set": update,
          "$push": {"history": {"status": status, "at": now, "by": by}}}, return_document=True)
     if not row:
         raise AppealError("closed", 409)
     if clean:
-        queue_decision(db, row, text)
-    return view(row), True
+        queue_decision(db, row, text, pdf)
+    return view(row, db), True

@@ -83,3 +83,25 @@ def test_steps_are_checked(clean):
     with pytest.raises(appeals.AppealError) as missing:
         appeals.record_step(clean, {"id": "0" * 24, "status": "in_review"}, "s")
     assert missing.value.status == 404
+
+
+def test_original_deciders_and_pdf(clean):
+    from bson import ObjectId
+    demo, rejecter, confirmer = ObjectId(), ObjectId(), ObjectId()
+    clean.moderation_reviews.insert_one({"demo_id": demo, "decided_by": {"id": str(rejecter)},
+                                         "history": [{"by": {"id": str(confirmer)}}, {"by": {"id": None}}]})
+    try:
+        row = appeals.create(clean, {**NEW, "reference": f"https://mielenosoitukset.fi/demonstration/{demo}"}, "s")
+        assert appeals.view(row, clean)["original_deciders"] == sorted([str(rejecter), str(confirmer)])
+        assert appeals.view(row)["original_deciders"] == []
+        import base64
+        pdf = b"%PDF-1.4 test"
+        step = {"id": str(row["_id"]), "status": "decided", "letter": LETTER, "text": TEXT, "pdf": base64.b64encode(pdf).decode()}
+        appeals.record_step(clean, step, "s")
+        mail = clean.email_queue.find_one({"_id": f"appeal-decision:{row['_id']}"})
+        assert mail["attachments"][0]["mime_type"] == "application/pdf" and mail["attachments"][0]["content"] == pdf
+        other = appeals.create(clean, NEW, "s")
+        with pytest.raises(appeals.AppealError):
+            appeals.record_step(clean, {"id": str(other["_id"]), "status": "decided", "letter": LETTER, "text": TEXT, "pdf": "bm90IGEgcGRm"}, "s")
+    finally:
+        clean.moderation_reviews.delete_many({"demo_id": demo})

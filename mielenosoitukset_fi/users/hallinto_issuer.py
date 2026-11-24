@@ -998,7 +998,7 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         payload, error = session_payload()
         if error:
             return error
-        return jsonify(items=[appeals.view(row) for row in appeals.list_rows(db)])
+        return jsonify(items=[appeals.view(row, db) for row in appeals.list_rows(db)])
 
     @bp.post("/appeals/create")
     def appeals_create():
@@ -1014,7 +1014,7 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             row = appeals.create(db, payload, payload["sub"])
         except appeals.AppealError as exc:
             return jsonify(error=exc.code), exc.status
-        return jsonify(item=appeals.view(row)), 201
+        return jsonify(item=appeals.view(row, db)), 201
 
     @bp.post("/appeals/update")
     def appeals_update():
