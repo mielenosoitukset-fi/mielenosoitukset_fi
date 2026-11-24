@@ -1,0 +1,1 @@
+- Internal Hallinto interface: the read-only order status route now also answers for outbound invitations, access recoveries and organization rights, so Hallinto can settle those orders by itself too.
