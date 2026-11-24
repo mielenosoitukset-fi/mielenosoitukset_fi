@@ -18,30 +18,30 @@ def _payload(token, **updates):
     return data
 
 
-def _setup(app, monkeypatch):
+def _setup(app, db, monkeypatch):
     import basic_routes
-    import mongomock
 
     app.config["CONTACT_MIN_FORM_SECONDS"] = 0
-    db = mongomock.MongoClient().db
+    db.appeals.delete_many({})
+    db.email_queue.delete_many({"_id": {"$regex": "^appeal-"}})
     monkeypatch.setattr(basic_routes, "mongo", db)
     for limiter in app.extensions.get("limiter", ()):
         limiter.reset()
     return db
 
 
-def test_public_form_stores_appeal_and_queues_confirmation(app, client, monkeypatch):
-    db = _setup(app, monkeypatch)
+def test_public_form_stores_appeal_and_queues_confirmation(app, client, db, monkeypatch):
+    _setup(app, db, monkeypatch)
     response = client.post("/valitus", data=_payload(_token(client)))
     assert response.status_code == 302
     row = db.appeals.find_one()
     assert row["source"] == "public-form"
     assert row["complainant"]["email"] == "testi@example.test"
-    assert db.email_queue.count_documents({}) == 1
+    assert db.email_queue.count_documents({"_id": {"$regex": "^appeal-"}}) == 1
 
 
-def test_public_form_needs_ack_and_ignores_honeypot_and_bad_token(app, client, monkeypatch):
-    db = _setup(app, monkeypatch)
+def test_public_form_needs_ack_and_ignores_honeypot_and_bad_token(app, client, db, monkeypatch):
+    _setup(app, db, monkeypatch)
     client.post("/valitus", data=_payload(_token(client), ack_reconsideration=""))
     client.post("/valitus", data=_payload(_token(client), website="http://spam"))
     assert client.post("/valitus", data=_payload("nope")).status_code == 400
