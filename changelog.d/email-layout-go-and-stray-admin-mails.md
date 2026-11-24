@@ -1,0 +1,1 @@
+- Myös Go-rajapinnan jonoon lisäämät sähköpostit ja taustalla lähetettävät ylläpitoilmoitukset (uusi mielenosoitus, kaupunkien eskalaatiot) saavat nyt saman ulkoasun, tekstiversion ja allekirjoituksen kuin muut viestit. Ylläpidolle lähtevät ilmoitukset sisältävät lukuseurannan samoin ehdoin kuin muutkin ylläpitoviestit.
