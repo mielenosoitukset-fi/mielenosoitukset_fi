@@ -1,0 +1,1 @@
+- The privacy notice (React page) now explains the cookie bar and has a "Muuta evästevalintaa" button to change the analytics cookie choice. Update date is 24.11.2026 (#596).

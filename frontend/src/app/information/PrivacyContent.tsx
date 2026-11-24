@@ -51,6 +51,12 @@ export function PrivacyContent() {
     <section className="public-prose-card">
       <h2>Evästeet ja vastaavat tunnisteet</h2>
       <p>Palvelu käyttää välttämättömiä sessioevästeitä kirjautumiseen, tietoturvaan ja palvelun toimintaan. Lisäksi selain voi tallentaa käyttöliittymävalintoja ja mielenosoitusten tykkäystietoja. Katseluanalytiikka voi käyttää sessiotunnistetta saman istunnon tapahtumien yhdistämiseen.</p>
+      <p>Valinnainen Matomo-analytiikka asettaa evästeitä ja latautuu vasta, kun hyväksyt analytiikkaevästeet sivun alareunan ilmoituksesta. Valintasi tallennetaan 180 päiväksi evästeeseen moso_consent. Voit muuttaa valintaa milloin tahansa.</p>
+      <p>
+        <button type="button" className="btn btn-secondary" onClick={() => (window as Window & { mosoConsent?: { open: () => void } }).mosoConsent?.open()}>
+          Muuta evästevalintaa
+        </button>
+      </p>
       <p>Palvelun oma katseluanalytiikka ei edellytä kolmannen osapuolen analytiikkapalvelua. Voit poistaa tai estää evästeitä selaimesi asetuksista, mutta välttämättömien evästeiden estäminen voi rikkoa kirjautumisen tai muita toimintoja.</p>
     </section>
 
