@@ -183,6 +183,25 @@ def _release_rebuild(meta, owner: str) -> None:
     )
 
 
+def _renew_rebuild_lease(meta, owner: str) -> bool:
+    """Atomically extend the rebuild lease for ``owner``, if still owned.
+
+    A rebuild whose lease was taken over after ``REBUILD_STALE_S`` matches zero
+    documents here, so it stops before its next write or delete instead of
+    racing the newer rebuild. A live rebuild renews before every batch, so only
+    a worker stalled for longer than the stale window can lose the lease.
+    """
+    result = meta.update_one(
+        {"_id": META_ID, "rebuild_owner": owner, "paused": True},
+        {"$set": {"rebuild_started_at": datetime.now(timezone.utc)}},
+    )
+    return result.matched_count > 0
+
+
+class _RebuildLeaseLost(Exception):
+    """Raised inside a rebuild when another rebuild has replaced its lease."""
+
+
 def _normalize_timestamp(ts: datetime) -> datetime | None:
     """Coerce raw timestamps to timezone-aware UTC datetimes."""
     if ts is None:
@@ -457,8 +476,17 @@ def _wait_for_idle_pass(meta, timeout_s: float) -> bool:
     return True
 
 
-def _rebuild_from_raw(raw, aggr) -> dict:
-    """Replace every rolled-up document with a recount of the raw events."""
+def _rebuild_from_raw(raw, aggr, meta=None, owner: str | None = None) -> dict:
+    """Replace every rolled-up document with a recount of the raw events.
+
+    When ``meta`` and ``owner`` are given, the rebuild lease is renewed before
+    every batch write and every prune delete; a displaced rebuild raises
+    ``_RebuildLeaseLost`` before it writes or deletes anything more.
+    """
+    def _fence():
+        if meta is not None and not _renew_rebuild_lease(meta, owner):
+            raise _RebuildLeaseLost()
+
     ops = []
     seen = set()
     events = 0
@@ -467,6 +495,7 @@ def _rebuild_from_raw(raw, aggr) -> dict:
     def _flush():
         """Write pending rebuild operations and clear the batch after success."""
         if ops:
+            _fence()
             aggr.bulk_write(ops, ordered=False)
             ops.clear()
 
@@ -490,6 +519,7 @@ def _rebuild_from_raw(raw, aggr) -> dict:
     stale_ids = [doc["_id"] for doc in aggr.find({}, {"_id": 1}) if doc["_id"] not in seen]
     removed = 0
     for start in range(0, len(stale_ids), 1000):
+        _fence()
         result = aggr.delete_many({"_id": {"$in": stale_ids[start:start + 1000]}})
         removed += result.deleted_count
 
@@ -522,7 +552,11 @@ def rebuild_demo_analytics(timeout_s: float = REBUILD_SETTLE_TIMEOUT_S) -> dict:
                 timeout_s,
             )
             return {"aborted": True, "reason": "rollup_pass_still_running"}
-        stats = _rebuild_from_raw(raw, aggr)
+        try:
+            stats = _rebuild_from_raw(raw, aggr, meta, owner)
+        except _RebuildLeaseLost:
+            LOGGER.warning("Rebuild lease lost (%s); stopping without further writes.", owner)
+            return {"aborted": True, "reason": "rebuild_lease_lost"}
     finally:
         _release_rebuild(meta, owner)
 
