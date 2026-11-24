@@ -1,0 +1,1 @@
+- Käyttöehtojen valitusprosessi ja tietosuojaseloste kuvaavat nyt valituslomakkeen, uudelleenarvioinnin ensin, päätöksen sisällön ja valitustietojen käsittelyn.
