@@ -301,7 +301,7 @@ def purge_expired(db, now=None, days: Optional[int] = None, dry_run: bool = Fals
     """Remove the complainant's data from decided or withdrawn appeals.
 
     After ``days`` from the päätös the name, address, own text, subject title and
-    the status link are deleted. The päätös and the case record stay: they hold no
+    the status link are deleted, with the two mails queued for the appeal. The päätös and the case record stay: they hold no
     complainant data. An appeal that is still open is never touched.
     """
     from datetime import timedelta
@@ -315,7 +315,11 @@ def purge_expired(db, now=None, days: Optional[int] = None, dry_run: bool = Fals
                      {"decided_at": {"$exists": False}, "updated_at": {"$lt": now - timedelta(days=days)}}]}
     if dry_run:
         return {"enabled": True, "purged": db[COLLECTION].count_documents(query), "dry_run": True}
-    result = db[COLLECTION].update_many(query, {
+    ids = [row["_id"] for row in db[COLLECTION].find(query, {"_id": 1})]
+    mails = [f"appeal-{kind}:{item}" for item in ids for kind in ("received", "decision")]
+    if mails:
+        db.email_queue.delete_many({"_id": {"$in": mails}})
+    result = db[COLLECTION].update_many({"_id": {"$in": ids}, **query}, {
         "$unset": {"complainant": "", "text": "", "token_hash": "", "subject.title": ""},
         "$set": {"purged_at": now}})
     return {"enabled": True, "purged": result.modified_count}

@@ -132,8 +132,11 @@ def test_retention_removes_the_complainant_after_three_years_and_keeps_the_decis
         "status": "decided", "decided_at": long_ago, "letter": {"decision_ref": "MOSO/002/RAT/2026/001"}, "letter_text": "PÄÄTÖS"}})
     clean[appeals.COLLECTION].update_one({"_id": fresh["_id"]}, {"$set": {"status": "decided", "decided_at": utcnow()}})
     clean[appeals.COLLECTION].update_one({"_id": opened["_id"]}, {"$set": {"created_at": long_ago, "updated_at": long_ago}})
+    assert clean.email_queue.count_documents({"_id": f"appeal-received:{decided['_id']}"}) == 1
     assert appeals.purge_expired(clean, dry_run=True)["purged"] == 1
     assert appeals.purge_expired(clean)["purged"] == 1
+    assert clean.email_queue.count_documents({"_id": f"appeal-received:{decided['_id']}"}) == 0
+    assert clean.email_queue.count_documents({"_id": f"appeal-received:{fresh['_id']}"}) == 1
     assert appeals.purge_expired(clean)["purged"] == 0
     gone = clean[appeals.COLLECTION].find_one({"_id": decided["_id"]})
     assert not {"complainant", "text", "token_hash"} & set(gone) and gone["letter"]["decision_ref"] and gone["letter_text"]
