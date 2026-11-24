@@ -126,6 +126,14 @@ Flask writes what a decision on its own page `/admin/governance/security` writes
 
 Receipt: `status: confirmed` with `effective: {lockdown: "closed" | "open"}`, read after the write. Hallinto confirms only when it matches the order's action.
 
+### `kind: account_lock` (one account's emergency lock)
+
+Body: `order_id`, `kind`, `decision_id`, `decision_revision`, `account_id`, `authority_attestation`. Same switch as `site_lockdown`: off unless `HALLINTO_LOCKDOWN_ORDERS_ENABLED: true` (404 on the route, 400 on the approval page). The fence is the account's own.
+
+Flask writes what "Keskeytä" on `/admin/governance/security` writes for an account: a security case of kind `account` in status `suspended` (event method `hallinto_order`, `source: hallinto_order`) and the account's `security_suspension`, through the shared `reconcile_case`. Sessions (`auth_epoch`), API tokens, MFA challenges and magic links of the account end. The board can review and restore the account on that page with the hearing and renewed credentials it already requires, so only a suspension is ordered, never a restore. A suspended account is `stale_state` (409). Olivia's account, god and board-team accounts are `unsupported_scope` (422): they keep their own Flask safeguards. An unknown account is `denied` (403, existence concealed) and nobody can lock their own account.
+
+Receipt: `status: confirmed` with `effective: {account_locked: true}`, read after the write. Hallinto confirms only when it is true.
+
 Both kinds return the usual `pending`, `reconciliation_required` and `rejected` receipts, replayed by key.
 
 
