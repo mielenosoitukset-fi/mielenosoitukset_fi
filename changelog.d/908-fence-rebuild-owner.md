@@ -1,0 +1,1 @@
+- Admin analytics rebuild: a rebuild that lost its lease to a newer rebuild now stops before writing or pruning counters, so a stalled worker cannot overwrite newer counts (#908, part 1).
