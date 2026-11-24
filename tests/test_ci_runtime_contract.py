@@ -92,7 +92,14 @@ def test_shared_ci_mongo_database_names_match_runner_grants(monkeypatch):
 
 
 def test_shards_follow_recorded_durations_and_cover_every_file(tmp_path):
-    from scripts.ci_test_shard import shard_files
+    import importlib.util
+
+    # Loaded by path like the test above: another test in the same worker can
+    # leave a different ``scripts`` package in sys.modules.
+    spec = importlib.util.spec_from_file_location("ci_test_shard", Path(__file__).resolve().parents[1] / "scripts/ci_test_shard.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    shard_files = module.shard_files
 
     (tmp_path / "tests").mkdir()
     (tmp_path / "scripts").mkdir()
