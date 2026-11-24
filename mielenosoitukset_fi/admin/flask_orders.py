@@ -133,6 +133,30 @@ def apply_order(db, *, integration: str, actor_id, idempotency_key: str, request
         return cg._outcome_for(current) if current else cg._error("unavailable")
 
 
+def read_order_status(db, *, integration: str, order_id: str) -> cg.Outcome:
+    """What Flask did with one order, for Hallinto's automatic check. Writes nothing.
+
+    Unlike the receipt route this needs no human proof: it is read-only, looks
+    the order up by its id alone and shows only the order's own state, so
+    Hallinto can settle an order whose answer it lost without asking the owner
+    to approve a resend. A lease that ran out is reported as it would be on a
+    replay, but is not recorded here.
+    """
+    if not isinstance(order_id, str) or not cg.IDEMPOTENCY_KEY.match(order_id):
+        return cg._error("unknown_operation")
+    operation = db[cg.OPERATIONS].find_one(
+        {"integration": integration, "idempotency_key": order_id,
+         "intent.kind": {"$in": sorted(KIND_FIELDS)}},
+        sort=[("created_at", -1)])
+    if operation is None:
+        return cg._error("unknown_operation")
+    if operation["status"] == "rejected":
+        return cg.Outcome(200, operation["receipt"])
+    if operation["status"] == "pending" and operation["updated_at"] <= utcnow() - cg.APPLY_LEASE:
+        operation = {**operation, "status": "reconciliation_required"}
+    return cg._outcome_for(operation)
+
+
 def _board_organization(db):
     from mielenosoitukset_fi.utils.system_teams import team_ids
 
