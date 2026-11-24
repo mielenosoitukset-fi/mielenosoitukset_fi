@@ -1,0 +1,1 @@
+- Hallinto can now order the emergency lock of a single account. Flask suspends the account and ends its sessions, API keys and login links; the board can still review and restore it on the security page.

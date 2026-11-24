@@ -7,6 +7,8 @@ from email.mime.text import MIMEText
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from mielenosoitukset_fi.database_manager import DatabaseManager
 from .EmailJob import EmailJob
+from .polish import polish_html
+from .render import render_email
 import time
 import uuid
 import pymongo
@@ -418,7 +420,9 @@ class EmailSender:
             if email_job.body:
                 alt_part.attach(MIMEText(email_job.body, "plain"))
             if email_job.html:
-                alt_part.attach(MIMEText(email_job.html, "html"))
+                # Jobs queued as finished HTML (e.g. by the Go API) get the shared
+                # layout here; already-wrapped mail passes through unchanged.
+                alt_part.attach(MIMEText(polish_html(email_job.html), "html"))
 
             # Attachments
             if has_attachments:
@@ -461,15 +465,14 @@ class EmailSender:
     def queue_email(
         self, template_name, subject, recipients, context,
         sender=None, attachments=None, extra_headers=None, plain_body=None,
-        require_acknowledged=False,
+        require_acknowledged=False, track=None,
     ):
         """Queue an email; strict callers require an insert receipt without retries."""
-        template = self._env.get_template(template_name)
-        html_body = template.render(context)
+        html_body, text_body = render_email(self._env, getattr(self, "_db", None), template_name, context, track)
         email_job = EmailJob(
             subject=subject,
             recipients=recipients,
-            body=plain_body if plain_body is not None else html_body,
+            body=plain_body if plain_body is not None else text_body,
             html=html_body,
             sender=sender,
             attachments=attachments,
@@ -499,16 +502,16 @@ class EmailSender:
 
     def send_now(
         self, template_name, subject, recipients, context,
-        sender=None, attachments=None, extra_headers=None, raise_on_error=False
+        sender=None, attachments=None, extra_headers=None, raise_on_error=False,
+        track=None,
     ):
         """Send email immediately without queueing"""
-        template = self._env.get_template(template_name)
-        body = template.render(context)
+        html_body, text_body = render_email(self._env, getattr(self, "_db", None), template_name, context, track)
         email_job = EmailJob(
             subject=subject,
             recipients=recipients,
-            body=body,
-            html=body,
+            body=text_body,
+            html=html_body,
             sender=sender,
             attachments=attachments,
             extra_headers=extra_headers,

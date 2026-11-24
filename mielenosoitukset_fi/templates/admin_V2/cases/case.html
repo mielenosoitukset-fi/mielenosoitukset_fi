@@ -631,7 +631,7 @@
             <div class="log-entry">
               <div class="log-entry-header">
                 <strong>{{ notified.username or _('Tuntematon käyttäjä') }}</strong>
-                <span class="muted">{{ _('Sähköposti ja ilmoitus') if notified.emailed else _('Vain ilmoitus') }}</span>
+                <span class="muted">{{ _('Sähköposti ja ilmoitus') if notified.emailed else _('Vain ilmoitus') }}{% if notified.emailed %} · {% if notified.opened and notified.opened.first_opened_at %}{{ _('Luettu') }} {{ notified.opened.first_opened_at|datetimeformat("%d.%m.%Y %H:%M") }}{% else %}{{ _('Ei merkittyä lukua') }}{% endif %}{% endif %}</span>
               </div>
             </div>
             {% endfor %}

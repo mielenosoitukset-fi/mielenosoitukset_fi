@@ -241,7 +241,7 @@ def build_blueprint(db) -> Blueprint:
     def apply_order():
         key = request.headers.get("Idempotency-Key", "")
         body = request.get_json(silent=True)
-        if (isinstance(body, dict) and body.get("kind") == flask_orders.KIND_SITE_LOCKDOWN
+        if (isinstance(body, dict) and body.get("kind") in LOCKDOWN_KINDS
                 and not _lockdown_orders_on()):
             return "", 404
         digest = flask_orders.order_digest(body)
@@ -601,6 +601,7 @@ ORDER_APPROVAL_FIELDS = {
     flask_orders.KIND_BOARD_ROSTER: {"order_id", "kind", "decision_id", "decision_revision", "roster"},
     flask_orders.KIND_SITE_LOCKDOWN: {"order_id", "kind", "decision_id", "decision_revision", "action"},
     flask_orders.KIND_ACCESS_REVIEW: {"order_id", "kind", "decision_id", "decision_revision", "roster"},
+    flask_orders.KIND_ACCOUNT_LOCK: {"order_id", "kind", "decision_id", "decision_revision", "account_id"},
 }
 ELEVATED_APPROVAL_FIELDS = {"account_id", "template", "decision_id", "decision_revision", "valid_until"}
 BUNDLE_APPROVAL_FIELDS = {"account_id", "template", "decision_id", "decision_revision", "valid_until"}
@@ -610,6 +611,10 @@ INVITATION_APPROVAL_FIELDS = {"invitation_id", "case_id", "decision_id", "decisi
 RECOVERY_APPROVAL_FIELDS = {"request_id", "case_id", "decision_id", "decision_revision", "need",
                             "organization_id", "person_email", "person_role"}
 STATE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
+
+
+# The emergency orders (site lockdown, one-account lock) share one switch.
+LOCKDOWN_KINDS = {flask_orders.KIND_SITE_LOCKDOWN, flask_orders.KIND_ACCOUNT_LOCK}
 
 
 def _lockdown_orders_on() -> bool:
@@ -626,7 +631,7 @@ def _decode_fields(raw: str):
     if not isinstance(fields, dict):
         return None
     if "order_id" in fields:
-        if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN and not _lockdown_orders_on():
+        if fields.get("kind") in LOCKDOWN_KINDS and not _lockdown_orders_on():
             return None
         return fields if set(fields) == ORDER_APPROVAL_FIELDS.get(fields.get("kind")) else None
     if org_admin_grants.is_org_admin_fields(fields):
@@ -854,6 +859,7 @@ def build_approval_blueprint(db) -> Blueprint:
         page_title = ("Vahvista superadmin- tai god-nimitys" if is_elevated else "Vahvista kutsun lähetys" if is_invite else "Vahvista pääsyn palautus" if is_recovery else "Vahvista roolin poisto" if fields.get("kind") == flask_orders.KIND_ROLE_REMOVAL
                       else "Vahvista hätäsulku" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN and fields.get("action") == "close"
                       else "Vahvista sivuston avaaminen" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN
+                      else "Vahvista tilin hätälukitus" if fields.get("kind") == flask_orders.KIND_ACCOUNT_LOCK
                       else "Vahvista ylläpitotilien tarkistus" if fields.get("kind") == flask_orders.KIND_ACCESS_REVIEW
                       else "Vahvista hallitustiimin päivitys" if is_order
                       else {"grant": "Vahvista hyväksymisoikeuden myöntäminen", "refusal": "Vahvista hyväksymisoikeuspyynnön hylkääminen",

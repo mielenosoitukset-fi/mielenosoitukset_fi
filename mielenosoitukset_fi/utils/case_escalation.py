@@ -216,6 +216,7 @@ def notify_level(db, case_doc, level, users, *, reason="", from_user=""):
                         "reason": reason, "from_user": from_user or "Moderaattori",
                         "case_link": f"{SITE_URL}/admin/case/{case_doc['_id']}/",
                     },
+                    track={"case_id": case_doc["_id"], "user_id": doc["_id"]},
                 )
             except Exception:
                 logger.exception("Could not queue escalation mail for case %s", case_doc.get("_id"))
