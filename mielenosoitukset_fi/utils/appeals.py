@@ -282,3 +282,52 @@ def record_step(db, payload: dict, by: str, now=None) -> tuple[dict, bool]:
     if clean:
         queue_decision(db, row, text, pdf)
     return view(row, db), True
+
+
+DEFAULT_RETENTION_DAYS = 1095  # 3 years: the general limitation period for claims
+
+
+def retention_days() -> int:
+    """APPEAL_RETENTION_DAYS (default 1095). 0 or less keeps everything."""
+    from mielenosoitukset_fi.utils.access_review import _config
+
+    try:
+        return int(_config("APPEAL_RETENTION_DAYS") or DEFAULT_RETENTION_DAYS)
+    except (TypeError, ValueError):
+        return DEFAULT_RETENTION_DAYS
+
+
+def purge_expired(db, now=None, days: Optional[int] = None, dry_run: bool = False) -> dict:
+    """Remove the complainant's data from decided or withdrawn appeals.
+
+    After ``days`` from the päätös the name, address, own text, subject title and
+    the status link are deleted. The päätös and the case record stay: they hold no
+    complainant data. An appeal that is still open is never touched.
+    """
+    from datetime import timedelta
+
+    days = retention_days() if days is None else days
+    if days <= 0:
+        return {"enabled": False, "purged": 0}
+    now = now or utcnow()
+    query = {"status": {"$in": ["decided", "withdrawn"]}, "purged_at": {"$exists": False},
+             "$or": [{"decided_at": {"$lt": now - timedelta(days=days)}},
+                     {"decided_at": {"$exists": False}, "updated_at": {"$lt": now - timedelta(days=days)}}]}
+    if dry_run:
+        return {"enabled": True, "purged": db[COLLECTION].count_documents(query), "dry_run": True}
+    result = db[COLLECTION].update_many(query, {
+        "$unset": {"complainant": "", "text": "", "token_hash": "", "subject.title": ""},
+        "$set": {"purged_at": now}})
+    return {"enabled": True, "purged": result.modified_count}
+
+
+def purge_job(db=None) -> dict:
+    """Daily job: apply the retention period."""
+    from mielenosoitukset_fi.database_manager import DatabaseManager
+    from mielenosoitukset_fi.utils.logger import logger
+
+    db = db if db is not None else DatabaseManager().get_instance().get_db()
+    result = purge_expired(db)
+    if result.get("purged"):
+        logger.info("Appeal retention: purged %s", result["purged"])
+    return result

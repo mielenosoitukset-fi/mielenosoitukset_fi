@@ -118,3 +118,26 @@ def test_status_link_shows_the_stage_only(clean):
     assert "valittaja" not in str(seen).lower() and "Vilma" not in str(seen)
     assert appeals.public_status(clean, "x" * 30) is None and appeals.public_status(clean, "") is None
     assert "token_hash" not in appeals.view(row)
+
+
+def test_retention_removes_the_complainant_after_three_years_and_keeps_the_decision(clean):
+    from datetime import timedelta
+    from mielenosoitukset_fi.utils.time_utils import utcnow
+
+    opened = appeals.create(clean, NEW, "hallinto-sub")
+    decided = appeals.create(clean, NEW, "hallinto-sub")
+    fresh = appeals.create(clean, NEW, "hallinto-sub")
+    long_ago = utcnow() - timedelta(days=1100)
+    clean[appeals.COLLECTION].update_one({"_id": decided["_id"]}, {"$set": {
+        "status": "decided", "decided_at": long_ago, "letter": {"decision_ref": "MOSO/002/RAT/2026/001"}, "letter_text": "PÄÄTÖS"}})
+    clean[appeals.COLLECTION].update_one({"_id": fresh["_id"]}, {"$set": {"status": "decided", "decided_at": utcnow()}})
+    clean[appeals.COLLECTION].update_one({"_id": opened["_id"]}, {"$set": {"created_at": long_ago, "updated_at": long_ago}})
+    assert appeals.purge_expired(clean, dry_run=True)["purged"] == 1
+    assert appeals.purge_expired(clean)["purged"] == 1
+    assert appeals.purge_expired(clean)["purged"] == 0
+    gone = clean[appeals.COLLECTION].find_one({"_id": decided["_id"]})
+    assert not {"complainant", "text", "token_hash"} & set(gone) and gone["letter"]["decision_ref"] and gone["letter_text"]
+    assert "title" not in gone["subject"] and gone["purged_at"]
+    assert clean[appeals.COLLECTION].find_one({"_id": opened["_id"]})["complainant"]
+    assert clean[appeals.COLLECTION].find_one({"_id": fresh["_id"]})["complainant"]
+    assert appeals.purge_expired(clean, days=0)["enabled"] is False

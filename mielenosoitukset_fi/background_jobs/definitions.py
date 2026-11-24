@@ -37,6 +37,7 @@ from mielenosoitukset_fi.scripts.purge_fundraising_reminders import main as purg
 from mielenosoitukset_fi.scripts.purge_campaign_volunteers import main as purge_campaign_volunteers
 from mielenosoitukset_fi.scripts.purge_suggestion_ips import main as purge_suggestion_ips
 from mielenosoitukset_fi.scripts.purge_personal_logs import main as purge_personal_logs
+from mielenosoitukset_fi.utils.appeals import purge_job as purge_appeals
 from mielenosoitukset_fi.scripts.purge_erased_accounts import main as purge_erased_accounts
 from mielenosoitukset_fi.scripts.scrub_admin_log_secrets import main as scrub_admin_log_secrets
 from mielenosoitukset_fi.scripts.backfill_org_history import main as backfill_org_history
@@ -274,6 +275,13 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         name="Personal log retention",
         description="Deletes login logs and malicious reports older than 12 months (not for users with an open security case), removes form snapshots from submission errors after 30 days and deletes them after 90, and removes IP and User-Agent from reminder subscriptions after 90 days. Does nothing unless PERSONAL_LOG_RETENTION_ENABLED is set.",
         func=purge_personal_logs,
+        default_trigger=_interval(days=1),
+    ),
+    JobDefinition(
+        key="purge_appeals",
+        name="Appeal retention",
+        description="Deletes the complainant's name, address, own text and status link from decided or withdrawn valitukset 3 years after the päätös (APPEAL_RETENTION_DAYS, default 1095). Keeps the päätös and the case record. Never touches an open appeal.",
+        func=purge_appeals,
         default_trigger=_interval(days=1),
     ),
     JobDefinition(
