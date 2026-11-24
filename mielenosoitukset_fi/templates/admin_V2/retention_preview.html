@@ -9,7 +9,8 @@
     _('Säilytysaikojen esikatselu'),
     _('Näyttää, montako riviä säilytysaikatyö poistaisi tai siivoaisi nyt. Tämä sivu ei muuta mitään.'),
     _('Järjestelmä'),
-    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Taustatyöt'), url_for('admin.background_jobs')), (_('Säilytysaikojen esikatselu'), none)]
+    [(_('Hallintapaneeli'), url_for('admin.admin_dashboard')), (_('Taustatyöt'), url_for('admin.background_jobs')), (_('Säilytysaikojen esikatselu'), none)],
+    back_url=url_for('admin.background_jobs')
   ) %}{% endcall %}
 
   <div class="admin-panel-inset admin-jobs__notice" role="status">

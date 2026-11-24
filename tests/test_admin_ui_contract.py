@@ -1085,7 +1085,9 @@ def test_every_full_admin_v2_page_uses_canonical_hero_macro():
     assert Path('mielenosoitukset_fi/templates/admin_V2/kampanja/signups.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/kampanja/signup_delete.html') in pages
     assert Path('mielenosoitukset_fi/templates/admin_V2/guides.html') in pages  # Ohjeet: video guides
-    assert len(pages) == 58
+    # The retention preview (read-only dry run of the log retention job) adds one more.
+    assert Path('mielenosoitukset_fi/templates/admin_V2/retention_preview.html') in pages
+    assert len(pages) == 59
     for locale in ("en", "fi", "sv"):
         catalog = Path(
             f"mielenosoitukset_fi/translations/{locale}/LC_MESSAGES/messages.po"
