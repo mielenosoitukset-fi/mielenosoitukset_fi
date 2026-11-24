@@ -105,3 +105,16 @@ def test_original_deciders_and_pdf(clean):
             appeals.record_step(clean, {"id": str(other["_id"]), "status": "decided", "letter": LETTER, "text": TEXT, "pdf": "bm90IGEgcGRm"}, "s")
     finally:
         clean.moderation_reviews.delete_many({"demo_id": demo})
+
+
+def test_status_link_shows_the_stage_only(clean):
+    row = appeals.create(clean, NEW, "hallinto-sub")
+    mail = clean.email_queue.find_one({"_id": f"appeal-received:{row['_id']}"})
+    import re
+    token = re.search(r"/valitus/tila/([A-Za-z0-9_-]+)", mail["body"]).group(1)
+    assert appeals.hash_token(token) == row["token_hash"] and token not in str(row)
+    seen = appeals.public_status(clean, token)
+    assert seen["stage"] == "received" and seen["decision_ref"] == ""
+    assert "valittaja" not in str(seen).lower() and "Vilma" not in str(seen)
+    assert appeals.public_status(clean, "x" * 30) is None and appeals.public_status(clean, "") is None
+    assert "token_hash" not in appeals.view(row)

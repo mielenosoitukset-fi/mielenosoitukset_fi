@@ -49,3 +49,16 @@ def test_public_form_needs_ack_and_ignores_honeypot_and_bad_token(app, client, d
     token = _token(client)
     client.post("/valitus", data=_payload(token, email="not-an-email"))
     assert db.appeals.count_documents({}) == 0
+
+
+def test_status_page_shows_stage_without_names_and_unknown_is_404(app, client, db, monkeypatch):
+    _setup(app, db, monkeypatch)
+    client.post("/valitus", data=_payload(_token(client)))
+    row = db.appeals.find_one()
+    mail = db.email_queue.find_one({"_id": f"appeal-received:{row['_id']}"})
+    token = re.search(r"/valitus/tila/([A-Za-z0-9_-]+)", mail["body"]).group(1)
+    page = client.get(f"/valitus/tila/{token}")
+    assert page.status_code == 200
+    assert page.headers["Referrer-Policy"] == "no-referrer" and "no-store" in page.headers["Cache-Control"]
+    assert b"Vastaanotettu" in page.data and b"Testi Ihminen" not in page.data
+    assert client.get("/valitus/tila/" + "a" * 32).status_code == 404

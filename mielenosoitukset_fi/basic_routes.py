@@ -4365,6 +4365,23 @@ def init_routes(app):
         return response
 
 
+    @app.route("/valitus/tila/<token>")
+    @_optional_limit(app.config.get("APPEAL_STATUS_LIMIT", "30 per 10 minutes"))
+    def appeal_status(token):
+        """The complainant's own link: the stage of the valitus, nothing else."""
+        from flask import make_response
+        from mielenosoitukset_fi.utils import appeals as appeals_store
+
+        status = appeals_store.public_status(mongo, token)
+        if status is None:
+            abort(404)
+        response = make_response(render_template("appeal_status.html", status=status))
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        return response
+
+
     DEMOS_PER_PAGE = 6  # adjust how many demos per page
 
     @app.route("/organization/<org_id>")

@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
 import re
+import secrets
 from datetime import timezone
 from typing import Optional
 
@@ -154,14 +156,26 @@ def _greeting(row: dict) -> str:
     return f"Hei {name}," if name else "Hei,"
 
 
-def queue_confirmation(db, row: dict) -> None:
+def hash_token(token: str) -> str:
+    return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+
+
+def status_link(token: str) -> str:
+    from mielenosoitukset_fi.utils.access_review import _config
+
+    base = (_config("APPEAL_STATUS_BASE") or "https://mielenosoitukset.fi").rstrip("/")
+    return f"{base}/valitus/tila/{token}"
+
+
+def queue_confirmation(db, row: dict, token: str = "") -> None:
     email = (row.get("complainant") or {}).get("email")
     if not email:
         return
     what = "valituksesi" if row.get("kind") == "valitus" else "oikaisuvaatimuksesi"
+    link = f"Näet käsittelyn vaiheen tästä linkistä: {status_link(token)}\nLinkki on henkilökohtainen, älä jaa sitä.\n\n" if token else ""
     body = (f"{_greeting(row)}\n\nOlemme ottaneet {what} käsittelyyn. Pyrimme antamaan kirjallisen päätöksen "
             "30 vuorokauden kuluessa. Päätös lähetetään tähän sähköpostiosoitteeseen.\n\n"
-            "Jos haluat lisätä jotain, vastaa tähän viestiin.\n\nMielenosoitukset.fi\n")
+            f"{link}Jos haluat lisätä jotain, vastaa tähän viestiin.\n\nMielenosoitukset.fi\n")
     _queue(db, f"appeal-received:{row['_id']}", "Valituksesi on otettu käsittelyyn", email, body)
 
 
@@ -178,9 +192,40 @@ def queue_decision(db, row: dict, text: str, pdf: bytes = b"") -> None:
 
 def create(db, payload: dict, by: str, now=None, source: str = "hallinto-manual") -> dict:
     row = new_row(payload, by, now, source)
+    token = secrets.token_urlsafe(24)
+    row["token_hash"] = hash_token(token)
     row["_id"] = db[COLLECTION].insert_one(row).inserted_id
-    queue_confirmation(db, row)
+    queue_confirmation(db, row, token)
     return row
+
+
+STAGES = {
+    "received": "Vastaanotettu",
+    "in_review": "Käsittelyssä",
+    "decided": "Päätös tehty",
+    "withdrawn": "Peruttu",
+}
+
+
+def public_status(db, token: str) -> Optional[dict]:
+    """What the complainant's own link shows: the stage, the dates and the päätös
+    number. Never a name, the reasoning or who handled it."""
+    if not isinstance(token, str) or not 20 <= len(token) <= 80:
+        return None
+    row = db[COLLECTION].find_one({"token_hash": hash_token(token)})
+    if not row:
+        return None
+    letter = row.get("letter") or {}
+    decided = row.get("status") == "decided"
+    return {
+        "kind": row.get("kind"),
+        "stage": row.get("status"),
+        "stage_label": STAGES.get(row.get("status"), "Vastaanotettu"),
+        "title": (row.get("subject") or {}).get("title", ""),
+        "received_on": row["created_at"].replace(tzinfo=timezone.utc) if row.get("created_at") else None,
+        "decision_ref": letter.get("decision_ref", "") if decided else "",
+        "decided_on": letter.get("decided_on", "") if decided else "",
+    }
 
 
 def list_rows(db, limit: int = 200) -> list[dict]:

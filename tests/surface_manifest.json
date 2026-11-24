@@ -307,7 +307,7 @@
       "sha256": "cd9c57924f5816feb8357cbf18c57d329adfbc411002a38a2ca96cdbcbc525b0"
     },
     "mielenosoitukset_fi/basic_routes.py": {
-      "count": 59,
+      "count": 60,
       "coverage": [
         "integration",
         "e2e-public",
@@ -315,7 +315,7 @@
         "tests/test_public_session_summary.py",
         "tests/test_appeal_form.py"
       ],
-      "sha256": "7208e1385896e704a49798e616bbb9ea4d42a9ef0cc17ebe3c2bf79f5c77d43a"
+      "sha256": "a600fb267d56427ac133ac56a6453c591a52d1d4861bcd96561ded730cf44792"
     },
     "mielenosoitukset_fi/developer_bp.py": {
       "count": 9,
