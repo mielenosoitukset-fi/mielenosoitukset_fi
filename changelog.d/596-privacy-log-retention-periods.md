@@ -1,0 +1,1 @@
+- The privacy notice now lists the retention periods for login logs, abuse reports, form error logs and reminder IP data (#596).
