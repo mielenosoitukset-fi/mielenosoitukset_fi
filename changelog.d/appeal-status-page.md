@@ -1,0 +1,1 @@
+- Valituksen tekijä saa vahvistusviestissä henkilökohtaisen linkin, josta näkee valituksen vaiheen (vastaanotettu, käsittelyssä, päätös tehty) ja päätöksen numeron. Sivulla ei näy nimiä eikä perusteluja.

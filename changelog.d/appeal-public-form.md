@@ -1,0 +1,1 @@
+- Uusi lomake /valitus: valituksen tai oikaisuvaatimuksen voi jättää suoraan sivustolla. Lomake kertoo, että hylätyn mielenosoitusilmoituksen uudelleenarviointi pyydetään ensin, ja vahvistus lähtee sähköpostiin.

@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('Valituksen tila') }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/v2/gen.css', v='20260927-mobile-flow-1') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/form.css') }}" />
+{% endblock %}
+
+{% block robots %}<meta name="robots" content="noindex, nofollow" />{% endblock %}
+
+{% block content %}
+<div class="container-main-content">
+  <section class="section-card form-card">
+    <h1>{{ _('Valituksesi tila') }}</h1>
+    <p><strong>{{ status.stage_label }}</strong></p>
+    {% if status.title %}<p>{{ status.title }}</p>{% endif %}
+    {% if status.received_on %}<p>{{ _('Vastaanotettu') }}: {{ status.received_on.strftime('%d.%m.%Y') }}</p>{% endif %}
+    {% if status.stage == 'received' %}
+      <p>{{ _('Olemme saaneet valituksesi. Käsittelemme sen ja lähetämme kirjallisen päätöksen sähköpostiisi. Pyrimme siihen 30 vuorokauden kuluessa.') }}</p>
+    {% elif status.stage == 'in_review' %}
+      <p>{{ _('Valituksesi on käsittelyssä. Lähetämme päätöksen sähköpostiisi, kun se on valmis.') }}</p>
+    {% elif status.stage == 'decided' %}
+      <p>{{ _('Päätös on tehty ja lähetetty sähköpostiisi.') }}</p>
+      {% if status.decision_ref %}<p>{{ _('Päätöksen numero') }}: {{ status.decision_ref }}</p>{% endif %}
+      {% if status.decided_on %}<p>{{ _('Päätöksen päivä') }}: {{ status.decided_on }}</p>{% endif %}
+      <p>{{ _('Jos et löydä viestiä, tarkista roskapostikansio tai vastaa vahvistusviestiin.') }}</p>
+    {% endif %}
+    <p>{{ _('Kysyttävää? Vastaa saamaasi sähköpostiin tai kirjoita osoitteeseen') }} <a href="mailto:hallinto@mielenosoitukset.fi">hallinto@mielenosoitukset.fi</a>.</p>
+  </section>
+</div>
+{% endblock %}

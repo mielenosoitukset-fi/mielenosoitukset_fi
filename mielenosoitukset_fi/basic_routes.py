@@ -4299,6 +4299,89 @@ def init_routes(app):
         )
 
 
+    @app.route("/valitus", methods=["GET", "POST"])
+    @_optional_limit(
+        app.config.get("APPEAL_PER_IP_LIMIT", "3 per 10 minutes; 10 per day"),
+        methods=["POST"],
+    )
+    @_optional_shared_limit(
+        app.config.get("APPEAL_GLOBAL_LIMIT", "25 per 10 minutes; 100 per day"),
+        scope="public-appeal-ingress",
+        key_func=lambda: "global",
+        methods=["POST"],
+    )
+    def appeal_form():
+        """Public valitus / oikaisuvaatimus form. Hallinto decides it (docs/appeals.md)."""
+        from flask import make_response
+        from mielenosoitukset_fi.utils import appeals as appeals_store
+
+        def _back(category, message):
+            flash_message(message, category)
+            response = redirect(url_for("appeal_form"))
+            response.headers["Cache-Control"] = "no-store"
+            return response
+
+        if request.method == "POST":
+            request.max_content_length = 32768
+            if (request.content_length or 0) > 32768:
+                abort(413)
+            supplied_token = request.form.get("csrf_token", "")
+            entry = _take_contact_form_token(supplied_token)
+            expected = entry.get("token", "")
+            issued = entry.get("issued_at", 0)
+            age = int(time.time()) - issued if isinstance(issued, int) else -1
+            if not (
+                expected and supplied_token and hmac.compare_digest(expected, supplied_token)
+                and app.config.get("CONTACT_MIN_FORM_SECONDS", 2) <= age <= 7200 and _consume_contact_form_token(supplied_token)
+            ):
+                abort(400)
+            if request.form.get("website", "").strip():
+                return _back("success", "Valitus vastaanotettu.")
+            if request.form.get("ack_reconsideration") != "yes":
+                return _back("error", "Vahvista, että olet lukenut ohjeen ennen valituksen lähettämistä.")
+            kind = request.form.get("kind", "")
+            try:
+                appeals_store.create(
+                    mongo,
+                    {
+                        "kind": kind,
+                        "title": request.form.get("title", ""),
+                        "reference": request.form.get("reference", ""),
+                        "text": request.form.get("text", "").strip(),
+                        "name": request.form.get("name", "").strip(),
+                        "email": request.form.get("email", ""),
+                    },
+                    by="public",
+                    source="public-form",
+                )
+            except appeals_store.AppealError:
+                return _back("error", "Tarkista lomakkeen tiedot ja yritä uudelleen.")
+            return _back(
+                "success",
+                "Valitus vastaanotettu. Lähetimme vahvistuksen sähköpostiisi. Päätös tulee samaan osoitteeseen.",
+            )
+        response = make_response(render_template("appeal_form.html", csrf_token=_new_contact_form_token()))
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+
+    @app.route("/valitus/tila/<token>")
+    @_optional_limit(app.config.get("APPEAL_STATUS_LIMIT", "30 per 10 minutes"))
+    def appeal_status(token):
+        """The complainant's own link: the stage of the valitus, nothing else."""
+        from flask import make_response
+        from mielenosoitukset_fi.utils import appeals as appeals_store
+
+        status = appeals_store.public_status(mongo, token)
+        if status is None:
+            abort(404)
+        response = make_response(render_template("appeal_status.html", status=status))
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        return response
+
+
     DEMOS_PER_PAGE = 6  # adjust how many demos per page
 
     @app.route("/organization/<org_id>")

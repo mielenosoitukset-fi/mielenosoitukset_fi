@@ -989,6 +989,49 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
             _mail_org_request_status(db, row, status)
         return jsonify(item=_org_request_view(row))
 
+    @bp.post("/appeals/list")
+    def appeals_list():
+        """Valitukset, newest first. The complainant's name and address stay here:
+        Hallinto decides, and this site mails the päätös."""
+        from mielenosoitukset_fi.utils import appeals
+
+        payload, error = session_payload()
+        if error:
+            return error
+        return jsonify(items=[appeals.view(row, db) for row in appeals.list_rows(db)])
+
+    @bp.post("/appeals/create")
+    def appeals_create():
+        """A valitus typed in by a Hallinto member, for one that came by mail to
+        hallinto@. It is stored like one from the web form; the complainant gets
+        the same confirmation mail. Hallinto decides who may enter them."""
+        from mielenosoitukset_fi.utils import appeals
+
+        payload, error = session_payload(32 * 1024)
+        if error:
+            return error
+        try:
+            row = appeals.create(db, payload, payload["sub"])
+        except appeals.AppealError as exc:
+            return jsonify(error=exc.code), exc.status
+        return jsonify(item=appeals.view(row, db)), 201
+
+    @bp.post("/appeals/update")
+    def appeals_update():
+        """Record Hallinto's step: its case, or the päätös. The päätös is the
+        closed set of fields in utils/appeals.py; it names a body, never a person.
+        A repeat changes nothing and sends no second mail."""
+        from mielenosoitukset_fi.utils import appeals
+
+        payload, error = session_payload(64 * 1024)
+        if error:
+            return error
+        try:
+            item, _ = appeals.record_step(db, payload, payload["sub"])
+        except appeals.AppealError as exc:
+            return jsonify(error=exc.code), exc.status
+        return jsonify(item=item)
+
     @bp.post("/organization-requests/create-organization")
     def organization_requests_create_organization():
         """Carry out an approved request (slice O4): create the organization, copy

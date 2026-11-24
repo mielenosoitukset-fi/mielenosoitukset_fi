@@ -513,6 +513,43 @@ def test_organization_request_status_mail_once(owner, db, monkeypatch):
         db.organization_requests.delete_one({"_id": rid})
 
 
+def _appeals(owner_client, claims, path, body, auth=(CLIENT, SECRET)):
+    return owner_client.post(PREFIX + "/appeals/" + path, base_url=ORIGIN, auth=auth,
+                             json={"sub": claims["sub"], "sid": claims["sid"], **body})
+
+
+def test_appeals_are_typed_in_listed_without_the_address_and_answered_once(owner, db):
+    app, subject = owner
+    browser = app.test_client()
+    _login(browser)
+    claims = _identity(browser)
+    body = {"kind": "valitus", "title": "Mielenosoitus Tampereella", "text": "Päätös oli virheellinen.",
+            "email": "Valittaja@Example.test", "name": "Vilma"}
+    letter = {"body": "Operatiivinen tiimi", "decision_ref": "MOSO/002/RAT/2026/003", "case_ref": "MOSO/002/VLT/2026/001",
+              "decided_on": "2026-11-24", "subject": "Mielenosoitus Tampereella", "outcome": "rejected",
+              "reasoning": "Ilmoitus ei täyttänyt julkaisuperiaatteita.", "final": False}
+    created = None
+    try:
+        assert _appeals(app.test_client(), claims, "create", body, auth=("x", "y")).status_code == 401
+        assert _appeals(app.test_client(), claims, "create", {**body, "email": "nope"}).status_code == 400
+        response = _appeals(app.test_client(), claims, "create", body)
+        assert response.status_code == 201
+        created = ObjectId(response.json["item"]["id"])
+        assert "valittaja" not in str(response.json).lower()
+        listed = _appeals(app.test_client(), claims, "list", {}).json["items"]
+        assert any(i["id"] == str(created) for i in listed) and "valittaja" not in str(listed).lower()
+        step = {"id": str(created), "status": "decided", "case": "c1", "letter": letter,
+                "text": "PÄÄTÖS MOSO/002/RAT/2026/003"}
+        for _ in range(2):
+            assert _appeals(app.test_client(), claims, "update", step).status_code == 200
+        assert db.email_queue.count_documents({"_id": f"appeal-decision:{created}"}) == 1
+        assert db.email_queue.count_documents({"_id": f"appeal-received:{created}"}) == 1
+    finally:
+        if created:
+            db.appeals.delete_one({"_id": created})
+            db.email_queue.delete_many({"_id": {"$in": [f"appeal-decision:{created}", f"appeal-received:{created}"]}})
+
+
 def test_recovery_requests_stay_apart_from_account_requests(owner, db):
     from datetime import datetime, timezone
     app, subject = owner

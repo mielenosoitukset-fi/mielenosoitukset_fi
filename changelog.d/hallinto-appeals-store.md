@@ -1,0 +1,1 @@
+- Hallinto can now take in a valitus or oikaisuvaatimus that arrived by mail, and answer it with a päätös. The complainant's address stays here, gets a confirmation, and later receives the päätös, which names the deciding body and never a person. No public page changes yet.
