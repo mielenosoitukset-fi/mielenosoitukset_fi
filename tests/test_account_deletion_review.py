@@ -8,6 +8,7 @@ from mielenosoitukset_fi.utils.time_utils import utcnow
 from tests.test_flask_orders import (  # noqa: F401  (orders is a fixture)
     ORDER, _order, _send, orders,
 )
+from tests.test_hallinto_city_grant_api import api  # noqa: F401  (a fixture the orders fixture needs)
 
 ORDER2 = "hallinto-order-0000000000002"
 
