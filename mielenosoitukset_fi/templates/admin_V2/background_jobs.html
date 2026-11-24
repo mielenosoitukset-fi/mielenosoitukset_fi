@@ -13,6 +13,11 @@
       <a href="{{ url_for('admin.background_jobs') }}" class="admin-page-hero__action">
         <i class="fa-solid fa-rotate" aria-hidden="true"></i>{{ _('Päivitä') }}
       </a>
+      {% if current_user.global_admin %}
+      <a href="{{ url_for('admin.retention_preview') }}" class="admin-page-hero__action">
+        <i class="fa-solid fa-broom" aria-hidden="true"></i>{{ _('Säilytysaikojen esikatselu') }}
+      </a>
+      {% endif %}
     {% endcall %}
 
     {% if scheduler_disabled %}
