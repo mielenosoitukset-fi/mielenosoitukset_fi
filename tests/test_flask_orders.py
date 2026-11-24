@@ -86,6 +86,33 @@ def test_roster_sets_the_board_team_and_replays(orders):
     assert lookup.get_json() == receipt
 
 
+def test_order_status_is_readable_by_the_workload_alone(orders):
+    env = orders
+    app, client, db, seeded, person, team, roster_of = env[:7]
+    a, b = person("aino"), person("eero")
+    team(a)
+    status = f"/internal/hallinto/v1/orders/{ORDER}"
+    # Nothing known yet; and no workload, no answer.
+    assert client.get(status, headers=_headers(key=None)).status_code == 404
+    assert client.get(status).status_code == 403
+    body, digest = _order("board_roster", roster=_roster(a, b))
+    response, _ = _send(env, body, digest)
+    assert response.status_code == 200, response.get_json()
+    seen = client.get(status, headers=_headers(key=None))
+    assert seen.status_code == 200 and seen.get_json() == response.get_json()
+    # A lost answer: the operation is left pending past its lease. Reading it
+    # reports reconciliation_required and writes nothing.
+    from datetime import timedelta
+    from mielenosoitukset_fi.utils.time_utils import utcnow
+    db[city_grants.OPERATIONS].update_one(
+        {"idempotency_key": ORDER},
+        {"$set": {"status": "pending", "updated_at": utcnow() - timedelta(hours=1)}, "$unset": {"receipt": ""}})
+    stuck = client.get(status, headers=_headers(key=None))
+    assert stuck.status_code == 202 and stuck.get_json()["status"] == "reconciliation_required"
+    assert db[city_grants.OPERATIONS].find_one({"idempotency_key": ORDER})["status"] == "pending"
+    assert client.get("/internal/hallinto/v1/orders/short", headers=_headers(key=None)).status_code == 404
+
+
 def test_roster_removes_members_who_are_not_listed(orders):
     env = orders
     app, client, db, seeded, person, team, roster_of = env[:7]

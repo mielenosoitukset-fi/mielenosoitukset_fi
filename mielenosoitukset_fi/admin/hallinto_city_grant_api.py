@@ -257,6 +257,15 @@ def build_blueprint(db) -> Blueprint:
             db, integration=INTEGRATION, actor_id=actor_id, idempotency_key=key, request=body,
         ))
 
+    @bp.get("/orders/<order_id>")
+    def read_order_status(order_id):
+        """State of one order, so Hallinto can settle one whose answer it lost.
+
+        Read-only. The mTLS workload identity is the only check, as for the
+        duty-shift feed: nothing here changes anything.
+        """
+        return _reply(flask_orders.read_order_status(db, integration=INTEGRATION, order_id=order_id))
+
     @bp.get("/duty-shifts")
     def read_duty_shifts():
         """Who is on duty when: names, times and state, for Hallinto's Vuorot page.
