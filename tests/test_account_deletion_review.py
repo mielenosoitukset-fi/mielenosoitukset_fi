@@ -15,7 +15,7 @@ ORDER2 = "hallinto-order-0000000000002"
 
 class _Actor:
     def __init__(self, uid, username="admin"):
-        self._id, self.username = uid, username
+        self._id, self.username, self.role = uid, username, "admin"
 
 
 def _closed(env, name="vieras", **fields):
