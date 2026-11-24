@@ -306,14 +306,15 @@
       "sha256": "cd9c57924f5816feb8357cbf18c57d329adfbc411002a38a2ca96cdbcbc525b0"
     },
     "mielenosoitukset_fi/basic_routes.py": {
-      "count": 58,
+      "count": 59,
       "coverage": [
         "integration",
         "e2e-public",
         "tests/test_fundraising_page.py",
-        "tests/test_public_session_summary.py"
+        "tests/test_public_session_summary.py",
+        "tests/test_appeal_form.py"
       ],
-      "sha256": "f202d922ee0328300072b744b1f6a2ef2b6ca2cdf2f3f7e9d345ffabda74021e"
+      "sha256": "7208e1385896e704a49798e616bbb9ea4d42a9ef0cc17ebe3c2bf79f5c77d43a"
     },
     "mielenosoitukset_fi/developer_bp.py": {
       "count": 9,
