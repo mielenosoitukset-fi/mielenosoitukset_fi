@@ -14,6 +14,8 @@ _META = (
 )
 
 _STYLE = """<style>
+:where(body) { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; line-height: 1.6; max-width: 640px; margin: 0 auto; padding: 24px 16px; color: #1f2937; }
+:where(h2) { color: #0033a0; }
 img { max-width: 100%; height: auto; }
 table { max-width: 100%; }
 @media (max-width: 600px) {
@@ -31,6 +33,8 @@ table { max-width: 100%; }
   .btn-danger { background-color: #ef4444 !important; }
   .btn-muted { background-color: #334155 !important; color: #e5e7eb !important; }
   .data-list li { background-color: #0f172a !important; border-color: #334155 !important; }
+  .message, .appeal, .steps, .note, .box, .content, .footer { background-color: #0f172a !important; color: #e5e7eb !important; border-color: #334155 !important; }
+  .steps *, .message *, .appeal * { color: #e5e7eb !important; }
   hr { border-top-color: #334155 !important; }
 }
 </style>"""

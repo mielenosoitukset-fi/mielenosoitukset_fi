@@ -48,8 +48,13 @@ def is_tracked(template_name):
     return template_name in TRACKED_TEMPLATES
 
 
-def add_pixel(db, html, template_name, now=None):
-    """Register a token for this send and append the pixel to ``html``."""
+def add_pixel(db, html, template_name, now=None, meta=None):
+    """Register a token for this send and append the pixel to ``html``.
+
+    ``meta`` may link the open to a staff account and case
+    (``{"case_id": ObjectId, "user_id": ObjectId}``) so the case page can show
+    which admin read the notice. Never put an address, IP or user agent here.
+    """
     now = now or datetime.now(timezone.utc)
     token = secrets.token_urlsafe(24)
     ensure_indexes(db)
@@ -60,12 +65,25 @@ def add_pixel(db, html, template_name, now=None):
         "purge_at": now + timedelta(days=RETENTION_DAYS),
         "first_opened_at": None,
         "open_count": 0,
+        **{k: v for k, v in (meta or {}).items() if k in ("case_id", "user_id") and v is not None},
     })
     pixel = (f'<img src="{BASE_URL}/e/o/{token}.gif" width="1" height="1" alt="" '
              'style="display:block;width:1px;height:1px;border:0">')
     if re.search(r"</body>", html, re.I):
         return re.sub(r"</body>", lambda m: pixel + m.group(0), html, count=1, flags=re.I)
     return html + pixel
+
+
+def opens_for_case(db, case_id):
+    """Per staff account: ``{"first_opened_at", "open_count"}`` for one case's mails."""
+    result = {}
+    for row in db[COLLECTION].find({"case_id": case_id, "user_id": {"$exists": True}}):
+        entry = result.setdefault(str(row["user_id"]), {"first_opened_at": None, "open_count": 0})
+        entry["open_count"] += int(row.get("open_count") or 0)
+        first = row.get("first_opened_at")
+        if first and (entry["first_opened_at"] is None or first < entry["first_opened_at"]):
+            entry["first_opened_at"] = first
+    return result
 
 
 @email_open_bp.route("/e/o/<token>.gif")

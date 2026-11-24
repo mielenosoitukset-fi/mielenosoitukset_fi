@@ -463,13 +463,13 @@ class EmailSender:
     def queue_email(
         self, template_name, subject, recipients, context,
         sender=None, attachments=None, extra_headers=None, plain_body=None,
-        require_acknowledged=False,
+        require_acknowledged=False, track=None,
     ):
         """Queue an email; strict callers require an insert receipt without retries."""
         template = self._env.get_template(template_name)
         html_body = polish_html(template.render(context))
         if is_tracked(template_name):
-            html_body = add_pixel(self._db, html_body, template_name)
+            html_body = add_pixel(self._db, html_body, template_name, meta=track)
         email_job = EmailJob(
             subject=subject,
             recipients=recipients,
@@ -503,13 +503,14 @@ class EmailSender:
 
     def send_now(
         self, template_name, subject, recipients, context,
-        sender=None, attachments=None, extra_headers=None, raise_on_error=False
+        sender=None, attachments=None, extra_headers=None, raise_on_error=False,
+        track=None,
     ):
         """Send email immediately without queueing"""
         template = self._env.get_template(template_name)
         html_body = polish_html(template.render(context))
         if is_tracked(template_name):
-            html_body = add_pixel(self._db, html_body, template_name)
+            html_body = add_pixel(self._db, html_body, template_name, meta=track)
         email_job = EmailJob(
             subject=subject,
             recipients=recipients,
