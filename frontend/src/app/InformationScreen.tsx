@@ -9,7 +9,7 @@ import { TranslationContent } from './information/TranslationContent';
 import './information/information.css';
 
 const documentDates = {
-  privacy: { iso: '2026-11-20', label: '20.11.2026' },
+  privacy: { iso: '2026-11-24', label: '24.11.2026' },
   terms: { iso: '2025-10-12', label: '12.10.2025' },
 };
 
