@@ -1,0 +1,1 @@
+- Sähköpostit: kaikille lähteville viesteille lisätty tumma tila ja mobiilityylit, ja tekstiversio on nyt oikea teksti eikä HTML-koodia.

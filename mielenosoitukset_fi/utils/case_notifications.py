@@ -84,7 +84,7 @@ def _email_sender():
     return _SENDER
 
 
-def _queue_email(sender, recipient_email, case, payload):
+def _queue_email(sender, recipient_email, case, payload, user_id=None):
     running_num = payload.get("running_num") or ""
     type_label = TYPE_LABELS.get(case.get("type"), "Tapaus")
     sender.queue_email(
@@ -97,6 +97,7 @@ def _queue_email(sender, recipient_email, case, payload):
             "demo_title": payload.get("demo_title") or "",
             "case_link": f"{SITE_URL}/admin/case/{case['_id']}/",
         },
+        track={"case_id": case["_id"], "user_id": user_id},
     )
 
 
@@ -217,7 +218,7 @@ def notify_case(db, case, users=None, email_sender=None):
         email = (doc.get("email") or "").strip()
         if email_sender is not None and result.upserted_id is not None and email and wants_email(doc, user):
             try:
-                _queue_email(email_sender, email, case, payload)
+                _queue_email(email_sender, email, case, payload, user_id=user_id)
                 db.notifications.update_one({"_id": f"case:{case['_id']}:{user_id}"}, {"$set": {"emailed": True}})
             except Exception:
                 logger.exception("Failed to queue case notice mail for case %s", case.get("_id"))
