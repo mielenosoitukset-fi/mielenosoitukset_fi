@@ -65,7 +65,7 @@ def _text(value, limit: int, minimum: int = 0, required: bool = True) -> str:
     return value
 
 
-def new_row(payload: dict, by: str, now=None) -> dict:
+def new_row(payload: dict, by: str, now=None, source: str = "hallinto-manual") -> dict:
     """The stored appeal for a typed-in complaint. Raises AppealError."""
     kind = payload.get("kind")
     if kind not in KINDS:
@@ -80,7 +80,7 @@ def new_row(payload: dict, by: str, now=None) -> dict:
                     "reference": _text(payload.get("reference"), 200, required=False), "link": ""},
         "text": _text(payload.get("text"), MAX_TEXT, minimum=10),
         "complainant": {"name": _text(payload.get("name"), 120, required=False), "email": email},
-        "status": "received", "source": "hallinto-manual", "entered_by": by,
+        "status": "received", "source": source, "entered_by": by,
         "created_at": now, "updated_at": now,
     }
 
@@ -176,8 +176,8 @@ def queue_decision(db, row: dict, text: str, pdf: bytes = b"") -> None:
     _queue(db, f"appeal-decision:{row['_id']}", f"Päätös valitukseesi {ref}".strip(), email, body, attachments)
 
 
-def create(db, payload: dict, by: str, now=None) -> dict:
-    row = new_row(payload, by, now)
+def create(db, payload: dict, by: str, now=None, source: str = "hallinto-manual") -> dict:
+    row = new_row(payload, by, now, source)
     row["_id"] = db[COLLECTION].insert_one(row).inserted_id
     queue_confirmation(db, row)
     return row
