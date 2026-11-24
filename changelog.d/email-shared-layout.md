@@ -1,0 +1,1 @@
+- Kaikki lähtevät sähköpostit käyttävät nyt samaa ulkoasua: yhteinen Mielenosoitukset.fi-otsikko, tekstit, painikkeet, tumma tila ja alatunniste, jossa muistutetaan tarkistamaan linkkien osoite. Viestit näyttävät yhtenäisiltä ja luotettavilta.
