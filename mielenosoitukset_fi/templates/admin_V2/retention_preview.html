@@ -49,5 +49,28 @@
       </table>
     </div>
   </section>
+  <section class="admin-section-card" aria-labelledby="inactive-title">
+    <div class="admin-panel-inset admin-jobs__notice" role="status">
+      <i class="fa-solid fa-user-clock" aria-hidden="true"></i>
+      <div>
+        <strong id="inactive-title">{{ _('Käyttämättömät tilit (%(months)s kk ilman kirjautumista)', months=inactive.months) }}</strong>
+        <p>{{ _('Vain laskenta. Mitään ei poisteta eikä lähetetä, eikä poistotyötä ole vielä olemassa.') }}</p>
+      </div>
+    </div>
+    <div class="admin-data-view__viewport" tabindex="0" role="region" aria-labelledby="inactive-title">
+      <table class="admin-data-view__table">
+        <tbody>
+          <tr><th scope="row">{{ _('Tilejä yhteensä') }}</th><td>{{ inactive.users_total }}</td></tr>
+          <tr><th scope="row">{{ _('Käyttämättömiä tilejä') }}</th><td><strong>{{ inactive.inactive }}</strong></td></tr>
+          <tr><th scope="row">{{ _('— joista ei ole koskaan kirjautunut') }}</th><td>{{ inactive.never_signed_in }}</td></tr>
+          <tr><th scope="row">{{ _('Saisivat varoituksen (tavalliset tilit)') }}</th><td><strong>{{ inactive.would_warn }}</strong></td></tr>
+          <tr><th scope="row">{{ _('Suljettu pois: ylläpitäjä tai erityisoikeudet') }}</th><td>{{ inactive.exempt.privileged }}</td></tr>
+          <tr><th scope="row">{{ _('Suljettu pois: avoin turvallisuustapaus') }}</th><td>{{ inactive.exempt.open_security_case }}</td></tr>
+          <tr><th scope="row">{{ _('Suljettu pois: aktiivinen hallinnointioikeus') }}</th><td>{{ inactive.exempt.admin_scope_grant }}</td></tr>
+          <tr><th scope="row">{{ _('Suljettu pois: organisaation omistaja tai ylläpitäjä') }}</th><td>{{ inactive.exempt.org_owner_or_admin }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
 {% endblock %}

@@ -1,0 +1,1 @@
+- The retention preview page for global admins now also shows how many accounts have been inactive for 24 months and how many of them are exempt (admins, open cases, org owners). Counting only; nothing is removed or sent (#1174).
