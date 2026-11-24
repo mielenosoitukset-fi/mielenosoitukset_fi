@@ -1,0 +1,85 @@
+"""Valitukset: stored with the complainant's address, answered with a päätös that names no person."""
+
+import pytest
+
+from mielenosoitukset_fi.utils import appeals
+
+LETTER = {
+    "body": "Operatiivinen tiimi", "decision_ref": "MOSO/002/RAT/2026/003", "case_ref": "MOSO/002/VLT/2026/001",
+    "decided_on": "2026-11-24", "subject": "Mielenosoitus Tampereella", "outcome": "rejected",
+    "reasoning": "Ilmoitus ei täyttänyt julkaisuperiaatteita, koska järjestäjä ei ollut tavoitettavissa.", "final": False,
+}
+TEXT = "PÄÄTÖS\nPäätöksen numero: MOSO/002/RAT/2026/003\nValitus hylätään\n"
+NEW = {"kind": "valitus", "title": "Mielenosoitus Tampereella", "reference": "", "text": "Päätös oli virheellinen.",
+       "email": "Valittaja@Example.test", "name": "Vilma Valittaja"}
+
+
+@pytest.fixture
+def clean(db):
+    db[appeals.COLLECTION].delete_many({})
+    db.email_queue.delete_many({"_id": {"$regex": "^appeal-"}})
+    yield db
+    db[appeals.COLLECTION].delete_many({})
+    db.email_queue.delete_many({"_id": {"$regex": "^appeal-"}})
+
+
+def test_create_keeps_the_address_here_and_confirms_once(clean):
+    row = appeals.create(clean, NEW, "hallinto-sub")
+    assert row["complainant"] == {"name": "Vilma Valittaja", "email": "valittaja@example.test"}
+    seen = appeals.view(row)
+    assert "complainant" not in seen and "valittaja" not in str(seen).lower()
+    assert seen["status"] == "received" and seen["subject"]["title"] == "Mielenosoitus Tampereella"
+    assert all("complainant" not in item for item in appeals.list_rows(clean))
+    mail = clean.email_queue.find_one({"_id": f"appeal-received:{row['_id']}"})
+    assert mail["recipients"] == ["valittaja@example.test"]
+    assert mail["extra_headers"]["Reply-To"] == "hallinto@mielenosoitukset.fi"
+
+
+@pytest.mark.parametrize("bad", [{"kind": "muu"}, {"email": "nope"}, {"text": "lyhyt"}, {"text": ""}, {"title": "x" * 301}])
+def test_create_refuses_bad_input(clean, bad):
+    with pytest.raises(appeals.AppealError):
+        appeals.create(clean, {**NEW, **bad}, "s")
+
+
+def test_decision_is_mailed_once_and_names_nobody(clean):
+    row = appeals.create(clean, NEW, "s")
+    step = {"id": str(row["_id"]), "status": "in_review", "case": "case-1"}
+    assert appeals.record_step(clean, step, "s")[1] is True
+    assert appeals.record_step(clean, step, "s")[1] is False
+    decided = {"id": str(row["_id"]), "status": "decided", "case": "case-1", "letter": {**LETTER, "owner": "tili 1a2b", "verifier": "x"}, "text": TEXT}
+    item, changed = appeals.record_step(clean, decided, "s")
+    assert changed and item["status"] == "decided" and item["decision_ref"] == "MOSO/002/RAT/2026/003"
+    again, changed = appeals.record_step(clean, decided, "s")
+    assert not changed
+    stored = clean[appeals.COLLECTION].find_one({"_id": row["_id"]})
+    assert set(stored["letter"]) == set(appeals.LETTER_FIELDS)  # the extra fields were dropped
+    mails = list(clean.email_queue.find({"_id": f"appeal-decision:{row['_id']}"}))
+    assert len(mails) == 1 and mails[0]["recipients"] == ["valittaja@example.test"]
+    assert "MOSO/002/RAT/2026/003" in mails[0]["body"] and "tili 1a2b" not in mails[0]["body"]
+    assert mails[0]["extra_headers"]["Reply-To"] == "hallinto@mielenosoitukset.fi"
+    # A closed appeal takes no other päätös.
+    with pytest.raises(appeals.AppealError) as closed:
+        appeals.record_step(clean, {**decided, "letter": {**LETTER, "outcome": "accepted"}}, "s")
+    assert closed.value.status == 409
+
+
+@pytest.mark.parametrize("edit", [
+    {"outcome": "won"}, {"decision_ref": "x"}, {"case_ref": ""}, {"decided_on": "24.11.2026"}, {"final": "no"}, {"reasoning": ""}, {"body": ""},
+])
+def test_a_bad_letter_is_refused(clean, edit):
+    row = appeals.create(clean, NEW, "s")
+    with pytest.raises(appeals.AppealError) as refused:
+        appeals.record_step(clean, {"id": str(row["_id"]), "status": "decided", "letter": {**LETTER, **edit}, "text": TEXT}, "s")
+    assert refused.value.code == "invalid_letter"
+    assert clean.email_queue.count_documents({"_id": f"appeal-decision:{row['_id']}"}) == 0
+
+
+def test_steps_are_checked(clean):
+    row = appeals.create(clean, NEW, "s")
+    for bad in ({"id": "zz", "status": "in_review"}, {"id": str(row["_id"]), "status": "withdrawn"},
+                {"id": str(row["_id"]), "status": "in_review", "letter": LETTER}):
+        with pytest.raises(appeals.AppealError):
+            appeals.record_step(clean, bad, "s")
+    with pytest.raises(appeals.AppealError) as missing:
+        appeals.record_step(clean, {"id": "0" * 24, "status": "in_review"}, "s")
+    assert missing.value.status == 404
