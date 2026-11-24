@@ -40,6 +40,7 @@
       <li><strong>{{ _('Mielenosoitusten ilmoittajat ja järjestäjät:') }}</strong> {{ _('nimi, sähköpostiosoite, verkkosivut, organisaatiotiedot sekä valinnat siitä, mitkä järjestäjätiedot näytetään julkisesti. Ilmoitukseen liittyvä muokkaus- tai peruutuslinkki voi sisältää yksilöllisen tunnisteen.') }}</li>
       <li><strong>{{ _('Muistutukset, yhteydenotot ja raportit:') }}</strong> {{ _('sähköpostiosoite ja viestin tai raportin sisältö sekä tarvittaessa siihen liittyvä käyttäjä- tai tapahtumatunniste.') }}</li>
       <li><strong>{{ _('Tekniset ja turvallisuustiedot:') }}</strong> {{ _('IP-osoite, selaimen tai laitteen User-Agent-tieto, aikaleima, pyydetty osoite, toiminnon onnistuminen sekä turvallisuus- tai virhetilanteen syy.') }}</li>
+      <li><strong>{{ _('Valitukset ja oikaisuvaatimukset:') }}</strong> {{ _('nimi (vapaaehtoinen), sähköpostiosoite, valituksen sisältö sekä päätös ja sen perustelut. Sähköpostiosoite säilytetään vain mielenosoitukset.fi-palvelussa, eikä sitä anneta päätöksen tekijöille. Valituksen käsittelyyn osallistuvat henkilöt tallennetaan sisäiseen päätöshistoriaan, mutta heidän nimensä eivät näy sinulle lähetettävässä päätöksessä.') }}</li>
       <li><strong>{{ _('Hallinta-, muutos- ja virhelokit:') }}</strong> {{ _('ylläpidon ja automaattisten toimintojen lokit, muutosten historia sekä virhetilanteissa pyyntöön liittyviä metatietoja. Mielenosoituksen lähetysvirheen loki voi sisältää myös lähetetyn lomakkeen tietoja.') }}</li>
       <li><strong>{{ _('Katseluanalytiikka:') }}</strong> {{ _('mielenosoituksen tunniste, katselun ajankohta sekä mahdollinen käyttäjä- tai sessiotunniste. Palvelu käyttää tietoja koontitilastojen muodostamiseen.') }}</li>
     </ul>
@@ -51,6 +52,7 @@
     <ul>
       <li><strong>{{ _('Palvelun tarjoaminen ja käyttäjätilin ylläpito:') }}</strong> {{ _('käsittely on tarpeen pyytämäsi palvelun toteuttamiseksi ja käyttöehtojen mukaisen käyttäjäsuhteen hoitamiseksi.') }}</li>
       <li><strong>{{ _('Mielenosoitusten julkaiseminen, yhteydenpito ja muistutukset:') }}</strong> {{ _('käsittely perustuu pyytämääsi palveluun ja antamiisi tietoihin. Julkisesti näytettävät järjestäjätiedot määräytyvät ilmoituksen yhteydessä tehtyjen valintojen perusteella.') }}</li>
+      <li><strong>{{ _('Valitusten ja oikaisuvaatimusten käsittely:') }}</strong> {{ _('käsittely perustuu rekisterinpitäjän oikeutettuun etuun käsitellä ja ratkaista palvelun päätöksiin kohdistuvat valitukset sekä osoittaa, miten asia on ratkaistu. Käsittelyyn ei sisälly automaattista päätöksentekoa.') }}</li>
       <li><strong>{{ _('Tietoturva, väärinkäytösten estäminen ja palvelun virheiden selvittäminen:') }}</strong> {{ _('käsittely perustuu rekisterinpitäjän oikeutettuun etuun suojata palvelua, käyttäjiä ja tietoja sekä selvittää häiriöitä.') }}</li>
       <li><strong>{{ _('Palvelun ylläpito ja kehittäminen:') }}</strong> {{ _('koontitilastojen ja hallintalokien käsittely perustuu oikeutettuun etuun ymmärtää palvelun toimintaa ja parantaa sitä.') }}</li>
       <li><strong>{{ _('Lakisääteisten velvoitteiden ja oikeusvaateiden hoitaminen:') }}</strong> {{ _('tietoja voidaan käsitellä lakisääteisen velvoitteen täyttämiseksi tai oikeusvaateen laatimiseksi, esittämiseksi tai puolustamiseksi.') }}</li>
@@ -81,6 +83,7 @@
     <h2>{{ _('Tietojen säilytys') }}</h2>
     <p>{{ _('Käyttäjätilin ja palvelupyyntöjen toteuttamiseksi tarvittavia tietoja säilytetään niin kauan kuin tili tai palvelusuhde on voimassa. Mielenosoituksiin liittyviä julkaisu-, järjestäjä- ja muutoshistoriatietoja voidaan säilyttää myös tapahtuman jälkeen palvelun historian, moderoinnin ja oikeusvaateiden vuoksi.') }}</p>
     <p>{{ _('Muistutus-, yhteydenotto-, kirjautumis-, turvallisuus-, virhe- ja hallintalokit säilytetään niin kauan kuin niitä tarvitaan kyseisen toiminnon toteuttamiseen, väärinkäytösten ehkäisyyn, virheiden selvittämiseen tai oikeusvaateiden käsittelyyn. Kaikille nykyisille lokikokoelmille ei ole vielä toteutettu automaattista määräajan jälkeistä poistamista. Säilytysaikoja ja automaattista poistamista tarkennetaan osana palvelun tietosuojakehitystä.') }}</p>
+    <p>{{ _('Valitus, päätös ja päätöshistoria säilytetään niin kauan kuin ne ovat tarpeen asian osoittamiseksi ja oikeusvaateiden varalta. Tarkempi säilytysaika vahvistetaan ennen käyttöönottoa.') }}</p>
     <p>{{ _('Tietoja voidaan säilyttää pidempään, jos laki sitä edellyttää tai tieto on tarpeen oikeusvaateen laatimiseksi, esittämiseksi tai puolustamiseksi. Tarpeettomat tiedot poistetaan tai anonymisoidaan.') }}</p>
   </section>
 
