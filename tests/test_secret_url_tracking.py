@@ -50,3 +50,18 @@ def test_base_template_skips_matomo_and_referrer_on_secret_pages():
     source = BASE_TEMPLATE.read_text(encoding="utf-8")
     assert "{% if config.get('MATOMO_ENABLED', true) and not url_carries_secret() %}" in source
     assert '{% if url_carries_secret() %}<meta name="referrer" content="no-referrer" />{% endif %}' in source
+
+
+def test_matomo_loads_only_through_consent_script():
+    """Verify the pages never load matomo.js directly; consent.js does it after Accept."""
+    base = Path("mielenosoitukset_fi/templates/base.html").read_text(encoding="utf-8")
+    client = Path("frontend/src/app/client.tsx").read_text(encoding="utf-8")
+    consent = Path("mielenosoitukset_fi/static/js/consent.js").read_text(encoding="utf-8")
+
+    assert "js/consent.js" in base and 'data-matomo="1"' in base
+    assert "script src=\"{{ url_for('static', filename='js/matomo.js') }}\"" not in base
+    assert "script.src = '/static/js/matomo.js'" not in client
+    assert "/static/js/consent.js" in client
+    # Nothing loads before a stored "granted" or a click on the accept button.
+    assert "state === 'granted'" in consent
+    assert 'data-choice="granted"' in consent and 'data-choice="denied"' in consent

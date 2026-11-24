@@ -1,0 +1,1 @@
+- A small cookie bar now asks before the optional Matomo analytics loads. "Hyväksy" and "Hylkää" are equal, the bar does not block the page, and the choice is kept for 180 days in the `moso_consent` cookie. The privacy page explains it and lets visitors change the choice (#596).

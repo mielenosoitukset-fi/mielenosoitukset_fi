@@ -748,7 +748,8 @@ body.banner-closed {
   {# Pages whose address carries a one-time token never load the third-party tracker. #}
   {% if config.get('MATOMO_ENABLED', true) and not url_carries_secret() %}
   {# Legacy client-side Matomo tracker. Built-in server-side analytics now cover basic pageviews; disable MATOMO_ENABLED in config to stop double-counting. #}
-  <script src="{{ url_for('static', filename='js/matomo.js') }}" async></script>
+  {# Matomo loads only after the visitor accepts analytics cookies (static/js/consent.js). #}
+  <script src="{{ url_for('static', filename='js/consent.js', v='20261124-consent-1') }}" data-matomo="1" data-matomo-src="{{ url_for('static', filename='js/matomo.js') }}" defer></script>
   {% endif %}
   {% if config.get('SITE_ANALYTICS_ENABLED', true)
         and not request.path.startswith('/admin')
