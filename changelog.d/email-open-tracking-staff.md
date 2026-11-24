@@ -1,0 +1,1 @@
+- Ylläpitäjille ja tapausten käsittelijöille lähtevissä ilmoitussähköposteissa on nyt seurantakuva, josta näkee onko viesti luettu. Tietoja säilytetään 90 päivää, eikä IP-osoitetta tai vastaanottajaa tallenneta. Tietosuojaselostetta päivitetty. Käyttäjille lähteviä sähköposteja ei seurata.

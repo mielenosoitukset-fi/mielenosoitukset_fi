@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from mielenosoitukset_fi.database_manager import DatabaseManager
 from .EmailJob import EmailJob
+from .open_tracking import add_pixel, is_tracked
 from .polish import polish_html, html_to_text
 import time
 import uuid
@@ -467,6 +468,8 @@ class EmailSender:
         """Queue an email; strict callers require an insert receipt without retries."""
         template = self._env.get_template(template_name)
         html_body = polish_html(template.render(context))
+        if is_tracked(template_name):
+            html_body = add_pixel(self._db, html_body, template_name)
         email_job = EmailJob(
             subject=subject,
             recipients=recipients,
@@ -505,6 +508,8 @@ class EmailSender:
         """Send email immediately without queueing"""
         template = self._env.get_template(template_name)
         html_body = polish_html(template.render(context))
+        if is_tracked(template_name):
+            html_body = add_pixel(self._db, html_body, template_name)
         email_job = EmailJob(
             subject=subject,
             recipients=recipients,
