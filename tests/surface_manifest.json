@@ -323,6 +323,14 @@
       ],
       "sha256": "b1fafb2b6411ae8b377701f6a7883c5d8be10bc8b51d261ef3e4df2a2558e92b"
     },
+    "mielenosoitukset_fi/emailer/open_tracking.py": {
+      "count": 1,
+      "coverage": [
+        "unit",
+        "tests/test_email_open_tracking.py"
+      ],
+      "sha256": "99e77e52c201235069215c4edfef5596dbadfb9379d29360dfd7b0c9424c39ca"
+    },
     "mielenosoitukset_fi/kampanja/routes.py": {
       "count": 3,
       "coverage": [
