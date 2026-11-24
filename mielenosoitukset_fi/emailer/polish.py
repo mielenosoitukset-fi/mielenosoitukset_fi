@@ -26,6 +26,7 @@ body { margin:0; padding:0; background:#f3f4f8; color:#1f2937; font-family:-appl
 .mfi-card h1, .mfi-card h2, .mfi-card h3 { color:#0f172a; line-height:1.3; margin:0 0 14px 0; }
 .mfi-card h1 { font-size:22px; } .mfi-card h2 { font-size:20px; } .mfi-card h3 { font-size:17px; }
 .mfi-card p { margin:0 0 14px 0; }
+.mfi-card p.mfi-signoff { margin:22px 0 0 0; }
 .mfi-card .strong { font-weight:700; }
 .mfi-card ul, .mfi-card ol { margin:0 0 14px 0; padding-left:22px; }
 .mfi-card a { color:#0033a0; text-decoration:underline; }
@@ -95,6 +96,30 @@ def _retag(m):
     return "<%s%s>" % (name, attrs)
 
 
+SIGNOFF = '<p class="mfi-signoff">Ystävällisin terveisin,<br>Mielenosoitukset.fi-tiimi</p>'
+
+# Per-template sign-offs, copyright lines and "do not reply" notes are removed:
+# the shell adds one sign-off and one footer to every message.
+_SIGNOFF_RE = re.compile(r"(?is)<p[^>]*>\s*Ystävällisin\s+terveisin.*?</p>")
+_COPYRIGHT_RE = re.compile(r"(?is)<(p|div)[^>]*>\s*(?:&copy;|©).*?</\1>")
+_NOREPLY_RE = re.compile(r"(?is)<(p|div|small)[^>]*>\s*Tämä on automaattinen viesti[^<]*Älä vastaa[^<]*</\1>")
+_TEAMLINE_RE = re.compile(r"(?is)<(p|div)[^>]*>\s*Mielenosoitukset\.fi(?: ylläpito)?\s*</\1>")
+_FINEPRINT_RE = re.compile(r'<div class="mfi-small">|<small\b|<hr>')
+_GREETING_RE = re.compile(r"(<p>\s*Hei\b[^<,!]*)!")
+
+
+def _normalise_text(inner):
+    for rx in (_SIGNOFF_RE, _COPYRIGHT_RE, _NOREPLY_RE, _TEAMLINE_RE):
+        inner = rx.sub("", inner)
+    inner = _GREETING_RE.sub(r"\1,", inner)
+    inner = inner.rstrip()
+    # Sign-off goes before trailing fine print (small notes), else at the end.
+    m = _FINEPRINT_RE.search(inner, len(inner) // 2)
+    if not m:
+        return inner + SIGNOFF
+    return inner[:m.start()] + SIGNOFF + inner[m.start():]
+
+
 def _title(html):
     m = re.search(r"(?is)<title[^>]*>(.*?)</title>", html)
     return m.group(1).strip() if m else "Mielenosoitukset.fi"
@@ -109,6 +134,7 @@ def polish_html(html: str) -> str:
     inner = m.group(1) if m else re.sub(r"(?is)<head\b.*?</head>|<!doctype[^>]*>|</?html[^>]*>", "", html)
     inner = re.sub(r"(?is)<style\b.*?</style>|<script\b.*?</script>", "", inner)
     inner = _TAG.sub(_retag, inner)
+    inner = _normalise_text(inner)
     return (
         '<!DOCTYPE html><html lang="fi" %s><head><meta charset="UTF-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -119,7 +145,7 @@ def polish_html(html: str) -> str:
         '<div class="mfi-card">%s</div>'
         '<div class="mfi-foot">Tämä viesti on lähetetty Mielenosoitukset.fi-palvelusta. '
         'Tarkista aina, että viestin linkit alkavat osoitteella <a href="%s">https://mielenosoitukset.fi</a>.<br>'
-        'Älä vastaa tähän viestiin, ellei toisin mainita.</div></div></body></html>'
+        'Älä vastaa tähän viestiin, ellei viestissä toisin kerrota.</div></div></body></html>'
     ) % (MARK, title, _CSS, SITE, inner, SITE)
 
 

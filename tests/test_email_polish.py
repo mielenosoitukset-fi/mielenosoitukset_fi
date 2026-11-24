@@ -45,6 +45,8 @@ def test_every_template_survives_the_shell():
             continue
         out = polish_html(html)
         assert "mfi-card" in out and "<style" in out and out.count("<style") == 1, name
+        assert out.count("Ystävällisin terveisin") == 1, name
+        assert "2023" not in out and "<p>Hei!" not in out, name
         rendered += 1
     assert rendered >= 20
 
@@ -57,3 +59,13 @@ def test_plain_text_is_not_html():
     assert "<" not in text
     assert "linkki (https://mielenosoitukset.fi/x)" in text
     assert "a{}" not in text
+
+
+def test_signoff_unified_and_old_ones_removed():
+    out = polish_html('<html><body><p>Hei Olivia!</p><p>Asia.</p>'
+                      '<p>Ystävällisin terveisin<br>Tiimimme</p>'
+                      '<p>&copy; 2023 Järjestäjätiimi.</p>'
+                      '<p>Tämä on automaattinen viesti. Älä vastaa tähän sähköpostiin.</p></body></html>')
+    assert out.count("Ystävällisin terveisin") == 1 and "Tiimimme" not in out
+    assert "Mielenosoitukset.fi-tiimi</p>" in out and "<p>Hei Olivia,</p>" in out
+    assert "2023" not in out and "Älä vastaa tähän sähköpostiin" not in out
