@@ -65,7 +65,9 @@
           {% endif %}
         </td>
         <td>
-          {% if user.banned %}
+          {% if user.soft_deleted %}
+            <span class="admin-status-badge admin-status-badge--warning">{{ _('Poisto odottaa OT:n tarkistusta') }}</span>
+          {% elif user.banned %}
             <span class="admin-status-badge admin-status-badge--danger">{{ pgettext('account-status', 'Estetty') }}</span>
           {% elif not user.get('active', true) %}
             <span class="admin-status-badge admin-status-badge--warning">{{ pgettext('account-status', 'Suljettu') }}</span>
@@ -100,7 +102,7 @@
               <li><button class="dropdown-item" type="button" onclick='openLoginHistoryModal("{{ user._id }}", {{ (user.displayname or user.username)|tojson|e }}, {{ user.username|tojson|e }})'><i class="fas fa-clock-rotate-left me-2"></i>{{ _('Kirjautumishistoria') }}</button></li>
               {% endif %}
               {% if current_user.has_permission("DELETE_USER") %}
-              <li><button class="dropdown-item text-danger" type="button" data-user-name="{{ user.displayname or user.username }}" onclick="openDeleteModal(event, this.dataset.userName, '{{ user._id }}', 'user')"><i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}</button></li>
+{% if not user.soft_deleted %}              <li><button class="dropdown-item text-danger" type="button" data-user-name="{{ user.displayname or user.username }}" onclick="openDeleteModal(event, this.dataset.userName, '{{ user._id }}', 'user')"><i class="fas fa-trash-alt me-2"></i>{{ _('Poista') }}</button></li>{% endif %}
               {% endif %}
             </ul>
           </div>

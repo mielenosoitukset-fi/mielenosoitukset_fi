@@ -36,6 +36,7 @@ from .city_grants import (
     city_scope_grant_for_user, commit_profile_change, history_actor, sync_city_scope_grant,
 )
 from .user_erasure import erase_user
+from mielenosoitukset_fi.utils import account_deletion
 from mielenosoitukset_fi.utils.system_teams import SUPER_ROLES, team_ids, user_team_access
 from mielenosoitukset_fi.users.models import TRANSLATION_ONLY_PERMISSIONS
 from .user_history import (
@@ -991,6 +992,37 @@ def delete_user():
         else:
             flash_message(error_message, "error")
             return redirect(request.referrer or url_for("admin_user.user_control"))
+
+    # With the Hallinto review on, an admin never erases an account: it is closed
+    # and OT decides in Hallinto (docs/account-deletion-review.md).
+    if account_deletion.review_enabled():
+        if target_user._id == current_user._id:
+            error_message = "Et voi poistaa omaa tiliäsi tästä."
+            if json_mode:
+                return jsonify({"status": "ERROR", "message": error_message}), 400
+            flash_message(error_message, "error")
+            return redirect(request.referrer or url_for("admin_user.user_control"))
+        try:
+            account_deletion.soft_delete(
+                mongo, user_data, current_user,
+                (request.json.get("reason") if json_mode and isinstance(request.json, dict) else request.form.get("reason")) or "")
+        except account_deletion.DeletionError:
+            message = "Tämän tilin poisto odottaa jo Hallinnon tarkistusta."
+            if json_mode:
+                return jsonify({"status": "ERROR", "message": message}), 409
+            flash_message(message, "error")
+            return redirect(request.referrer or url_for("admin_user.user_control"))
+        except CityGrantConflict:
+            message = "Tiliä muutettiin samanaikaisesti. Yritä uudelleen."
+            if json_mode:
+                return jsonify({"status": "ERROR", "message": message}), 409
+            flash_message(message, "error")
+            return redirect(request.referrer or url_for("admin_user.user_control"))
+        message = "Tili suljettu. OT päättää Hallinnossa, poistetaanko se lopullisesti vai palautetaanko se."
+        if json_mode:
+            return jsonify({"status": "OK", "pending_review": True, "message": message})
+        flash_message(message, "approved")
+        return redirect(request.referrer or url_for("admin_user.user_control"))
 
     # Never delete the only durable copy of an undelivered history event.
     # The existing fresh per-target step-up guard above remains authoritative.
