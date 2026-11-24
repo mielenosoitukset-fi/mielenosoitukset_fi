@@ -86,6 +86,9 @@ def test_invitation_is_sent_once_with_optout_and_private_receipt(outreach):
     # The same command again replays the receipt and sends nothing.
     again = _post(outreach, body, digest)
     assert again.get_json() == receipt and len(mailbox.sent) == 1
+    # Hallinto can read the same receipt back from the read-only status route.
+    status = client.get(f"/internal/hallinto/v1/orders/{KEY}", headers=_headers(key=None))
+    assert status.status_code == 200 and status.get_json() == receipt
 
 
 @pytest.mark.parametrize("address", ["noreply@x.example", "abuse@x.example", "postmaster@x.example"])

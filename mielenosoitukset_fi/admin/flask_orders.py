@@ -136,8 +136,11 @@ def apply_order(db, *, integration: str, actor_id, idempotency_key: str, request
 def read_order_status(db, *, integration: str, order_id: str) -> cg.Outcome:
     """What Flask did with one order, for Hallinto's automatic check. Writes nothing.
 
-    Unlike the receipt route this needs no human proof: it is read-only, looks
-    the order up by its id alone and shows only the order's own state, so
+    It covers every order Flask journals under an idempotency key: the roster,
+    role removal, lockdown and access review orders, outbound invitations,
+    access recoveries and organization rights. Unlike the receipt route this
+    needs no human proof: it is read-only, looks the order up by its id alone
+    and shows only the order's own state, so
     Hallinto can settle an order whose answer it lost without asking the owner
     to approve a resend. A lease that ran out is reported as it would be on a
     replay, but is not recorded here.
@@ -145,9 +148,7 @@ def read_order_status(db, *, integration: str, order_id: str) -> cg.Outcome:
     if not isinstance(order_id, str) or not cg.IDEMPOTENCY_KEY.match(order_id):
         return cg._error("unknown_operation")
     operation = db[cg.OPERATIONS].find_one(
-        {"integration": integration, "idempotency_key": order_id,
-         "intent.kind": {"$in": sorted(KIND_FIELDS)}},
-        sort=[("created_at", -1)])
+        {"integration": integration, "idempotency_key": order_id}, sort=[("created_at", -1)])
     if operation is None:
         return cg._error("unknown_operation")
     if operation["status"] == "rejected":
