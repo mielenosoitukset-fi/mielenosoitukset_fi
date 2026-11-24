@@ -1247,7 +1247,7 @@ def retention_preview():
     """
     if not getattr(current_user, "global_admin", False):
         abort(403)
-    from mielenosoitukset_fi.scripts import purge_personal_logs
+    from mielenosoitukset_fi.scripts import inactive_accounts, purge_personal_logs
 
     db = DatabaseManager().get_instance().get_db()
     result = purge_personal_logs.purge(db, dry_run=True)
@@ -1260,12 +1260,14 @@ def retention_preview():
             "count": count,
             "total": db[collection].estimated_document_count(),
         })
-    _log_admin_event("retention_preview_view", counts=result["counts"])
+    inactive = inactive_accounts.count_inactive(db)
+    _log_admin_event("retention_preview_view", counts=result["counts"], inactive=inactive["inactive"])
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}retention_preview.html",
         rows=rows,
         protected_users=result["protected_users"],
         enabled=purge_personal_logs.is_enabled(),
+        inactive=inactive,
     )
 
 

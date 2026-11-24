@@ -15,6 +15,7 @@ def test_global_admin_sees_counts_and_nothing_changes(admin_client, db):
         assert response.status_code == 200
         body = response.get_data(as_text=True)
         assert "login_logs" in body and "demo_submission_errors" in body
+        assert "Käyttämättömät tilit" in body
         assert db.login_logs.count_documents(marker) == 1  # nothing was deleted
         assert db.admin_logs.count_documents({}) > before  # the view left an audit trace
     finally:
