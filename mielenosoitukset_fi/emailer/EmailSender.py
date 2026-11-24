@@ -468,7 +468,7 @@ class EmailSender:
         require_acknowledged=False, track=None,
     ):
         """Queue an email; strict callers require an insert receipt without retries."""
-        html_body, text_body = render_email(self._env, self._db, template_name, context, track)
+        html_body, text_body = render_email(self._env, getattr(self, "_db", None), template_name, context, track)
         email_job = EmailJob(
             subject=subject,
             recipients=recipients,
@@ -506,7 +506,7 @@ class EmailSender:
         track=None,
     ):
         """Send email immediately without queueing"""
-        html_body, text_body = render_email(self._env, self._db, template_name, context, track)
+        html_body, text_body = render_email(self._env, getattr(self, "_db", None), template_name, context, track)
         email_job = EmailJob(
             subject=subject,
             recipients=recipients,

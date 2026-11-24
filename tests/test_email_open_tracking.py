@@ -97,3 +97,19 @@ def test_send_email_wraps_finished_html_from_go_queue(monkeypatch):
     msg = email.message_from_string(sent[0], policy=email.policy.default)
     html = msg.get_body(("html",)).get_content()
     assert "mfi-card" in html and "<p>Hei,</p>" in html
+
+
+def test_queue_email_works_on_sender_without_db_handle():
+    import logging
+    from jinja2 import DictLoader, Environment
+    from mielenosoitukset_fi.emailer.EmailSender import EmailSender
+
+    sender = object.__new__(EmailSender)
+    sender._env = Environment(loader=DictLoader({"admin_case_notification.html": "<body><p>x</p></body>"}), autoescape=True)
+    sender._queue_collection = MagicMock()
+    sender._instance_id = "t"
+    sender._logger = logging.getLogger(__name__)
+    sender._start_retry_timer = MagicMock()
+    sender.queue_email("admin_case_notification.html", "s", ["a@b.fi"], {})
+    doc = sender._queue_collection.insert_one.call_args[0][0]
+    assert "mfi-card" in doc["html"] and "/e/o/" not in doc["html"]
