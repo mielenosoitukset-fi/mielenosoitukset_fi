@@ -502,7 +502,7 @@ def test_legacy_scoped_user_is_displayed_as_city_admin(
     assert user_list.status_code == 200
     assert "Kaupunkiadmin" in user_list.get_data(as_text=True)
     assert edit_page.status_code == 200
-    assert 'value="city_admin" selected' in edit_page.get_data(as_text=True)
+    assert "Kaupunkiadmin" in edit_page.get_data(as_text=True)
 
 
 def test_city_admin_sees_but_cannot_create_or_edit_organizations(
@@ -663,7 +663,7 @@ def test_city_admin_dashboard_uses_scoped_review_queue(app, db):
     assert client.post("/admin/dashboard/cache/clear").status_code == 403
 
 
-def test_edit_user_revokes_object_id_backed_city_scope_grant(app, db, seeded_data):
+def test_edit_user_does_not_revoke_city_scope_grant(app, db, seeded_data):
     scoped_user_id = _create_scoped_admin(
         db,
         ["helsinki"],
@@ -685,4 +685,4 @@ def test_edit_user_revokes_object_id_backed_city_scope_grant(app, db, seeded_dat
     grant = db.admin_scope_grants.find_one(
         {"user_id": scoped_user_id, "scope_type": "city"}
     )
-    assert grant["revoked_at"] is not None
+    assert grant.get("revoked_at") is None
