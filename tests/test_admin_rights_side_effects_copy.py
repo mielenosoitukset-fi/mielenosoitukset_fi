@@ -12,6 +12,3 @@ def test_org_admin_role_confirm_names_admin_workspace_access():
     assert "action === 'change-role'" in source
 
 
-def test_city_grant_help_says_inactive_city_is_enabled():
-    source = (TEMPLATES / "user" / "edit.html").read_text(encoding="utf-8")
-    assert "otetaan tallennettaessa käyttöön koko sivustolla" in source

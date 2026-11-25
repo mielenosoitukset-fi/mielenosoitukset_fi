@@ -5,12 +5,6 @@ from datetime import datetime
 from bson import ObjectId
 
 
-def test_city_permissions_use_descriptions_not_codes(admin_client, seeded_data):
-    page = admin_client.get(f"/admin/user/edit_user/{seeded_data['user_id']}").get_data(as_text=True)
-    assert '<label for="perm_city_EDIT_DEMO">EDIT_DEMO</label>' not in page
-    assert 'for="perm_city_EDIT_DEMO">' in page
-
-
 def test_user_list_separates_city_only_admins(admin_client, db, seeded_data):
     user_id = ObjectId()
     db.users.insert_one({"_id": user_id, "username": "aaa-city-only", "email": "cityonly@example.test",

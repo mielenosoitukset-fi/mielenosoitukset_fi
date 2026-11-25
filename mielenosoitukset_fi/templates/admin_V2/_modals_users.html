@@ -347,41 +347,10 @@
               <input type="text" class="form-control" id="create-user-displayname" name="displayname" autocomplete="off">
               <small>{{ _('Näkyy käyttäjän nimenä hallinnassa.') }}</small>
             </div>
-            {% if rights_in_hallinto %}
             <div class="create-user-field admin-field create-user-field-wide">
               <input type="hidden" id="create-user-role" name="role" value="user">
               <p class="admin-form-note" id="create-user-role-help">{{ _('Tili luodaan tavallisena käyttäjänä. Ylläpito-oikeudet myönnetään Hallinnossa.') }}</p>
             </div>
-            {% else %}
-            <div class="create-user-field admin-field create-user-field-wide">
-              <label for="create-user-role">{{ _('Rooli') }} <span class="admin-required" aria-hidden="true">*</span></label>
-              <select class="form-select" id="create-user-role" name="role" required aria-required="true" aria-describedby="create-user-role-help">
-                <option value="user">{{ _('Käyttäjä') }}</option>
-                <option value="translator">{{ _('Kääntäjä') }}</option>
-                {% if can_manage_scope_grants %}
-                <option value="city_admin">{{ _('Kaupunkiadmin') }}</option>
-                {% endif %}
-                <option value="admin">{{ _('Admin') }}</option>
-              </select>
-              <small id="create-user-role-help">{{ _('Tavallinen käyttäjä saa perustilin ilman ylläpito-oikeuksia.') }}</small>
-            </div>
-            {% if can_manage_scope_grants %}
-            <div class="create-user-field admin-field create-user-field-wide d-none" id="create-user-city-scope">
-              <label for="create-user-cities">{{ _('Kaupunkiadminin paikkakunnat') }}</label>
-              <select class="form-select" id="create-user-cities" name="admin_scope_cities[]" multiple size="7" aria-describedby="create-user-cities-help">
-                {% for city in enabled_city_list %}
-                <option value="{{ city_name_to_key[city] }}">{{ city }}</option>
-                {% endfor %}
-                {% for city in city_list %}
-                {% if city not in enabled_city_list %}
-                <option value="{{ city_name_to_key[city] }}">{{ city }} {{ _('(ei käytössä)') }}</option>
-                {% endif %}
-                {% endfor %}
-              </select>
-              <small id="create-user-cities-help">{{ _('Valitse vähintään yksi paikkakunta. Kaupunkiadmin saa niiden mielenosoitusten käsittelyoikeudet.') }}</small>
-            </div>
-            {% endif %}
-            {% endif %}
           </div>
           <div id="create-user-status" class="create-user-status" aria-live="polite"></div>
           <div class="modal-footer">

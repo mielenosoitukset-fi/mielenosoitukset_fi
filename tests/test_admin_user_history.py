@@ -49,41 +49,15 @@ def test_profile_history_records_only_actual_changes_and_no_secrets(admin_client
     event = db.admin_logs.find_one({"event": "user_details_changed", "entity_id": str(target)})
     assert event["old_state"]["displayname"] == document.get("displayname", "")
     assert event["new_state"]["displayname"] == "Updated display name"
-    assert event["new_state"]["role"] == "translator"
-    expected_permissions = {"TRANSLATE_DEMO", "TRANSLATE_UI"}
-    if endpoint == "edit_user":
-        expected_permissions.update(document.get("global_permissions", []))
-    assert event["new_state"]["global_permissions"] == sorted(expected_permissions)
+    # Rights are decided in Hallinto: the form's role is ignored.
+    assert event["new_state"].get("role", document.get("role")) == document.get("role")
+    assert db.users.find_one({"_id": target})["role"] == document.get("role")
     assert event["actor_id"] == str(seeded_data["admin_id"])
     assert isinstance(event["timestamp"], datetime)
     assert "never-record-this-secret" not in repr(event)
     assert "password_hash" not in repr(event) and "mfa_secret" not in repr(event)
     assert admin_client.post(url, data=payload).status_code == 302
     assert db.admin_logs.count_documents({"event": "user_details_changed", "entity_id": str(target)}) == 1
-
-
-def test_user_history_includes_city_grants_and_revocation(admin_client, db, seeded_data):
-    target = seeded_data["user_id"]
-    payload = _profile(db.users.find_one({"_id": target}), **{
-        "admin_scope_cities[]": ["helsinki"], "admin_scope_permissions[city][]": ["EDIT_DEMO"],
-    })
-    endpoint = f"/admin/user/edit_user/{target}"
-    assert admin_client.post(endpoint, data=payload).status_code == 302
-    first = db.admin_logs.find_one({"event": "user_details_changed", "entity_id": str(target),
-                                   "new_state.city_scope_keys": {"$exists": True}})
-    assert first["new_state"]["city_scope_keys"] == ["helsinki"]
-    assert set(first["new_state"]["city_scope_permissions"]) == {"EDIT_DEMO", "LIST_DEMOS", "VIEW_DEMO"}
-    # Scope and role are separate writes and therefore separate atomic events.
-    role_event = db.admin_logs.find_one({"entity_id": str(target), "new_state.role": "city_admin"})
-    assert role_event["old_state"]["role"] == "user"
-    payload = _profile(db.users.find_one({"_id": target}))
-    assert admin_client.post(endpoint, data=payload).status_code == 302
-    events = list(db.admin_logs.find({"event": "user_details_changed", "entity_id": str(target)}).sort("_id", 1))
-    assert len(events) == 4
-    revocation = next(event for event in events if event["new_state"].get("city_scope_keys") == [])
-    assert revocation["old_state"]["city_scope_keys"] == ["helsinki"]
-    assert revocation["new_state"]["city_scope_permissions"] == []
-    assert events[-1]["new_state"]["role"] == "user"
 
 
 def test_creation_and_reset_requirement_have_safe_history(admin_client, db, seeded_data):

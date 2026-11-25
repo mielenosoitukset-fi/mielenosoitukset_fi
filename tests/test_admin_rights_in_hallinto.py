@@ -1,4 +1,4 @@
-"""With ADMIN_RIGHTS_IN_HALLINTO on, the site admin shows rights read-only and never writes them."""
+"""The site admin shows rights read-only and never writes them."""
 
 import pytest
 from bson import ObjectId
@@ -6,10 +6,8 @@ from bson import ObjectId
 
 @pytest.fixture
 def hallinto_lock(app):
-    app.config["ADMIN_RIGHTS_IN_HALLINTO"] = True
     app.config["HALLINTO_URL"] = "https://hallinto.example/"
     yield
-    app.config["ADMIN_RIGHTS_IN_HALLINTO"] = False
     app.config["HALLINTO_URL"] = None
 
 

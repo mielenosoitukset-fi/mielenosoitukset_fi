@@ -1,0 +1,1 @@
+- Site admin user pages no longer have the old role, permission and city-grant write forms; admin rights are shown read-only and changed in Hallinto only. The `ADMIN_RIGHTS_IN_HALLINTO` setting is removed.
