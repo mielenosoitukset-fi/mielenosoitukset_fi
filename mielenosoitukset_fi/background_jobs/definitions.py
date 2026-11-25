@@ -27,7 +27,6 @@ from mielenosoitukset_fi.scripts.process_email_queue import run as process_email
 from mielenosoitukset_fi.scripts.escalate_city_assignments import main as escalate_city_assignments
 from mielenosoitukset_fi.scripts.expire_undecided_demos import main as expire_undecided_demos
 from mielenosoitukset_fi.scripts.notify_overdue_moderation_reviews import main as notify_overdue_moderation_reviews
-from mielenosoitukset_fi.scripts.deliver_city_admin_applications import main as deliver_city_admin_applications
 from mielenosoitukset_fi.scripts.purge_city_admin_applications import main as purge_city_admin_applications
 from mielenosoitukset_fi.scripts.deliver_case_notices import main as deliver_case_notices
 from mielenosoitukset_fi.scripts.sync_org_admins import main as sync_org_admins
@@ -206,13 +205,6 @@ JOB_DEFINITIONS: List[JobDefinition] = [
         func=notify_overdue_moderation_reviews,
         default_trigger=_interval(hours=1),
         allow_interval_override=True,
-    ),
-    JobDefinition(
-        key="deliver_city_admin_applications",
-        name="City admin applications to cases",
-        description="Creates a review case and national team inbox notices for each city admin application stored by the Go API.",
-        func=deliver_city_admin_applications,
-        default_trigger=_interval(minutes=2),
     ),
     JobDefinition(
         key="sync_org_admins",

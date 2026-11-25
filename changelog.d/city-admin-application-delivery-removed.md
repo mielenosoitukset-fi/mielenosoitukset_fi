@@ -1,0 +1,1 @@
+- New city admin applications no longer get a Flask review case. Hallinto reads and decides them; the delivery job and its `CITY_ADMIN_APPLICATIONS_IN_HALLINTO` switch are removed.
