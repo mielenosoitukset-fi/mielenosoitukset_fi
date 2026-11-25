@@ -49,6 +49,7 @@ MODERATOR_END_ATTESTATION_CONTEXT = b"hallinto-national-moderator-end-v1-attesta
 BUNDLE_ATTESTATION_CONTEXT = b"hallinto-role-bundle-v1-attestation\n"
 BUNDLE_END_ATTESTATION_CONTEXT = b"hallinto-role-bundle-end-v1-attestation\n"
 SHIFT_APPROVAL_ATTESTATION_CONTEXT = b"hallinto-shift-approval-v1-attestation\n"
+ESCALATION_NOTICE_ATTESTATION_CONTEXT = b"hallinto-escalation-notice-v1-attestation\n"
 ELEVATED_ATTESTATION_CONTEXT = b"hallinto-elevated-v1-attestation\n"
 INVITATION_ATTESTATION_CONTEXT = b"hallinto-org-invitation-v1-attestation\n"
 RECOVERY_ATTESTATION_CONTEXT = b"hallinto-org-recovery-v1-attestation\n"
@@ -92,6 +93,10 @@ def moderator_attestation_message(intent_digest: str) -> bytes:
 
 def shift_approval_attestation_message(intent_digest: str) -> bytes:
     return SHIFT_APPROVAL_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
+
+
+def escalation_notice_attestation_message(intent_digest: str) -> bytes:
+    return ESCALATION_NOTICE_ATTESTATION_CONTEXT + intent_digest.encode("ascii")
 
 
 def moderator_end_attestation_message(intent_digest: str) -> bytes:
@@ -302,6 +307,26 @@ def build_blueprint(db) -> Blueprint:
         if not _attestation_ok(body["authority_attestation"], digest, shift_approval_attestation_message):
             return _error("denied")
         status, payload = shift_approvals.apply(db, body)
+        response = jsonify(payload)
+        response.status_code = status
+        return response
+
+    @bp.post("/escalation-notices")
+    def send_escalation_notices():
+        """Mail the OT members Hallinto names about cases waiting at OT.
+
+        Signed by Hallinto for exactly this list and moment. Idempotent: each
+        case and account is mailed once. Off unless ESCALATION_OT_NOTICES_ENABLED.
+        """
+        from . import escalation_notices
+
+        body = request.get_json(silent=True)
+        digest = escalation_notices.intent_digest(body)
+        if digest is None:
+            return _error("unsupported_scope")
+        if not _attestation_ok(body["authority_attestation"], digest, escalation_notice_attestation_message):
+            return _error("denied")
+        status, payload = escalation_notices.apply(db, body)
         response = jsonify(payload)
         response.status_code = status
         return response
