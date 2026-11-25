@@ -12,6 +12,8 @@ Related standing rules live in [AGENTS.md](../AGENTS.md),
 
 ## Process and approvals
 
+- **Admin account deletions are soft deletes that OT reviews (2026-11-24, maintainer).** An admin deleting a user closes the account (disabled, hidden, sessions and keys ended, data kept) and opens a Hallinto review; OT decides to erase it or restore it, and a separate review asks whether it was necessary for that admin to act. Users deleting their own account and erasure requests stay instant. Why: erasing an account is the heaviest admin action on a user, so it needs a case, a decision and a trace, like role removal. Behind `ACCOUNT_DELETION_IN_HALLINTO` until Hallinto's forms are live. See [account-deletion-review.md](account-deletion-review.md).
+
 - **Demo geocoding must not write stale moderation state (2026-11-15).** Detail-page
   geocoding persists only coordinates and `last_modified`, atomically, and only
   when the stored coordinate snapshot still matches what the request loaded.

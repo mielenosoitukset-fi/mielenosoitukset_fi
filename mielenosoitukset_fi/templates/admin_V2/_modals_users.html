@@ -295,8 +295,12 @@
       throw new Error(deleteData.message || "{{ _('Käyttäjän poistaminen epäonnistui.') }}");
     }
     const row = document.getElementById(`user-${freshStepUpTargetId}`);
-    if (row) row.remove();
-    showToast(deleteData.message);
+    if (row && deleteData.pending_review) {
+      // Closed, not erased: OT decides in Hallinto. Reload so the row shows that.
+      showToast(deleteData.message);
+      setTimeout(() => window.location.reload(), 1500);
+    } else if (row) row.remove();
+    if (!deleteData.pending_review) showToast(deleteData.message);
     bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
   }
 

@@ -559,6 +559,39 @@ def register_hallinto_issuer(app, db, settings: dict, *, state_db) -> None:
         users = {u["_id"]: u for u in db.users.find({"_id": row.get("user_id")}, {"username": 1, "displayname": 1})}
         return jsonify(item=city_admin_applications.hallinto_view(row, users))
 
+    @bp.post("/account-deletions/list")
+    def account_deletions_list():
+        """Accounts an admin closed for deletion, and what became of them, for
+        OT's review in Hallinto. Hallinto decides who may handle them; this only
+        needs a signed-in admin. Never returns an email address."""
+        from mielenosoitukset_fi.utils import account_deletion
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        return jsonify(items=account_deletion.hallinto_list(db))
+
+    @bp.post("/account-deletions/update")
+    def account_deletions_update():
+        """Link the Hallinto case to a deletion review. Nothing here erases or
+        reopens an account: only a signed order does."""
+        from mielenosoitukset_fi.utils import account_deletion
+
+        payload, error = admin_payload()
+        if error:
+            return error
+        review_id, case = payload.get("id"), payload.get("case")
+        if (not isinstance(review_id, str) or not _ACCOUNT_ID.fullmatch(review_id)
+                or not isinstance(case, str) or not 0 < len(case) <= account_deletion.CASE_MAX):
+            return jsonify(error="invalid_request"), 400
+        try:
+            row = account_deletion.hallinto_update(db, ObjectId(review_id), case, actor=payload["sub"])
+        except account_deletion.HallintoConflict:
+            return jsonify(error="conflict"), 409
+        if row is None:
+            return jsonify(error="not_found"), 404
+        return jsonify(item=account_deletion.hallinto_view(row))
+
     @bp.post("/access-reviews/list")
     def access_reviews_list():
         """Admin accounts waiting for review before 1.1.2027. Read only."""

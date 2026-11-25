@@ -35,12 +35,15 @@ KIND_ROLE_REMOVAL = "role_removal"
 KIND_BOARD_ROSTER = "board_roster"
 KIND_SITE_LOCKDOWN = "site_lockdown"
 KIND_ACCESS_REVIEW = "access_review"
+KIND_ACCOUNT_DELETION = "account_deletion"
+DELETION_ACTIONS = {"delete", "restore"}
 KIND_ACCOUNT_LOCK = "account_lock"
 LOCKDOWN_ACTIONS = {"close", "reopen"}
 LOCKDOWN_FENCE = "site-lockdown"
 COMMON_FIELDS = {"order_id", "kind", "decision_id", "decision_revision", "authority_attestation"}
 KIND_FIELDS = {KIND_ROLE_REMOVAL: {"account_id", "role"}, KIND_BOARD_ROSTER: {"roster"},
                KIND_SITE_LOCKDOWN: {"action"}, KIND_ACCESS_REVIEW: {"roster"},
+               KIND_ACCOUNT_DELETION: {"account_id", "action"},
                KIND_ACCOUNT_LOCK: {"account_id"}}
 ROLE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 # Roles an order may take away. Everything else is refused, not guessed at.
@@ -72,6 +75,10 @@ def validate_order(request: Any) -> Optional[dict]:
             return None
     elif kind == KIND_SITE_LOCKDOWN:
         if request["action"] not in LOCKDOWN_ACTIONS:
+            return None
+    elif kind == KIND_ACCOUNT_DELETION:
+        if not (isinstance(request["account_id"], str) and cg.ACCOUNT_ID.match(request["account_id"])
+                and request["action"] in DELETION_ACTIONS):
             return None
     elif kind == KIND_ACCOUNT_LOCK:
         if not (isinstance(request["account_id"], str) and cg.ACCOUNT_ID.match(request["account_id"])):
@@ -174,6 +181,8 @@ def _order_fenced(db, operation, intent, actor, integration, target, fence) -> c
         write = _plan_site_lockdown(db, operation, intent, actor)
     elif intent["kind"] == KIND_ACCESS_REVIEW:
         write = _plan_access_review(db, operation, intent, actor)
+    elif intent["kind"] == KIND_ACCOUNT_DELETION:
+        write = _plan_account_deletion(db, operation, intent, actor)
     elif intent["kind"] == KIND_ACCOUNT_LOCK:
         write = _plan_account_lock(db, operation, intent, actor)
     else:
@@ -299,6 +308,53 @@ def _plan_access_review(db, operation, intent, actor):
     def verify():
         done = access_review.confirmed_accounts(db, roster, intent["order_id"])
         return done == roster, {"roster": done}
+
+    return write, verify
+
+
+def _plan_account_deletion(db, operation, intent, actor):
+    """Return a rejection code, or (write, verify) for an admin's account deletion.
+
+    ``delete`` erases a closed account whose review is still open; ``restore``
+    reopens it exactly as it was. Anything else is stale: the decision was made
+    for a state the account no longer has. A replay after success is a no-op.
+    """
+    from flask import current_app
+
+    from mielenosoitukset_fi.utils import account_deletion as ad
+    from mielenosoitukset_fi.utils.system_teams import olivia_user_id
+
+    account_id, action = intent["account_id"], intent["action"]
+    account = ObjectId(account_id)
+    if account_id == olivia_user_id():
+        return "unsupported_scope"
+    doc = db.users.find_one({"_id": account})
+    review = db[ad.COLLECTION].find_one({"user_id": account}, sort=[("requested_at", -1)]) or {}
+    done = "deleted" if action == "delete" else "restored"
+    if doc is not None and ROLE_RANK.get(doc.get("role"), 0) > _actor_rank(actor):
+        return "denied"
+    already = (doc is None and review.get("status") == ad.DELETED) if action == "delete" \
+        else (doc is not None and not doc.get("soft_deleted") and review.get("status") == ad.RESTORED)
+    if not already and (doc is None or not doc.get("soft_deleted") or ad.pending_review(db, account) is None):
+        return "stale_state"
+    operation_id = str(operation["_id"])
+
+    def write(acting):
+        if already:
+            return
+        if action == "delete":
+            if ad.confirm_deletion(db, account, operation_id, current_app.config["SECRET_KEY"],
+                                   current_app.config.get("ERASURE_SEAL_PUBLIC_KEY")) != "deleted":
+                raise cg.CityGrantConflict("the account could not be erased")
+        else:
+            ad.restore(db, account, acting, operation_id)
+
+    def verify():
+        after = db.users.find_one({"_id": account})
+        row = db[ad.COLLECTION].find_one({"user_id": account}, sort=[("requested_at", -1)]) or {}
+        ok = (after is None if action == "delete" else after is not None and not after.get("soft_deleted")) \
+            and row.get("status") == done
+        return ok, {"deletion": done if ok else ("closed" if after is not None else "erased")}
 
     return write, verify
 

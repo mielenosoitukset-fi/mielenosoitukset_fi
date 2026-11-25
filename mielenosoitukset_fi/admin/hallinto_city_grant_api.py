@@ -610,6 +610,7 @@ ORDER_APPROVAL_FIELDS = {
     flask_orders.KIND_BOARD_ROSTER: {"order_id", "kind", "decision_id", "decision_revision", "roster"},
     flask_orders.KIND_SITE_LOCKDOWN: {"order_id", "kind", "decision_id", "decision_revision", "action"},
     flask_orders.KIND_ACCESS_REVIEW: {"order_id", "kind", "decision_id", "decision_revision", "roster"},
+    flask_orders.KIND_ACCOUNT_DELETION: {"order_id", "kind", "decision_id", "decision_revision", "account_id", "action"},
     flask_orders.KIND_ACCOUNT_LOCK: {"order_id", "kind", "decision_id", "decision_revision", "account_id"},
 }
 ELEVATED_APPROVAL_FIELDS = {"account_id", "template", "decision_id", "decision_revision", "valid_until"}
@@ -868,6 +869,7 @@ def build_approval_blueprint(db) -> Blueprint:
         page_title = ("Vahvista superadmin- tai god-nimitys" if is_elevated else "Vahvista kutsun lähetys" if is_invite else "Vahvista pääsyn palautus" if is_recovery else "Vahvista roolin poisto" if fields.get("kind") == flask_orders.KIND_ROLE_REMOVAL
                       else "Vahvista hätäsulku" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN and fields.get("action") == "close"
                       else "Vahvista sivuston avaaminen" if fields.get("kind") == flask_orders.KIND_SITE_LOCKDOWN
+                      else ("Vahvista tilin lopullinen poisto" if fields.get("action") == "delete" else "Vahvista tilin palautus") if fields.get("kind") == flask_orders.KIND_ACCOUNT_DELETION
                       else "Vahvista tilin hätälukitus" if fields.get("kind") == flask_orders.KIND_ACCOUNT_LOCK
                       else "Vahvista ylläpitotilien tarkistus" if fields.get("kind") == flask_orders.KIND_ACCESS_REVIEW
                       else "Vahvista hallitustiimin päivitys" if is_order
