@@ -9,8 +9,9 @@ it is never left unprocessed:
   running), skipped when nobody is on duty;
 * level 2: the national moderation team (national admin team and national
   moderators);
-* level 3: OT (the approvers of the duty-shift appointments, whom Hallinto
-  sends), skipped when none are known;
+* level 3: OT, never skipped: OT decides in Hallinto, so the case goes there
+  even when no OT account is known to Flask (the approvers of the duty-shift
+  appointments, whom Hallinto sends, are only the ones mailed);
 * level 4: Johtoryhmä, the last level. Nothing goes above it.
 
 ``meta.superior_needed`` stays the "escalated" flag the rest of the site reads;
@@ -27,6 +28,7 @@ from mielenosoitukset_fi.utils.logger import logger
 from mielenosoitukset_fi.utils.time_utils import utcnow
 
 MAX_LEVEL = 4
+OT_LEVEL = 3
 LEVEL_NAMES = {
     0: "Ensimmäinen tarkistaja",
     1: "Päivystävä moderaattori",
@@ -71,13 +73,14 @@ def clean_reason(value) -> str:
 def next_target(db, level):
     """(level, users) the case goes to next: the first higher level that has someone.
 
-    Every level with nobody to tell is skipped (no one on duty, no OT member
-    known, an empty team), so the chain stays short. Only the last level is
-    never skipped, even when no account is found: the case must still move up.
+    Levels with nobody to tell are skipped only for the duty moderator and the
+    national team. OT and Johtoryhmä are bodies that decide in Hallinto, so
+    they are never skipped, even when no account is found for them in Flask:
+    the case must still pass through each of them.
     """
     for candidate in range(level + 1, MAX_LEVEL + 1):
         users = _level_users(db, candidate)
-        if users or candidate == MAX_LEVEL:
+        if users or candidate >= OT_LEVEL:
             return candidate, users
     return MAX_LEVEL, []
 
@@ -226,7 +229,7 @@ def notify_level(db, case_doc, level, users, *, reason="", from_user=""):
 
 # --- Hallinto: OT and Johtoryhmä decide escalated cases there -----------------
 
-OT_LEVEL, JORY_LEVEL = 3, 4
+JORY_LEVEL = 4
 HALLINTO_LEVEL_KEYS = {OT_LEVEL: "ot", JORY_LEVEL: "jory"}
 HALLINTO_ACTIONS = ("approve", "reject", "escalate")
 

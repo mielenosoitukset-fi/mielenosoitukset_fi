@@ -226,9 +226,13 @@ def test_escalate_through_link_needs_reason_and_keeps_demo_pending(app, db, seed
     assert not demo.get("approved") and not demo.get("rejected")
     # Nobody is on duty, so level 1 is skipped: straight to the national team.
     assert case["meta"]["escalation_level"] == 2
-    # A full admin can raise it again. No OT member is known, so OT is skipped: Johtoryhmä.
-    second = browser.post(url, json={"reason": "Päätös kuuluu Johtoryhmälle"})
+    # A full admin can raise it again. No OT account is known, but OT is never skipped.
+    second = browser.post(url, json={"reason": "Päätös kuuluu OT:lle"})
     assert second.status_code == 200, second.get_data(as_text=True)[:500]
+    assert _case(db, seeded_data)["meta"]["escalation_level"] == 3
+    # OT sends it on to Johtoryhmä.
+    fourth = browser.post(url, json={"reason": "Päätös kuuluu Johtoryhmälle"})
+    assert fourth.status_code == 200, fourth.get_data(as_text=True)[:500]
     assert _case(db, seeded_data)["meta"]["escalation_level"] == 4
     # Johtoryhmä is the last level: nothing above it, nothing duplicated.
     history = len(_case(db, seeded_data)["case_history"])
@@ -251,7 +255,7 @@ def test_escalation_levels_and_who_may_raise_them():
     assert not esc.can_escalate({"superior_needed": True, "escalation_level": 4}, reviewer)
 
 
-def test_levels_skip_empty_duty_and_ot_then_include_them(app, db, seeded_data):
+def test_levels_skip_empty_duty_but_never_ot(app, db, seeded_data):
     from datetime import timedelta
 
     from mielenosoitukset_fi.utils import case_escalation as esc
@@ -259,7 +263,8 @@ def test_levels_skip_empty_duty_and_ot_then_include_them(app, db, seeded_data):
     from datetime import datetime, timezone
 
     with app.app_context():
-        assert esc.next_target(db, 0)[0] == 2 and esc.next_target(db, 2)[0] == 4
+        assert esc.next_target(db, 0)[0] == 2 and esc.next_target(db, 2)[0] == 3
+        assert esc.next_target(db, 2)[1] == [] and esc.next_target(db, 3)[0] == 4
         now = datetime.now(timezone.utc)
         duty_id, ot_id = ObjectId(), ObjectId()
         db.users.insert_many([
