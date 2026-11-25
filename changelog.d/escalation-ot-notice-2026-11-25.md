@@ -1,0 +1,1 @@
+- Hallinto can ask Flask to mail the OT members about escalated cases waiting at OT (`/internal/hallinto/v1/escalation-notices`). Each case and account is mailed once, replies go to hallinto@, and it stays off until `ESCALATION_OT_NOTICES_ENABLED` is switched on.
