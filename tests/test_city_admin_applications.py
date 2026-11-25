@@ -1,8 +1,8 @@
-"""City admin applications: case delivery, local visibility and global decisions."""
+"""City admin applications: local visibility and global decisions on cases made before Hallinto took over."""
 
 from bson import ObjectId
 
-from mielenosoitukset_fi.utils.city_admin_applications import deliver_pending
+from mielenosoitukset_fi.utils.classes import Case
 from mielenosoitukset_fi.utils.time_utils import utcnow
 from tests.conftest import _client_for_user
 from tests.test_city_scoped_admin import _create_scoped_admin
@@ -21,20 +21,19 @@ def _application(db, applicant, cities):
     return doc["_id"]
 
 
-def test_delivery_creates_one_case_per_application(db, seeded_data):
-    applicant = seeded_data["user_id"]
-    application = _application(db, applicant, ["tampere"])
-
-    assert deliver_pending(db) == 1
-    assert deliver_pending(db) == 0
-
-    case = db.cases.find_one({"_id": application})
-    assert case["type"] == "city_admin_application"
-    assert case["meta"]["city_keys"] == ["tampere"]
-    # The case points to the application; the free text is not copied.
-    assert "about" not in repr(case.get("suggestion"))
-    stored = db.city_admin_applications.find_one({"_id": application})
-    assert stored["case_pending"] is False and stored["case_id"] == application
+def deliver_pending(db):
+    """Make the Flask review case that the removed delivery job used to create."""
+    count = 0
+    for application in db.city_admin_applications.find({"case_pending": True}):
+        case = Case(
+            case_type="city_admin_application", submitter_id=application.get("user_id"), submitter={},
+            meta={"application_id": application["_id"], "city_keys": application.get("city_keys") or [],
+                  "urgency": "normal"}, _id=application["_id"],
+        )
+        db.cases.update_one({"_id": application["_id"]}, {"$setOnInsert": case.to_dict()}, upsert=True)
+        db.city_admin_applications.update_one({"_id": application["_id"]}, {"$set": {"case_pending": False}})
+        count += 1
+    return count
 
 
 def test_local_admins_see_only_their_cities_and_cannot_decide(app, db, seeded_data):
@@ -73,26 +72,6 @@ def test_global_admin_decision_closes_the_case_without_granting_rights(admin_cli
     bad = admin_client.post(f"/admin/case/{application}/application_status/", data={"status": "withdrawn"})
     assert bad.status_code == 302
     assert db.city_admin_applications.find_one({"_id": application})["status"] == "approved"
-
-
-def test_delivery_stays_pending_while_the_national_team_has_nobody_to_notify(db, seeded_data, monkeypatch):
-    from mielenosoitukset_fi.utils import city_admin_applications as module
-
-    def unavailable(_db):
-        raise RuntimeError("National administration team has no eligible recipients")
-
-    monkeypatch.setattr(module, "national_recipients", unavailable)
-    application = _application(db, seeded_data["user_id"], ["tampere"])
-    assert deliver_pending(db) == 0
-    assert db.cases.find_one({"_id": application})  # the case itself exists
-    assert db.city_admin_applications.find_one({"_id": application})["case_pending"] is True
-
-    admin = seeded_data["admin_id"]
-    monkeypatch.setattr(module, "national_recipients", lambda _db: [{"user_id": str(admin), "email": "a@example.org"}])
-    assert deliver_pending(db) == 1
-    notice = db.notifications.find_one({"_id": f"city-admin-application:{application}:{admin}"})
-    from mielenosoitukset_fi.utils.notifications import serialize_notification
-    assert serialize_notification(notice)["message"] == "Uusi kaupunkiadminhakemus: Tampere"
 
 
 def test_retention_erases_only_expired_decided_text(db, seeded_data):
@@ -141,17 +120,12 @@ def test_duplicate_check_pipeline_is_read_only_and_groups_open_per_user():
     assert module.OPEN_STATUSES == ["received", "in_review"]
 
 
-def test_hallinto_switch_stops_flask_cases_and_flask_decisions(admin_client, db, seeded_data, monkeypatch):
+def test_hallinto_case_stops_flask_decisions(admin_client, db, seeded_data):
     from mielenosoitukset_fi.utils import city_admin_applications as module
     applicant = seeded_data["user_id"]
-    monkeypatch.setenv(module.HALLINTO_ENV_FLAG, "true")
     application = _application(db, applicant, ["tampere"])
-    assert deliver_pending(db) == 0
-    assert not db.cases.find_one({"_id": application})
-    assert db.city_admin_applications.find_one({"_id": application})["case_pending"] is True
 
     # A case made before the switch: once Hallinto links its own case, only Hallinto decides.
-    monkeypatch.delenv(module.HALLINTO_ENV_FLAG)
     assert deliver_pending(db) == 1
     module.hallinto_update(db, application, "in_review", "hallinto-case", "actor")
     assert module.set_status(db, application, "approved", "admin") is False
@@ -159,5 +133,3 @@ def test_hallinto_switch_stops_flask_cases_and_flask_decisions(admin_client, db,
     module.hallinto_update(db, application, "declined", "hallinto-case", "actor")
     case = db.cases.find_one({"_id": application})
     assert case["meta"]["closed"] is True and case["case_history"][-1]["metadata"]["hallinto_case"] == "hallinto-case"
-    assert module.handled_in_hallinto({}) is False
-    assert module.handled_in_hallinto({module.HALLINTO_ENV_FLAG: "true"}) is True
