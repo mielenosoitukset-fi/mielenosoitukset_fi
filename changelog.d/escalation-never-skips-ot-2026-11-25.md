@@ -1,0 +1,1 @@
+- An escalated demonstration case no longer jumps from the national moderation team straight to Johtoryhmä when Flask knows no OT account: OT is always the next level, and OT sends it on to Johtoryhmä in Hallinto.
