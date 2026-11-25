@@ -126,6 +126,5 @@ BABEL:
 #   -----END PUBLIC KEY-----
 
 # Admin rights are managed in Hallinto; the site admin shows them read-only (default true).
-ADMIN_RIGHTS_IN_HALLINTO: true
 # Optional link to Hallinto in the "change rights" dialog.
 # HALLINTO_URL: https://hallinto.example

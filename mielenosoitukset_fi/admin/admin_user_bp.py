@@ -31,9 +31,9 @@ from mielenosoitukset_fi.utils.flashing import flash_message
 from .utils import get_org_name, mongo, _ADMIN_TEMPLATE_FOLDER
 from .board_compliance import has_board_clearance
 from .city_grants import (
-    CITY_ADMIN_AVAILABLE_PERMISSIONS, CITY_ADMIN_PERMISSIONS, CityGrantConflict,
-    _profile_snapshot, can_manage_scope_grants,
-    city_scope_grant_for_user, commit_profile_change, history_actor, sync_city_scope_grant,
+    CITY_ADMIN_AVAILABLE_PERMISSIONS, CityGrantConflict,
+    _profile_snapshot,
+    city_scope_grant_for_user, commit_profile_change, history_actor,
 )
 from .user_erasure import erase_user
 from mielenosoitukset_fi.utils.system_teams import SUPER_ROLES, team_ids, user_team_access
@@ -88,14 +88,6 @@ def protect_user_history_response(response):
         response.cache_control.private = True
         response.cache_control.no_store = True
     return response
-
-
-def _rights_in_hallinto() -> bool:
-    """Admin rights (role, global permissions, city grants) are decided in Hallinto.
-
-    While on, the site admin shows them read-only and its forms never write them.
-    """
-    return bool(current_app.config.get("ADMIN_RIGHTS_IN_HALLINTO", True))
 
 
 def _org_admin_memberships(user_id) -> list[dict]:
@@ -287,8 +279,6 @@ def user_control():
         total_users=total_users,
         user_summary=user_summary,
         visible_pages=visible_pages,
-        can_manage_scope_grants=_can_manage_scope_grants(current_user),
-        rights_in_hallinto=_rights_in_hallinto(),
         city_list=CITY_LIST,
         enabled_city_list=enabled_city_names(mongo),
         city_name_to_key=CITY_NAME_TO_KEY,
@@ -315,20 +305,8 @@ def _normalize_role_permissions(role, selected_permissions):
     permissions.update(ROLE_IMPLIED_GLOBAL_PERMISSIONS.get(role, set()))
     return sorted(permissions)
 
-def _can_manage_scope_grants(actor) -> bool:
-    return can_manage_scope_grants(actor)
-
-
 def _city_scope_grant_for_user(user_id: ObjectId) -> dict:
     return city_scope_grant_for_user(mongo, user_id)
-
-
-def _sync_city_scope_grant(user_id: ObjectId, city_keys: list[str], permissions: list[str]) -> None:
-    """The shared city writer, attributed to the signed-in administrator."""
-    try:
-        sync_city_scope_grant(mongo, user_id, city_keys, permissions, current_user)
-    except CityGrantConflict:
-        abort(409)
 
 
 def compare_user_levels(user1, user2):
@@ -555,10 +533,9 @@ def edit_user(user_id):
             ),
             "forced_identity_change": request.form.get("forced_identity_change") == "on",
         }
-        if _rights_in_hallinto():
-            # Rights are decided in Hallinto; this form never writes them.
-            incoming["role"] = current["role"]
-            incoming["global_permissions"] = current["global_permissions"]
+        # Rights are decided in Hallinto; this form never writes them.
+        incoming["role"] = current["role"]
+        incoming["global_permissions"] = current["global_permissions"]
         _check_user_assignment(current_user, incoming["role"], incoming["global_permissions"], user)
 
         # ─── validoinnit ────────────────────────────────────────────────────────
@@ -641,11 +618,6 @@ def edit_user(user_id):
         else:
             flash_message("Mitään ei muutettu.", "info")
 
-        if _can_manage_scope_grants(current_user) and not _rights_in_hallinto():
-            city_scope_keys = request.form.getlist("admin_scope_cities[]")
-            city_scope_permissions = request.form.getlist("admin_scope_permissions[city][]")
-            _sync_city_scope_grant(user._id, city_scope_keys, city_scope_permissions)
-
         return safe_redirect(request.referrer or url_for("admin_user.user_control"))
 
     # ─── GET → lomake ──────────────────────────────────────────────────────────
@@ -659,11 +631,9 @@ def edit_user(user_id):
         permission_category_labels=PERMISSION_CATEGORY_LABELS if str(get_locale()) == "fi" else {},
         permission_descriptions=PERMISSION_DESCRIPTIONS if str(get_locale()) == "fi" else {},
         global_permissions=user.global_permissions,
-        rights_in_hallinto=_rights_in_hallinto(),
         hallinto_url=current_app.config.get("HALLINTO_URL"),
         org_admin_memberships=_org_admin_memberships(user._id),
         can_change_status=can_change_account_status(current_user, user),
-        can_manage_scope_grants=_can_manage_scope_grants(current_user),
         city_list=CITY_LIST,
         enabled_city_list=enabled_city_names(mongo),
         city_name_to_key=CITY_NAME_TO_KEY,
@@ -747,10 +717,9 @@ def save_user(user_id):
     role = request.form.get("role")
     confirmed = request.form.get("confirmed") == "on"
     global_permissions = _normalize_role_permissions(role, request.form.getlist("permissions[global][]"))
-    if _rights_in_hallinto():
-        # Rights are decided in Hallinto; this form never writes them.
-        role = user.role
-        global_permissions = list(user.global_permissions or [])
+    # Rights are decided in Hallinto; this form never writes them.
+    role = user.role
+    global_permissions = list(user.global_permissions or [])
     forced_identity_change = request.form.get("forced_identity_change") == "on"
     _check_user_assignment(current_user, role, global_permissions, user)
 
@@ -839,12 +808,6 @@ def save_user(user_id):
     except DuplicateKeyError:
         flash_message("Käyttäjänimi tai sähköpostiosoite on jo käytössä.", "error")
         return redirect(url_for("admin_user.edit_user", user_id=user_id))
-
-    if _can_manage_scope_grants(current_user) and not _rights_in_hallinto():
-        _sync_city_scope_grant(
-            user._id, request.form.getlist("admin_scope_cities[]"),
-            request.form.getlist("admin_scope_permissions[city][]"),
-        )
 
     if forced_identity_change and not identity_change_was_forced:
         email_sender.queue_email(
@@ -1072,43 +1035,11 @@ def create_user():
         flash_message("Admin-nimitys on varattu palvelun sisäiseen käyttöön.", "error")
         return redirect(request.referrer or url_for("admin_user.user_control"))
 
-    if _rights_in_hallinto() and (
+    if (
         role != "user" or data.get("admin_scope_cities") or request.form.getlist("admin_scope_cities[]")
     ):
         flash_message("Ylläpito-oikeudet myönnetään Hallinnossa. Luo tili tavallisena käyttäjänä.", "error")
         return redirect(request.referrer or url_for("admin_user.user_control"))
-
-    # Basic validation
-    if role not in ["user", "translator", "city_admin", "admin", "global_admin"]:
-        flash_message("Rooli ei ole kelvollinen.", "error")
-        return redirect(request.referrer or url_for("admin_user.user_control"))
-    _check_user_assignment(current_user, role, _normalize_role_permissions(role, []))
-    # Clearance is subject-specific; create the ordinary account first, then
-    # use the existing clearance-checked promotion flow.
-    if role == "global_admin":
-        abort(403)
-
-    if request.is_json:
-        city_scope_keys = data.get("admin_scope_cities", []) or []
-        if isinstance(city_scope_keys, str):
-            city_scope_keys = [city_scope_keys]
-    else:
-        city_scope_keys = request.form.getlist("admin_scope_cities[]")
-
-    city_scope_keys = sorted(
-        {
-            normalize_city_key(key)
-            for key in city_scope_keys
-            if normalize_city_key(key) in CITY_KEY_TO_NAME
-        }
-    )
-    if role == "city_admin":
-        if not _can_manage_scope_grants(current_user):
-            flash_message("Sinulla ei ole oikeutta myöntää kaupunkiadminin roolia.", "error")
-            return redirect(request.referrer or url_for("admin_user.user_control"))
-        if not city_scope_keys:
-            flash_message("Valitse kaupunkiadminille vähintään yksi paikkakunta.", "error")
-            return redirect(request.referrer or url_for("admin_user.user_control"))
 
     # Check if email already exists
     if mongo.users.find_one({"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}}):
@@ -1160,9 +1091,6 @@ def create_user():
     user = User.from_db(inserted_user)
 
     flush_user_history(mongo, user._id)
-
-    if role == "city_admin":
-        _sync_city_scope_grant(user._id, city_scope_keys, CITY_ADMIN_PERMISSIONS)
 
 
     # Send a one-hour set-password link (never the password itself)

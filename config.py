@@ -226,7 +226,6 @@ class Config:
         cls.CONTACT_FORM_ENABLED = bool(config.get("CONTACT_FORM_ENABLED", True))
         # Admin rights (role, global permissions, city grants) are decided in
         # Hallinto: the site admin shows them read-only. Rollback: set false.
-        cls.ADMIN_RIGHTS_IN_HALLINTO = bool(config.get("ADMIN_RIGHTS_IN_HALLINTO", True))
         # Optional link to Hallinto shown in the "change rights" dialog.
         cls.HALLINTO_URL = config.get("HALLINTO_URL") or None
         # Off by default: lets /api/session answer the Go/React auth bridge's
