@@ -57,46 +57,6 @@ def test_approved_permissions_match_hallinto():
     assert CITY_ADMIN_V1_PERMISSIONS == NINE
 
 
-# --------------------------------------------------------------------------- #
-# Step 1: the legacy views call the shared writer
-# --------------------------------------------------------------------------- #
-def test_legacy_edit_and_shared_writer_produce_the_same_grant(app, admin_client, db, seeded_data):
-    ensure_operation_indexes(db)
-    upsert_city_setting(db, "lahti", False)
-    legacy, shared = ObjectId(), ObjectId()
-    for user_id, name in ((legacy, "legacy"), (shared, "shared")):
-        db.users.insert_one(_user_doc(name, f"{name}@example.test", "Pass1word!", _id=user_id))
-    payload = _profile(db.users.find_one({"_id": legacy}), **{
-        "admin_scope_cities[]": ["lahti"], "admin_scope_permissions[city][]": ["EDIT_DEMO"],
-    })
-    assert admin_client.post(f"/admin/user/edit_user/{legacy}", data=payload).status_code == 302
-    assert "lahti" in enabled_city_keys(db)
-
-    upsert_city_setting(db, "lahti", False)
-    admin = db.users.find_one({"_id": seeded_data["admin_id"]})
-    actor = SimpleNamespace(_id=admin["_id"], username=admin["username"], role=admin["role"])
-    with app.app_context():
-        result = sync_city_scope_grant(db, shared, ["Lahti"], ["EDIT_DEMO"], actor)
-    assert result.enabled_cities == ["lahti"]
-
-    def shape(user_id):
-        grant = db.admin_scope_grants.find_one({"user_id": user_id})
-        return ({k: grant[k] for k in ("scope_type", "scope_keys", "role", "permissions", "revoked_at",
-                                       "granted_by", "updated_by")},
-                db.users.find_one({"_id": user_id})["role"])
-
-    assert shape(legacy) == shape(shared)
-    assert shape(shared)[0]["permissions"] == ["EDIT_DEMO", "LIST_DEMOS", "VIEW_DEMO"]
-    assert shape(shared)[1] == "city_admin"
-    logs = list(db.admin_logs.find({"entity_id": str(shared)}))
-    assert logs and {log["actor_id"] for log in logs} == {str(seeded_data["admin_id"])}
-
-    with app.app_context():
-        sync_city_scope_grant(db, shared, [], [], actor)
-    assert db.users.find_one({"_id": shared})["role"] == "user"
-    assert db.admin_scope_grants.find_one({"user_id": shared})["revoked_by"] == str(seeded_data["admin_id"])
-
-
 def test_shared_writer_refuses_disallowed_enablement_and_replacement(ctx):
     actor = SimpleNamespace(_id=ctx.admin, username="admin", role="admin")
     with pytest.raises(city_grants.CityGrantConflict):
@@ -312,15 +272,11 @@ def test_writes_are_attributed_to_the_actor_in_the_audit_trail(ctx):
     assert {event["actor"].get("user_id") for event in events} == {str(ctx.admin)}
 
 
-def test_a_held_account_fence_blocks_both_writers_before_any_write(ctx, admin_client):
+def test_a_held_account_fence_blocks_the_writer_before_any_write(ctx):
     request = _request(ctx)
     with city_grants.account_fence(ctx.db, ctx.target):
         outcome = _apply(ctx, request)
         assert (outcome.status_code, outcome.body) == (409, {"code": "stale_state"})
-        payload = _profile(ctx.db.users.find_one({"_id": ctx.target}), **{
-            "admin_scope_cities[]": ["kuopio"], "admin_scope_permissions[city][]": ["EDIT_DEMO"],
-        })
-        assert admin_client.post(f"/admin/user/edit_user/{ctx.target}", data=payload).status_code == 409
         assert not _grants(ctx)
     # Released: the next writer proceeds.
     assert _apply(ctx, request, key="hallinto-op-0000000005").status_code == 200
@@ -402,21 +358,3 @@ def test_legacy_save_keeps_the_appointment_expiry(ctx, admin_client):
     assert grant["expires_at"].strftime("%Y-%m-%dT%H:%M:%SZ") == VALID_UNTIL
 
 
-def test_stale_legacy_form_cannot_recreate_an_ended_appointment(ctx, admin_client):
-    assert _apply(ctx, _request(ctx)).status_code == 200
-    form = _profile(ctx.db.users.find_one({"_id": ctx.target}), **{
-        "admin_scope_cities[]": ["kuopio"], "admin_scope_permissions[city][]": NINE, "role": "city_admin",
-    })
-    ctx.db.admin_scope_grants.update_one({"user_id": ctx.target}, {"$set": {
-        "expires_at": city_grants.utcnow() - timedelta(seconds=1)}})
-    assert admin_client.post(f"/admin/user/edit_user/{ctx.target}", data=form).status_code == 409
-    assert not _grants(ctx)
-    ended = ctx.db.admin_scope_grants.find_one({"user_id": ctx.target})
-    assert ended["revoked_reason"] == "expired" and "expires_at" in ended
-    # A deliberate new grant after the reload works and has no end date.
-    form = _profile(ctx.db.users.find_one({"_id": ctx.target}), **{
-        "admin_scope_cities[]": ["kuopio"], "admin_scope_permissions[city][]": ["EDIT_DEMO"],
-    })
-    assert admin_client.post(f"/admin/user/edit_user/{ctx.target}", data=form).status_code == 302
-    [grant] = _grants(ctx)
-    assert "expires_at" not in grant

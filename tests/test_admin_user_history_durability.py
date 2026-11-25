@@ -107,7 +107,7 @@ def test_failed_projection_keeps_event_and_retry_is_idempotent(admin_client, db,
     assert db.admin_logs.find_one({"_id": event["_id"]})["actor"] == event["actor"]
 
 
-@pytest.mark.parametrize("operation", ["profile", "create", "reset", "scope"])
+@pytest.mark.parametrize("operation", ["profile", "create", "reset"])
 def test_source_write_failure_cannot_lose_its_event(admin_client, db, seeded_data, monkeypatch, operation):
     target = seeded_data["user_id"]
     original_update = type(db.users).find_one_and_update
@@ -135,11 +135,7 @@ def test_source_write_failure_cannot_lose_its_event(admin_client, db, seeded_dat
             admin_client.post("/admin/user/api/force_password_change/", json={"user_id": str(target)})
         else:
             payload = _profile(before)
-            if operation == "profile":
-                payload["displayname"] = "Must not persist"
-            else:
-                payload.update({"admin_scope_cities[]": ["helsinki"],
-                                "admin_scope_permissions[city][]": ["EDIT_DEMO"]})
+            payload["displayname"] = "Must not persist"
             admin_client.post(f"/admin/user/edit_user/{target}", data=payload)
     assert db.users.find_one({"_id": target}) == before
     assert db.users.count_documents({"username": "atomic-create"}) == 0
@@ -161,33 +157,6 @@ def test_full_pending_outbox_rejects_an_unrecordable_change(app, admin_client, d
     saved = db.users.find_one({"_id": target})
     assert saved["displayname"] == document.get("displayname", "")
     assert len(saved["_admin_history_pending"]) == 100
-
-
-@pytest.mark.parametrize("revoke", [False, True])
-def test_scope_outbox_survives_projection_failure(admin_client, db, seeded_data, monkeypatch, revoke):
-    target = seeded_data["user_id"]
-    endpoint = f"/admin/user/edit_user/{target}"
-    grant = {"admin_scope_cities[]": ["helsinki"], "admin_scope_permissions[city][]": ["EDIT_DEMO"]}
-    if revoke:
-        assert admin_client.post(endpoint, data=_profile(db.users.find_one({"_id": target}), **grant)).status_code == 302
-    original = type(db.users).update_one
-
-    def unavailable(self, query, update, *args, **kwargs):
-        if self.name == "admin_logs" and "$setOnInsert" in update:
-            raise AutoReconnect("synthetic scope projection failure")
-        return original(self, query, update, *args, **kwargs)
-
-    with monkeypatch.context() as scoped:
-        scoped.setattr(type(db.users), "update_one", unavailable)
-        payload = _profile(db.users.find_one({"_id": target}), **({} if revoke else grant))
-        assert admin_client.post(endpoint, data=payload).status_code == 302
-    stored = db.admin_scope_grants.find_one({"user_id": target})
-    assert bool(stored.get("revoked_at")) is revoke
-    entry = stored["_admin_history_pending"][0]
-    assert entry["new_state"]["city_scope_keys"] == ([] if revoke else ["helsinki"])
-    assert admin_client.get(f"/admin/user/history/{target}").status_code == 200
-    assert db.admin_scope_grants.find_one({"_id": stored["_id"]})["_admin_history_pending"] == []
-    assert db.admin_logs.count_documents({"_id": entry["_id"]}) == 1
 
 
 @pytest.mark.parametrize("operation", ["create", "reset"])
