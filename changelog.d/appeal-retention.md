@@ -1,0 +1,1 @@
+- Valitusten ja oikaisuvaatimusten tekijän nimi, sähköposti ja oma teksti poistetaan automaattisesti 3 vuoden kuluttua päätöksestä. Päätös ja asian tiedot säilyvät. Aika on asetuksessa APPEAL_RETENTION_DAYS.

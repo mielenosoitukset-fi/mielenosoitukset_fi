@@ -37,12 +37,14 @@ KIND_SITE_LOCKDOWN = "site_lockdown"
 KIND_ACCESS_REVIEW = "access_review"
 KIND_ACCOUNT_DELETION = "account_deletion"
 DELETION_ACTIONS = {"delete", "restore"}
+KIND_ACCOUNT_LOCK = "account_lock"
 LOCKDOWN_ACTIONS = {"close", "reopen"}
 LOCKDOWN_FENCE = "site-lockdown"
 COMMON_FIELDS = {"order_id", "kind", "decision_id", "decision_revision", "authority_attestation"}
 KIND_FIELDS = {KIND_ROLE_REMOVAL: {"account_id", "role"}, KIND_BOARD_ROSTER: {"roster"},
                KIND_SITE_LOCKDOWN: {"action"}, KIND_ACCESS_REVIEW: {"roster"},
-               KIND_ACCOUNT_DELETION: {"account_id", "action"}}
+               KIND_ACCOUNT_DELETION: {"account_id", "action"},
+               KIND_ACCOUNT_LOCK: {"account_id"}}
 ROLE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 # Roles an order may take away. Everything else is refused, not guessed at.
 REMOVABLE_ROLES = {"city_admin", "admin", "global_admin", "superuser", "god"}
@@ -77,6 +79,9 @@ def validate_order(request: Any) -> Optional[dict]:
     elif kind == KIND_ACCOUNT_DELETION:
         if not (isinstance(request["account_id"], str) and cg.ACCOUNT_ID.match(request["account_id"])
                 and request["action"] in DELETION_ACTIONS):
+            return None
+    elif kind == KIND_ACCOUNT_LOCK:
+        if not (isinstance(request["account_id"], str) and cg.ACCOUNT_ID.match(request["account_id"])):
             return None
     else:
         roster = request["roster"]
@@ -135,6 +140,31 @@ def apply_order(db, *, integration: str, actor_id, idempotency_key: str, request
         return cg._outcome_for(current) if current else cg._error("unavailable")
 
 
+def read_order_status(db, *, integration: str, order_id: str) -> cg.Outcome:
+    """What Flask did with one order, for Hallinto's automatic check. Writes nothing.
+
+    It covers every order Flask journals under an idempotency key: the roster,
+    role removal, lockdown and access review orders, outbound invitations,
+    access recoveries and organization rights. Unlike the receipt route this
+    needs no human proof: it is read-only, looks the order up by its id alone
+    and shows only the order's own state, so
+    Hallinto can settle an order whose answer it lost without asking the owner
+    to approve a resend. A lease that ran out is reported as it would be on a
+    replay, but is not recorded here.
+    """
+    if not isinstance(order_id, str) or not cg.IDEMPOTENCY_KEY.match(order_id):
+        return cg._error("unknown_operation")
+    operation = db[cg.OPERATIONS].find_one(
+        {"integration": integration, "idempotency_key": order_id}, sort=[("created_at", -1)])
+    if operation is None:
+        return cg._error("unknown_operation")
+    if operation["status"] == "rejected":
+        return cg.Outcome(200, operation["receipt"])
+    if operation["status"] == "pending" and operation["updated_at"] <= utcnow() - cg.APPLY_LEASE:
+        operation = {**operation, "status": "reconciliation_required"}
+    return cg._outcome_for(operation)
+
+
 def _board_organization(db):
     from mielenosoitukset_fi.utils.system_teams import team_ids
 
@@ -153,6 +183,8 @@ def _order_fenced(db, operation, intent, actor, integration, target, fence) -> c
         write = _plan_access_review(db, operation, intent, actor)
     elif intent["kind"] == KIND_ACCOUNT_DELETION:
         write = _plan_account_deletion(db, operation, intent, actor)
+    elif intent["kind"] == KIND_ACCOUNT_LOCK:
+        write = _plan_account_lock(db, operation, intent, actor)
     else:
         write = _plan_board_roster(db, operation, intent, actor)
     if isinstance(write, str):
@@ -380,6 +412,61 @@ def _plan_site_lockdown(db, operation, intent, actor):
     def verify():
         closed = site_locked(db)
         return closed == close, {"lockdown": "closed" if closed else "open"}
+
+    return write, verify
+
+
+def _plan_account_lock(db, operation, intent, actor):
+    """Return a rejection code, or (write, verify) for suspending one account.
+
+    The emergency lock of one account decided in Hallinto. It writes the same
+    security case (kind ``account``, status ``suspended``) and the same
+    suspension the Flask page's "Keskeytä" does, so the board can review and
+    restore it there. Sessions, API tokens and magic links of the account end
+    with it. Only a suspension is ordered: restoring needs the hearing and the
+    renewed credentials that page already demands. An account that is already
+    suspended is a stale decision. The protected accounts (god, the board team,
+    Olivia) are refused: they have their own Flask safeguards.
+    """
+    from mielenosoitukset_fi.utils.security_cases import (
+        _fingerprint, person_id, protected_account, reconcile_case, suspended,
+    )
+    from mielenosoitukset_fi.utils.system_teams import olivia_user_id
+
+    account_id = ObjectId(intent["account_id"])
+    target = db.users.find_one({"_id": account_id})
+    if target is None:
+        return "denied"  # Conceal existence.
+    if intent["account_id"] == olivia_user_id() or protected_account(db, target) and not suspended(target):
+        return "unsupported_scope"
+    if suspended(target):
+        return "stale_state"
+    operation_id = str(operation["_id"])
+    case_id = f"hallinto-{operation_id}"
+    reason = f"Hallinnon päätös {intent['decision_id']}, versio {intent['decision_revision']}"
+
+    def write(acting):
+        now = utcnow()
+        event = {"id": operation_id, "action": "suspend", "reason": reason, "actor_id": str(actor._id),
+                 "actor_name": actor.username, "at": now, "approved": True, "method": "hallinto_order",
+                 "votes": {}, "required": 1, "hearing": "", "roster": {}}
+        db.security_cases.update_one(
+            {"_id": case_id},
+            {"$setOnInsert": {"revision": 1, "kind": "account", "target_id": str(account_id),
+                              "target_name": target.get("username"), "affected_person": person_id(target),
+                              "reason": reason, "opened_by": str(actor._id), "created_at": now,
+                              "status": "pending", "events": [event], "effect_pending": event,
+                              "credential_before": _fingerprint(db, target), "updated_at": now,
+                              "source": "hallinto_order"}},
+            upsert=True)
+        # The shared reconciler applies the suspension and ends sessions, so a
+        # retry after an interruption cannot suspend twice or skip the revoke.
+        reconcile_case(db, db.security_cases.find_one({"_id": case_id}))
+
+    def verify():
+        after = db.users.find_one({"_id": account_id}) or {}
+        locked = suspended(after)
+        return locked, {"account_locked": locked}
 
     return write, verify
 

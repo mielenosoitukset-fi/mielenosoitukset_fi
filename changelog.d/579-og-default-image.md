@@ -1,0 +1,1 @@
+- Shared links without their own preview picture now show a site image. The default `og-default.jpg` was missing (404) from every public page, so chat apps and social networks showed no preview (#579).

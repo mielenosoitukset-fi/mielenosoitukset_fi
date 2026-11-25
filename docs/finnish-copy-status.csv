@@ -264,7 +264,6 @@ mielenosoitukset_fi/templates/emails/invite_to_organization.html,Flask/template,
 mielenosoitukset_fi/templates/emails/kampanja/welcome.html,Flask/template,EMAIL PENDING,finnish-copy-inventory.md,"Email phase deferred, including admin-recipient emails and shared email macros."
 mielenosoitukset_fi/templates/emails/macros_new.html,Flask/template,EMAIL PENDING,finnish-copy-inventory.md,"Email phase deferred, including admin-recipient emails and shared email macros."
 mielenosoitukset_fi/templates/emails/new_demo_notification.html,Flask/template,EMAIL PENDING,finnish-copy-inventory.md,"Email phase deferred, including admin-recipient emails and shared email macros."
-mielenosoitukset_fi/templates/emails/new_user_credentials.html,Flask/template,EMAIL PENDING,finnish-copy-inventory.md,"Email phase deferred, including admin-recipient emails and shared email macros."
 mielenosoitukset_fi/templates/emails/newsletter.html,Flask/template,EMAIL PENDING,finnish-copy-inventory.md,"Email phase deferred, including admin-recipient emails and shared email macros."
 mielenosoitukset_fi/templates/emails/organization_access_notification.html,Flask/template,EMAIL PENDING,finnish-copy-inventory.md,"Email phase deferred, including admin-recipient emails and shared email macros."
 mielenosoitukset_fi/templates/emails/password_reset_email.html,Flask/template,EMAIL PENDING,finnish-copy-inventory.md,"Email phase deferred, including admin-recipient emails and shared email macros."

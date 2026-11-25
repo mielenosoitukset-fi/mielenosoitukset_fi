@@ -752,6 +752,13 @@ def single_case(case_id):
     notice_doc = mongo.cases.find_one({"_id": case._id}, {"notified_users": 1, "notified_at": 1}) or {}
     case_data["notified_users"] = notice_doc.get("notified_users") or []
     case_data["notified_at"] = notice_doc.get("notified_at")
+    try:
+        from mielenosoitukset_fi.emailer.open_tracking import opens_for_case
+        opens = opens_for_case(mongo, case._id)
+    except Exception:
+        opens = {}
+    for notified in case_data["notified_users"]:
+        notified["opened"] = opens.get(str(notified.get("user_id")))
 
     link = getattr(g, "case_link", None)
     demo_for_rights = mongo.demonstrations.find_one({"_id": _safe_objectid(case.demo_id)}) if case.demo_id else None

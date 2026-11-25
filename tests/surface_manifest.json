@@ -118,7 +118,7 @@
     ]
   },
   "background_jobs": {
-    "count": 33,
+    "count": 35,
     "coverage": [
       "jobs",
       "tests/test_urgent_review_delivery.py",
@@ -126,14 +126,16 @@
       "tests/test_fundraising_reminder.py",
       "tests/test_pride_banner_volunteers.py",
       "tests/test_purge_suggestion_ips.py",
+      "tests/test_purge_personal_logs.py",
       "tests/test_demo_suggestion_cases.py",
       "tests/test_user_erasure.py",
       "tests/test_scrub_admin_log_secrets.py",
       "tests/test_audit_history.py",
       "tests/test_org_admin_role.py",
-      "tests/test_expire_undecided_demos.py"
+      "tests/test_expire_undecided_demos.py",
+      "tests/test_appeals.py"
     ],
-    "sha256": "005e0077745ad60d89013c18b9fa67a417e99d8d0171f174bf9e19f544e1fe89"
+    "sha256": "f39a331b9df1b66f5365c6872603712feb29ef79028cde0c0284324f1b1109de"
   },
   "routes": {
     "mielenosoitukset_fi/access_review_reply_bp.py": {
@@ -145,13 +147,13 @@
       "sha256": "156e2df53a6480d891ad29dc745a41cfcaad8c4e19ef6b4d3e600ac415740c59"
     },
     "mielenosoitukset_fi/admin/admin_bp.py": {
-      "count": 35,
+      "count": 36,
       "coverage": [
         "integration",
         "e2e-admin",
         "tests/test_admin_nav_fixes.py"
       ],
-      "sha256": "17666f6c69589d762b8a67fe8e7de91362fd0d3511a103b13d939dde0438ed95"
+      "sha256": "8f0ac8f63b7f475c436d01b673910693f88d8f297708999d7bf0a9bfa700acbd"
     },
     "mielenosoitukset_fi/admin/admin_case_bp.py": {
       "count": 24,
@@ -306,14 +308,15 @@
       "sha256": "cd9c57924f5816feb8357cbf18c57d329adfbc411002a38a2ca96cdbcbc525b0"
     },
     "mielenosoitukset_fi/basic_routes.py": {
-      "count": 58,
+      "count": 60,
       "coverage": [
         "integration",
         "e2e-public",
         "tests/test_fundraising_page.py",
-        "tests/test_public_session_summary.py"
+        "tests/test_public_session_summary.py",
+        "tests/test_appeal_form.py"
       ],
-      "sha256": "f202d922ee0328300072b744b1f6a2ef2b6ca2cdf2f3f7e9d345ffabda74021e"
+      "sha256": "a600fb267d56427ac133ac56a6453c591a52d1d4861bcd96561ded730cf44792"
     },
     "mielenosoitukset_fi/developer_bp.py": {
       "count": 9,
@@ -322,6 +325,14 @@
         "e2e-developer"
       ],
       "sha256": "b1fafb2b6411ae8b377701f6a7883c5d8be10bc8b51d261ef3e4df2a2558e92b"
+    },
+    "mielenosoitukset_fi/emailer/open_tracking.py": {
+      "count": 1,
+      "coverage": [
+        "unit",
+        "tests/test_email_open_tracking.py"
+      ],
+      "sha256": "99e77e52c201235069215c4edfef5596dbadfb9379d29360dfd7b0c9424c39ca"
     },
     "mielenosoitukset_fi/kampanja/routes.py": {
       "count": 3,

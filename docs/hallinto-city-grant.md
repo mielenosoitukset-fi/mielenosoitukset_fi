@@ -126,6 +126,14 @@ Flask writes what a decision on its own page `/admin/governance/security` writes
 
 Receipt: `status: confirmed` with `effective: {lockdown: "closed" | "open"}`, read after the write. Hallinto confirms only when it matches the order's action.
 
+### `kind: account_lock` (one account's emergency lock)
+
+Body: `order_id`, `kind`, `decision_id`, `decision_revision`, `account_id`, `authority_attestation`. Same switch as `site_lockdown`: off unless `HALLINTO_LOCKDOWN_ORDERS_ENABLED: true` (404 on the route, 400 on the approval page). The fence is the account's own.
+
+Flask writes what "Keskeytä" on `/admin/governance/security` writes for an account: a security case of kind `account` in status `suspended` (event method `hallinto_order`, `source: hallinto_order`) and the account's `security_suspension`, through the shared `reconcile_case`. Sessions (`auth_epoch`), API tokens, MFA challenges and magic links of the account end. The board can review and restore the account on that page with the hearing and renewed credentials it already requires, so only a suspension is ordered, never a restore. A suspended account is `stale_state` (409). Olivia's account, god and board-team accounts are `unsupported_scope` (422): they keep their own Flask safeguards. An unknown account is `denied` (403, existence concealed) and nobody can lock their own account.
+
+Receipt: `status: confirmed` with `effective: {account_locked: true}`, read after the write. Hallinto confirms only when it is true.
+
 Both kinds return the usual `pending`, `reconciliation_required` and `rejected` receipts, replayed by key.
 
 
@@ -154,6 +162,8 @@ A national moderator appointment records who may book duty shifts and who approv
 - Receipt `effective`: `{city: "", permissions (sorted), valid_until}`, plus `resulted_in_city_enablement: false`.
 
 `POST /internal/hallinto/v1/moderator-appointments/{appointment_id}/end` revokes or freezes the appointment that operation wrote. Body: `appointment_id` (must equal the path and be the Idempotency-Key of the appointment), `kind` (`revoke` or `freeze`), `account_id`, `template`, `decision_id`, `decision_revision`, `authority_attestation`. Proof action `national_moderator_end_v1`, attestation context `hallinto-national-moderator-end-v1-attestation\n`. Shifts stop giving rights at once, including a running shift and its grace period. It is idempotent. A freeze is lifted only by a new appointment decision; a frozen appointment does not block one. Receipt `effective`: `{account_id, role: "", city: "", cities: [], permissions: [], global_admin}`: nothing remains that this appointment gave.
+
+`GET /internal/hallinto/v1/orders/{order_id}` is a read-only status call for Hallinto's automatic check of an order whose answer it lost. It covers every order Flask journals under an idempotency key (roster, role removal, lockdown, access review, outbound invitations, access recoveries, organization rights and admin ends). It returns what a replay would: 200 with the receipt (confirmed or rejected), 202 with `{order_id, kind, status}` while pending or `reconciliation_required` (a pending order past its lease is reported so, but nothing is written), 404 `unknown_operation` when Flask has no such order. The mTLS workload identity is the only check; it needs no proof and no owner step-up because it changes nothing and shows only the order's own state. Hallinto never resends on this answer: a resend still needs the owner's approval.
 
 `GET /internal/hallinto/v1/duty-shifts?from=YYYY-MM-DD&days=7` (1 to 14 days) is a read-only feed for Hallinto's Vuorot page: `{"shifts": [{starts_at, ends_at, moderator, state}]}` with the moderator's display name, UTC times and the shift state (`requested`, `approved`, `running`, `grace`, `ended`, `inactive`). Cancelled shifts are left out. The mTLS workload identity is the only check; it takes no proof because it changes nothing and shows nothing beyond the calendar.
 

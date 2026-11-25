@@ -248,6 +248,21 @@ paths:
       responses:
         '200': { description: '{sendable, reason} with reason suppressed, invalid_address, limit, rate_limited or null' }
         '404': { description: Switched off }
+  /internal/hallinto/v1/orders/{order_id}:
+    get:
+      operationId: readOrderStatus
+      security: [{ workload: [] }]
+      parameters:
+        - { name: order_id, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9_-]{16,128}$' } }
+      responses:
+        '200': { description: Confirmed or rejected receipt, as a replay would return it }
+        '202': { description: Pending or reconciliation_required; nothing is written by this read }
+        '403': { $ref: '#/components/responses/Denied' }
+        '404':
+          description: Flask has no such order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /internal/hallinto/v1/operations/by-key:
     parameters:
       - $ref: '#/components/parameters/IdempotencyKey'

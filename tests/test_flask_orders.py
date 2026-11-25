@@ -86,6 +86,33 @@ def test_roster_sets_the_board_team_and_replays(orders):
     assert lookup.get_json() == receipt
 
 
+def test_order_status_is_readable_by_the_workload_alone(orders):
+    env = orders
+    app, client, db, seeded, person, team, roster_of = env[:7]
+    a, b = person("aino"), person("eero")
+    team(a)
+    status = f"/internal/hallinto/v1/orders/{ORDER}"
+    # Nothing known yet; and no workload, no answer.
+    assert client.get(status, headers=_headers(key=None)).status_code == 404
+    assert client.get(status).status_code == 403
+    body, digest = _order("board_roster", roster=_roster(a, b))
+    response, _ = _send(env, body, digest)
+    assert response.status_code == 200, response.get_json()
+    seen = client.get(status, headers=_headers(key=None))
+    assert seen.status_code == 200 and seen.get_json() == response.get_json()
+    # A lost answer: the operation is left pending past its lease. Reading it
+    # reports reconciliation_required and writes nothing.
+    from datetime import timedelta
+    from mielenosoitukset_fi.utils.time_utils import utcnow
+    db[city_grants.OPERATIONS].update_one(
+        {"idempotency_key": ORDER},
+        {"$set": {"status": "pending", "updated_at": utcnow() - timedelta(hours=1)}, "$unset": {"receipt": ""}})
+    stuck = client.get(status, headers=_headers(key=None))
+    assert stuck.status_code == 202 and stuck.get_json()["status"] == "reconciliation_required"
+    assert db[city_grants.OPERATIONS].find_one({"idempotency_key": ORDER})["status"] == "pending"
+    assert client.get("/internal/hallinto/v1/orders/short", headers=_headers(key=None)).status_code == 404
+
+
 def test_roster_removes_members_who_are_not_listed(orders):
     env = orders
     app, client, db, seeded, person, team, roster_of = env[:7]
@@ -403,3 +430,45 @@ def test_site_lockdown_shape_and_approval_page(orders):
     assert page.status_code == 200 and "Vahvista hätäsulku" in page.get_data(as_text=True)
     page = verifier.get("/admin/hallinto/approve", query_string={"r": _terms({**fields, "action": "reopen"}), "state": STATE})
     assert "Vahvista sivuston avaaminen" in page.get_data(as_text=True)
+
+
+def _account_lock(account_id, order_id=ORDER):
+    return _order("account_lock", order_id=order_id, account_id=str(account_id))
+
+
+def test_account_lock_suspends_one_account_through_the_flask_page_case(orders):
+    from mielenosoitukset_fi.utils.security_cases import suspended
+    env = orders
+    app, client, db, seeded, person = env[:5]
+    app.config["HALLINTO_LOCKDOWN_ORDERS_ENABLED"] = True
+    target = person("tuntematon")
+    other = person("ulkopuolinen")
+    db.api_tokens.insert_one({"user_id": target, "token_hash": "x"})
+    body, digest = _account_lock(target)
+    response = _send(env, body, digest)[0]
+    assert response.status_code == 200, response.get_json()
+    assert response.get_json()["effective"] == {"account_locked": True}
+    assert suspended(db.users.find_one({"_id": target})) and not suspended(db.users.find_one({"_id": other}))
+    case = db.security_cases.find_one({"target_id": str(target)})
+    assert case["kind"] == "account" and case["status"] == "suspended" and case["source"] == "hallinto_order"
+    assert case["events"][0]["method"] == "hallinto_order" and case["events"][0]["action"] == "suspend"
+    assert db.api_tokens.find_one({"user_id": target})["revoked_at"]
+    # A replay is not a second change, and a new order for the same account is stale.
+    assert _send(env, body, digest)[0].status_code == 200
+    again, digest = _account_lock(target, order_id="hallinto-order-0000000000002")
+    assert _send(env, again, digest, key="hallinto-order-0000000000002")[0].status_code == 409
+
+
+def test_account_lock_refuses_olivia_and_unknown_accounts_and_is_off_unless_enabled(orders):
+    env = orders
+    app, client, db, seeded, person, team, roster_of, olivia = env[:8]
+    body, digest = _account_lock(person("tuntematon"))
+    assert _send(env, body, digest)[0].status_code == 404  # Flag off.
+    app.config["HALLINTO_LOCKDOWN_ORDERS_ENABLED"] = True
+    body, digest = _account_lock(olivia, order_id="hallinto-order-0000000000002")
+    assert _send(env, body, digest, key="hallinto-order-0000000000002")[0].status_code == 422
+    body, digest = _account_lock(ObjectId(), order_id="hallinto-order-0000000000003")
+    assert _send(env, body, digest, key="hallinto-order-0000000000003")[0].status_code == 403
+    # An account cannot lock itself.
+    body, digest = _account_lock(seeded["admin_id"], order_id="hallinto-order-0000000000004")
+    assert _send(env, body, digest, key="hallinto-order-0000000000004")[0].status_code == 403

@@ -1,0 +1,1 @@
+- Internal Hallinto interface: new read-only `GET /internal/hallinto/v1/orders/{order_id}` lets Hallinto check what Flask did with an order whose answer was lost, without the owner re-approving a resend. It needs only the workload identity and writes nothing.

@@ -21,6 +21,8 @@ from mielenosoitukset_fi.utils.aggregate_analytics import (
     _pass_is_live,
     _acquire_rebuild,
     _release_rebuild,
+    _rebuild_from_raw,
+    _RebuildLeaseLost,
 )
 
 # Monotonic per-process bytes so crafted ObjectIds keep byte order = counter
@@ -501,3 +503,52 @@ def test_taken_over_pass_lease_aborts_without_writing(db):
     assert doc["pass_owner"] == "worker-b"
 
     _release_pass(meta, "worker-b")
+
+
+@pytest.mark.integration
+@pytest.mark.jobs
+def test_displaced_rebuild_stops_without_writing_or_pruning(db):
+    """Verify a rebuild that lost its lease neither replaces nor prunes rows."""
+    _reset_meta(db)
+    meta = db["_meta"]
+
+    demo_id = ObjectId()
+    stale_demo = ObjectId()
+    now = datetime(2026, 6, 1, 9, 50, 0, tzinfo=timezone.utc)
+    db.analytics.insert_one({"_id": _oid_at(now), "demo_id": demo_id, "timestamp": now})
+    db.d_analytics.insert_one({"_id": stale_demo, "analytics": {"2026-06-01": {"09": {"50": 7}}}})
+
+    # Rebuild A holds the lease, then B takes it over after the stale window.
+    assert _acquire_rebuild(meta, "rebuild-a") is True
+    meta.update_one(
+        {"_id": META_ID},
+        {"$set": {"rebuild_owner": "rebuild-b", "paused": True,
+                  "rebuild_started_at": datetime.now(timezone.utc)}},
+    )
+
+    with pytest.raises(_RebuildLeaseLost):
+        _rebuild_from_raw(db.analytics, db.d_analytics, meta, "rebuild-a")
+
+    assert db.d_analytics.find_one({"_id": demo_id}) is None
+    assert db.d_analytics.find_one({"_id": stale_demo}) is not None
+    doc = meta.find_one({"_id": META_ID})
+    assert doc["rebuild_owner"] == "rebuild-b"
+    assert doc["paused"] is True
+
+
+@pytest.mark.integration
+@pytest.mark.jobs
+def test_current_rebuild_owner_renews_lease_and_completes(db):
+    """Verify the fenced rebuild still finishes when it owns the lease."""
+    _reset_meta(db)
+    meta = db["_meta"]
+    demo_id = ObjectId()
+    now = datetime(2026, 6, 1, 9, 50, 0, tzinfo=timezone.utc)
+    db.analytics.insert_one({"_id": _oid_at(now), "demo_id": demo_id, "timestamp": now})
+
+    assert _acquire_rebuild(meta, "rebuild-a") is True
+    stats = _rebuild_from_raw(db.analytics, db.d_analytics, meta, "rebuild-a")
+
+    assert stats["rebuilt"] == 1
+    assert db.d_analytics.find_one({"_id": demo_id}) is not None
+    _release_rebuild(meta, "rebuild-a")

@@ -142,7 +142,8 @@ def test_email_sender_uses_plain_override_only_when_explicitly_requested(monkeyp
     )
 
     assert queued[0]["body"] == "PLAIN"
-    assert "<div class=\"message\"><p>HTML</p></div>" in queued[0]["html"]
+    assert "<p>HTML</p>" in queued[0]["html"]
+    assert "mfi-card" in queued[0]["html"]
 
 
 def test_support_reply_delivery_is_multipart_plain_and_html(monkeypatch):

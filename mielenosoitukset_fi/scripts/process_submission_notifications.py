@@ -12,6 +12,7 @@ from pymongo import ASCENDING, ReturnDocument
 
 from mielenosoitukset_fi.database_manager import DatabaseManager
 from mielenosoitukset_fi.emailer.EmailJob import EmailJob
+from mielenosoitukset_fi.emailer.render import render_email
 from mielenosoitukset_fi.emailer.EmailSender import EmailSender
 from mielenosoitukset_fi.utils.logger import logger
 from mielenosoitukset_fi.utils.notifications import notify_city_reviewers
@@ -142,12 +143,15 @@ def _send_messages(messages: List[Dict[str, Any]], queue, job, owner) -> int:
         if not template or not recipients or not subject:
             continue
 
-        rendered_body = email_sender._env.get_template(template).render(context)
+        rendered_html, rendered_text = render_email(
+            email_sender._env, getattr(email_sender, "_db", None), template, context,
+            track={"demo_id": job.get("demo_id")},
+        )
         email_job = EmailJob(
             subject=subject,
             recipients=recipients,
-            body=rendered_body,
-            html=rendered_body,
+            body=rendered_text,
+            html=rendered_html,
             instance_id=email_sender._instance_id,
         )
         _owned_update(queue, owner, {"$set": {

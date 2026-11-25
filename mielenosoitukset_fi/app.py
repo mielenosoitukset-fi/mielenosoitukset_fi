@@ -291,6 +291,8 @@ def create_app(config_overrides=None) -> Flask:
     from developer_bp import developer_bp
     from mielenosoitukset_fi.mcp_admin_bp import mcp_admin_bp
 
+    from mielenosoitukset_fi.emailer.open_tracking import email_open_bp
+    app.register_blueprint(email_open_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(admin_demo_bp)
     app.register_blueprint(admin_demo_api_bp, url_prefix="/api/admin/demo/")

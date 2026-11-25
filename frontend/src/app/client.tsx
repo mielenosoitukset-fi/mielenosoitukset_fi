@@ -21,9 +21,12 @@ function Root(props: Bootstrap) {
       // which would send the full URL off-site.
       const secretPath = name === 'password-reset' || name === 'cancel-link' || name === 'volunteer-confirm'
         || name === 'email-confirm' || name === 'org-invite';
-      if (session.matomoEnabled && !secretPath && !document.getElementById('public-app-matomo')) {
+      // Matomo loads only after the visitor accepts analytics cookies; consent.js shows the bar.
+      if (session.matomoEnabled && !secretPath && !document.getElementById('public-app-consent')) {
         const script = document.createElement('script');
-        script.id = 'public-app-matomo'; script.src = '/static/js/matomo.js'; script.async = true;
+        script.id = 'public-app-consent'; script.src = '/static/js/consent.js?v=20261124-consent-1'; script.async = true;
+        script.setAttribute('data-matomo', '1');
+        script.setAttribute('data-matomo-src', '/static/js/matomo.js');
         document.head.appendChild(script);
       }
       // Detail/series views keep their separate demonstration-view collection.

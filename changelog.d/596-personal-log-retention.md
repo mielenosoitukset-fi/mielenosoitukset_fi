@@ -1,0 +1,1 @@
+- New daily job `purge_personal_logs` removes old personal data from login logs, malicious reports, submission errors and reminder subscriptions (#596). It stays off until the maintainer switches it on.

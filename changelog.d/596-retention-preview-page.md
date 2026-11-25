@@ -1,0 +1,1 @@
+- Global admins can open a read-only page under Taustatyöt that shows how many rows the personal log retention job would remove. It changes nothing and each view is logged (#596).

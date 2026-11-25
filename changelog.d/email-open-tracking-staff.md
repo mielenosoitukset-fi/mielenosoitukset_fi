@@ -1,0 +1,1 @@
+- Ylläpitäjille ja tapausten käsittelijöille lähtevissä ilmoitussähköposteissa on nyt seurantakuva. Tapaussivun "Ilmoitetut ylläpitäjät" -osiossa näkyy, milloin kukin ylläpitäjä avasi tapausviestin. Tietoja säilytetään 90 päivää, eikä IP-osoitetta, selaintietoja tai sähköpostiosoitetta tallenneta. Tietosuojaselostetta päivitetty. Käyttäjille lähteviä sähköposteja ei seurata.
