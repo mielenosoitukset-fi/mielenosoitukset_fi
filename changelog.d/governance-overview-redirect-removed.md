@@ -1,0 +1,1 @@
+- The unused `/admin/governance/` redirect to Hallinto is removed, and the two admin manual pages no longer link to it; the overview itself lives in Hallinto.

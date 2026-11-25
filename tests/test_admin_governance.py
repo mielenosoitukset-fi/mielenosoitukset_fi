@@ -15,11 +15,8 @@ def _governance_csrf_headers(client):
 def test_governance_overview_lives_in_hallinto(app, db, seeded_data):
     client = _client_for_user(app, seeded_data["admin_id"])
 
-    app.config["HALLINTO_URL"] = None
-    assert client.get("/admin/governance/").headers["Location"].endswith("/admin/dashboard")
     app.config["HALLINTO_URL"] = "https://hallinto.example.test/"
-    response = client.get("/admin/governance/")
-    assert response.status_code == 302 and response.headers["Location"] == "https://hallinto.example.test/"
+    assert client.get("/admin/governance/").status_code == 404
 
     page = client.get("/admin/dashboard").get_data(as_text=True)
     assert 'href="https://hallinto.example.test/"' in page

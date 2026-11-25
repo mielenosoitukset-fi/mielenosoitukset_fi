@@ -69,19 +69,6 @@ def security():
                            governance_csrf_token=governance_csrf_token()), status
 
 
-@admin_governance_bp.route("/")
-@login_required
-@admin_required
-def dashboard():
-    """The overview moved to Hallinto; the technical pages stay as unlinked routes."""
-    from flask import current_app
-
-    target = current_app.config.get("HALLINTO_URL")
-    if isinstance(target, str) and target.startswith("https://"):
-        return redirect(target, code=302)
-    return redirect(url_for("admin.admin_dashboard"), code=302)
-
-
 @admin_governance_bp.route("/clearances")
 @login_required
 @admin_required
