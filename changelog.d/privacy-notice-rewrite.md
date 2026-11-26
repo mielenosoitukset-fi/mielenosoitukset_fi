@@ -1,0 +1,1 @@
+- Tietosuojaseloste on kirjoitettu lyhyemmäksi ja selkeämmäksi: tiivistelmä alussa, käsittelyn oikeusperusteet, vastaanottajat, säilytysajat, tilin poistaminen, oikeudet ja valitusoikeus tietosuojavaltuutetulle. Sisältö vastaa hyväksyttyä tietosuojalinjausta.
