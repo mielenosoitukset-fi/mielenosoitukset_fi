@@ -34,6 +34,9 @@ try {
     today: '2026-11-13',
     volunteer: { endpoint: '__VOLUNTEER_ENDPOINT__', messages: volunteerMessages },
   }));
+  // Flask's /privacy shares the React notice text, so the two can never drift apart.
+  const { PrivacyContent } = await server.ssrLoadModule('/src/app/information/PrivacyContent.tsx');
+  save('privacy', createElement(PrivacyContent));
   for (const status of ['success', 'invalid', 'expired']) {
     save(`confirmation_${status}`, createElement(ConfirmationPage, {
       status, urls: { home: '__URL_HOME__', campaign: '__URL_CAMPAIGN__' },
