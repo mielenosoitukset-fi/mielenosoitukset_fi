@@ -349,6 +349,8 @@ class Config:
         cls.ACCESS_REVIEW_CONTACT_ENABLED = config.get("ACCESS_REVIEW_CONTACT_ENABLED", False)
         cls.ACCESS_REVIEW_REPLY_TO = config.get("ACCESS_REVIEW_REPLY_TO", "hallinto@mielenosoitukset.fi")
         cls.ACCESS_REVIEW_REPLY_BASE = config.get("ACCESS_REVIEW_REPLY_BASE", "https://mielenosoitukset.fi")
+        # OT notice mail for escalated cases (admin/escalation_notices.py); off unless true.
+        cls.ESCALATION_OT_NOTICES_ENABLED = config.get("ESCALATION_OT_NOTICES_ENABLED", False)
         cls.GOD_AUTH_ORIGIN = config.get("GOD_AUTH_ORIGIN", "https://mielenosoitukset.fi")
         cls.GOD_EMERGENCY_ENABLED = config.get("GOD_EMERGENCY_ENABLED", False)
         cls.GOD_EMERGENCY_PANEL_KEYS = config.get("GOD_EMERGENCY_PANEL_KEYS", {})

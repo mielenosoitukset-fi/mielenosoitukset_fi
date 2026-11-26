@@ -1,0 +1,1 @@
+- OT escalation notice mails can now be switched on from config.yaml (`ESCALATION_OT_NOTICES_ENABLED`); the setting was ignored before.
