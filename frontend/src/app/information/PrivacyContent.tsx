@@ -91,10 +91,11 @@ export function PrivacyContent() {
     <section className="public-prose-card">
       <h2>Kuinka kauan tietoja säilytetään</h2>
       <ul>
-        <li><strong>Käyttäjätili ja palvelupyynnöt:</strong> niin kauan kuin tili tai pyyntö on voimassa. Mielenosoitusten julkaisu- ja muutoshistoria voidaan säilyttää tapahtuman jälkeenkin palvelun historian, moderoinnin ja oikeusvaateiden vuoksi.</li>
-        <li><strong>Kirjautumislokit ja väärinkäytösilmoitukset:</strong> 12 kuukautta. Jos käyttäjää koskee avoin turvallisuustapaus, kirjautumislokit säilytetään tapauksen päättymiseen asti.</li>
+        <li><strong>Käyttäjätili ja palvelupyynnöt:</strong> niin kauan kuin tili tai pyyntö on voimassa. Avoimen tapauksen tiedot säilytetään, kunnes tapaus on suljettu. Mielenosoitusten julkaisu- ja muutoshistoria voidaan säilyttää tapahtuman jälkeenkin palvelun historian, moderoinnin ja oikeusvaateiden vuoksi.</li>
+        <li><strong>Kirjautumislokit, väärinkäytösilmoitukset ja virheilmoitukset:</strong> 12 kuukautta. Jos käyttäjää koskee avoin turvallisuustapaus, kirjautumislokit säilytetään tapauksen päättymiseen asti.</li>
         <li><strong>Lomakkeen lähetysvirheet:</strong> lomaketiedot 30 päivää, koko virhetieto 90 päivää.</li>
-        <li><strong>Mielenosoituksen muistutuksen IP-osoite ja User-Agent:</strong> 90 päivää. Sähköpostiosoite säilyy, kunnes perut muistutuksen.</li>
+        <li><strong>Mielenosoituksen muistutuksen IP-osoite ja User-Agent:</strong> 90 päivää. Sähköpostiosoite säilyy, kunnes perut muistutuksen, enintään 24 kuukautta.</li>
+        <li><strong>Salasanan palautuslinkin käyntitiedot (IP-osoite ja User-Agent):</strong> 30 päivää.</li>
         <li><strong>Ylläpidon sähköpostien avaustieto:</strong> 90 päivää.</li>
         <li><strong>Ylläpidon toimien ja tietokantamuutosten historia:</strong> 2 vuotta.</li>
         <li><strong>Kaupunkiadmin-hakemus:</strong> kunnes se on käsitelty. Hylätyn tai perutun hakemuksen tekstit poistetaan 90 päivän ja hyväksytyn 365 päivän kuluttua päätöksestä. Paikkakunnat, tila ja päivämäärät jäävät.</li>
@@ -112,6 +113,7 @@ export function PrivacyContent() {
 
     <section className="public-prose-card">
       <h2>Tilin poistaminen</h2>
+      <p><strong>Käyttämättömät tilit.</strong> Jos tavallisella tilillä ei ole kirjauduttu 24 kuukauteen, lähetämme siitä sähköpostia ja poistamme tilin 30 päivän kuluttua, ellet kirjaudu sisään. Muistutamme vielä 7 päivää ennen poistoa. Kirjautuminen peruu poiston. Poisto ei koske ylläpitäjiä, organisaatioiden omistajia ja ylläpitäjiä, tilejä joilla on laajemmat oikeudet eikä tilejä, joilla on avoin tapaus.</p>
       <p>Kun tili poistetaan, poistamme kirjautumistiedot, asetukset ja muut vain tiliä varten tallennetut tiedot sekä tavalliset henkilötiedot.</p>
       <p>Väärinkäytösten selvittämiseen tarvittavat tiedot säilytetään: kirjautumis- ja hallintalokit, väärinkäytösilmoitukset ja moderointitapaukset. Niistä korvataan nimi, käyttäjätunnus, sähköpostiosoite ja tilin tunnus peitenimellä (poistettu-…), josta henkilöä ei voi suoraan tunnistaa. IP-osoitteet säilyvät. Ylläpitäjien ja muiden laajemmilla oikeuksilla toimineiden tilien tiedot säilytetään samalla tavalla, jotta ylläpidon toimet voidaan selvittää jälkikäteen.</p>
       <p>Alkuperäiset tunnistetiedot tallennetaan salattuina. Salauksen voi purkaa vain palvelun ulkopuolella säilytettävällä avaimella ja vain väärinkäytöksen selvittämiseksi tai lakisääteisen velvoitteen vuoksi. Salatut tunnistetiedot ja muut säilytetyt henkilötiedot poistetaan kahden vuoden kuluttua tilin poistamisesta. Sen jälkeen jäljelle jäävät kirjaukset eivät ole yhdistettävissä henkilöön. Peruste: oikeutettu etu (f alakohta).</p>

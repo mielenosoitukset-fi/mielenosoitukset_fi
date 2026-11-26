@@ -94,3 +94,32 @@ def test_purge_job_is_registered():
     from mielenosoitukset_fi.background_jobs.definitions import JOB_DEFINITION_MAP
 
     assert "purge_personal_logs" in JOB_DEFINITION_MAP
+
+
+def test_reports_reminder_cap_and_reset_visits(db):
+    from mielenosoitukset_fi.scripts import purge_personal_logs as purge
+
+    for name in ("reports", "demo_reminders", "password_changes"):
+        db[name].delete_many(MARK)
+    db.reports.insert_many([
+        {**MARK, "n": "old", "date": _days(366), "ip": "1.2.3.4", "reporter_email": "a@example.test"},
+        {**MARK, "n": "fresh", "date": _days(364), "ip": "1.2.3.4"},
+    ])
+    db.demo_reminders.insert_many([
+        {**MARK, "n": "capped", "created_at": _days(731), "user_email": "a@example.test"},
+        {**MARK, "n": "kept", "created_at": _days(729), "user_email": "a@example.test"},
+    ])
+    db.password_changes.insert_many([
+        {**MARK, "n": "old_visit", "datetime": _days(31), "visit": True, "changed": False, "ip": "1.2.3.4"},
+        {**MARK, "n": "fresh_visit", "datetime": _days(29), "visit": True, "changed": False},
+        {**MARK, "n": "old_change", "datetime": _days(400), "visit": True, "changed": True},
+    ])
+    try:
+        purge.purge(db, now=NOW)
+        names = lambda coll: {d["n"] for d in db[coll].find(MARK)}
+        assert names("reports") == {"fresh"}
+        assert names("demo_reminders") == {"kept"}
+        assert names("password_changes") == {"fresh_visit", "old_change"}
+    finally:
+        for name in ("reports", "demo_reminders", "password_changes"):
+            db[name].delete_many(MARK)

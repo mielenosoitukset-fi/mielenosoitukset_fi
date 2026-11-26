@@ -49,5 +49,36 @@
       </table>
     </div>
   </section>
+
+  <section class="admin-section-card" aria-label="{{ _('Käyttämättömät tilit') }}">
+    <div class="admin-panel-inset admin-jobs__notice" role="status">
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+      <div>
+        <strong>{{ _('Työ „Käyttämättömien tilien poisto“') }}</strong>
+        <p>
+          {% if inactive_enabled %}{{ _('Työ on päällä (INACTIVE_ACCOUNT_DELETION_ENABLED) ja lähettää varoitukset ja poistaa tilit päivittäin.') }}
+          {% else %}{{ _('Työ on pois päältä (INACTIVE_ACCOUNT_DELETION_ENABLED puuttuu), eikä varoituksia lähetetä eikä tilejä poisteta.') }}{% endif %}
+          {{ _('Luvut näyttävät, mitä seuraava ajo tekisi nyt. Tämä sivu ei lähetä viestejä eikä muuta mitään.') }}
+        </p>
+      </div>
+    </div>
+    <div class="admin-data-view__viewport" tabindex="0" role="region" aria-label="{{ _('Käyttämättömät tilit') }}">
+      <table class="admin-data-view__table">
+        <thead>
+          <tr>
+            <th scope="col">{{ _('Vaihe') }}</th>
+            <th scope="col">{{ _('Tilejä nyt') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>{{ _('Ensimmäinen varoitus lähtisi') }}</td><td><strong>{{ inactive.first_warning }}</strong></td></tr>
+          <tr><td>{{ _('Loppumuistutus lähtisi') }}</td><td><strong>{{ inactive.final_warning }}</strong></td></tr>
+          <tr><td>{{ _('Poistettaisiin') }}</td><td><strong>{{ inactive.deleted }}</strong></td></tr>
+          <tr><td>{{ _('Ohitettaisiin (ylläpitäjä, omistaja, avoin tapaus tms.)') }}</td><td><strong>{{ inactive.exempt }}</strong></td></tr>
+          <tr><td>{{ _('Varoitus peruuntuisi (kirjautunut tai suojattu)') }}</td><td><strong>{{ inactive.cleared }}</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
 {% endblock %}

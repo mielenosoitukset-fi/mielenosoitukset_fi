@@ -10,7 +10,11 @@ Maintainer decision (24.11.2026), see issue #596:
 - ``demo_submission_errors``: the form snapshot is removed after 30 days and the
   whole row is deleted after 90 days.
 - ``demo_reminders``: IP and User-Agent are removed after 90 days. The address
-  stays until the person unsubscribes.
+  stays until the person unsubscribes, at most 24 months.
+- ``reports`` (error reports from the public form, with IP and reporter email):
+  deleted after 12 months. Open cases keep their own copy until closed.
+- ``password_changes``: the visit rows of reset links (IP, User-Agent, email)
+  are deleted after 30 days. Rows of completed password changes stay.
 
 Audit logs and kept records of deleted accounts follow their own retention
 (``AUDIT_RETENTION_DAYS``, ``ERASURE_RETENTION_DAYS``). Does nothing unless
@@ -27,13 +31,16 @@ from mielenosoitukset_fi.utils.security_cases import TERMINAL
 
 DAY = timedelta(days=1)
 
-# (collection, date field, days, fields to unset; empty means delete the row)
+# (collection, date field, days, fields to unset; empty means delete the row, extra query)
 RULES = (
-    ("login_logs", "timestamp", 365, ()),
-    ("malicious_reports", "reported_at", 365, ()),
-    ("demo_submission_errors", "created_at", 30, ("form_snapshot",)),
-    ("demo_submission_errors", "created_at", 90, ()),
-    ("demo_reminders", "created_at", 90, ("user_ip", "user_agent")),
+    ("login_logs", "timestamp", 365, (), None),
+    ("malicious_reports", "reported_at", 365, (), None),
+    ("reports", "date", 365, (), None),
+    ("demo_submission_errors", "created_at", 30, ("form_snapshot",), None),
+    ("demo_submission_errors", "created_at", 90, (), None),
+    ("demo_reminders", "created_at", 90, ("user_ip", "user_agent"), None),
+    ("demo_reminders", "created_at", 730, (), None),
+    ("password_changes", "datetime", 30, (), {"visit": True, "changed": {"$ne": True}}),
 )
 
 
@@ -52,8 +59,8 @@ def purge(db, now=None, dry_run=False):
     now = now or datetime.now(timezone.utc)
     protected = _protected_user_ids(db)
     result = {}
-    for collection, date_field, days, fields in RULES:
-        query = {date_field: {"$lt": now - days * DAY}}
+    for collection, date_field, days, fields, extra in RULES:
+        query = {date_field: {"$lt": now - days * DAY}, **(extra or {})}
         if fields:
             query["$or"] = [{field: {"$exists": True}} for field in fields]
         if collection == "login_logs" and protected:
