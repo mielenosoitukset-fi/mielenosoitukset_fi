@@ -1260,12 +1260,17 @@ def retention_preview():
             "count": count,
             "total": db[collection].estimated_document_count(),
         })
-    _log_admin_event("retention_preview_view", counts=result["counts"])
+    from mielenosoitukset_fi.utils import inactive_accounts
+
+    inactive = inactive_accounts.run(db, dry_run=True)["counts"]
+    _log_admin_event("retention_preview_view", counts=result["counts"], inactive_accounts=inactive)
     return render_template(
         f"{_ADMIN_TEMPLATE_FOLDER}retention_preview.html",
         rows=rows,
         protected_users=result["protected_users"],
         enabled=purge_personal_logs.is_enabled(),
+        inactive=inactive,
+        inactive_enabled=inactive_accounts.is_enabled(),
     )
 
 
