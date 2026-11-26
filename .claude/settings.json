@@ -1,4 +1,10 @@
 {
+  "extraKnownMarketplaces": {
+    "oliviaos": { "source": { "source": "github", "repo": "botsarefuture/oliviaos-skill" } }
+  },
+  "enabledPlugins": {
+    "oliviaos-guard@oliviaos": true
+  },
   "hooks": {
     "PreToolUse": [
       {
