@@ -1,0 +1,1 @@
+- `robots.txt` now asks AI and bulk crawlers (GPTBot, Meta, ClaudeBot and others) to skip the calendar pages. Google and Bing are not affected. This cuts server load after a crawl of thousands of calendar years on 26–27 November.

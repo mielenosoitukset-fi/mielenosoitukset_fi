@@ -13,6 +13,19 @@ from mielenosoitukset_fi.utils.public_gate import PublicGate
 
 # Served during a lockdown: Hallinto sign-in (OIDC issuer and the internal
 # backchannel) and the campaign pages the maintenance page links to.
+CALENDAR_BLOCKED_BOTS = (
+    "GPTBot",
+    "ChatGPT-User",
+    "OAI-SearchBot",
+    "meta-externalagent",
+    "meta-externalfetcher",
+    "ClaudeBot",
+    "CCBot",
+    "Bytespider",
+    "Amazonbot",
+    "PerplexityBot",
+    "Applebot-Extended",
+)
 LOCKDOWN_EXEMPT_PREFIXES = ("/hallinto-oidc", "/internal/hallinto", "/kampanja", "/keräys")
 
 
@@ -1293,6 +1306,12 @@ def init_routes(app):
             "    Disallow: /users/auth/login/\n"
             "    Disallow: /users/auth/register/\n"
             "    Disallow: /users/auth/forgot/\n"
+            "\n"
+            "# AI and bulk crawlers: skip the endless calendar year/month pages.\n"
+            + "".join(f"User-agent: {bot}\n" for bot in CALENDAR_BLOCKED_BOTS)
+            + "Disallow: /calendar/\n"
+            "Disallow: /city/*/calendar/\n"
+            "\n"
             "Sitemap: https://mielenosoitukset.fi/sitemap.xml\n"
         )
         return Response(txt, mimetype="text/plain")
