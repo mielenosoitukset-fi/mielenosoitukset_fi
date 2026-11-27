@@ -1307,7 +1307,6 @@ def init_routes(app):
             "    Disallow: /users/auth/register/\n"
             "    Disallow: /users/auth/forgot/\n"
             "\n"
-            "# AI and bulk crawlers: skip the endless calendar year/month pages.\n"
             + "".join(f"User-agent: {bot}\n" for bot in CALENDAR_BLOCKED_BOTS)
             + "Disallow: /calendar/\n"
             "Disallow: /city/*/calendar/\n"
