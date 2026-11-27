@@ -1,0 +1,1 @@
+- Calendar pages: only last, current and next year are indexable (other years send `noindex, nofollow`), and AI crawlers may read the current year calendar in robots.txt while the rest stays blocked.

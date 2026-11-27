@@ -57,6 +57,7 @@ from flask import (
     jsonify,
     session,
     current_app,
+    make_response,
 )
 from flask_login import current_user, login_required
 from bson.objectid import ObjectId
@@ -1299,6 +1300,7 @@ def init_routes(app):
 
     @app.route("/robots.txt")
     def robots_txt():
+        year = date.today().year
         txt = (
             "User-agent: *\n"
             "    Disallow: /admin/\n"
@@ -1308,7 +1310,9 @@ def init_routes(app):
             "    Disallow: /users/auth/forgot/\n"
             "\n"
             + "".join(f"User-agent: {bot}\n" for bot in CALENDAR_BLOCKED_BOTS)
-            + "Disallow: /calendar/\n"
+            + f"Allow: /calendar/{year}/\n"
+            f"Allow: /city/*/calendar/{year}/\n"
+            "Disallow: /calendar/\n"
             "Disallow: /city/*/calendar/\n"
             "\n"
             "Sitemap: https://mielenosoitukset.fi/sitemap.xml\n"
@@ -4874,6 +4878,16 @@ def init_routes(app):
         weekday_names = [localized_days[index] for index in range(7)]
         return locale, month_names, weekday_names
 
+    def _calendar_year_noindex(year, today):
+        """Only last, current and next year are indexable; the rest is empty grid."""
+        return not (today.year - 1 <= year <= today.year + 1)
+
+    def _calendar_response(html, noindex):
+        response = make_response(html)
+        if noindex:
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        return response
+
     # ============================
     # Month view
     # ============================
@@ -4894,8 +4908,7 @@ def init_routes(app):
             year = today.year
             return redirect(url_for("calendar_month_view", year=year, month=month))
         
-        if year < 2000 or year > 2100:
-            noindex_nofollow = True
+        noindex_nofollow = _calendar_year_noindex(year, today)
 
         # Haetaan kaikki demonstraatiot
         demonstrations = list(demonstrations_collection.find(DEMO_FILTER))
@@ -4928,7 +4941,7 @@ def init_routes(app):
         
         template_name = "demo_views/calendar_grid_old.html" if old_view else "demo_views/calendar_grid.html"
         
-        return render_template(
+        return _calendar_response(render_template(
             template_name,
             year=year,
             month=month,
@@ -4942,7 +4955,7 @@ def init_routes(app):
             next_year=next_year,
             next_month=next_month,
             noindex_nofollow=noindex_nofollow
-        )
+        ), noindex_nofollow)
 
     # ============================
     # Year view
@@ -4952,10 +4965,8 @@ def init_routes(app):
         # Haetaan kaikki demonstraatiot
         demonstrations = list(demonstrations_collection.find(DEMO_FILTER))
 
-        noindex_nofollow = False
-        if year < 2000 or year > 2100:
-            noindex_nofollow = True
-            
+        noindex_nofollow = _calendar_year_noindex(year, date.today())
+
         # Valmistellaan tietorakenne: month -> {weeks, days}
         year_demos = {}
         cal = calendar.Calendar(firstweekday=0)  # Monday
@@ -4978,7 +4989,7 @@ def init_routes(app):
 
         calendar_locale, month_names, weekday_names = _localized_calendar_labels()
 
-        return render_template(
+        return _calendar_response(render_template(
             "demo_views/calendar_year.html",
             year=year,
             month_names=month_names,
@@ -4986,7 +4997,7 @@ def init_routes(app):
             weekday_names=weekday_names,
             year_demos=year_demos,
             noindex_nofollow=noindex_nofollow
-        )
+        ), noindex_nofollow)
 
     @app.context_processor
     def inject_current_year():
