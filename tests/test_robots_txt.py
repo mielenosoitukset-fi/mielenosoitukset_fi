@@ -50,3 +50,17 @@ def test_robots_txt_keeps_existing_directives_and_single_sitemap(app):
     assert parsed.path == "/sitemap.xml"
     assert parsed.query == ""
     assert parsed.fragment == ""
+
+
+def test_robots_txt_blocks_calendar_for_ai_crawlers_not_search_engines(app):
+    body = _production_robots(app)
+    groups = [g for g in body.split("\n\n") if "User-agent:" in g]
+
+    ai = next(g for g in groups if "User-agent: GPTBot" in g)
+    assert "User-agent: meta-externalagent" in ai
+    assert "Disallow: /calendar/" in ai
+    assert "Disallow: /city/*/calendar/" in ai
+
+    everyone = next(g for g in groups if "User-agent: *" in g)
+    assert "/calendar/" not in everyone
+    assert "Googlebot" not in body and "bingbot" not in body
